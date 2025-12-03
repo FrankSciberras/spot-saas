@@ -1,0 +1,88 @@
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.quickActionsCard {
+  margin-bottom: var(--spacing-xl);
+}
+
+.goOnlineBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-xl);
+  font-weight: 600;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: var(--shadow-md);
+}
+
+.goOnlineBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.goOnlineIcon {
+  font-size: 2rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vehicleReg {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.vehicleInfo {
+  color: var(--text-secondary);
+}
+
+.documentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.documentList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.documentList li:last-child {
+  border-bottom: none;
+}
+
+.viewAllLink {
+  margin-top: var(--spacing-md);
+  text-align: right;
+}
+
+.viewAllLink a {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.viewAllLink a:hover {
+  text-decoration: underline;
+}
