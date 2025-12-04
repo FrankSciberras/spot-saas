@@ -9,7 +9,7 @@ const adminRoutes = /^\/admin/;
 const driverRoutes = /^\/driver/;
 const apiRoutes = /^\/api/;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes and API routes (API routes handle their own auth)

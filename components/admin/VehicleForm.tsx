@@ -59,6 +59,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
   const fileInputRefs = {
     VEHICLE_INSURANCE: useRef<HTMLInputElement>(null),
     ROAD_LICENSE: useRef<HTMLInputElement>(null),
+    LOGBOOK: useRef<HTMLInputElement>(null),
     OTHER: useRef<HTMLInputElement>(null),
   };
 
@@ -386,6 +387,44 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
                 className={styles.uploadedFile}
               >
                 📄 {file.file_name || 'Road License'}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* Logbook */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>📖 Logbook</span>
+            <p className={styles.documentHint}>Vehicle registration logbook</p>
+          </div>
+          <div className={styles.documentUpload}>
+            <input
+              type="file"
+              ref={fileInputRefs.LOGBOOK}
+              onChange={handleFileInputChange('LOGBOOK')}
+              accept=".pdf,.jpg,.jpeg,.png"
+              style={{ display: 'none' }}
+            />
+            {mode === 'edit' && (
+              <button
+                type="button"
+                className={`btn btn-secondary ${styles.uploadBtn}`}
+                onClick={() => triggerFileInput('LOGBOOK')}
+                disabled={uploadingType === 'LOGBOOK'}
+              >
+                {uploadingType === 'LOGBOOK' ? 'Uploading...' : '📎 Upload'}
+              </button>
+            )}
+            {uploadedFiles.LOGBOOK?.map(file => (
+              <a
+                key={file.id}
+                href={file.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {file.file_name || 'Logbook'}
               </a>
             ))}
           </div>

@@ -12,6 +12,14 @@ interface DriverWithRelations extends Driver {
   vehicles: Vehicle | null;
 }
 
+interface FileRecord {
+  id: string;
+  type: string;
+  file_url: string;
+  file_name: string | null;
+  uploaded_at: string;
+}
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -77,6 +85,14 @@ export default async function DriverDetailPage({ params }: PageProps) {
     return '';
   };
 
+  // Fetch documents/attachments for this driver
+  const { data: documents } = await supabase
+    .from('files')
+    .select('id, type, file_url, file_name, uploaded_at')
+    .eq('owner_type', 'driver')
+    .eq('owner_id', id)
+    .order('uploaded_at', { ascending: false });
+
   // Fetch recent shifts for this driver
   const { data: recentShifts } = await supabase
     .from('driver_shifts')
@@ -84,6 +100,18 @@ export default async function DriverDetailPage({ params }: PageProps) {
     .eq('driver_id', id)
     .order('start_time', { ascending: false })
     .limit(5);
+
+  // Group documents by type
+  const getDocumentsByType = (type: string): FileRecord[] => {
+    return (documents || []).filter((doc: FileRecord) => doc.type === type);
+  };
+
+  const documentTypes = [
+    { key: 'ID_CARD', label: 'ID Card' },
+    { key: 'DRIVING_LICENSE', label: 'Driving License' },
+    { key: 'POLICE_CONDUCT', label: 'Police Conduct' },
+    { key: 'TAG_LICENSE', label: 'TAG License' },
+  ];
 
   return (
     <DashboardLayout user={user} variant="admin" title={driverData.full_name}>
@@ -207,6 +235,40 @@ export default async function DriverDetailPage({ params }: PageProps) {
               {getExpiryLabel(driverData.police_conduct_expiry_date)}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Documents & Attachments */}
+      <div className={styles.detailCard}>
+        <h3>Documents &amp; Attachments</h3>
+        <div className={styles.detailGrid}>
+          {documentTypes.map((docType) => {
+            const attachments = getDocumentsByType(docType.key);
+            return (
+              <div key={docType.key} className={styles.detailItem}>
+                <span className={styles.detailLabel}>{docType.label}</span>
+                <span className={styles.detailValue}>
+                  {attachments.length > 0 ? (
+                    <span className={styles.attachmentLinks}>
+                      {attachments.map((file: FileRecord) => (
+                        <a
+                          key={file.id}
+                          href={file.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.attachmentLink}
+                        >
+                          📎 {file.file_name || 'View Document'}
+                        </a>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className={styles.empty}>No file uploaded</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -124,6 +124,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
   const DOC_TYPE_LABELS: Record<string, string> = {
     VEHICLE_INSURANCE: 'Insurance',
     ROAD_LICENSE: 'Road License',
+    LOGBOOK: 'Logbook',
     OTHER: 'Other Documents',
   };
 
@@ -292,27 +293,52 @@ export default async function VehicleDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Other Documents */}
-        {groupedDocs.OTHER && groupedDocs.OTHER.length > 0 && (
-          <div className={styles.documentRow}>
-            <div className={styles.documentInfo}>
-              <span className={styles.documentLabel}>📁 Other Documents</span>
-            </div>
-            <div className={styles.documentUpload}>
-              {groupedDocs.OTHER.map(doc => (
-                <a
-                  key={doc.id}
-                  href={doc.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.uploadedFile}
-                >
-                  📄 {doc.file_name || 'Document'}
-                </a>
-              ))}
-            </div>
+        {/* Logbook */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>📖 Logbook</span>
+            <span className={styles.documentHint}>Vehicle registration logbook</span>
           </div>
-        )}
+          <div className={styles.documentUpload}>
+            {groupedDocs.LOGBOOK?.map(doc => (
+              <a
+                key={doc.id}
+                href={doc.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {doc.file_name || 'Logbook'}
+              </a>
+            ))}
+            {!groupedDocs.LOGBOOK?.length && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No file uploaded</span>
+            )}
+          </div>
+        </div>
+
+        {/* Other Documents */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>📁 Other Documents</span>
+          </div>
+          <div className={styles.documentUpload}>
+            {groupedDocs.OTHER?.map(doc => (
+              <a
+                key={doc.id}
+                href={doc.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {doc.file_name || 'Document'}
+              </a>
+            ))}
+            {!groupedDocs.OTHER?.length && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No file uploaded</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Service Status */}
