@@ -1,0 +1,58 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { requireRole } from '@/lib/auth/session';
+import { createClient } from '@/lib/supabase/server';
+import DashboardLayout from '@/components/shared/DashboardLayout';
+import ServiceForm from '@/components/admin/ServiceForm';
+import styles from '@/components/admin/AdminForms.module.css';
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function EditServicePage({ params }: PageProps) {
+  const { id } = await params;
+  const user = await requireRole(['admin']);
+  const supabase = await createClient();
+
+  // Get the service
+  const { data: service, error } = await supabase
+    .from('vehicle_services')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !service) {
+    notFound();
+  }
+
+  // Get all vehicles
+  const { data: vehicles } = await supabase
+    .from('vehicles')
+    .select('id, registration_number, make, model, mileage')
+    .order('registration_number');
+
+  return (
+    <DashboardLayout user={user} variant="admin" title="Edit Service">
+      <div className={styles.pageHeader}>
+        <div className={styles.pageTitle}>
+          <h2>Edit Service</h2>
+          <span className={styles.subtitle}>
+            Update service record details
+          </span>
+        </div>
+        <div className={styles.pageActions}>
+          <Link href={`/admin/services/${id}`} className="btn btn-secondary">
+            ← Back to Service
+          </Link>
+        </div>
+      </div>
+
+      <ServiceForm 
+        service={service} 
+        vehicles={vehicles || []} 
+        mode="edit" 
+      />
+    </DashboardLayout>
+  );
+}

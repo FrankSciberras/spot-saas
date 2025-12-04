@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/lib/types/database';
+import NotificationBell from './NotificationBell';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -27,14 +28,17 @@ export default function Header({ user, title }: HeaderProps) {
       </div>
 
       <div className={styles.right}>
-        <div className={styles.userInfo}>
-          <span className={styles.greeting}>
-            Hello, <strong>{user.full_name || user.email.split('@')[0]}</strong>
-          </span>
-          <span className={`badge ${user.role === 'admin' ? 'badge-info' : user.role === 'staff' ? 'badge-secondary' : 'badge-success'}`}>
-            {user.role}
-          </span>
-        </div>
+        <NotificationBell />
+        {user && (
+          <div className={styles.userInfo}>
+            <span className={styles.greeting}>
+              Hello, <strong>{user.full_name || user.email?.split('@')[0] || 'User'}</strong>
+            </span>
+            <span className={`badge ${user.role === 'admin' ? 'badge-info' : user.role === 'staff' ? 'badge-secondary' : 'badge-success'}`}>
+              {user.role || 'user'}
+            </span>
+          </div>
+        )}
         <button onClick={handleLogout} className={`btn btn-outline ${styles.logoutBtn}`}>
           Logout
         </button>

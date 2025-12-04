@@ -2,10 +2,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-md) var(--spacing-xl);
-  background-color: var(--bg-primary);
-  border-bottom: 1px solid var(--border-color);
-  height: 64px;
+  padding: 0 28px;
+  background: transparent;
+  height: var(--header-height);
 }
 
 .left {
@@ -17,18 +16,23 @@
   font-size: var(--font-xl);
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
+  gap: 8px;
 }
 
 .userInfo {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 12px;
+  padding: 6px 12px 6px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
 }
 
 .greeting {
@@ -36,6 +40,21 @@
   color: var(--text-secondary);
 }
 
+.greeting strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .logoutBtn {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 6px 14px;
+  font-size: var(--font-xs);
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  border: none;
+  color: var(--text-secondary);
+}
+
+.logoutBtn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }

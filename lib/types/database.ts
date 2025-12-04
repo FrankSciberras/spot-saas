@@ -41,6 +41,7 @@ export interface Driver {
   police_conduct_expiry_date: string | null;
   driving_license_number: string | null;
   driving_license_expiry_date: string | null;
+  tag_license_expiry_date: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -162,6 +163,107 @@ export interface ChatMessage {
 }
 
 // =============================================================================
+// Notification Rules Types
+// =============================================================================
+
+export type NotificationTrigger = 
+  | 'roster_published'
+  | 'roster_updated'
+  | 'shift_reminder'
+  | 'document_expiry'
+  | 'service_due'
+  | 'custom';
+
+export type NotificationChannel = 'app' | 'email' | 'push' | 'all';
+
+export interface NotificationRule {
+  id: string;
+  name: string;
+  description: string | null;
+  trigger_type: NotificationTrigger;
+  channel: NotificationChannel;
+  is_active: boolean;
+  trigger_config: Record<string, unknown>;
+  title_template: string;
+  body_template: string;
+  target_role: UserRole | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationLog {
+  id: string;
+  rule_id: string | null;
+  recipient_id: string | null;
+  driver_id: string | null;
+  channel: NotificationChannel;
+  title: string;
+  body: string;
+  status: 'pending' | 'sent' | 'failed';
+  error_message: string | null;
+  metadata: Record<string, unknown>;
+  sent_at: string | null;
+  created_at: string;
+}
+
+// =============================================================================
+// Role Permissions Types
+// =============================================================================
+
+export type PermissionResource = 
+  | 'dashboard'
+  | 'drivers'
+  | 'vehicles'
+  | 'shifts'
+  | 'rosters'
+  | 'services'
+  | 'notifications'
+  | 'reports'
+  | 'settings';
+
+export interface RolePermission {
+  id: string;
+  role: 'staff' | 'driver';
+  resource: PermissionResource;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// Vehicle Services Types
+// =============================================================================
+
+export type ServiceType = 
+  | 'oil_change'
+  | 'tire_rotation'
+  | 'brake_service'
+  | 'full_service'
+  | 'inspection'
+  | 'repair'
+  | 'other';
+
+export interface VehicleService {
+  id: string;
+  vehicle_id: string;
+  service_type: ServiceType;
+  service_date: string;
+  mileage_at_service: number | null;
+  next_service_mileage: number | null;
+  next_service_date: string | null;
+  cost: number | null;
+  provider: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
 // Extended Types with Relations
 // =============================================================================
 
@@ -209,6 +311,7 @@ export interface UpdateDriverInput {
   police_conduct_expiry_date?: string;
   driving_license_number?: string;
   driving_license_expiry_date?: string;
+  tag_license_expiry_date?: string;
   notes?: string;
 }
 

@@ -1,0 +1,449 @@
+/* Help Button - Fixed position */
+.helpButton {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.4);
+  transition: all 0.2s ease;
+  z-index: 900;
+}
+
+.helpButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.helpButton svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+/* Highlight Box */
+.highlight {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 
+    0 0 0 4000px rgba(0, 0, 0, 0.6),
+    0 0 0 4px var(--color-primary),
+    0 0 20px rgba(var(--color-primary-rgb), 0.5);
+  pointer-events: none;
+  z-index: 10000;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 0 4000px rgba(0, 0, 0, 0.6),
+      0 0 0 4px var(--color-primary),
+      0 0 20px rgba(var(--color-primary-rgb), 0.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 0 4000px rgba(0, 0, 0, 0.6),
+      0 0 0 4px var(--color-primary),
+      0 0 30px rgba(var(--color-primary-rgb), 0.8);
+  }
+}
+
+/* Guide List Modal */
+.guideList {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-primary);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.guideListHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 16px;
+  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  color: white;
+}
+
+.guideListHeader h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.guideListIntro {
+  padding: 0 24px 16px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.guides {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.guideItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.guideItem:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--color-primary);
+  transform: translateX(4px);
+}
+
+.guideItem.completed {
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.guideIcon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.guideInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guideName {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.guideDesc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.checkmark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.arrow {
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  transition: transform 0.2s;
+}
+
+.guideItem:hover .arrow {
+  transform: translateX(4px);
+  color: var(--color-primary);
+}
+
+.guideListFooter {
+  padding: 16px 24px 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.skipBtn {
+  padding: 10px 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.skipBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Close Button */
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  width: 360px;
+  background: var(--bg-primary);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  z-index: 10001;
+  animation: fadeIn 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tooltipHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 12px;
+  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+}
+
+.tooltipHeader .closeBtn {
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+}
+
+.stepIndicator {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.tooltipTitle {
+  margin: 0;
+  padding: 20px 20px 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tooltipContent {
+  margin: 0;
+  padding: 0 20px 20px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.tooltipActions {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px 16px;
+  gap: 12px;
+}
+
+.backBtn {
+  padding: 10px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.nextBtn {
+  flex: 1;
+  padding: 12px 24px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nextBtn:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Progress Dots */
+.progressDots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px 20px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.dot.active {
+  width: 24px;
+  border-radius: 4px;
+  background: var(--color-primary);
+}
+
+.dot.completed {
+  background: var(--color-primary);
+}
+
+/* Arrow indicators */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--bg-primary);
+  transform: rotate(45deg);
+}
+
+.arrowTop::before {
+  bottom: -8px;
+  left: 50%;
+  margin-left: -8px;
+  box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.arrowBottom::before {
+  top: -8px;
+  left: 50%;
+  margin-left: -8px;
+  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+}
+
+.arrowLeft::before {
+  right: -8px;
+  top: 50%;
+  margin-top: -8px;
+  box-shadow: 4px -4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.arrowRight::before {
+  left: -8px;
+  top: 50%;
+  margin-top: -8px;
+  background: linear-gradient(225deg, var(--color-primary) 50%, var(--bg-primary) 50%);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .helpButton {
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .helpButton svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .guideList {
+    max-width: calc(100% - 32px);
+    max-height: calc(100vh - 32px);
+  }
+
+  .tooltip {
+    width: calc(100% - 32px);
+    max-width: 360px;
+    left: 16px !important;
+    right: 16px !important;
+    transform: none !important;
+  }
+
+  .tooltip.arrowTop,
+  .tooltip.arrowBottom,
+  .tooltip.arrowLeft,
+  .tooltip.arrowRight {
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .tooltip::before {
+    display: none;
+  }
+}

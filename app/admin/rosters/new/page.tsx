@@ -1,0 +1,53 @@
+import { requireRole } from '@/lib/auth/session';
+import { createClient } from '@/lib/supabase/server';
+import DashboardLayout from '@/components/shared/DashboardLayout';
+import RosterEditor from '@/components/admin/RosterEditor';
+
+export default async function NewRosterPage() {
+  const user = await requireRole(['admin', 'staff']);
+  const supabase = await createClient();
+
+  // Get all vehicles (active preferred, but show all if none active)
+  const { data: activeVehicles } = await supabase
+    .from('vehicles')
+    .select('id, registration_number, make, model')
+    .eq('status', 'active')
+    .order('registration_number');
+
+  // If no active vehicles, get all vehicles
+  let vehicles = activeVehicles;
+  if (!activeVehicles || activeVehicles.length === 0) {
+    const { data: allVehicles } = await supabase
+      .from('vehicles')
+      .select('id, registration_number, make, model')
+      .order('registration_number');
+    vehicles = allVehicles;
+  }
+
+  // Get all drivers (active preferred, but show all if none active)
+  const { data: activeDrivers } = await supabase
+    .from('drivers')
+    .select('id, full_name, phone')
+    .eq('status', 'active')
+    .order('full_name');
+
+  // If no active drivers, get all drivers
+  let drivers = activeDrivers;
+  if (!activeDrivers || activeDrivers.length === 0) {
+    const { data: allDrivers } = await supabase
+      .from('drivers')
+      .select('id, full_name, phone')
+      .order('full_name');
+    drivers = allDrivers;
+  }
+
+  return (
+    <DashboardLayout user={user} variant="admin" title="New Roster">
+      <RosterEditor 
+        vehicles={vehicles || []} 
+        drivers={drivers || []} 
+        mode="create"
+      />
+    </DashboardLayout>
+  );
+}

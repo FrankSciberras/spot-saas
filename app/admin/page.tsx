@@ -35,12 +35,18 @@ export default async function AdminDashboardPage() {
     .limit(5);
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Dashboard">
+    <DashboardLayout user={user} variant="admin" title="">
       <div className={styles.dashboard}>
+        {/* Welcome Section */}
+        <div className={styles.welcomeSection}>
+          <h1 className={styles.welcomeTitle}>Welcome back 👋</h1>
+          <p className={styles.welcomeSubtitle}>Here&apos;s what&apos;s happening with your fleet today.</p>
+        </div>
+
         {/* Stats Cards */}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>👤</div>
+            <div className={`${styles.statIcon} ${styles.statIconBlue}`}>👤</div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{activeDrivers}</span>
               <span className={styles.statLabel}>Active Drivers</span>
@@ -48,7 +54,7 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>🚗</div>
+            <div className={`${styles.statIcon} ${styles.statIconGreen}`}>🚗</div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{activeVehicles}</span>
               <span className={styles.statLabel}>Active Vehicles</span>
@@ -56,15 +62,15 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>🚙</div>
+            <div className={`${styles.statIcon} ${styles.statIconPurple}`}>🚙</div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{totalVehicles}</span>
-              <span className={styles.statLabel}>Total Vehicles</span>
+              <span className={styles.statLabel}>Total Fleet</span>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>📋</div>
+            <div className={`${styles.statIcon} ${styles.statIconOrange}`}>📋</div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{recentShifts.length}</span>
               <span className={styles.statLabel}>Recent Shifts</span>
@@ -100,7 +106,7 @@ export default async function AdminDashboardPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted">No documents expiring soon.</p>
+                <p className="text-muted">No documents expiring soon. All good! ✓</p>
               )}
             </div>
           </div>
@@ -113,13 +119,16 @@ export default async function AdminDashboardPage() {
             <div className="card-body">
               <div className={styles.quickActions}>
                 <a href="/admin/drivers/new" className="btn btn-primary">
-                  Add New Driver
+                  + Add New Driver
                 </a>
                 <a href="/admin/vehicles/new" className="btn btn-secondary">
-                  Add New Vehicle
+                  + Add New Vehicle
+                </a>
+                <a href="/admin/rosters" className="btn btn-secondary">
+                  📅 Manage Rosters
                 </a>
                 <a href="/admin/shifts" className="btn btn-outline">
-                  View All Shifts
+                  View All Shifts →
                 </a>
               </div>
             </div>

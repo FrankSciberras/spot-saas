@@ -1,0 +1,179 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.error {
+  padding: var(--spacing-xl);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-xl);
+  text-align: center;
+  color: var(--color-danger);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  text-align: center;
+  background: var(--bg-primary);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+}
+
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-muted);
+}
+
+.emptyIcon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.emptyState h3 {
+  font-size: var(--font-xl);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.emptyState p {
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+}
+
+/* Roster List */
+.rosterList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.rosterCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.rosterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rosterTitle {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.weekDates {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* Shift List */
+.shiftList {
+  display: flex;
+  flex-direction: column;
+}
+
+.shiftItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.shiftItem:last-child {
+  border-bottom: none;
+}
+
+.shiftItem:hover {
+  background: var(--bg-secondary);
+}
+
+.shiftItem.today {
+  background: rgba(var(--color-primary-rgb), 0.06);
+  border-left: 3px solid var(--color-primary);
+}
+
+.shiftItem.past {
+  opacity: 0.6;
+}
+
+.shiftDate {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.todayBadge {
+  padding: 3px 8px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+.dateText {
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.shiftVehicle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.vehicleReg {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.vehicleModel {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .rosterHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .shiftItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .shiftVehicle {
+    align-items: flex-start;
+  }
+}

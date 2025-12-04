@@ -1,5 +1,6 @@
-'use client';
+"use client";
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
@@ -8,27 +9,212 @@ import styles from './Sidebar.module.css';
 interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: ReactNode;
   roles?: ('admin' | 'staff' | 'driver')[];
 }
 
+const DashboardIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="7" height="7" rx="2.5" />
+    <rect x="14" y="3" width="7" height="5" rx="2.5" />
+    <rect x="14" y="11" width="7" height="10" rx="2.5" />
+    <rect x="3" y="13" width="7" height="7" rx="2.5" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="8.5" r="3.5" />
+    <path d="M5 19.5C6.4 16.4 8.8 15 12 15s5.6 1.4 7 4.5" />
+  </svg>
+);
+
+const VehicleIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="8" width="18" height="7" rx="2.5" />
+    <circle cx="8" cy="17" r="1.6" />
+    <circle cx="16" cy="17" r="1.6" />
+  </svg>
+);
+
+const ListIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="5" width="4" height="4" rx="1.5" />
+    <rect x="3" y="10" width="4" height="4" rx="1.5" />
+    <rect x="3" y="15" width="4" height="4" rx="1.5" />
+    <path d="M11 7h9M11 12h9M11 17h7" />
+  </svg>
+);
+
+const MoneyIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="4" y="6" width="16" height="12" rx="2.5" />
+    <circle cx="12" cy="12" r="2.3" />
+    <path d="M7.5 9.5h1.5M15 14.5h1.5" />
+  </svg>
+);
+
+const BellIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 10a6 6 0 0 1 12 0c0 3 1.2 4.5 1.8 5.2A1 1 0 0 1 19 17H5a1 1 0 0 1-.8-1.8C4.8 14.5 6 13 6 10Z" />
+    <path d="M10 19a2 2 0 0 0 4 0" />
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="4" y="5" width="16" height="15" rx="2.5" />
+    <path d="M9 3v4M15 3v4M4 10h16" />
+  </svg>
+);
+
+const StatsIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M18 20V10M12 20V4M6 20v-6" />
+  </svg>
+);
+
+const RosterIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 10h18M9 4v6M15 4v6" />
+  </svg>
+);
+
+const ServiceIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+  </svg>
+);
+
+const ShieldIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="M9 12l2 2 4-4" />
+  </svg>
+);
+
 const adminNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/admin', icon: '📊' },
-  { label: 'Drivers', href: '/admin/drivers', icon: '👤' },
-  { label: 'Vehicles', href: '/admin/vehicles', icon: '🚗' },
-  { label: 'Shifts', href: '/admin/shifts', icon: '📋' },
-  { label: 'Earnings', href: '/admin/earnings', icon: '💰', roles: ['admin'] },
-  { label: 'Notifications', href: '/admin/notifications', icon: '🔔', roles: ['admin'] },
-  { label: 'Events', href: '/admin/events', icon: '📅' },
+  { label: 'Dashboard', href: '/admin', icon: <DashboardIcon /> },
+  { label: 'Drivers', href: '/admin/drivers', icon: <UserIcon /> },
+  { label: 'Vehicles', href: '/admin/vehicles', icon: <VehicleIcon /> },
+  { label: 'Services', href: '/admin/services', icon: <ServiceIcon /> },
+  { label: 'Rosters', href: '/admin/rosters', icon: <RosterIcon /> },
+  { label: 'Shifts', href: '/admin/shifts', icon: <ListIcon /> },
+  { label: 'Statistics', href: '/admin/statistics', icon: <StatsIcon />, roles: ['admin'] },
+  { label: 'Earnings', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
+  { label: 'Notify', href: '/admin/notifications', icon: <BellIcon />, roles: ['admin'] },
+  { label: 'Permissions', href: '/admin/permissions', icon: <ShieldIcon />, roles: ['admin'] },
+  { label: 'Events', href: '/admin/events', icon: <CalendarIcon /> },
 ];
 
 const driverNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/driver', icon: '📊' },
-  { label: 'Go Online', href: '/driver/go-online', icon: '🟢' },
-  { label: 'My Shifts', href: '/driver/shifts', icon: '📋' },
-  { label: 'My Profile', href: '/driver/profile', icon: '👤' },
-  { label: 'My Earnings', href: '/driver/earnings', icon: '💰' },
-  { label: 'Notifications', href: '/driver/notifications', icon: '🔔' },
+  { label: 'Dashboard', href: '/driver', icon: <DashboardIcon /> },
+  { label: 'My Roster', href: '/driver/roster', icon: <RosterIcon /> },
+  { label: 'Go Online', href: '/driver/go-online', icon: <ListIcon /> },
+  { label: 'My Shifts', href: '/driver/shifts', icon: <ListIcon /> },
+  { label: 'My Profile', href: '/driver/profile', icon: <UserIcon /> },
+  { label: 'My Earnings', href: '/driver/earnings', icon: <MoneyIcon /> },
+  { label: 'Notifications', href: '/driver/notifications', icon: <BellIcon /> },
 ];
 
 interface SidebarProps {
@@ -42,11 +228,20 @@ export default function Sidebar({ user, variant }: SidebarProps) {
 
   const filteredNavItems = navItems.filter(item => {
     if (!item.roles) return true;
+    if (!user?.role) return false;
     return item.roles.includes(user.role);
   });
 
+  // Map of nav items to their tour IDs
+  const tourIds: Record<string, string> = {
+    '/driver/roster': 'roster-link',
+    '/driver/go-online': 'go-online-link',
+    '/driver/profile': 'profile-link',
+    '/driver/notifications': 'notifications-link',
+  };
+
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} data-tour="sidebar">
       <div className={styles.logo}>
         <span className={styles.logoIcon}>🚕</span>
         <span className={styles.logoText}>SPOT</span>
@@ -62,23 +257,26 @@ export default function Sidebar({ user, variant }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
+              data-tour={tourIds[item.href]}
             >
-              <span className={styles.navIcon}>{item.icon}</span>
+              {item.icon}
               <span className={styles.navLabel}>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className={styles.userInfo}>
-        <div className={styles.userAvatar}>
-          {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+      {user && (
+        <div className={styles.userInfo}>
+          <div className={styles.userAvatar}>
+            {user.full_name?.charAt(0) || user.email?.charAt(0)?.toUpperCase() || '?'}
+          </div>
+          <div className={styles.userDetails}>
+            <span className={styles.userName}>{user.full_name || user.email || 'User'}</span>
+            <span className={styles.userRole}>{user.role || 'Loading...'}</span>
+          </div>
         </div>
-        <div className={styles.userDetails}>
-          <span className={styles.userName}>{user.full_name || user.email}</span>
-          <span className={styles.userRole}>{user.role}</span>
-        </div>
-      </div>
+      )}
     </aside>
   );
 }
