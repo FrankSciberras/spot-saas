@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { VehicleStatus } from '@/lib/types/database';
 import styles from './AdminForms.module.css';
@@ -10,6 +10,14 @@ interface PartialDriver {
   full_name: string;
   phone?: string | null;
   assigned_vehicle_id?: string | null;
+}
+
+interface FileRecord {
+  id: string;
+  type: string;
+  file_url: string;
+  file_name: string | null;
+  uploaded_at: string;
 }
 
 interface PartialVehicle {
@@ -30,13 +38,29 @@ interface PartialVehicle {
 interface VehicleFormProps {
   vehicle?: PartialVehicle;
   drivers: PartialDriver[];
+  documents?: FileRecord[];
   mode: 'create' | 'edit';
 }
 
-export default function VehicleForm({ vehicle, drivers, mode }: VehicleFormProps) {
+export default function VehicleForm({ vehicle, drivers, documents = [], mode }: VehicleFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, FileRecord[]>>(() => {
+    const grouped: Record<string, FileRecord[]> = {};
+    documents.forEach(doc => {
+      if (!grouped[doc.type]) grouped[doc.type] = [];
+      grouped[doc.type].push(doc);
+    });
+    return grouped;
+  });
+
+  const fileInputRefs = {
+    VEHICLE_INSURANCE: useRef<HTMLInputElement>(null),
+    ROAD_LICENSE: useRef<HTMLInputElement>(null),
+    OTHER: useRef<HTMLInputElement>(null),
+  };
 
   const [formData, setFormData] = useState({
     registration_number: vehicle?.registration_number || '',
@@ -55,6 +79,54 @@ export default function VehicleForm({ vehicle, drivers, mode }: VehicleFormProps
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileUpload = async (docType: string, file: File) => {
+    if (!vehicle?.id) {
+      setError('Please save the vehicle first before uploading documents');
+      return;
+    }
+
+    setUploadingType(docType);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('owner_type', 'vehicle');
+      formData.append('owner_id', vehicle.id);
+      formData.append('type', docType);
+
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      const { data: newFile } = await res.json();
+      setUploadedFiles(prev => ({
+        ...prev,
+        [docType]: [...(prev[docType] || []), newFile],
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploadingType(null);
+    }
+  };
+
+  const handleFileInputChange = (docType: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(docType, file);
+    }
+    e.target.value = '';
+  };
+
+  const triggerFileInput = (docType: keyof typeof fileInputRefs) => {
+    fileInputRefs[docType].current?.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,29 +296,144 @@ export default function VehicleForm({ vehicle, drivers, mode }: VehicleFormProps
       {/* Documents & Expiry Section */}
       <div className={styles.formSection}>
         <h3>Documents &amp; Expiry Dates</h3>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label htmlFor="insurance_expiry_date">Insurance Expiry Date</label>
-            <input
-              type="date"
-              id="insurance_expiry_date"
-              name="insurance_expiry_date"
-              value={formData.insurance_expiry_date}
-              onChange={handleChange}
-            />
+        
+        {/* Insurance */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>🛡️ Vehicle Insurance</span>
+            <div className={styles.formGroup}>
+              <label htmlFor="insurance_expiry_date">Expiry Date</label>
+              <input
+                type="date"
+                id="insurance_expiry_date"
+                name="insurance_expiry_date"
+                value={formData.insurance_expiry_date}
+                onChange={handleChange}
+              />
+            </div>
           </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="road_license_expiry_date">Road License Expiry Date</label>
+          <div className={styles.documentUpload}>
             <input
-              type="date"
-              id="road_license_expiry_date"
-              name="road_license_expiry_date"
-              value={formData.road_license_expiry_date}
-              onChange={handleChange}
+              type="file"
+              ref={fileInputRefs.VEHICLE_INSURANCE}
+              onChange={handleFileInputChange('VEHICLE_INSURANCE')}
+              accept=".pdf,.jpg,.jpeg,.png"
+              style={{ display: 'none' }}
             />
+            {mode === 'edit' && (
+              <button
+                type="button"
+                className={`btn btn-secondary ${styles.uploadBtn}`}
+                onClick={() => triggerFileInput('VEHICLE_INSURANCE')}
+                disabled={uploadingType === 'VEHICLE_INSURANCE'}
+              >
+                {uploadingType === 'VEHICLE_INSURANCE' ? 'Uploading...' : '📎 Upload'}
+              </button>
+            )}
+            {uploadedFiles.VEHICLE_INSURANCE?.map(file => (
+              <a
+                key={file.id}
+                href={file.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {file.file_name || 'Insurance Document'}
+              </a>
+            ))}
           </div>
         </div>
+
+        {/* Road License */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>📋 Road License</span>
+            <div className={styles.formGroup}>
+              <label htmlFor="road_license_expiry_date">Expiry Date</label>
+              <input
+                type="date"
+                id="road_license_expiry_date"
+                name="road_license_expiry_date"
+                value={formData.road_license_expiry_date}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+          <div className={styles.documentUpload}>
+            <input
+              type="file"
+              ref={fileInputRefs.ROAD_LICENSE}
+              onChange={handleFileInputChange('ROAD_LICENSE')}
+              accept=".pdf,.jpg,.jpeg,.png"
+              style={{ display: 'none' }}
+            />
+            {mode === 'edit' && (
+              <button
+                type="button"
+                className={`btn btn-secondary ${styles.uploadBtn}`}
+                onClick={() => triggerFileInput('ROAD_LICENSE')}
+                disabled={uploadingType === 'ROAD_LICENSE'}
+              >
+                {uploadingType === 'ROAD_LICENSE' ? 'Uploading...' : '📎 Upload'}
+              </button>
+            )}
+            {uploadedFiles.ROAD_LICENSE?.map(file => (
+              <a
+                key={file.id}
+                href={file.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {file.file_name || 'Road License'}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* Other Documents */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>📁 Other Documents</span>
+            <p className={styles.documentHint}>Upload any other vehicle-related documents</p>
+          </div>
+          <div className={styles.documentUpload}>
+            <input
+              type="file"
+              ref={fileInputRefs.OTHER}
+              onChange={handleFileInputChange('OTHER')}
+              accept=".pdf,.jpg,.jpeg,.png"
+              style={{ display: 'none' }}
+            />
+            {mode === 'edit' && (
+              <button
+                type="button"
+                className={`btn btn-secondary ${styles.uploadBtn}`}
+                onClick={() => triggerFileInput('OTHER')}
+                disabled={uploadingType === 'OTHER'}
+              >
+                {uploadingType === 'OTHER' ? 'Uploading...' : '📎 Upload'}
+              </button>
+            )}
+            {uploadedFiles.OTHER?.map(file => (
+              <a
+                key={file.id}
+                href={file.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {file.file_name || 'Document'}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {mode === 'create' && (
+          <p className={styles.uploadNote}>
+            💡 Save the vehicle first, then you can upload documents.
+          </p>
+        )}
       </div>
 
       {/* Driver Assignment Section */}

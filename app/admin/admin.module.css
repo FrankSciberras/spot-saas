@@ -153,6 +153,21 @@
   gap: 6px;
 }
 
+.expiryActions {
+  margin-top: 4px;
+}
+
+.renewLink {
+  font-size: var(--font-xs);
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.renewLink:hover {
+  text-decoration: underline;
+}
+
 /* Quick Actions */
 .quickActions {
   display: flex;

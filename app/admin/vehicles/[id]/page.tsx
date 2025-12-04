@@ -106,6 +106,27 @@ export default async function VehicleDetailPage({ params }: PageProps) {
     .order('service_date', { ascending: false })
     .limit(5);
 
+  // Fetch uploaded documents
+  const { data: documents } = await supabase
+    .from('files')
+    .select('id, type, file_url, file_name, uploaded_at')
+    .eq('owner_type', 'vehicle')
+    .eq('owner_id', id)
+    .order('uploaded_at', { ascending: false });
+
+  // Group documents by type
+  const groupedDocs: Record<string, typeof documents> = {};
+  documents?.forEach(doc => {
+    if (!groupedDocs[doc.type]) groupedDocs[doc.type] = [];
+    groupedDocs[doc.type]!.push(doc);
+  });
+
+  const DOC_TYPE_LABELS: Record<string, string> = {
+    VEHICLE_INSURANCE: 'Insurance',
+    ROAD_LICENSE: 'Road License',
+    OTHER: 'Other Documents',
+  };
+
   // Get next service due (from most recent service with next_service_mileage)
   const nextServiceDue = serviceHistory?.find(s => s.next_service_mileage);
   const kmUntilService = nextServiceDue 
@@ -216,22 +237,82 @@ export default async function VehicleDetailPage({ params }: PageProps) {
       {/* Documents & Expiry */}
       <div className={styles.detailCard}>
         <h3>Documents &amp; Expiry Dates</h3>
-        <div className={styles.detailGrid}>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Insurance Expiry</span>
+        
+        {/* Insurance */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>🛡️ Vehicle Insurance</span>
             <span className={`${styles.detailValue} ${getExpiryClass(vehicleData.insurance_expiry_date)}`}>
-              {formatDate(vehicleData.insurance_expiry_date)}
+              Expires: {formatDate(vehicleData.insurance_expiry_date)}
               {getExpiryLabel(vehicleData.insurance_expiry_date)}
             </span>
           </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Road License Expiry</span>
+          <div className={styles.documentUpload}>
+            {groupedDocs.VEHICLE_INSURANCE?.map(doc => (
+              <a
+                key={doc.id}
+                href={doc.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {doc.file_name || 'Insurance Document'}
+              </a>
+            ))}
+            {!groupedDocs.VEHICLE_INSURANCE?.length && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No file uploaded</span>
+            )}
+          </div>
+        </div>
+
+        {/* Road License */}
+        <div className={styles.documentRow}>
+          <div className={styles.documentInfo}>
+            <span className={styles.documentLabel}>📋 Road License</span>
             <span className={`${styles.detailValue} ${getExpiryClass(vehicleData.road_license_expiry_date)}`}>
-              {formatDate(vehicleData.road_license_expiry_date)}
+              Expires: {formatDate(vehicleData.road_license_expiry_date)}
               {getExpiryLabel(vehicleData.road_license_expiry_date)}
             </span>
           </div>
+          <div className={styles.documentUpload}>
+            {groupedDocs.ROAD_LICENSE?.map(doc => (
+              <a
+                key={doc.id}
+                href={doc.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.uploadedFile}
+              >
+                📄 {doc.file_name || 'Road License'}
+              </a>
+            ))}
+            {!groupedDocs.ROAD_LICENSE?.length && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No file uploaded</span>
+            )}
+          </div>
         </div>
+
+        {/* Other Documents */}
+        {groupedDocs.OTHER && groupedDocs.OTHER.length > 0 && (
+          <div className={styles.documentRow}>
+            <div className={styles.documentInfo}>
+              <span className={styles.documentLabel}>📁 Other Documents</span>
+            </div>
+            <div className={styles.documentUpload}>
+              {groupedDocs.OTHER.map(doc => (
+                <a
+                  key={doc.id}
+                  href={doc.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.uploadedFile}
+                >
+                  📄 {doc.file_name || 'Document'}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Service Status */}

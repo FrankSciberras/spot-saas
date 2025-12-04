@@ -36,6 +36,14 @@ export default async function EditVehiclePage({ params }: PageProps) {
     .eq('status', 'active')
     .order('full_name');
 
+  // Fetch documents for this vehicle
+  const { data: documents } = await supabase
+    .from('files')
+    .select('id, type, file_url, file_name, uploaded_at')
+    .eq('owner_type', 'vehicle')
+    .eq('owner_id', id)
+    .order('uploaded_at', { ascending: false });
+
   return (
     <DashboardLayout user={user} variant="admin" title={`Edit: ${vehicle.registration_number}`}>
       <div className={styles.pageHeader}>
@@ -55,6 +63,7 @@ export default async function EditVehiclePage({ params }: PageProps) {
       <VehicleForm 
         vehicle={vehicle}
         drivers={drivers || []} 
+        documents={documents || []}
         mode="edit" 
       />
     </DashboardLayout>

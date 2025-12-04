@@ -23,7 +23,8 @@ export default async function AdminDashboardPage() {
   const activeVehicles = vehiclesResult.data?.filter(v => v.status === 'active').length || 0;
   const recentShifts = shiftsResult.data || [];
 
-  // Get drivers with expiring documents (within 30 days)
+  // Get drivers & vehicles with documents that are expired or expiring within 30 days
+  const now = new Date();
   const thirtyDaysFromNow = new Date();
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   const expiryDate = thirtyDaysFromNow.toISOString().split('T')[0];
@@ -33,6 +34,39 @@ export default async function AdminDashboardPage() {
     .select('id, full_name, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date')
     .or(`id_card_expiry_date.lte.${expiryDate},police_conduct_expiry_date.lte.${expiryDate},driving_license_expiry_date.lte.${expiryDate}`)
     .limit(5);
+
+  const { data: expiringVehicles } = await supabase
+    .from('vehicles')
+    .select('id, registration_number, make, model, insurance_expiry_date, road_license_expiry_date')
+    .or(`insurance_expiry_date.lte.${expiryDate},road_license_expiry_date.lte.${expiryDate}`)
+    .limit(5);
+
+  const renderExpiryBadge = (label: string, dateStr: string | null) => {
+    if (!dateStr) return null;
+
+    const date = new Date(dateStr);
+
+    if (date < now) {
+      return (
+        <span className="badge badge-danger">
+          {label}: {dateStr} (Expired - needs renewal)
+        </span>
+      );
+    }
+
+    if (date <= thirtyDaysFromNow) {
+      return (
+        <span className="badge badge-warning">
+          {label}: {dateStr} (Expiring soon)
+        </span>
+      );
+    }
+
+    return null;
+  };
+
+  const hasDriverDocs = !!expiringDrivers && expiringDrivers.length > 0;
+  const hasVehicleDocs = !!expiringVehicles && expiringVehicles.length > 0;
 
   return (
     <DashboardLayout user={user} variant="admin" title="">
@@ -86,27 +120,64 @@ export default async function AdminDashboardPage() {
               <h3>⚠️ Expiring Documents</h3>
             </div>
             <div className="card-body">
-              {expiringDrivers && expiringDrivers.length > 0 ? (
-                <ul className={styles.alertList}>
-                  {expiringDrivers.map((driver) => (
-                    <li key={driver.id} className={styles.alertItem}>
-                      <strong>{driver.full_name}</strong>
-                      <div className={styles.expiryDetails}>
-                        {driver.id_card_expiry_date && new Date(driver.id_card_expiry_date) <= thirtyDaysFromNow && (
-                          <span className="badge badge-warning">ID Card: {driver.id_card_expiry_date}</span>
-                        )}
-                        {driver.police_conduct_expiry_date && new Date(driver.police_conduct_expiry_date) <= thirtyDaysFromNow && (
-                          <span className="badge badge-warning">Police: {driver.police_conduct_expiry_date}</span>
-                        )}
-                        {driver.driving_license_expiry_date && new Date(driver.driving_license_expiry_date) <= thirtyDaysFromNow && (
-                          <span className="badge badge-warning">License: {driver.driving_license_expiry_date}</span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              {hasDriverDocs || hasVehicleDocs ? (
+                <>
+                  {hasDriverDocs && (
+                    <>
+                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Drivers</h4>
+                      <ul className={styles.alertList}>
+                        {expiringDrivers!.map((driver) => (
+                          <li key={driver.id} className={styles.alertItem}>
+                            <strong>{driver.full_name}</strong>
+                            <div className={styles.expiryDetails}>
+                              {renderExpiryBadge('ID Card', driver.id_card_expiry_date)}
+                              {renderExpiryBadge('Police', driver.police_conduct_expiry_date)}
+                              {renderExpiryBadge('License', driver.driving_license_expiry_date)}
+                            </div>
+                            <div className={styles.expiryActions}>
+                              <a
+                                href={`/admin/drivers/${driver.id}/edit`}
+                                className={styles.renewLink}
+                              >
+                                Renew
+                              </a>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {hasVehicleDocs && (
+                    <>
+                      <h4 style={{ marginTop: hasDriverDocs ? '0.75rem' : 0, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Vehicles</h4>
+                      <ul className={styles.alertList}>
+                        {expiringVehicles!.map((vehicle) => (
+                          <li key={vehicle.id} className={styles.alertItem}>
+                            <strong>
+                              {vehicle.registration_number} 
+                              {vehicle.make && vehicle.model && ` - ${vehicle.make} ${vehicle.model}`}
+                            </strong>
+                            <div className={styles.expiryDetails}>
+                              {renderExpiryBadge('Insurance', vehicle.insurance_expiry_date)}
+                              {renderExpiryBadge('Road License', vehicle.road_license_expiry_date)}
+                            </div>
+                            <div className={styles.expiryActions}>
+                              <a
+                                href={`/admin/vehicles/${vehicle.id}/edit`}
+                                className={styles.renewLink}
+                              >
+                                Renew
+                              </a>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
               ) : (
-                <p className="text-muted">No documents expiring soon. All good! ✓</p>
+                <p className="text-muted">No driver or vehicle documents expired or expiring soon. All good! </p>
               )}
             </div>
           </div>

@@ -409,3 +409,81 @@
 .fileLink:hover {
   background: rgba(var(--color-primary-rgb), 0.2);
 }
+
+/* Document Row Layout */
+.documentRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.documentRow:last-of-type {
+  border-bottom: none;
+}
+
+.documentInfo {
+  flex: 1;
+}
+
+.documentLabel {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-sm);
+}
+
+.documentHint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.documentUpload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-xs);
+  min-width: 140px;
+}
+
+.uploadedFile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.uploadedFile:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.uploadNote {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(var(--color-primary-rgb), 0.06);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .documentRow {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .documentUpload {
+    align-items: flex-start;
+    width: 100%;
+  }
+}
