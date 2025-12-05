@@ -175,6 +175,24 @@
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+  .subtitle {
+    font-size: var(--font-base);
+  }
+
+  .description {
+    font-size: var(--font-xs);
+  }
+
+  .rosterCard {
+    padding: 1rem;
+  }
+
+  .rosterTitle {
+    font-size: var(--font-base);
+  }
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
@@ -187,5 +205,14 @@
 
   .rosterGrid {
     grid-template-columns: 1fr;
+  }
+
+  .emptyState {
+    padding: var(--spacing-xl);
+  }
+
+  .emptyIcon {
+    width: 48px;
+    height: 48px;
   }
 }

@@ -239,6 +239,20 @@
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+  .container {
+    max-width: 100%;
+  }
+
+  .balanceCard {
+    padding: 20px;
+  }
+
+  .historySection h2 {
+    font-size: var(--font-base);
+  }
+}
+
 @media (max-width: 640px) {
   .balanceAmount {
     font-size: 2rem;
@@ -271,5 +285,30 @@
     width: 100%;
     flex-direction: row;
     justify-content: space-between;
+  }
+
+  .emptyState {
+    padding: var(--spacing-xl);
+  }
+
+  .emptyState svg {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 480px) {
+  .balanceCard {
+    padding: 16px;
+  }
+
+  .balanceAmount {
+    font-size: 1.75rem;
+  }
+
+  .balanceHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
   }
 }

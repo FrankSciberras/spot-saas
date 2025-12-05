@@ -5,3 +5,4 @@ export { default as DeleteDriverButton } from './DeleteDriverButton';
 export { default as DeleteVehicleButton } from './DeleteVehicleButton';
 export { default as StatisticsDashboard } from './StatisticsDashboard';
 export { default as RosterEditor } from './RosterEditor';
+export { default as ServicesFilter } from './ServicesFilter';

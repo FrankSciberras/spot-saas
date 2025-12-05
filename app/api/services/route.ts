@@ -110,12 +110,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Update vehicle mileage if service mileage is higher
-  await supabase
+  // Update vehicle mileage to the service mileage (always update to latest known mileage)
+  const { data: currentVehicle } = await supabase
     .from('vehicles')
-    .update({ mileage: mileage_at_service })
+    .select('mileage')
     .eq('id', vehicle_id)
-    .lt('mileage', mileage_at_service);
+    .single();
+  
+  // Update if current mileage is null, 0, or less than the service mileage
+  if (!currentVehicle?.mileage || currentVehicle.mileage < mileage_at_service) {
+    await supabase
+      .from('vehicles')
+      .update({ mileage: mileage_at_service })
+      .eq('id', vehicle_id);
+  }
+
+  // Clear any existing service due notifications for this vehicle
+  // (since we just added a new service, old alerts are outdated)
+  if (next_service_mileage) {
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('action_url', `/admin/vehicles/${vehicle_id}`)
+      .ilike('title', '%Service%');
+  }
 
   return NextResponse.json({ data: service }, { status: 201 });
 }

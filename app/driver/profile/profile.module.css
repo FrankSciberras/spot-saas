@@ -424,33 +424,24 @@
   color: var(--text-primary);
 }
 
-/* Responsive */
+/* Tablet */
+@media (max-width: 768px) {
+  .container { max-width: 100%; }
+  .profileHeader { padding: 1rem; }
+  .avatar { width: 56px; height: 56px; font-size: 22px; }
+  .name { font-size: var(--font-lg); }
+  .cardContent { padding: 1rem; }
+  .cardHeader { padding: 0.875rem 1rem; }
+}
+
+/* Mobile */
 @media (max-width: 640px) {
-  .profileHeader {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .infoGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .documentItem {
-    flex-direction: column;
-  }
-
-  .documentAttachments {
-    align-items: flex-start;
-    width: 100%;
-  }
-
-  .shiftItem {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .shiftDate {
-    flex-direction: row;
-    gap: var(--spacing-sm);
-  }
+  .profileHeader { flex-direction: column; text-align: center; }
+  .infoGrid { grid-template-columns: 1fr; }
+  .documentItem { flex-direction: column; }
+  .documentAttachments { align-items: flex-start; width: 100%; }
+  .shiftItem { flex-direction: column; align-items: flex-start; }
+  .shiftDate { flex-direction: row; gap: var(--spacing-sm); }
+  .nextShiftDay { font-size: var(--font-lg); }
+  .vehicleReg { font-size: var(--font-base); }
 }

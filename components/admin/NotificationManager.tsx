@@ -76,7 +76,7 @@ const ACTION_PAGES = [
 export default function NotificationManager({ 
   initialRules, 
   initialLogs,
-  drivers 
+  drivers
 }: NotificationManagerProps) {
   const [activeTab, setActiveTab] = useState<'rules' | 'send' | 'history'>('rules');
   const [rules, setRules] = useState(initialRules);

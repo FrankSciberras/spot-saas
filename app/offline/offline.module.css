@@ -58,3 +58,28 @@
 .retryBtn:hover {
   background: var(--color-primary-dark, #4f46e5);
 }
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .icon {
+    width: 64px;
+    height: 64px;
+    padding: 1rem;
+  }
+
+  .content h1 {
+    font-size: 1.25rem;
+  }
+
+  .content p {
+    font-size: 0.9rem;
+  }
+
+  .retryBtn {
+    width: 100%;
+  }
+}

@@ -15,12 +15,37 @@ export default async function NotificationsPage() {
     .order('trigger_type')
     .order('name');
 
-  // Get recent notification logs
-  const { data: logs } = await supabase
+  // Get recent notification logs from notification_log table
+  const { data: logEntries } = await supabase
     .from('notification_log')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(20);
+
+  // Also get recent notifications from notifications table (actual sent notifications)
+  const { data: recentNotifications } = await supabase
+    .from('notifications')
+    .select('id, title, body, type, created_at, read_at, action_url')
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  // Combine both sources for history, converting notifications to log format
+  const notificationLogs = (recentNotifications || []).map(n => ({
+    id: n.id,
+    channel: 'app',
+    title: n.title,
+    body: n.body,
+    status: n.read_at ? 'read' : 'sent',
+    created_at: n.created_at,
+    metadata: { type: n.type, action_url: n.action_url },
+  }));
+
+  // Merge and sort by date, remove duplicates by title+date
+  const allLogs = [...(logEntries || []), ...notificationLogs]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 30);
+
+  const logs = allLogs;
 
   // Get drivers for recipient selection
   const { data: drivers } = await supabase

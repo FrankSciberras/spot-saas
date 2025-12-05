@@ -67,3 +67,26 @@
   color: var(--text-muted);
   font-size: var(--font-sm);
 }
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .container {
+    padding: var(--spacing-md);
+  }
+
+  .loginCard {
+    padding: var(--spacing-xl);
+  }
+
+  .logoIcon {
+    font-size: 2rem;
+  }
+
+  .logoText {
+    font-size: var(--font-xl);
+  }
+
+  .subtitle {
+    font-size: var(--font-sm);
+  }
+}

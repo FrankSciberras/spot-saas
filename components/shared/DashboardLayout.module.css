@@ -27,21 +27,31 @@
 .content {
   flex: 1;
   padding: 24px 28px 40px;
-  background: transparent;
   overflow-y: auto;
 }
 
+/* Tablet & Mobile */
 @media (max-width: 768px) {
   .main {
     margin-left: 0;
-    padding: 12px;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
   }
   
   .shell {
-    border-radius: var(--radius-xl);
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    height: 100%;
   }
   
   .content {
-    padding: 16px;
+    padding: 16px 16px 120px;
+    -webkit-overflow-scrolling: touch;
   }
+}
+
+@media (max-width: 480px) {
+  .content { padding: 12px 12px 120px; }
 }

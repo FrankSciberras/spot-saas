@@ -196,3 +196,51 @@
   align-items: center;
   gap: 10px;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .welcomeTitle {
+    font-size: var(--font-xl);
+  }
+
+  .welcomeSubtitle {
+    font-size: var(--font-sm);
+  }
+
+  .statCard {
+    padding: 16px 18px;
+    gap: 12px;
+  }
+
+  .statIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .statValue {
+    font-size: 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: var(--font-base);
+  }
+}
+
+@media (max-width: 480px) {
+  .welcomeTitle {
+    font-size: var(--font-lg);
+  }
+
+  .statCard {
+    padding: 14px 16px;
+  }
+
+  .statValue {
+    font-size: 1.25rem;
+  }
+
+  .statLabel {
+    font-size: var(--font-xs);
+  }
+}

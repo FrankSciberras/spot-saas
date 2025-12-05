@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
@@ -243,6 +244,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, variant }: SidebarProps) {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
   const navItems = variant === 'admin' ? adminNavItems : driverNavItems;
 
   const filteredNavItems = navItems.filter(item => {
@@ -250,6 +252,23 @@ export default function Sidebar({ user, variant }: SidebarProps) {
     if (!user?.role) return false;
     return item.roles.includes(user.role);
   });
+
+  // Close sidebar on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   // Map of nav items to their tour IDs
   const tourIds: Record<string, string> = {
@@ -260,7 +279,31 @@ export default function Sidebar({ user, variant }: SidebarProps) {
   };
 
   return (
-    <aside className={styles.sidebar} data-tour="sidebar">
+    <>
+    {/* Mobile overlay */}
+    <div 
+      className={`${styles.overlay} ${isOpen ? styles.visible : ''}`}
+      onClick={() => setIsOpen(false)}
+    />
+    
+    {/* Mobile toggle button */}
+    <button 
+      className={styles.mobileToggle}
+      onClick={() => setIsOpen(!isOpen)}
+      aria-label={isOpen ? 'Close menu' : 'Open menu'}
+    >
+      {isOpen ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      )}
+    </button>
+
+    <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`} data-tour="sidebar">
       <div className={styles.logo}>
         <span className={styles.logoIcon}>🚕</span>
         <span className={styles.logoText}>SPOT</span>
@@ -297,5 +340,6 @@ export default function Sidebar({ user, variant }: SidebarProps) {
         </div>
       )}
     </aside>
+    </>
   );
 }

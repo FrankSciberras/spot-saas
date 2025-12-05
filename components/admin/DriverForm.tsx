@@ -187,9 +187,11 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
   // Filter users that are already drivers (for create mode)
   const availableUsers = mode === 'create' ? users.filter(u => u.role === 'driver') : users;
 
-  // Filter available vehicles (not assigned or assigned to this driver)
+  // Filter available vehicles (not assigned, assigned to this driver, or is this driver's assigned vehicle)
   const availableVehicles = vehicles.filter(
-    v => !v.assigned_driver_id || (driver?.assigned_vehicle_id && v.id === driver.assigned_vehicle_id)
+    v => !v.assigned_driver_id || 
+         v.assigned_driver_id === driver?.id ||  // Vehicle is assigned TO this driver
+         (driver?.assigned_vehicle_id && v.id === driver.assigned_vehicle_id)
   );
 
   return (

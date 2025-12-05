@@ -10,6 +10,7 @@ interface Vehicle {
   registration_number: string;
   make: string;
   model: string;
+  assigned_driver_id?: string | null;
 }
 
 interface DriverInfo {
@@ -72,16 +73,31 @@ export default function GoOnlinePage() {
         }
       }
 
-      // Get available vehicles
-      // TODO: Filter by vehicles assigned to this driver or all active vehicles
-      const { data: vehicleData } = await supabase
+      // Get ALL vehicles (including ones assigned to this driver regardless of status)
+      const { data: allVehicles } = await supabase
         .from('vehicles')
-        .select('id, registration_number, make, model')
-        .eq('status', 'active')
+        .select('id, registration_number, make, model, assigned_driver_id, status')
         .order('registration_number');
 
-      if (vehicleData) {
-        setVehicles(vehicleData);
+      if (allVehicles && driver) {
+        // First, find vehicles specifically assigned to this driver (any status)
+        const driverVehicles = allVehicles.filter(
+          v => v.assigned_driver_id === driver.id || v.id === driver.assigned_vehicle_id
+        );
+        
+        // If driver has assigned vehicles, show those; otherwise show all active vehicles
+        if (driverVehicles.length > 0) {
+          setVehicles(driverVehicles);
+          // Auto-select the first assigned vehicle
+          setVehicleId(driverVehicles[0].id);
+        } else {
+          // No assigned vehicles, show all active ones
+          const activeVehicles = allVehicles.filter(v => v.status === 'active');
+          setVehicles(activeVehicles);
+        }
+      } else if (allVehicles) {
+        const activeVehicles = allVehicles.filter(v => v.status === 'active');
+        setVehicles(activeVehicles);
       }
 
       // Set default start time to now
@@ -178,11 +194,33 @@ export default function GoOnlinePage() {
         throw new Error(insertError.message);
       }
 
-      // Update vehicle mileage
-      await supabase
-        .from('vehicles')
-        .update({ mileage: parseInt(mileage, 10) })
-        .eq('id', vehicleId);
+      // Update vehicle mileage via API (bypasses RLS restrictions for drivers)
+      const mileageRes = await fetch(`/api/vehicles/${vehicleId}/mileage`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mileage: parseInt(mileage, 10) }),
+      });
+      
+      if (!mileageRes.ok) {
+        const mileageError = await mileageRes.json();
+        console.error('Failed to update vehicle mileage:', mileageError);
+        // Don't fail the shift - just log the error
+      }
+
+      // Check if vehicle service is due (triggers automated alert if needed)
+      try {
+        await fetch('/api/shifts/check-service', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vehicle_id: vehicleId,
+            current_mileage: parseInt(mileage, 10),
+          }),
+        });
+      } catch (checkError) {
+        // Non-blocking - don't fail the shift creation if service check fails
+        console.error('Service check failed:', checkError);
+      }
 
       setSuccess(true);
       setTimeout(() => {

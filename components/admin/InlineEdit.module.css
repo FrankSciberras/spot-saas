@@ -186,3 +186,37 @@ textarea.input {
 .fileLink:hover {
   background: rgba(var(--color-primary-rgb), 0.15);
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .editBtn {
+    opacity: 1;
+  }
+
+  .editRow {
+    flex-wrap: wrap;
+  }
+
+  .input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .editActions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .value {
+    font-size: var(--font-sm);
+  }
+
+  .saveBtn,
+  .cancelBtn {
+    width: 40px;
+    height: 40px;
+  }
+}

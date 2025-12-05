@@ -364,18 +364,43 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .gridWrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .grid {
+    min-width: 900px;
+  }
+}
+
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .headerLeft {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .headerRight {
-    justify-content: flex-end;
+    justify-content: stretch;
+  }
+
+  .headerRight button {
+    flex: 1;
   }
 
   .weekSelector {
     flex-direction: column;
+    width: 100%;
+  }
+
+  .weekSelector select {
+    width: 100%;
   }
 
   .gridHeader,
@@ -388,6 +413,23 @@
   }
 
   .vehicleReg {
+    font-size: var(--font-xs);
+  }
+
+  .legendStats {
+    margin-left: 0;
+    margin-top: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .backBtn span {
+    display: none;
+  }
+
+  .saveBtn,
+  .publishBtn {
+    padding: 0.5rem 1rem;
     font-size: var(--font-xs);
   }
 }

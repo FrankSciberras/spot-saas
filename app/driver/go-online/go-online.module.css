@@ -109,3 +109,43 @@
 .successMessage p {
   color: var(--text-secondary);
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-md);
+  }
+
+  .header h1 {
+    font-size: var(--font-xl);
+  }
+
+  .submitBtn {
+    width: 100%;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: var(--spacing-sm);
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .header h1 {
+    font-size: var(--font-lg);
+  }
+
+  .successIcon {
+    font-size: 3rem;
+  }
+
+  .successMessage {
+    padding: var(--spacing-xl);
+  }
+}

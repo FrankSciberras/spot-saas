@@ -86,3 +86,19 @@
 .viewAllLink a:hover {
   text-decoration: underline;
 }
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .goOnlineBtn {
+    padding: var(--spacing-lg);
+    font-size: var(--font-lg);
+  }
+
+  .goOnlineIcon {
+    font-size: 1.5rem;
+  }
+
+  .vehicleReg {
+    font-size: var(--font-lg);
+  }
+}

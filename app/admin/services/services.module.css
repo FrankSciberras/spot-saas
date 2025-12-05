@@ -229,6 +229,20 @@
   }
 }
 
+@media (max-width: 768px) {
+  .headerLeft h2 {
+    font-size: var(--font-lg);
+  }
+
+  .alertContent {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .alertHeader {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
@@ -239,5 +253,18 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-xs);
+  }
+
+  .alertVehicle {
+    min-width: unset;
+  }
+
+  .emptyState {
+    padding: 2rem 1rem;
+  }
+
+  .emptyState svg {
+    width: 48px;
+    height: 48px;
   }
 }

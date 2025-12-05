@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import ServicesFilter from '@/components/admin/ServicesFilter';
 import styles from './services.module.css';
 
 interface VehicleService {
@@ -45,18 +46,51 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
-export default async function ServicesPage() {
+interface PageProps {
+  searchParams: Promise<{ 
+    vehicle_id?: string; 
+    service_type?: string;
+    sort?: string;
+  }>;
+}
+
+export default async function ServicesPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
 
-  const { data: services } = await supabase
+  // Get all vehicles for the filter dropdown
+  const { data: allVehicles } = await supabase
+    .from('vehicles')
+    .select('id, registration_number, make, model')
+    .order('registration_number');
+
+  // Build the services query with filters
+  let query = supabase
     .from('vehicle_services')
     .select(`
       *,
       vehicles:vehicle_id (id, registration_number, make, model)
-    `)
-    .order('service_date', { ascending: false })
-    .limit(100);
+    `);
+
+  // Apply filters
+  if (params.vehicle_id) {
+    query = query.eq('vehicle_id', params.vehicle_id);
+  }
+  if (params.service_type) {
+    query = query.eq('service_type', params.service_type);
+  }
+
+  // Apply sorting (default: latest first by service_date, then by created_at for same dates)
+  if (params.sort === 'mileage') {
+    query = query.order('mileage_at_service', { ascending: false });
+  } else {
+    query = query.order('service_date', { ascending: false });
+  }
+  // Secondary sort by created_at for consistent ordering
+  query = query.order('created_at', { ascending: false }).limit(100);
+
+  const { data: services } = await query;
 
   // Get vehicles needing service soon
   const { data: vehiclesData } = await supabase
@@ -65,25 +99,37 @@ export default async function ServicesPage() {
 
   // Calculate upcoming services
   type VehicleData = { id: string; registration_number: string; make: string; model: string; mileage: number };
-  const upcomingServices: { vehicle: VehicleData; nextMileage: number; kmRemaining: number }[] = [];
+  const upcomingServices: { vehicle: VehicleData; nextMileage: number; kmRemaining: number; currentMileage: number }[] = [];
   
   if (services && vehiclesData) {
+    // Group services by vehicle, keeping only the LATEST one with next_service_mileage
+    // Services are already ordered by service_date DESC
     const latestServiceByVehicle = new Map<string, VehicleService>();
-    services.forEach((s: VehicleService) => {
-      if (!latestServiceByVehicle.has(s.vehicle_id) && s.next_service_mileage) {
-        latestServiceByVehicle.set(s.vehicle_id, s);
+    
+    for (const s of services as VehicleService[]) {
+      // Only consider services that have a next_service_mileage set
+      if (s.next_service_mileage) {
+        const existing = latestServiceByVehicle.get(s.vehicle_id);
+        // If no existing or this one has a higher mileage (more recent), use it
+        if (!existing || s.mileage_at_service > existing.mileage_at_service) {
+          latestServiceByVehicle.set(s.vehicle_id, s);
+        }
       }
-    });
+    }
 
     vehiclesData.forEach(vehicle => {
       const lastService = latestServiceByVehicle.get(vehicle.id);
       if (lastService?.next_service_mileage) {
-        const kmRemaining = lastService.next_service_mileage - vehicle.mileage;
+        // Use vehicle mileage, but fall back to service mileage if vehicle mileage seems stale
+        const currentMileage = Math.max(vehicle.mileage || 0, lastService.mileage_at_service);
+        const kmRemaining = lastService.next_service_mileage - currentMileage;
+        
         if (kmRemaining <= 2000) { // Alert when within 2000km
           upcomingServices.push({
-            vehicle,
+            vehicle: { ...vehicle, mileage: currentMileage },
             nextMileage: lastService.next_service_mileage,
             kmRemaining,
+            currentMileage,
           });
         }
       }
@@ -114,6 +160,15 @@ export default async function ServicesPage() {
           </Link>
         </div>
 
+        {/* Filters */}
+        <ServicesFilter 
+          vehicles={allVehicles || []}
+          serviceTypes={SERVICE_TYPE_LABELS}
+          currentVehicleId={params.vehicle_id}
+          currentServiceType={params.service_type}
+          currentSort={params.sort}
+        />
+
         {/* Upcoming Services Alert */}
         {upcomingServices.length > 0 && (
           <div className={styles.alertCard}>
@@ -126,13 +181,13 @@ export default async function ServicesPage() {
               <span>Services Due Soon</span>
             </div>
             <div className={styles.alertContent}>
-              {upcomingServices.slice(0, 5).map(({ vehicle, nextMileage, kmRemaining }) => (
+              {upcomingServices.slice(0, 5).map(({ vehicle, nextMileage, kmRemaining, currentMileage }) => (
                 <div key={vehicle.id} className={styles.alertItem}>
                   <Link href={`/admin/vehicles/${vehicle.id}`} className={styles.alertVehicle}>
                     {vehicle.registration_number}
                   </Link>
                   <span className={styles.alertInfo}>
-                    {vehicle.make} {vehicle.model}
+                    {vehicle.make} {vehicle.model} • {currentMileage.toLocaleString()} km → {nextMileage.toLocaleString()} km
                   </span>
                   <span className={`${styles.alertKm} ${kmRemaining <= 500 ? styles.urgent : ''}`}>
                     {kmRemaining <= 0 

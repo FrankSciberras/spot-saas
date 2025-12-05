@@ -26,12 +26,6 @@
   gap: var(--spacing-lg);
 }
 
-@media (max-width: 768px) {
-  .formGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .formSection {
   margin-bottom: var(--spacing-xl);
 }
@@ -59,12 +53,6 @@
   gap: var(--spacing-lg);
 }
 
-@media (max-width: 768px) {
-  .detailGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .detailItem {
   margin-bottom: var(--spacing-md);
 }
@@ -78,4 +66,23 @@
 .detailValue {
   font-size: var(--font-base);
   font-weight: 500;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: stretch; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
+  .header h2 { font-size: var(--font-lg); }
+  .actions { width: 100%; flex-wrap: wrap; }
+  .actions .btn, .actions a { flex: 1; min-width: 120px; text-align: center; justify-content: center; }
+  .formGrid, .detailGrid { grid-template-columns: 1fr; gap: var(--spacing-md); }
+  .formActions { flex-direction: column; }
+  .formActions .btn { width: 100%; }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .header { gap: var(--spacing-sm); }
+  .header h2 { font-size: var(--font-base); }
+  .formSection h3 { font-size: var(--font-base); }
+  .actions .btn, .actions a { min-width: unset; padding: 8px 12px; font-size: var(--font-xs); }
 }

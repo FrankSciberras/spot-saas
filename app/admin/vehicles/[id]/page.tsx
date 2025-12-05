@@ -98,13 +98,23 @@ export default async function VehicleDetailPage({ params }: PageProps) {
     .order('start_time', { ascending: false })
     .limit(5);
 
-  // Fetch service history
+  // Fetch service history (for display - last 5 by date, then by created_at)
   const { data: serviceHistory } = await supabase
     .from('vehicle_services')
-    .select('id, service_date, service_type, mileage_at_service, next_service_mileage, cost, currency')
+    .select('id, service_date, service_type, mileage_at_service, next_service_mileage, cost, currency, created_at')
     .eq('vehicle_id', id)
     .order('service_date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(5);
+
+  // Fetch the most recent service with next_service_mileage (by highest mileage)
+  const { data: latestServiceWithDue } = await supabase
+    .from('vehicle_services')
+    .select('id, next_service_mileage, mileage_at_service')
+    .eq('vehicle_id', id)
+    .not('next_service_mileage', 'is', null)
+    .order('mileage_at_service', { ascending: false })
+    .limit(1);
 
   // Fetch uploaded documents
   const { data: documents } = await supabase
@@ -128,9 +138,9 @@ export default async function VehicleDetailPage({ params }: PageProps) {
     OTHER: 'Other Documents',
   };
 
-  // Get next service due (from most recent service with next_service_mileage)
-  const nextServiceDue = serviceHistory?.find(s => s.next_service_mileage);
-  const kmUntilService = nextServiceDue 
+  // Get next service due (from query ordered by highest mileage)
+  const nextServiceDue = latestServiceWithDue?.[0] || null;
+  const kmUntilService = nextServiceDue?.next_service_mileage
     ? nextServiceDue.next_service_mileage - vehicleData.mileage 
     : null;
 

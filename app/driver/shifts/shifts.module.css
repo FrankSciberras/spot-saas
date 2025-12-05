@@ -35,3 +35,22 @@
 .imageLinks a:hover {
   text-decoration: underline;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .header h2 {
+    font-size: var(--font-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .header h2 {
+    font-size: var(--font-base);
+  }
+}

@@ -351,10 +351,42 @@
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+  .container {
+    max-width: 100%;
+  }
+
+  .headerContent h1 {
+    font-size: var(--font-xl);
+  }
+
+  .filters {
+    width: 100%;
+  }
+
+  .filterBtn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+  }
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .headerContent h1 {
+    font-size: var(--font-lg);
+  }
+
+  .headerActions {
+    width: 100%;
+  }
+
+  .markAllBtn {
+    flex: 1;
   }
 
   .toolbar {
@@ -372,5 +404,26 @@
 
   .notificationCard {
     flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .notificationHeader {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .emptyState {
+    padding: 40px 16px;
+  }
+
+  .emptyIcon {
+    font-size: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filterBtn {
+    padding: 6px 10px;
+    font-size: var(--font-xs);
   }
 }

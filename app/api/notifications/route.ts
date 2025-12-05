@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const unreadOnly = searchParams.get('unread') === 'true';
   const limit = parseInt(searchParams.get('limit') || '20');
 
-  // Get user's driver_id if they are a driver
+  // Get driver_id if user is a driver
   const { data: driver } = await supabase
     .from('drivers')
     .select('id')
@@ -30,11 +30,13 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  // Filter by driver_id or user_id, or broadcast (both null)
+  // Filter notifications based on user role
   if (driver) {
+    // Drivers see: notifications for them OR broadcast (driver_id is null)
     query = query.or(`driver_id.eq.${driver.id},driver_id.is.null`);
   } else {
-    query = query.or(`user_id.eq.${user.id},user_id.is.null,driver_id.is.null`);
+    // Admins/staff/others see: broadcast notifications (driver_id is null)
+    query = query.is('driver_id', null);
   }
 
   if (unreadOnly) {
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
   if (driver) {
     countQuery = countQuery.or(`driver_id.eq.${driver.id},driver_id.is.null`);
   } else {
-    countQuery = countQuery.or(`user_id.eq.${user.id},user_id.is.null,driver_id.is.null`);
+    countQuery = countQuery.is('driver_id', null);
   }
 
   const { count: unreadCount } = await countQuery;
