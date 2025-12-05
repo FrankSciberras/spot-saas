@@ -1,0 +1,275 @@
+/* Driver Settlements Page Styles */
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Balance Card */
+.balanceCard {
+  background: linear-gradient(135deg, var(--color-primary), #1e40af);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  color: white;
+  margin-bottom: var(--spacing-xl);
+}
+
+.balanceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.balanceLabel {
+  font-size: var(--font-sm);
+  opacity: 0.9;
+}
+
+.balanceWeek {
+  font-size: var(--font-sm);
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+}
+
+.balanceAmount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  margin-bottom: var(--spacing-md);
+}
+
+.balanceBreakdown {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.breakdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.breakdownItem span:first-child {
+  font-size: var(--font-xs);
+  opacity: 0.8;
+}
+
+.breakdownItem span:last-child {
+  font-size: var(--font-base);
+  font-weight: 600;
+}
+
+/* History Section */
+.historySection {
+  margin-top: var(--spacing-xl);
+}
+
+.historySection h2 {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Settlements List */
+.settlementsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.settlementCard {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.weekInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weekLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.periodName {
+  font-size: var(--font-xs);
+  color: var(--color-primary);
+  font-weight: 500;
+  background: rgba(var(--color-primary-rgb), 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  width: fit-content;
+}
+
+.finalBalance {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.positive {
+  color: var(--color-success);
+}
+
+.negative {
+  color: var(--color-danger);
+}
+
+/* Platform List */
+.platformsList {
+  padding: var(--spacing-md);
+}
+
+.platformRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--radius-md);
+}
+
+.platformRow:nth-child(odd) {
+  background: var(--bg-secondary);
+}
+
+.platformName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.platformIcon {
+  font-size: 1.25rem;
+}
+
+.platformValues {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.platformGross {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.platformBalance {
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  color: var(--text-primary);
+}
+
+/* Card Summary */
+.cardSummary {
+  padding: var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.summaryRow:last-child {
+  padding-top: 10px;
+  margin-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  color: var(--text-muted);
+}
+
+.emptyState svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+.emptyState h3 {
+  font-size: var(--font-lg);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Error Card */
+.errorCard {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  text-align: center;
+  border: 1px solid var(--border-subtle);
+}
+
+.errorCard h3 {
+  color: var(--color-danger);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .balanceAmount {
+    font-size: 2rem;
+  }
+  
+  .balanceBreakdown {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .breakdownItem {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .platformRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .platformValues {
+    align-items: flex-start;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}

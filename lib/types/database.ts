@@ -377,6 +377,89 @@ export interface PaginatedResponse<T> {
 }
 
 // =============================================================================
+// Driver Settlements Types
+// =============================================================================
+
+export type SettlementStatus = 'draft' | 'finalized';
+
+export interface DriverSettlement {
+  id: string;
+  driver_id: string;
+  week_start: string;
+  week_end: string;
+  week_label: string;
+  period_name: string | null;
+  fss_tax: number;
+  total_gross_fare: number;
+  total_net: number;
+  total_balance_before_tax: number;
+  final_balance: number;
+  status: SettlementStatus;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SettlementPlatform {
+  id: string;
+  settlement_id: string;
+  platform_id: string;
+  platform_name: string;
+  gross_fare: number;
+  platform_fee_percent: number;
+  fifty_percent: number;
+  fee: number;
+  net: number;
+  cash_ride: number;
+  tips: number;
+  campaigns: number;
+  balance: number;
+  created_at: string;
+}
+
+export interface DriverSettlementWithRelations extends DriverSettlement {
+  drivers?: Driver | null;
+  platforms?: SettlementPlatform[];
+}
+
+export interface CreateSettlementInput {
+  driver_id: string;
+  week_start: string;
+  week_end: string;
+  week_label: string;
+  period_name?: string;
+  fss_tax: number;
+  platforms: {
+    platform_id: string;
+    platform_name: string;
+    gross_fare: number;
+    platform_fee_percent: number;
+    cash_ride: number;
+    tips: number;
+    campaigns: number;
+  }[];
+  notes?: string;
+  status?: SettlementStatus;
+}
+
+export interface UpdateSettlementInput {
+  period_name?: string;
+  fss_tax?: number;
+  platforms?: {
+    platform_id: string;
+    platform_name: string;
+    gross_fare: number;
+    platform_fee_percent: number;
+    cash_ride: number;
+    tips: number;
+    campaigns: number;
+  }[];
+  notes?: string;
+  status?: SettlementStatus;
+}
+
+// =============================================================================
 // Session & Auth Types
 // =============================================================================
 

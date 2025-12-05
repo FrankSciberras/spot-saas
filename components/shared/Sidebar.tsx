@@ -193,6 +193,23 @@ const ShieldIcon = () => (
   </svg>
 );
 
+const SettlementIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 14l6-6" />
+    <path d="M9.5 8.5h.01M14.5 13.5h.01" />
+    <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+  </svg>
+);
+
 const adminNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: <DashboardIcon /> },
   { label: 'Drivers', href: '/admin/drivers', icon: <UserIcon /> },
@@ -200,6 +217,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Services', href: '/admin/services', icon: <ServiceIcon /> },
   { label: 'Rosters', href: '/admin/rosters', icon: <RosterIcon /> },
   { label: 'Shifts', href: '/admin/shifts', icon: <ListIcon /> },
+  { label: 'Settlements', href: '/admin/settlements', icon: <SettlementIcon />, roles: ['admin'] },
   { label: 'Statistics', href: '/admin/statistics', icon: <StatsIcon />, roles: ['admin'] },
   { label: 'Earnings', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Notify', href: '/admin/notifications', icon: <BellIcon />, roles: ['admin'] },
@@ -213,6 +231,7 @@ const driverNavItems: NavItem[] = [
   { label: 'Go Online', href: '/driver/go-online', icon: <ListIcon /> },
   { label: 'My Shifts', href: '/driver/shifts', icon: <ListIcon /> },
   { label: 'My Profile', href: '/driver/profile', icon: <UserIcon /> },
+  { label: 'My Settlements', href: '/driver/settlements', icon: <SettlementIcon /> },
   { label: 'My Earnings', href: '/driver/earnings', icon: <MoneyIcon /> },
   { label: 'Notifications', href: '/driver/notifications', icon: <BellIcon /> },
 ];
