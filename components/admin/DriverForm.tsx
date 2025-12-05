@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import DatePicker from '@/components/shared/DatePicker';
 import type { DriverStatus } from '@/lib/types/database';
 import styles from './AdminForms.module.css';
 
@@ -298,12 +299,10 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
           <div className={styles.formGroup}>
             <label htmlFor="id_card_expiry_date">ID Card Expiry Date</label>
             <div className={styles.inputWithButton}>
-              <input
-                type="date"
-                id="id_card_expiry_date"
-                name="id_card_expiry_date"
+              <DatePicker
                 value={formData.id_card_expiry_date}
-                onChange={handleChange}
+                onChange={(date) => setFormData(prev => ({ ...prev, id_card_expiry_date: date }))}
+                placeholder="Select expiry date"
               />
               <input
                 type="file"
@@ -348,12 +347,10 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
           <div className={styles.formGroup}>
             <label htmlFor="driving_license_expiry_date">License Expiry Date</label>
             <div className={styles.inputWithButton}>
-              <input
-                type="date"
-                id="driving_license_expiry_date"
-                name="driving_license_expiry_date"
+              <DatePicker
                 value={formData.driving_license_expiry_date}
-                onChange={handleChange}
+                onChange={(date) => setFormData(prev => ({ ...prev, driving_license_expiry_date: date }))}
+                placeholder="Select expiry date"
               />
               <input
                 type="file"
@@ -386,12 +383,10 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
           <div className={styles.formGroup}>
             <label htmlFor="police_conduct_expiry_date">Police Conduct Expiry</label>
             <div className={styles.inputWithButton}>
-              <input
-                type="date"
-                id="police_conduct_expiry_date"
-                name="police_conduct_expiry_date"
+              <DatePicker
                 value={formData.police_conduct_expiry_date}
-                onChange={handleChange}
+                onChange={(date) => setFormData(prev => ({ ...prev, police_conduct_expiry_date: date }))}
+                placeholder="Select expiry date"
               />
               <input
                 type="file"
@@ -424,12 +419,10 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
           <div className={styles.formGroup}>
             <label htmlFor="tag_license_expiry_date">TAG License Expiry</label>
             <div className={styles.inputWithButton}>
-              <input
-                type="date"
-                id="tag_license_expiry_date"
-                name="tag_license_expiry_date"
+              <DatePicker
                 value={formData.tag_license_expiry_date}
-                onChange={handleChange}
+                onChange={(date) => setFormData(prev => ({ ...prev, tag_license_expiry_date: date }))}
+                placeholder="Select expiry date"
               />
               <input
                 type="file"

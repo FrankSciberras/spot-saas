@@ -158,6 +158,7 @@ export async function POST(request: Request) {
         week_end: body.week_end,
         week_label: body.week_label,
         period_name: body.period_name || null,
+        settlement_month: body.settlement_month || null,
         fss_tax: calculation.fssTax,
         total_gross_fare: calculation.totalGrossFare,
         total_net: calculation.totalNet,

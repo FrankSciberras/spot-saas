@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import DatePicker from '@/components/shared/DatePicker';
 import styles from './RosterEditor.module.css';
 
 interface Vehicle {
@@ -252,12 +253,11 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
       <div className={styles.weekSelector}>
         <div className={styles.weekInputGroup}>
           <label>Week Starting</label>
-          <input
-            type="date"
+          <DatePicker
             value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
+            onChange={setWeekStart}
             disabled={mode === 'edit'}
-            className={styles.dateInput}
+            placeholder="Select week start"
           />
         </div>
         <div className={styles.weekInputGroup}>

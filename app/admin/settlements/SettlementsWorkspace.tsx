@@ -2,11 +2,8 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  PLATFORMS, 
-  DEFAULT_FSS_TAX,
-  getDefaultFssTax 
-} from '@/lib/config/settlements';
+import DatePicker from '@/components/shared/DatePicker';
+import { PLATFORMS, getDefaultFssTax } from '@/lib/config/settlements';
 import { 
   calculateSettlement, 
   formatCurrency, 
@@ -22,6 +19,7 @@ interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name'> {
 interface SettlementWithRelations extends DriverSettlement {
   drivers: Pick<Driver, 'id' | 'full_name'> & { status: string } | null;
   settlement_platforms: SettlementPlatform[];
+  settlement_month?: string | null;
 }
 
 interface PlatformFormData {
@@ -49,12 +47,18 @@ export default function SettlementsWorkspace({
 }: SettlementsWorkspaceProps) {
   const router = useRouter();
   
-  // Period selection state
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
+  // Navigation state - Year > Month > Week hierarchy
+  // Use lazy initialization to avoid hydration mismatch
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(() => new Date().getMonth()); // 0-11
+  const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
+  
+  // Period creation state
   const [isCreatingPeriod, setIsCreatingPeriod] = useState(false);
   const [newPeriodStart, setNewPeriodStart] = useState('');
   const [newPeriodEnd, setNewPeriodEnd] = useState('');
   const [newPeriodName, setNewPeriodName] = useState('');
+  const [newPeriodMonth, setNewPeriodMonth] = useState('');
   
   // Driver selection state
   const [showArchived, setShowArchived] = useState(false);
@@ -82,6 +86,105 @@ export default function SettlementsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Month names
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // Get available years from settlements
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    const now = new Date();
+    years.add(now.getFullYear()); // Always include current year
+    years.add(now.getFullYear() + 1); // And next year
+    
+    settlements.forEach(s => {
+      if (s.settlement_month) {
+        years.add(new Date(s.settlement_month).getFullYear());
+      }
+      years.add(new Date(s.week_start).getFullYear());
+    });
+    
+    return Array.from(years).sort((a, b) => b - a); // Descending
+  }, [settlements]);
+
+  // Get months with data for selected year
+  const monthsWithData = useMemo(() => {
+    const months = new Map<number, { count: number; total: number }>();
+    
+    // Initialize all months
+    for (let i = 0; i < 12; i++) {
+      months.set(i, { count: 0, total: 0 });
+    }
+    
+    settlements.forEach(s => {
+      // Use settlement_month if set, otherwise derive from week_start
+      const monthDate = s.settlement_month 
+        ? new Date(s.settlement_month) 
+        : new Date(s.week_start);
+      
+      if (monthDate.getFullYear() === selectedYear) {
+        const month = monthDate.getMonth();
+        const current = months.get(month) || { count: 0, total: 0 };
+        months.set(month, {
+          count: current.count + 1,
+          total: current.total + (s.final_balance || 0),
+        });
+      }
+    });
+    
+    return months;
+  }, [settlements, selectedYear]);
+
+  // Get weeks for selected month
+  const weeksInMonth = useMemo(() => {
+    if (selectedMonth === null) return [];
+    
+    const weekMap = new Map<string, {
+      id: string;
+      startISO: string;
+      endISO: string;
+      label: string;
+      periodName: string | null;
+      settlementMonth: string | null;
+      settlementCount: number;
+      totalBalance: number;
+    }>();
+    
+    settlements.forEach(s => {
+      // Check if this settlement belongs to the selected month
+      const settlementMonthDate = s.settlement_month 
+        ? new Date(s.settlement_month)
+        : new Date(s.week_start);
+      
+      if (settlementMonthDate.getFullYear() === selectedYear && 
+          settlementMonthDate.getMonth() === selectedMonth) {
+        
+        if (!weekMap.has(s.week_start)) {
+          weekMap.set(s.week_start, {
+            id: s.week_start,
+            startISO: s.week_start,
+            endISO: s.week_end,
+            label: s.week_label,
+            periodName: s.period_name,
+            settlementMonth: s.settlement_month || null,
+            settlementCount: 0,
+            totalBalance: 0,
+          });
+        }
+        
+        const week = weekMap.get(s.week_start)!;
+        week.settlementCount++;
+        week.totalBalance += s.final_balance || 0;
+      }
+    });
+    
+    return Array.from(weekMap.values()).sort((a, b) => 
+      new Date(b.startISO).getTime() - new Date(a.startISO).getTime()
+    );
+  }, [settlements, selectedYear, selectedMonth]);
+
   // Extract unique periods from existing settlements
   const existingPeriods = useMemo(() => {
     const periodMap = new Map<string, { 
@@ -90,6 +193,7 @@ export default function SettlementsWorkspace({
       endISO: string; 
       label: string;
       periodName: string | null;
+      settlementMonth: string | null;
     }>();
     
     settlements.forEach(s => {
@@ -100,6 +204,7 @@ export default function SettlementsWorkspace({
           endISO: s.week_end,
           label: s.week_label,
           periodName: s.period_name,
+          settlementMonth: s.settlement_month || null,
         });
       }
     });
@@ -112,7 +217,9 @@ export default function SettlementsWorkspace({
 
   // Get current period info
   const currentPeriod = useMemo(() => {
-    if (isCreatingPeriod && newPeriodStart && newPeriodEnd) {
+    // New period (either confirmed with "new_" ID or still in creation form)
+    const isNewPeriod = selectedWeekId?.startsWith('new_') || isCreatingPeriod;
+    if (isNewPeriod && newPeriodStart && newPeriodEnd) {
       const start = new Date(newPeriodStart);
       const end = new Date(newPeriodEnd);
       const formatOptions: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
@@ -122,22 +229,27 @@ export default function SettlementsWorkspace({
         startISO: newPeriodStart,
         endISO: newPeriodEnd,
         label: `${startStr} – ${endStr}`,
-        periodName: newPeriodName || null,
+        periodName: newPeriodName || periodName || null,
+        settlementMonth: newPeriodMonth || null,
+        isNew: true,
       };
     }
     
-    const period = existingPeriods.find(p => p.id === selectedPeriodId);
+    // Existing period from database
+    const period = existingPeriods.find(p => p.id === selectedWeekId);
     if (period) {
       return {
         startISO: period.startISO,
         endISO: period.endISO,
         label: period.label,
         periodName: period.periodName,
+        settlementMonth: period.settlementMonth,
+        isNew: false,
       };
     }
     
     return null;
-  }, [isCreatingPeriod, newPeriodStart, newPeriodEnd, newPeriodName, selectedPeriodId, existingPeriods]);
+  }, [isCreatingPeriod, newPeriodStart, newPeriodEnd, newPeriodName, newPeriodMonth, periodName, selectedWeekId, existingPeriods]);
 
   // Filter drivers by search
   const displayedDrivers = useMemo(() => {
@@ -257,12 +369,23 @@ export default function SettlementsWorkspace({
     setSuccessMessage(null);
 
     try {
+      // Get settlement month - prioritize: currentPeriod.settlementMonth > selected navigation month
+      let settlementMonth = currentPeriod.settlementMonth;
+      
+      // Fallback: derive from selected month in navigation if not set
+      // Use string construction to avoid timezone issues
+      if (!settlementMonth && selectedMonth !== null) {
+        const month = String(selectedMonth + 1).padStart(2, '0');
+        settlementMonth = `${selectedYear}-${month}-01`;
+      }
+      
       const payload = {
         driver_id: selectedDriverId,
         week_start: currentPeriod.startISO,
         week_end: currentPeriod.endISO,
         week_label: currentPeriod.label,
         period_name: periodName || null,
+        settlement_month: settlementMonth || null,
         fss_tax: parseFloat(fssTax) || 0,
         notes: notes || null,
         status,
@@ -295,6 +418,17 @@ export default function SettlementsWorkspace({
       }
 
       setSuccessMessage(`Settlement ${existingSettlement ? 'updated' : 'created'} successfully!`);
+      
+      // If this was a new week, update the selectedWeekId to the actual week_start
+      if (selectedWeekId?.startsWith('new_')) {
+        setSelectedWeekId(currentPeriod.startISO);
+        // Clear new period state
+        setNewPeriodStart('');
+        setNewPeriodEnd('');
+        setNewPeriodName('');
+        setNewPeriodMonth('');
+      }
+      
       router.refresh();
       
       // Auto-advance to next driver without settlement
@@ -333,6 +467,30 @@ export default function SettlementsWorkspace({
     }
   };
 
+  // Toggle paid status for a settlement
+  const togglePaid = async (settlementId: string, currentlyPaid: boolean) => {
+    if (!isAdmin) return;
+    
+    try {
+      const res = await fetch(`/api/settlements/${settlementId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paid_at: currentlyPaid ? null : new Date().toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update paid status');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update paid status');
+    }
+  };
+
   // Get current driver index and selected driver (computed directly, not memoized)
   const currentDriverIndex = selectedDriverId 
     ? displayedDrivers.findIndex(d => d.id === selectedDriverId) 
@@ -357,17 +515,6 @@ export default function SettlementsWorkspace({
     }
   };
 
-  // Start creating a new period
-  const startNewPeriod = () => {
-    setIsCreatingPeriod(true);
-    setSelectedPeriodId(null);
-    setSelectedDriverId(null);
-    setNewPeriodStart('');
-    setNewPeriodEnd('');
-    setNewPeriodName('');
-    setPeriodName('');
-  };
-
   // Cancel creating a new period
   const cancelNewPeriod = () => {
     setIsCreatingPeriod(false);
@@ -383,104 +530,189 @@ export default function SettlementsWorkspace({
       return;
     }
     setPeriodName(newPeriodName);
-    // Keep isCreatingPeriod true but allow driver selection
-  };
-
-  // Select an existing period
-  const selectPeriod = (periodId: string) => {
-    setSelectedPeriodId(periodId);
+    // Mark period as confirmed - this will show the driver sidebar
     setIsCreatingPeriod(false);
-    setSelectedDriverId(null);
-    const period = existingPeriods.find(p => p.id === periodId);
-    if (period) {
-      setPeriodName(period.periodName || '');
-    }
+    // Set a temporary ID so currentPeriod is populated
+    setSelectedWeekId(`new_${newPeriodStart}`);
   };
 
   return (
     <div className={styles.workspace}>
-      {/* Period Selector Bar */}
-      <div className={styles.weekBar}>
-        <div className={styles.weekSelector}>
-          <select
-            value={isCreatingPeriod ? '__new__' : (selectedPeriodId || '')}
-            onChange={(e) => {
-              if (e.target.value === '__new__') {
-                startNewPeriod();
-              } else if (e.target.value) {
-                selectPeriod(e.target.value);
-              }
-            }}
-            className={styles.weekSelect}
-          >
-            <option value="">Select Period...</option>
-            <option value="__new__">+ Create New Period</option>
-            {existingPeriods.map(period => (
-              <option key={period.id} value={period.id}>
-                {period.periodName ? `${period.periodName} (${period.label})` : period.label}
-              </option>
-            ))}
-          </select>
-          
-          {isCreatingPeriod && (
-            <>
-              <div className={styles.customDateInputs}>
-                <input
-                  type="date"
-                  value={newPeriodStart}
-                  onChange={(e) => setNewPeriodStart(e.target.value)}
-                  className={styles.dateInput}
-                  placeholder="Start"
-                />
-                <span>to</span>
-                <input
-                  type="date"
-                  value={newPeriodEnd}
-                  onChange={(e) => setNewPeriodEnd(e.target.value)}
-                  className={styles.dateInput}
-                  placeholder="End"
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="Period name (e.g. Week 1 November)"
-                value={newPeriodName}
-                onChange={(e) => {
-                  setNewPeriodName(e.target.value);
-                  setPeriodName(e.target.value);
-                }}
-                className={styles.periodNameInput}
-              />
-              {newPeriodStart && newPeriodEnd && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={confirmNewPeriod}
-                >
-                  Continue
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={cancelNewPeriod}
-              >
-                Cancel
-              </button>
-            </>
-          )}
-          
-          {!isCreatingPeriod && currentPeriod && (
-            <div className={styles.currentPeriodInfo}>
-              <span className={styles.periodDates}>{currentPeriod.label}</span>
-              {currentPeriod.periodName && (
-                <span className={styles.periodBadge}>{currentPeriod.periodName}</span>
-              )}
-            </div>
-          )}
+      {/* Navigation Header: Year > Month > Week */}
+      <div className={styles.navHeader}>
+        {/* Year Selector */}
+        <div className={styles.yearSelector}>
+          {availableYears.map(year => (
+            <button
+              key={year}
+              className={`${styles.yearBtn} ${year === selectedYear ? styles.active : ''}`}
+              onClick={() => {
+                setSelectedYear(year);
+                setSelectedMonth(null);
+                setSelectedWeekId(null);
+                setSelectedDriverId(null);
+              }}
+            >
+              {year}
+            </button>
+          ))}
         </div>
 
-        {currentPeriod && (
+        {/* Month Grid */}
+        <div className={styles.monthGrid}>
+          {monthNames.map((name, idx) => {
+            const data = monthsWithData.get(idx) || { count: 0, total: 0 };
+            const isSelected = selectedMonth === idx;
+            const hasData = data.count > 0;
+            
+            return (
+              <button
+                key={idx}
+                className={`${styles.monthCard} ${isSelected ? styles.active : ''} ${hasData ? styles.hasData : ''}`}
+                onClick={() => {
+                  setSelectedMonth(idx);
+                  setSelectedWeekId(null);
+                  setSelectedDriverId(null);
+                  setIsCreatingPeriod(false);
+                }}
+              >
+                <span className={styles.monthName}>{name.slice(0, 3)}</span>
+                {hasData && (
+                  <span className={styles.monthCount}>{data.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Weeks in Selected Month */}
+        {selectedMonth !== null && (
+          <div className={styles.weeksList}>
+            <div className={styles.weeksHeader}>
+              <h3>{monthNames[selectedMonth]} {selectedYear}</h3>
+              {isAdmin && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setIsCreatingPeriod(true);
+                    setSelectedWeekId(null);
+                    setSelectedDriverId(null);
+                    // Pre-fill month - use string construction to avoid timezone issues
+                    const month = String(selectedMonth + 1).padStart(2, '0');
+                    setNewPeriodMonth(`${selectedYear}-${month}-01`);
+                  }}
+                >
+                  + New Week
+                </button>
+              )}
+            </div>
+
+            {/* New Period Form */}
+            {isCreatingPeriod && (
+              <div className={styles.newPeriodForm}>
+                <div className={styles.formRow}>
+                  <DatePicker
+                    value={newPeriodStart}
+                    onChange={setNewPeriodStart}
+                    placeholder="Start date"
+                  />
+                  <span>to</span>
+                  <DatePicker
+                    value={newPeriodEnd}
+                    onChange={setNewPeriodEnd}
+                    placeholder="End date"
+                    minDate={newPeriodStart}
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Week name (e.g. Week 1)"
+                  value={newPeriodName}
+                  onChange={(e) => {
+                    setNewPeriodName(e.target.value);
+                    setPeriodName(e.target.value);
+                  }}
+                  className={styles.periodNameInput}
+                />
+                <div className={styles.formActions}>
+                  {newPeriodStart && newPeriodEnd && (
+                    <button className="btn btn-primary btn-sm" onClick={confirmNewPeriod}>
+                      Continue
+                    </button>
+                  )}
+                  <button className="btn btn-ghost btn-sm" onClick={cancelNewPeriod}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Week Cards */}
+            <div className={styles.weekCards}>
+              {/* Show new week card if one is being created */}
+              {selectedWeekId?.startsWith('new_') && currentPeriod && (
+                <div className={`${styles.weekCard} ${styles.active} ${styles.newWeek}`}>
+                  <div className={styles.weekCardHeader}>
+                    <span className={styles.weekName}>{currentPeriod.periodName || 'New Week'}</span>
+                    <span className={styles.weekDates}>{currentPeriod.label}</span>
+                  </div>
+                  <div className={styles.weekCardStats}>
+                    <span className={styles.newBadge}>New - Select a driver to add settlements</span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Existing weeks */}
+              {weeksInMonth.map(week => (
+                <button
+                  key={week.id}
+                  className={`${styles.weekCard} ${selectedWeekId === week.id ? styles.active : ''}`}
+                  onClick={() => {
+                    setSelectedWeekId(week.id);
+                    setIsCreatingPeriod(false);
+                    setSelectedDriverId(null);
+                    setPeriodName(week.periodName || '');
+                  }}
+                >
+                  <div className={styles.weekCardHeader}>
+                    <span className={styles.weekName}>{week.periodName || week.label}</span>
+                    <span className={styles.weekDates}>{week.label}</span>
+                  </div>
+                  <div className={styles.weekCardStats}>
+                    <span>{week.settlementCount} settlements</span>
+                    <span className={styles.weekTotal}>{formatCurrency(week.totalBalance)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            {/* Empty state - only show if no weeks and not creating */}
+            {weeksInMonth.length === 0 && !isCreatingPeriod && !selectedWeekId?.startsWith('new_') && (
+              <div className={styles.emptyWeeks}>
+                <p>No weeks in {monthNames[selectedMonth]} {selectedYear}</p>
+                {isAdmin && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setIsCreatingPeriod(true);
+                      // Use string construction to avoid timezone issues
+                      const month = String(selectedMonth + 1).padStart(2, '0');
+                      setNewPeriodMonth(`${selectedYear}-${month}-01`);
+                    }}
+                  >
+                    Create First Week
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* Week Stats when a week is selected */}
+      {currentPeriod && !isCreatingPeriod && (
+        <div className={styles.weekStatsBar}>
           <div className={styles.weekStats}>
             <span className={styles.statItem}>
               <span className={styles.statDot} style={{ background: 'var(--color-success)' }}></span>
@@ -495,8 +727,8 @@ export default function SettlementsWorkspace({
               {activeDrivers.length - periodSettlements.length} Pending
             </span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className={styles.workspaceMain}>
         {/* Driver List Sidebar - only show when period is selected */}
@@ -530,19 +762,24 @@ export default function SettlementsWorkspace({
               {displayedDrivers.map(driver => {
                 const status = getDriverStatus(driver.id);
                 const isSelected = driver.id === selectedDriverId;
+                const driverSettlement = periodSettlements.find(s => s.driver_id === driver.id);
+                const isPaid = !!driverSettlement?.paid_at;
                 
                 return (
                   <button
                     key={driver.id}
-                    className={`${styles.driverItem} ${isSelected ? styles.selected : ''}`}
+                    className={`${styles.driverItem} ${isSelected ? styles.selected : ''} ${isPaid ? styles.paid : ''}`}
                     onClick={() => selectDriver(driver.id)}
                   >
                     <span className={styles.driverName}>{driver.full_name}</span>
-                    <span className={`${styles.statusIndicator} ${styles[`status_${status}`]}`}>
-                      {status === 'finalized' && '✓'}
-                      {status === 'draft' && '○'}
-                      {status === 'pending' && '–'}
-                    </span>
+                    <div className={styles.driverIndicators}>
+                      {isPaid && <span className={styles.paidBadge} title="Paid">$</span>}
+                      <span className={`${styles.statusIndicator} ${styles[`status_${status}`]}`}>
+                        {status === 'finalized' && '✓'}
+                        {status === 'draft' && '○'}
+                        {status === 'pending' && '–'}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -588,7 +825,7 @@ export default function SettlementsWorkspace({
               {successMessage && <div className={styles.successAlert}>{successMessage}</div>}
 
               {/* Platform Table */}
-              <div className={styles.tableWrapper}>
+              <div className={styles.platformTableWrapper}>
                 <table className={styles.platformTable}>
                   <thead>
                     <tr>
@@ -739,15 +976,32 @@ export default function SettlementsWorkspace({
               {/* Actions */}
               {isAdmin && (
                 <div className={styles.actionBar}>
-                  {existingSettlement && (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={handleDelete}
-                      disabled={loading}
-                    >
-                      Delete
-                    </button>
-                  )}
+                  <div className={styles.actionLeft}>
+                    {existingSettlement && (
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={handleDelete}
+                        disabled={loading}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    {existingSettlement && (
+                      <label className={styles.paidCheckbox}>
+                        <input
+                          type="checkbox"
+                          checked={!!existingSettlement.paid_at}
+                          onChange={() => togglePaid(existingSettlement.id, !!existingSettlement.paid_at)}
+                        />
+                        <span>Paid</span>
+                        {existingSettlement.paid_at && (
+                          <span className={styles.paidDate}>
+                            {new Date(existingSettlement.paid_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                      </label>
+                    )}
+                  </div>
                   <div className={styles.actionRight}>
                     <button
                       className="btn btn-secondary"

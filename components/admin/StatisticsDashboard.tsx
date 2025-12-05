@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import DatePicker from '@/components/shared/DatePicker';
 import styles from './StatisticsDashboard.module.css';
 
 interface DailyData {
@@ -297,25 +298,21 @@ export default function StatisticsDashboard() {
         <div className={styles.datePickerRow}>
           <div className={styles.datePickerGroup}>
             <label htmlFor="startDate">From</label>
-            <input
-              type="date"
-              id="startDate"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              max={endDate}
-              className={styles.dateInput}
+              onChange={setStartDate}
+              maxDate={endDate}
+              placeholder="Start date"
             />
           </div>
           <div className={styles.datePickerGroup}>
             <label htmlFor="endDate">To</label>
-            <input
-              type="date"
-              id="endDate"
+            <DatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              min={startDate}
-              max={formatDateForInput(new Date())}
-              className={styles.dateInput}
+              onChange={setEndDate}
+              minDate={startDate}
+              maxDate={formatDateForInput(new Date())}
+              placeholder="End date"
             />
           </div>
           <button 

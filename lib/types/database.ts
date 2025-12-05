@@ -396,6 +396,7 @@ export interface DriverSettlement {
   final_balance: number;
   status: SettlementStatus;
   notes: string | null;
+  paid_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -429,6 +430,7 @@ export interface CreateSettlementInput {
   week_end: string;
   week_label: string;
   period_name?: string;
+  settlement_month?: string;
   fss_tax: number;
   platforms: {
     platform_id: string;
@@ -445,6 +447,7 @@ export interface CreateSettlementInput {
 
 export interface UpdateSettlementInput {
   period_name?: string;
+  settlement_month?: string;
   fss_tax?: number;
   platforms?: {
     platform_id: string;
@@ -457,6 +460,7 @@ export interface UpdateSettlementInput {
   }[];
   notes?: string;
   status?: SettlementStatus;
+  paid_at?: string | null;
 }
 
 // =============================================================================

@@ -114,12 +114,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
       updateData.period_name = body.period_name;
     }
 
+    if (body.settlement_month !== undefined) {
+      updateData.settlement_month = body.settlement_month;
+    }
+
     if (body.notes !== undefined) {
       updateData.notes = body.notes;
     }
 
     if (body.status !== undefined) {
       updateData.status = body.status;
+    }
+
+    if (body.paid_at !== undefined) {
+      updateData.paid_at = body.paid_at;
     }
 
     if (body.platforms !== undefined) {

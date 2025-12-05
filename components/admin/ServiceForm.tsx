@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DatePicker from '@/components/shared/DatePicker';
 import styles from './AdminForms.module.css';
 
 interface Vehicle {
@@ -161,13 +162,10 @@ export default function ServiceForm({ service, vehicles, mode }: ServiceFormProp
 
           <div className={styles.formGroup}>
             <label htmlFor="service_date">Service Date *</label>
-            <input
-              type="date"
-              id="service_date"
-              name="service_date"
+            <DatePicker
               value={formData.service_date}
-              onChange={handleChange}
-              required
+              onChange={(date) => setFormData(prev => ({ ...prev, service_date: date }))}
+              placeholder="Select service date"
             />
           </div>
 
@@ -224,12 +222,10 @@ export default function ServiceForm({ service, vehicles, mode }: ServiceFormProp
 
           <div className={styles.formGroup}>
             <label htmlFor="next_service_date">Next Service Date</label>
-            <input
-              type="date"
-              id="next_service_date"
-              name="next_service_date"
+            <DatePicker
               value={formData.next_service_date}
-              onChange={handleChange}
+              onChange={(date) => setFormData(prev => ({ ...prev, next_service_date: date }))}
+              placeholder="Select date"
             />
             <span className={styles.helpText}>For time-based services</span>
           </div>

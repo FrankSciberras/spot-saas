@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import DatePicker from '@/components/shared/DatePicker';
 import type { VehicleStatus } from '@/lib/types/database';
 import styles from './AdminForms.module.css';
 
@@ -304,12 +305,10 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             <span className={styles.documentLabel}>🛡️ Vehicle Insurance</span>
             <div className={styles.formGroup}>
               <label htmlFor="insurance_expiry_date">Expiry Date</label>
-              <input
-                type="date"
-                id="insurance_expiry_date"
-                name="insurance_expiry_date"
+              <DatePicker
                 value={formData.insurance_expiry_date}
-                onChange={handleChange}
+                onChange={(date) => setFormData(prev => ({ ...prev, insurance_expiry_date: date }))}
+                placeholder="Select expiry date"
               />
             </div>
           </div>
@@ -351,12 +350,10 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             <span className={styles.documentLabel}>📋 Road License</span>
             <div className={styles.formGroup}>
               <label htmlFor="road_license_expiry_date">Expiry Date</label>
-              <input
-                type="date"
-                id="road_license_expiry_date"
-                name="road_license_expiry_date"
+              <DatePicker
                 value={formData.road_license_expiry_date}
-                onChange={handleChange}
+                onChange={(date) => setFormData(prev => ({ ...prev, road_license_expiry_date: date }))}
+                placeholder="Select expiry date"
               />
             </div>
           </div>

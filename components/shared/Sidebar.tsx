@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
 import styles from './Sidebar.module.css';
@@ -305,8 +306,14 @@ export default function Sidebar({ user, variant }: SidebarProps) {
 
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`} data-tour="sidebar">
       <div className={styles.logo}>
-        <span className={styles.logoIcon}>🚕</span>
-        <span className={styles.logoText}>SPOT</span>
+        <Image
+          src="/Black Logo.svg"
+          alt="SPOT"
+          width={140}
+          height={32}
+          priority
+          className={styles.logoImage}
+        />
       </div>
 
       <nav className={styles.nav}>
