@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './login.module.css';
@@ -46,8 +47,14 @@ export default function LoginPage() {
       <div className={styles.loginCard}>
         <div className={styles.header}>
           <div className={styles.logo}>
-            <span className={styles.logoIcon}>🚕</span>
-            <h1 className={styles.logoText}>SPOT Dashboard</h1>
+            <Image
+              src="/Black Logo.svg"
+              alt="SPOT Dashboard logo"
+              className={styles.logoImage}
+              width={160}
+              height={44}
+              priority
+            />
           </div>
           <p className={styles.subtitle}>Sign in to your account</p>
         </div>

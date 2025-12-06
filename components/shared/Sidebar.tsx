@@ -308,11 +308,11 @@ export default function Sidebar({ user, variant }: SidebarProps) {
       <div className={styles.logo}>
         <Image
           src="/Black Logo.svg"
-          alt="SPOT"
-          width={140}
-          height={32}
-          priority
+          alt="SPOT dashboard logo"
           className={styles.logoImage}
+          width={98}
+          height={28}
+          priority
         />
       </div>
 

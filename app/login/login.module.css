@@ -29,6 +29,12 @@
   margin-bottom: var(--spacing-md);
 }
 
+.logoImage {
+  max-width: 180px;
+  height: auto;
+  display: block;
+}
+
 .logoIcon {
   font-size: 2.5rem;
 }
