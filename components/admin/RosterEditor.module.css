@@ -92,12 +92,29 @@
 
 /* Error */
 .error {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   padding: var(--spacing-md);
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: var(--radius-md);
   color: var(--color-danger);
   font-size: var(--font-sm);
+}
+
+/* Success */
+.success {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--color-success);
+  font-size: var(--font-sm);
+  font-weight: 500;
 }
 
 /* Week Selector */
@@ -252,12 +269,65 @@
   padding: 0.5rem;
   border-right: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
+  gap: 4px;
 }
 
 .assignmentCell:last-child {
   border-right: none;
+}
+
+.driverSlot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.addSecondaryBtn,
+.removeSecondaryBtn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.addSecondaryBtn {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+}
+
+.addSecondaryBtn:hover {
+  background: rgba(var(--color-primary-rgb), 0.2);
+}
+
+.removeSecondaryBtn {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+}
+
+.removeSecondaryBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.secondarySelect {
+  background: rgba(245, 158, 11, 0.05) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.secondarySelect.hasDriver {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
 }
 
 .driverSelect {
@@ -431,5 +501,81 @@
   .publishBtn {
     padding: 0.5rem 1rem;
     font-size: var(--font-xs);
+  }
+
+  .legend {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .legendStats {
+    margin-left: 0;
+  }
+}
+
+/* Mobile card view for roster */
+@media (max-width: 600px) {
+  .gridContainer {
+    border: none;
+    background: transparent;
+  }
+
+  .grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    min-width: unset;
+  }
+
+  .gridHeader {
+    display: none;
+  }
+
+  .gridRow {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .vehicleCell {
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+  }
+
+  .assignmentCell {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.75rem 1rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .assignmentCell:last-child {
+    border-bottom: none;
+  }
+
+  .assignmentCell::before {
+    content: attr(data-day);
+    font-size: var(--font-xs);
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 40px;
+  }
+
+  .driverSlot {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .driverSelect {
+    font-size: var(--font-sm);
+    padding: 0.6rem;
   }
 }

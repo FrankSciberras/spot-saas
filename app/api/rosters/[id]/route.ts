@@ -35,7 +35,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     .select(`
       *,
       vehicles:vehicle_id (id, registration_number, make, model),
-      drivers:driver_id (id, full_name, phone)
+      drivers:driver_id (id, full_name, phone),
+      secondary_drivers:secondary_driver_id (id, full_name, phone)
     `)
     .eq('roster_id', id)
     .order('assignment_date', { ascending: true });
@@ -113,12 +114,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
       const assignmentRecords = assignments.map((a: {
         vehicle_id: string;
         driver_id: string | null;
+        secondary_driver_id?: string | null;
         assignment_date: string;
         day_of_week: number;
       }) => ({
         roster_id: id,
         vehicle_id: a.vehicle_id,
         driver_id: a.driver_id || null,
+        secondary_driver_id: a.secondary_driver_id || null,
         assignment_date: a.assignment_date,
         day_of_week: a.day_of_week,
       }));

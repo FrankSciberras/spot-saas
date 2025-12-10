@@ -24,12 +24,13 @@ export default async function DriverRosterPage() {
     );
   }
 
-  // Get current and upcoming rosters with this driver's assignments
+  // Get current and upcoming rosters with this driver's assignments (primary or secondary)
   const today = new Date();
   const twoWeeksAgo = new Date(today);
   twoWeeksAgo.setDate(today.getDate() - 14);
 
-  const { data: rosters } = await supabase
+  // Get assignments where driver is primary
+  const { data: primaryRosters } = await supabase
     .from('rosters')
     .select(`
       *,
@@ -38,6 +39,8 @@ export default async function DriverRosterPage() {
         assignment_date,
         day_of_week,
         vehicle_id,
+        driver_id,
+        secondary_driver_id,
         vehicles:vehicle_id (registration_number, make, model)
       )
     `)
@@ -45,6 +48,55 @@ export default async function DriverRosterPage() {
     .eq('roster_assignments.driver_id', driver.id)
     .gte('week_end', twoWeeksAgo.toISOString().split('T')[0])
     .order('week_start', { ascending: false });
+
+  // Get assignments where driver is secondary
+  const { data: secondaryRosters } = await supabase
+    .from('rosters')
+    .select(`
+      *,
+      roster_assignments!inner (
+        id,
+        assignment_date,
+        day_of_week,
+        vehicle_id,
+        driver_id,
+        secondary_driver_id,
+        vehicles:vehicle_id (registration_number, make, model)
+      )
+    `)
+    .eq('status', 'published')
+    .eq('roster_assignments.secondary_driver_id', driver.id)
+    .gte('week_end', twoWeeksAgo.toISOString().split('T')[0])
+    .order('week_start', { ascending: false });
+
+  // Merge and deduplicate rosters, marking secondary assignments
+  const rostersMap = new Map();
+  
+  primaryRosters?.forEach(roster => {
+    if (!rostersMap.has(roster.id)) {
+      rostersMap.set(roster.id, { ...roster, roster_assignments: [] });
+    }
+    roster.roster_assignments.forEach((a: { id: string }) => {
+      rostersMap.get(roster.id).roster_assignments.push({ ...a, isSecondary: false });
+    });
+  });
+
+  secondaryRosters?.forEach(roster => {
+    if (!rostersMap.has(roster.id)) {
+      rostersMap.set(roster.id, { ...roster, roster_assignments: [] });
+    }
+    roster.roster_assignments.forEach((a: { id: string }) => {
+      // Only add if not already added as primary
+      const existing = rostersMap.get(roster.id).roster_assignments.find((x: { id: string }) => x.id === a.id);
+      if (!existing) {
+        rostersMap.get(roster.id).roster_assignments.push({ ...a, isSecondary: true });
+      }
+    });
+  });
+
+  const rosters = Array.from(rostersMap.values()).sort(
+    (a, b) => new Date(b.week_start).getTime() - new Date(a.week_start).getTime()
+  );
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -101,6 +153,7 @@ export default async function DriverRosterPage() {
                     .map((assignment: {
                       id: string;
                       assignment_date: string;
+                      isSecondary?: boolean;
                       vehicles: {
                         registration_number: string;
                         make: string;
@@ -109,11 +162,14 @@ export default async function DriverRosterPage() {
                     }) => (
                       <div 
                         key={assignment.id} 
-                        className={`${styles.shiftItem} ${isToday(assignment.assignment_date) ? styles.today : ''} ${isPast(assignment.assignment_date) ? styles.past : ''}`}
+                        className={`${styles.shiftItem} ${isToday(assignment.assignment_date) ? styles.today : ''} ${isPast(assignment.assignment_date) ? styles.past : ''} ${assignment.isSecondary ? styles.secondary : ''}`}
                       >
                         <div className={styles.shiftDate}>
                           {isToday(assignment.assignment_date) && (
                             <span className={styles.todayBadge}>TODAY</span>
+                          )}
+                          {assignment.isSecondary && (
+                            <span className={styles.sharedBadge}>SHARED</span>
                           )}
                           <span className={styles.dateText}>
                             {formatDate(assignment.assignment_date)}

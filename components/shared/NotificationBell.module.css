@@ -199,8 +199,8 @@
 @media (max-width: 480px) {
   .dropdown {
     position: fixed;
-    top: auto;
-    bottom: 80px;
+    top: 70px;
+    bottom: auto;
     right: 16px;
     left: 16px;
     width: auto;

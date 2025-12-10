@@ -21,6 +21,7 @@ interface Driver {
 interface Assignment {
   vehicle_id: string;
   driver_id: string | null;
+  secondary_driver_id?: string | null;
   assignment_date: string;
   day_of_week: number;
 }
@@ -48,6 +49,7 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   // Week selection
   const [weekStart, setWeekStart] = useState<string>(() => {
@@ -64,8 +66,10 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
   const [title, setTitle] = useState(roster?.title || '');
   const [notes, setNotes] = useState(roster?.notes || '');
   
-  // Assignments: key is "vehicleId-dayIndex", value is driverId
+  // Assignments: key is "vehicleId|dayIndex", value is driverId
+  // Secondary assignments: key is "vehicleId|dayIndex|secondary", value is driverId
   const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [showSecondary, setShowSecondary] = useState<Record<string, boolean>>({});
 
   // Generate dates for the week (use UTC to avoid timezone issues)
   const weekDates = Array.from({ length: 7 }, (_, i) => {
@@ -83,13 +87,18 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
   useEffect(() => {
     if (roster?.assignments) {
       const assignmentMap: Record<string, string> = {};
+      const secondaryMap: Record<string, boolean> = {};
       roster.assignments.forEach(a => {
         if (a.driver_id) {
-          // Use pipe separator to match handleAssignmentChange
           assignmentMap[`${a.vehicle_id}|${a.day_of_week}`] = a.driver_id;
+        }
+        if (a.secondary_driver_id) {
+          assignmentMap[`${a.vehicle_id}|${a.day_of_week}|secondary`] = a.secondary_driver_id;
+          secondaryMap[`${a.vehicle_id}|${a.day_of_week}`] = true;
         }
       });
       setAssignments(assignmentMap);
+      setShowSecondary(secondaryMap);
     }
   }, [roster]);
 
@@ -106,9 +115,8 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
     }
   }, [weekStart, roster]);
 
-  const handleAssignmentChange = (vehicleId: string, dayIndex: number, driverId: string) => {
-    // Use | as separator since UUIDs contain dashes
-    const key = `${vehicleId}|${dayIndex}`;
+  const handleAssignmentChange = (vehicleId: string, dayIndex: number, driverId: string, isSecondary = false) => {
+    const key = isSecondary ? `${vehicleId}|${dayIndex}|secondary` : `${vehicleId}|${dayIndex}`;
     setAssignments(prev => {
       if (driverId === '') {
         const newAssignments = { ...prev };
@@ -119,27 +127,63 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
     });
   };
 
+  const toggleSecondaryDriver = (vehicleId: string, dayIndex: number) => {
+    const key = `${vehicleId}|${dayIndex}`;
+    setShowSecondary(prev => {
+      const newState = { ...prev, [key]: !prev[key] };
+      // Clear secondary assignment if hiding
+      if (!newState[key]) {
+        setAssignments(a => {
+          const newAssignments = { ...a };
+          delete newAssignments[`${key}|secondary`];
+          return newAssignments;
+        });
+      }
+      return newState;
+    });
+  };
+
   const handleSave = async (publish = false) => {
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       // Convert assignments to array format
       const assignmentArray: Assignment[] = [];
       
+      // Group assignments by vehicle|day
+      const groupedAssignments: Record<string, { primary?: string; secondary?: string }> = {};
+      
       Object.entries(assignments).forEach(([key, driverId]) => {
-        // Key format is "vehicleId|dayIndex" (using pipe separator)
+        if (!driverId) return;
+        
+        const isSecondary = key.endsWith('|secondary');
+        const baseKey = isSecondary ? key.replace('|secondary', '') : key;
+        
+        if (!groupedAssignments[baseKey]) {
+          groupedAssignments[baseKey] = {};
+        }
+        
+        if (isSecondary) {
+          groupedAssignments[baseKey].secondary = driverId;
+        } else {
+          groupedAssignments[baseKey].primary = driverId;
+        }
+      });
+      
+      Object.entries(groupedAssignments).forEach(([key, drivers]) => {
         const separatorIndex = key.lastIndexOf('|');
         if (separatorIndex === -1) return;
         
         const vehicleId = key.substring(0, separatorIndex);
         const dayNum = parseInt(key.substring(separatorIndex + 1));
         
-        // Ensure dayNum is valid (0-6)
-        if (dayNum >= 0 && dayNum < 7 && weekDates[dayNum] && driverId) {
+        if (dayNum >= 0 && dayNum < 7 && weekDates[dayNum] && (drivers.primary || drivers.secondary)) {
           assignmentArray.push({
             vehicle_id: vehicleId,
-            driver_id: driverId,
+            driver_id: drivers.primary || null,
+            secondary_driver_id: drivers.secondary || null,
             assignment_date: weekDates[dayNum].date,
             day_of_week: dayNum,
           });
@@ -174,10 +218,15 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
 
         // Publish if requested
         if (publish) {
-          await fetch(`/api/rosters/${newRoster.id}/publish`, { method: 'POST' });
+          const publishRes = await fetch(`/api/rosters/${newRoster.id}/publish`, { method: 'POST' });
+          if (!publishRes.ok) {
+            const data = await publishRes.json();
+            throw new Error(data.error || 'Failed to publish roster');
+          }
         }
 
-        router.push(`/admin/rosters/${newRoster.id}`);
+        setSuccess(publish ? 'Roster published and drivers notified!' : 'Roster saved as draft!');
+        setTimeout(() => router.push(`/admin/rosters/${newRoster.id}`), 1500);
       } else {
         // Update existing roster
         const updateRes = await fetch(`/api/rosters/${roster!.id}`, {
@@ -201,13 +250,20 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
             const data = await publishRes.json();
             throw new Error(data.error || 'Failed to publish');
           }
+          setSuccess('Roster published and drivers notified!');
+        } else {
+          setSuccess('Roster saved successfully!');
         }
 
-        router.push(`/admin/rosters/${roster!.id}`);
-        router.refresh();
+        setTimeout(() => {
+          router.push(`/admin/rosters/${roster!.id}`);
+          router.refresh();
+        }, 1500);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -245,7 +301,21 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
 
       {error && (
         <div className={styles.error}>
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className={styles.success}>
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <path d="M22 4L12 14.01l-3-3" />
+          </svg>
+          {success}
         </div>
       )}
 
@@ -328,23 +398,62 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
                   <span className={styles.vehicleModel}>{vehicle.make} {vehicle.model}</span>
                 </div>
                 {weekDates.map((_, dayIndex) => {
-                  // Use pipe separator to match state key format
-                  const assignedDriver = assignments[`${vehicle.id}|${dayIndex}`];
+                  const cellKey = `${vehicle.id}|${dayIndex}`;
+                  const assignedDriver = assignments[cellKey];
+                  const secondaryDriver = assignments[`${cellKey}|secondary`];
+                  const hasSecondary = showSecondary[cellKey];
                   return (
-                    <div key={dayIndex} className={styles.assignmentCell}>
-                      <select
-                        value={assignedDriver || ''}
-                        onChange={(e) => handleAssignmentChange(vehicle.id, dayIndex, e.target.value)}
-                        className={`${styles.driverSelect} ${assignedDriver ? styles.hasDriver : ''}`}
-                        disabled={drivers.length === 0}
-                      >
-                        <option value="">-</option>
-                        {drivers.map((driver) => (
-                          <option key={driver.id} value={driver.id}>
-                            {driver.full_name}
-                          </option>
-                        ))}
-                      </select>
+                    <div key={dayIndex} className={styles.assignmentCell} data-day={weekDates[dayIndex].day}>
+                      <div className={styles.driverSlot}>
+                        <select
+                          value={assignedDriver || ''}
+                          onChange={(e) => handleAssignmentChange(vehicle.id, dayIndex, e.target.value)}
+                          className={`${styles.driverSelect} ${assignedDriver ? styles.hasDriver : ''}`}
+                          disabled={drivers.length === 0}
+                        >
+                          <option value="">-</option>
+                          {drivers.map((driver) => (
+                            <option key={driver.id} value={driver.id}>
+                              {driver.full_name}
+                            </option>
+                          ))}
+                        </select>
+                        {!hasSecondary && assignedDriver && (
+                          <button
+                            type="button"
+                            className={styles.addSecondaryBtn}
+                            onClick={() => toggleSecondaryDriver(vehicle.id, dayIndex)}
+                            title="Add second driver"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                      {hasSecondary && (
+                        <div className={styles.driverSlot}>
+                          <select
+                            value={secondaryDriver || ''}
+                            onChange={(e) => handleAssignmentChange(vehicle.id, dayIndex, e.target.value, true)}
+                            className={`${styles.driverSelect} ${styles.secondarySelect} ${secondaryDriver ? styles.hasDriver : ''}`}
+                            disabled={drivers.length === 0}
+                          >
+                            <option value="">-</option>
+                            {drivers.map((driver) => (
+                              <option key={driver.id} value={driver.id}>
+                                {driver.full_name}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className={styles.removeSecondaryBtn}
+                            onClick={() => toggleSecondaryDriver(vehicle.id, dayIndex)}
+                            title="Remove second driver"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

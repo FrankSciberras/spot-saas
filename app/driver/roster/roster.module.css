@@ -136,6 +136,21 @@
   text-transform: uppercase;
 }
 
+.sharedBadge {
+  padding: 3px 8px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+.shiftItem.secondary {
+  background: rgba(245, 158, 11, 0.04);
+  border-left: 3px solid #f59e0b;
+}
+
 .dateText {
   font-size: var(--font-base);
   font-weight: 500;
