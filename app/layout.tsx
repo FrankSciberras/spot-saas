@@ -10,12 +10,12 @@ const figtree = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: 'SPOT Dashboard - Cab Fleet Management',
+  title: 'Spot Dashboard - Cab Fleet Management',
   description: 'Manage your taxi fleet with ease - drivers, vehicles, shifts, and more.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'SPOT',
+    title: 'Spot',
   },
   formatDetection: {
     telephone: false,

@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'SPOT Dashboard',
-    short_name: 'SPOT',
+    name: 'Spot Dashboard',
+    short_name: 'Spot',
     description: 'Fleet management dashboard for drivers and administrators',
     start_url: '/',
     display: 'standalone',

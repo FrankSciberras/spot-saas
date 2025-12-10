@@ -49,7 +49,7 @@ function LoginPageContent() {
           <div className={styles.logo}>
             <Image
               src="/Black Logo.svg"
-              alt="SPOT Dashboard logo"
+              alt="Spot Dashboard logo"
               className={styles.logoImage}
               width={160}
               height={44}
