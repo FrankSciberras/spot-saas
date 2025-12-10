@@ -331,9 +331,10 @@ interface OnboardingGuideProps {
   userId?: string;
   isNewUser?: boolean;
   variant?: 'driver' | 'admin';
+  autoStart?: boolean; // Auto-start welcome tour on first visit
 }
 
-export default function OnboardingGuide({ userId, isNewUser = false, variant = 'driver' }: OnboardingGuideProps) {
+export default function OnboardingGuide({ userId, isNewUser = false, variant = 'driver', autoStart = true }: OnboardingGuideProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showGuideList, setShowGuideList] = useState(false);
   const [activeGuide, setActiveGuide] = useState<Guide | null>(null);
@@ -341,6 +342,11 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
   const [completedGuides, setCompletedGuides] = useState<string[]>([]);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  // Get welcome guide based on variant
+  const welcomeGuide = variant === 'driver' 
+    ? GUIDES.find(g => g.id === 'welcome')
+    : ADMIN_GUIDES.find(g => g.id === 'admin-welcome');
 
   // Load completed guides from localStorage
   useEffect(() => {
@@ -350,14 +356,39 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
       setCompletedGuides(JSON.parse(saved));
     }
 
-    // Show welcome guide for new users
-    if (isNewUser && !saved) {
-      setTimeout(() => {
-        setShowGuideList(true);
-        setIsOpen(true);
-      }, 1000);
+    // Check if we need to resume a guide after navigation
+    const resumeState = sessionStorage.getItem('onboarding_guide_state');
+    if (resumeState) {
+      try {
+        const { guideId, nextStep } = JSON.parse(resumeState);
+        sessionStorage.removeItem('onboarding_guide_state');
+        
+        // Find the guide to resume
+        const allGuides = [...GUIDES, ...ADMIN_GUIDES];
+        const guideToResume = allGuides.find(g => g.id === guideId);
+        
+        if (guideToResume && nextStep < guideToResume.steps.length) {
+          setTimeout(() => {
+            setActiveGuide(guideToResume);
+            setCurrentStep(nextStep);
+            setIsOpen(true);
+          }, 500); // Small delay to let page render
+          return; // Don't auto-start welcome if resuming
+        }
+      } catch {
+        sessionStorage.removeItem('onboarding_guide_state');
+      }
     }
-  }, [userId, isNewUser]);
+
+    // Auto-start welcome tour for new users (skip the guide list)
+    if (autoStart && !saved && welcomeGuide) {
+      setTimeout(() => {
+        setActiveGuide(welcomeGuide);
+        setCurrentStep(0);
+        setIsOpen(true);
+      }, 800);
+    }
+  }, [userId, autoStart, welcomeGuide]);
 
   // Save completed guides to localStorage
   const markGuideComplete = useCallback((guideId: string) => {
@@ -371,17 +402,32 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
     if (!activeGuide || !mounted) return;
 
     const step = activeGuide.steps[currentStep];
+    if (!step) {
+      // Safety check - if step doesn't exist, reset
+      setHighlightRect(null);
+      return;
+    }
+
     if (step.target) {
-      const element = document.querySelector(step.target);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        setHighlightRect(rect);
-        
-        // Scroll element into view if needed
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        setHighlightRect(null);
-      }
+      // Small delay to ensure DOM is ready after navigation
+      const timer = setTimeout(() => {
+        try {
+          const element = document.querySelector(step.target!);
+          if (element) {
+            const rect = element.getBoundingClientRect();
+            setHighlightRect(rect);
+            
+            // Scroll element into view if needed
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else {
+            setHighlightRect(null);
+          }
+        } catch {
+          // querySelector might fail with invalid selectors
+          setHighlightRect(null);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     } else {
       setHighlightRect(null);
     }
@@ -397,6 +443,25 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
   // Next step
   const nextStep = () => {
     if (!activeGuide) return;
+
+    const step = activeGuide.steps[currentStep];
+    
+    // If step has click action, trigger click on target element
+    if (step?.action === 'click' && step.target) {
+      const element = document.querySelector(step.target) as HTMLElement;
+      if (element) {
+        // Store guide state before navigation
+        const guideState = {
+          guideId: activeGuide.id,
+          nextStep: currentStep + 1,
+        };
+        sessionStorage.setItem('onboarding_guide_state', JSON.stringify(guideState));
+        
+        // Click the element to navigate
+        element.click();
+        return; // Don't increment step here - will resume after navigation
+      }
+    }
 
     if (currentStep < activeGuide.steps.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -429,6 +494,7 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
     if (!activeGuide) return {};
     
     const step = activeGuide.steps[currentStep];
+    if (!step) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     
     if (step.position === 'center' || !highlightRect) {
       return {
@@ -476,6 +542,7 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
   const getArrowClass = () => {
     if (!activeGuide) return '';
     const step = activeGuide.steps[currentStep];
+    if (!step) return '';
     const pos = step.position || 'center';
     if (pos === 'center' || !highlightRect) return '';
     return styles[`arrow${pos.charAt(0).toUpperCase() + pos.slice(1)}`];
@@ -563,8 +630,9 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
           )}
 
           {/* Active Step Tooltip */}
-          {activeGuide && (
+          {activeGuide && activeGuide.steps[currentStep] && (
             <div 
+              key={`${activeGuide.id}-${currentStep}`}
               className={`${styles.tooltip} ${getArrowClass()}`}
               style={getTooltipStyle()}
             >
@@ -581,14 +649,18 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
                 {activeGuide.steps[currentStep].content}
               </p>
               <div className={styles.tooltipActions}>
-                {currentStep > 0 && (
+                {currentStep > 0 ? (
                   <button className={styles.backBtn} onClick={prevStep}>
                     ← Back
+                  </button>
+                ) : (
+                  <button className={styles.skipBtn} onClick={closeGuide}>
+                    Skip Tour
                   </button>
                 )}
                 <button className={styles.nextBtn} onClick={nextStep}>
                   {currentStep === activeGuide.steps.length - 1 
-                    ? 'Done' 
+                    ? 'Get Started' 
                     : activeGuide.steps[currentStep].actionLabel || 'Next →'
                   }
                 </button>

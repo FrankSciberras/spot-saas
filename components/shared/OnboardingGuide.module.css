@@ -28,26 +28,28 @@
   height: 28px;
 }
 
-/* Overlay */
+/* Overlay - no blur so highlighted elements stay clear */
 .overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: transparent;
   z-index: 9999;
-  backdrop-filter: blur(2px);
+  pointer-events: auto;
 }
 
-/* Highlight Box */
+/* Highlight Box - creates the spotlight effect */
 .highlight {
   position: fixed;
   border-radius: 12px;
+  background: transparent;
   box-shadow: 
-    0 0 0 4000px rgba(0, 0, 0, 0.6),
+    0 0 0 9999px rgba(0, 0, 0, 0.75),
     0 0 0 4px var(--color-primary),
-    0 0 20px rgba(var(--color-primary-rgb), 0.5);
+    0 0 20px rgba(var(--color-primary-rgb), 0.6),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.1);
   pointer-events: none;
   z-index: 10000;
   animation: pulse 2s ease-in-out infinite;
@@ -56,15 +58,17 @@
 @keyframes pulse {
   0%, 100% {
     box-shadow: 
-      0 0 0 4000px rgba(0, 0, 0, 0.6),
+      0 0 0 9999px rgba(0, 0, 0, 0.75),
       0 0 0 4px var(--color-primary),
-      0 0 20px rgba(var(--color-primary-rgb), 0.5);
+      0 0 20px rgba(var(--color-primary-rgb), 0.6),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.1);
   }
   50% {
     box-shadow: 
-      0 0 0 4000px rgba(0, 0, 0, 0.6),
-      0 0 0 4px var(--color-primary),
-      0 0 30px rgba(var(--color-primary-rgb), 0.8);
+      0 0 0 9999px rgba(0, 0, 0, 0.75),
+      0 0 0 6px var(--color-primary),
+      0 0 35px rgba(var(--color-primary-rgb), 0.9),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -323,6 +327,23 @@
 .backBtn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+.tooltipActions .skipBtn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tooltipActions .skipBtn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .nextBtn {
