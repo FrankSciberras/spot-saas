@@ -47,21 +47,11 @@ export default async function NewDriverPage() {
         </div>
       </div>
 
-      {availableUsers.length === 0 ? (
-        <div className="alert alert-warning">
-          <strong>No available user accounts.</strong>
-          <p style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-            All users with the &quot;driver&quot; role already have driver profiles. 
-            Create a new user account with the driver role first, or change an existing user&apos;s role.
-          </p>
-        </div>
-      ) : (
-        <DriverForm 
-          vehicles={vehicles || []} 
-          users={availableUsers}
-          mode="create" 
-        />
-      )}
+      <DriverForm 
+        vehicles={vehicles || []} 
+        users={availableUsers}
+        mode="create" 
+      />
     </DashboardLayout>
   );
 }

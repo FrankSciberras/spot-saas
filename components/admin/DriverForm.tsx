@@ -58,7 +58,11 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [createNewUser, setCreateNewUser] = useState(mode === 'create' && users.length === 0);
+  const [newUserData, setNewUserData] = useState({ email: '', password: '', confirmPassword: '' });
+  const [creatingUser, setCreatingUser] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, FileRecord[]>>(() => {
     // Group existing documents by type
     const grouped: Record<string, FileRecord[]> = {};
@@ -150,13 +154,55 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
+      let userId = formData.user_id;
+
+      // If creating a new user, do that first
+      if (mode === 'create' && createNewUser) {
+        if (!newUserData.email || !newUserData.password) {
+          throw new Error('Email and password are required');
+        }
+        if (newUserData.password !== newUserData.confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+        if (newUserData.password.length < 6) {
+          throw new Error('Password must be at least 6 characters');
+        }
+
+        setCreatingUser(true);
+        const userRes = await fetch('/api/users/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: newUserData.email,
+            password: newUserData.password,
+            full_name: formData.full_name,
+            role: 'driver',
+          }),
+        });
+
+        const userData = await userRes.json();
+        setCreatingUser(false);
+
+        if (!userRes.ok) {
+          throw new Error(userData.error || 'Failed to create user account');
+        }
+
+        userId = userData.data.id;
+      }
+
+      if (!userId) {
+        throw new Error('Please select or create a user account');
+      }
+
       const url = mode === 'create' ? '/api/drivers' : `/api/drivers/${driver?.id}`;
       const method = mode === 'create' ? 'POST' : 'PUT';
 
       const payload = {
         ...formData,
+        user_id: userId,
         assigned_vehicle_id: formData.assigned_vehicle_id || null,
         id_card_expiry_date: formData.id_card_expiry_date || null,
         police_conduct_expiry_date: formData.police_conduct_expiry_date || null,
@@ -176,12 +222,16 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
         throw new Error(data.error || 'Something went wrong');
       }
 
-      router.push('/admin/drivers');
-      router.refresh();
+      setSuccess('Driver created successfully!');
+      setTimeout(() => {
+        router.push('/admin/drivers');
+        router.refresh();
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+      setCreatingUser(false);
     }
   };
 
@@ -203,30 +253,106 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
         </div>
       )}
 
+      {success && (
+        <div className="alert alert-success">
+          {success}
+        </div>
+      )}
+
+      {/* User Account Section - Only for create mode */}
+      {mode === 'create' && (
+        <div className={styles.formSection}>
+          <h3>User Account</h3>
+          
+          {/* Toggle between existing user and new user */}
+          {users.length > 0 && (
+            <div className={styles.toggleGroup}>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${!createNewUser ? styles.active : ''}`}
+                onClick={() => setCreateNewUser(false)}
+              >
+                Link Existing User
+              </button>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${createNewUser ? styles.active : ''}`}
+                onClick={() => setCreateNewUser(true)}
+              >
+                Create New Account
+              </button>
+            </div>
+          )}
+
+          <div className={styles.formGrid}>
+            {createNewUser ? (
+              <>
+                <div className={styles.formGroup}>
+                  <label htmlFor="new_email">Email Address *</label>
+                  <input
+                    type="email"
+                    id="new_email"
+                    value={newUserData.email}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="driver@example.com"
+                    required
+                  />
+                  <span className={styles.helpText}>The driver will use this email to log in</span>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="new_password">Password *</label>
+                  <input
+                    type="password"
+                    id="new_password"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Minimum 6 characters"
+                    minLength={6}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="confirm_password">Confirm Password *</label>
+                  <input
+                    type="password"
+                    id="confirm_password"
+                    value={newUserData.confirmPassword}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Confirm password"
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              <div className={styles.formGroup}>
+                <label htmlFor="user_id">User Account *</label>
+                <select
+                  id="user_id"
+                  name="user_id"
+                  value={formData.user_id}
+                  onChange={handleChange}
+                  required={!createNewUser}
+                >
+                  <option value="">Select a user account</option>
+                  {availableUsers.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.email} {user.full_name ? `(${user.full_name})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <span className={styles.helpText}>Link this driver to an existing user account</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Personal Information Section */}
       <div className={styles.formSection}>
         <h3>Personal Information</h3>
         <div className={styles.formGrid}>
-          {mode === 'create' && (
-            <div className={styles.formGroup}>
-              <label htmlFor="user_id">User Account *</label>
-              <select
-                id="user_id"
-                name="user_id"
-                value={formData.user_id}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select a user account</option>
-                {availableUsers.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.email} {user.full_name ? `(${user.full_name})` : ''}
-                  </option>
-                ))}
-              </select>
-              <span className={styles.helpText}>Link this driver to an existing user account</span>
-            </div>
-          )}
 
           <div className={styles.formGroup}>
             <label htmlFor="full_name">Full Name *</label>
@@ -506,9 +632,9 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={loading}
+          disabled={loading || creatingUser}
         >
-          {loading ? 'Saving...' : mode === 'create' ? 'Create Driver' : 'Save Changes'}
+          {creatingUser ? 'Creating Account...' : loading ? 'Saving...' : mode === 'create' ? 'Create Driver' : 'Save Changes'}
         </button>
       </div>
     </form>

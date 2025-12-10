@@ -1,0 +1,776 @@
+/* =============================================================================
+   Driver Earnings Page Styles
+   ============================================================================= */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Error Card */
+.errorCard {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.errorCard h3 {
+  color: var(--color-danger);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.errorCard p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Stats Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+}
+
+.statCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  transition: all 0.2s ease;
+}
+
+.statCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.statIcon {
+  font-size: 2rem;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.statContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statLabel {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.statChange {
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.statChange.positive {
+  color: var(--color-success);
+}
+
+.statChange.negative {
+  color: var(--color-danger);
+}
+
+/* Main Content Layout */
+.mainContent {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+/* Chart Section */
+.chartSection {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.viewToggle {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 4px;
+}
+
+.toggleBtn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleBtn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.emptyChart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.chartBars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  height: 220px;
+  padding-top: var(--spacing-lg);
+}
+
+.barGroup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.barContainer {
+  width: 100%;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.barStack {
+  width: 100%;
+  max-width: 40px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  overflow: hidden;
+}
+
+.barNet {
+  background: var(--color-primary);
+  transition: height 0.5s ease;
+}
+
+.barTips {
+  background: #22c55e;
+  transition: height 0.5s ease;
+}
+
+.barCampaigns {
+  background: #f59e0b;
+  transition: height 0.5s ease;
+}
+
+.barValue {
+  position: absolute;
+  top: -24px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.barLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chartLegend {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Platform Section */
+.platformSection {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+}
+
+.platformSection h2 {
+  margin: 0 0 var(--spacing-lg);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.emptyPlatforms {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.platformBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.platformCard {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+}
+
+.platformHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.platformIcon {
+  font-size: 1.25rem;
+}
+
+.platformName {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.platformAmount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.platformBar {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--spacing-xs);
+}
+
+.platformProgress {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s ease;
+}
+
+.platformPercentage {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* Total Summary */
+.totalSummary {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.summaryValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summaryRow.grandTotal {
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  border-top: 1px dashed var(--border-color);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.summaryRow.grandTotal span {
+  color: var(--text-primary);
+}
+
+.summaryRow.grandTotal .summaryValue {
+  color: var(--color-primary);
+  font-size: 1.125rem;
+}
+
+/* Best Week Card */
+.bestWeekCard {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.bestWeekBadge {
+  background: white;
+  color: #b45309;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: var(--font-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bestWeekContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bestWeekLabel {
+  font-size: var(--font-sm);
+  color: #92400e;
+}
+
+.bestWeekAmount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #78350f;
+}
+
+.bestWeekBreakdown {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.bestWeekPlatform {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: #78350f;
+}
+
+/* Recent Section */
+.recentSection {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+}
+
+.recentSection h2 {
+  margin: 0 0 var(--spacing-lg);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.emptyState svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+.emptyState h3 {
+  margin: 0 0 var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.emptyState p {
+  margin: 0;
+}
+
+.earningsList {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.earningsCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  transition: all 0.2s ease;
+}
+
+.earningsCard:hover {
+  border-color: var(--color-primary);
+}
+
+.earningsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.earningsWeek {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.earningsTotal {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.earningsBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.earningsRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.earningsRow .positive {
+  color: var(--color-success);
+}
+
+.platformTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.platformTag {
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mainContent {
+    grid-template-columns: 1fr;
+  }
+
+  .chartBars {
+    overflow-x: auto;
+    padding-bottom: var(--spacing-sm);
+  }
+
+  .barGroup {
+    min-width: 50px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+  }
+
+  .earningsList {
+    grid-template-columns: 1fr;
+  }
+
+  .bestWeekCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .bestWeekBreakdown {
+    flex-wrap: wrap;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .viewToggle {
+    width: 100%;
+  }
+
+  .toggleBtn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-md);
+  }
+
+  /* Stats as horizontal scroll on mobile */
+  .statsGrid {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .statsGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .statCard {
+    min-width: 160px;
+    flex-shrink: 0;
+    padding: var(--spacing-md);
+    scroll-snap-align: start;
+  }
+
+  .statIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .statValue {
+    font-size: 1.125rem;
+  }
+
+  .statLabel {
+    font-size: var(--font-xs);
+  }
+
+  /* Chart improvements */
+  .chartSection {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+  }
+
+  .chartSection h2 {
+    font-size: 1rem;
+  }
+
+  .chartBars {
+    height: 180px;
+    gap: 4px;
+  }
+
+  .barContainer {
+    height: 140px;
+  }
+
+  .barStack {
+    max-width: 28px;
+  }
+
+  .barValue {
+    font-size: 8px;
+    top: -18px;
+  }
+
+  .barLabel {
+    font-size: 8px;
+    max-width: 40px;
+  }
+
+  .chartLegend {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    justify-content: flex-start;
+  }
+
+  .legendItem {
+    font-size: var(--font-xs);
+  }
+
+  .legendDot {
+    width: 8px;
+    height: 8px;
+  }
+
+  /* Platform Section */
+  .platformSection {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+  }
+
+  .platformSection h2 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .platformCard {
+    padding: var(--spacing-sm);
+  }
+
+  .platformAmount {
+    font-size: 1.125rem;
+  }
+
+  .totalSummary {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+  }
+
+  .summaryRow.grandTotal .summaryValue {
+    font-size: 1rem;
+  }
+
+  /* Best Week Card */
+  .bestWeekCard {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+  }
+
+  .bestWeekBadge {
+    padding: 6px 12px;
+    font-size: var(--font-xs);
+  }
+
+  .bestWeekAmount {
+    font-size: 1.25rem;
+  }
+
+  .bestWeekPlatform {
+    padding: 4px 8px;
+    font-size: var(--font-xs);
+  }
+
+  /* Recent Section */
+  .recentSection {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+  }
+
+  .recentSection h2 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .earningsCard {
+    padding: var(--spacing-sm);
+  }
+
+  .earningsHeader {
+    padding-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .earningsWeek {
+    font-size: var(--font-sm);
+  }
+
+  .earningsTotal {
+    font-size: 1rem;
+  }
+
+  .earningsRow {
+    font-size: var(--font-xs);
+  }
+
+  .platformTag {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  /* Empty state */
+  .emptyState {
+    padding: var(--spacing-lg);
+  }
+
+  .emptyState svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .emptyState h3 {
+    font-size: var(--font-base);
+  }
+
+  .emptyState p {
+    font-size: var(--font-sm);
+  }
+}

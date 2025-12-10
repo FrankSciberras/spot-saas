@@ -20,21 +20,21 @@ export const PLATFORMS: PlatformConfig[] = [
   { 
     id: 'bolt', 
     name: 'Bolt', 
-    defaultFeePercent: 20, 
+    defaultFeePercent: 10, 
     icon: '⚡', 
     color: '#34D186' 
   },
   { 
     id: 'uber', 
     name: 'Uber', 
-    defaultFeePercent: 20, 
+    defaultFeePercent: 10, 
     icon: '🚗', 
     color: '#000000' 
   },
   { 
     id: 'ecabs', 
     name: 'Ecabs', 
-    defaultFeePercent: 20, 
+    defaultFeePercent: 10, 
     icon: '🚕', 
     color: '#FFB800' 
   },
