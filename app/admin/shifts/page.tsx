@@ -59,7 +59,7 @@ export default async function ShiftsPage() {
                     <tr key={shift.id as string}>
                       <td>{formatDate(shift.start_time as string)}</td>
                       <td>
-                        {(shift.drivers as Record<string, unknown>)?.full_name || 'Unknown'}
+                        {(shift.drivers as { full_name: string } | null)?.full_name ?? 'Unknown'}
                       </td>
                       <td>
                         {(shift.vehicles as Record<string, unknown>) ? (
@@ -82,10 +82,10 @@ export default async function ShiftsPage() {
                       </td>
                       <td>
                         <div className={styles.imageIndicators}>
-                          {shift.front_image_url && <span title="Front">🚗</span>}
-                          {shift.left_image_url && <span title="Left">◀</span>}
-                          {shift.right_image_url && <span title="Right">▶</span>}
-                          {shift.back_image_url && <span title="Back">🔙</span>}
+                          {/* {shift.front_image_url && <span title="Front">🚗</span>}
+                          {shift.left_image_url && <span title="Left">◀️</span>}
+                          {shift.right_image_url && <span title="Right">▶️</span>}
+                          {shift.back_image_url && <span title="Back">🔙</span>} */}
                         </div>
                       </td>
                       <td>

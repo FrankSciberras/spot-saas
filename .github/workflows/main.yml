@@ -1,0 +1,64 @@
+name: Deploy Spot Dashboard Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Create .env file from secret
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Build Docker image
+        id: docker_build
+        run: |
+          docker build -t spot-dashboard:latest .
+
+      - name: Save Docker image to tar file
+        run: |
+          docker save -o spot-dashboard.tar spot-dashboard:latest
+
+      - name: Copy Docker image to server
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: spot-dashboard.tar
+          target: /home/${{ secrets.SSH_USERNAME }}
+
+      - name: Deploy to server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan $SSH_HOST >> ~/.ssh/known_hosts
+
+          ssh $SSH_USERNAME@$SSH_HOST bash <<EOF
+            # Stop the running container
+            echo "$SUDO_PASSWORD" | sudo -S docker stop spot-dashboard || true
+            # Remove the old container
+            echo "$SUDO_PASSWORD" | sudo -S docker rm spot-dashboard || true
+            # Remove the old image
+            echo "$SUDO_PASSWORD" | sudo -S docker rmi spot-dashboard:latest || true
+            # Load the new image
+            echo "$SUDO_PASSWORD" | sudo -S docker load -i /home/$SSH_USERNAME/spot-dashboard.tar
+            # Run a new container with the new image
+            echo "$SUDO_PASSWORD" | sudo -S docker run -d --restart unless-stopped -p 3000:3000 --name spot-dashboard spot-dashboard:latest
+          EOF

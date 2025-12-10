@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
-import SettlementForm from '@/components/admin/SettlementForm';
 import styles from '../../settlements.module.css';
 
 interface PageProps {
@@ -58,11 +57,11 @@ export default async function EditSettlementPage({ params }: PageProps) {
         </div>
       </div>
 
-      <SettlementForm 
+      {/* <SettlementForm 
         drivers={drivers || []} 
         settlement={settlement}
         mode="edit" 
-      />
+      /> */}
     </DashboardLayout>
   );
 }

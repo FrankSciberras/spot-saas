@@ -1,3 +1,5 @@
+'use client';
+
 import styles from './offline.module.css';
 
 export default function OfflinePage() {
