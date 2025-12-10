@@ -33,11 +33,11 @@ export default async function DriverDashboardPage() {
     .select('id, start_time, vehicle_id, starting_mileage')
     .eq('driver_id', driver.id)
     .order('start_time', { ascending: false })
-    .limit(5) : { data: null };
+    .limit(3) : { data: null };
 
   // Check for expiring documents
   const checkExpiry = (dateStr: string | null): 'ok' | 'warning' | 'danger' => {
-    if (!dateStr) return 'ok';
+    if (!dateStr) return 'warning';
     const date = new Date(dateStr);
     const now = new Date();
     const thirtyDays = new Date();
@@ -47,110 +47,146 @@ export default async function DriverDashboardPage() {
     return 'ok';
   };
 
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const getExpiryLabel = (dateStr: string | null) => {
+    if (!dateStr) return 'Not set';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'Expired';
+    if (diff <= 30) return `${diff} days left`;
+    return formatDate(dateStr);
+  };
+
   return (
     <DashboardLayout user={user} variant="driver" title="Dashboard">
       <div className={styles.dashboard}>
         {!driver ? (
-          <div className="alert alert-warning">
-            Your driver profile is not yet set up. Please contact an administrator.
+          <div className={styles.alertCard}>
+            <span className={styles.alertIcon}>⚠️</span>
+            <p>Your driver profile is not yet set up. Please contact an administrator.</p>
           </div>
         ) : (
           <>
-            {/* Quick Actions */}
-            <div className={styles.quickActionsCard}>
+            {/* Welcome & Go Online */}
+            <div className={styles.welcomeSection}>
+              <div className={styles.welcomeText}>
+                <h1>Hello, {driver.full_name?.split(' ')[0] || 'Driver'}</h1>
+                <p>Ready to start your shift?</p>
+              </div>
               <Link href="/driver/go-online" className={styles.goOnlineBtn}>
-                <span className={styles.goOnlineIcon}>🟢</span>
-                <span>Go Online</span>
+                <span className={styles.goOnlineIcon}>▶</span>
+                Go Online
               </Link>
             </div>
 
-            {/* Stats Grid */}
-            <div className={styles.statsGrid}>
-              {/* Assigned Vehicle */}
-              <div className="card">
-                <div className="card-header">
-                  <h3>🚗 Assigned Vehicle</h3>
-                </div>
-                <div className="card-body">
+            {/* Quick Stats */}
+            <div className={styles.statsRow}>
+              {/* Vehicle Card */}
+              <div className={styles.statCard}>
+                <div className={styles.statIcon}>🚗</div>
+                <div className={styles.statContent}>
+                  <span className={styles.statLabel}>My Vehicle</span>
                   {driver.vehicles ? (
-                    <div>
-                      <p className={styles.vehicleReg}>{driver.vehicles.registration_number}</p>
-                      <p className={styles.vehicleInfo}>
-                        {driver.vehicles.make} {driver.vehicles.model} ({driver.vehicles.year})
-                      </p>
-                    </div>
+                    <>
+                      <span className={styles.statValue}>{driver.vehicles.registration_number}</span>
+                      <span className={styles.statSub}>{driver.vehicles.make} {driver.vehicles.model}</span>
+                    </>
                   ) : (
-                    <p className="text-muted">No vehicle assigned</p>
+                    <span className={styles.statValue}>Not assigned</span>
                   )}
                 </div>
               </div>
 
-              {/* Document Status */}
-              <div className="card">
-                <div className="card-header">
-                  <h3>📄 Document Status</h3>
+              {/* Documents Card */}
+              <div className={styles.statCard}>
+                <div className={styles.statIcon}>📄</div>
+                <div className={styles.statContent}>
+                  <span className={styles.statLabel}>Documents</span>
+                  <span className={styles.statValue}>
+                    {[
+                      checkExpiry(driver.id_card_expiry_date),
+                      checkExpiry(driver.police_conduct_expiry_date),
+                      checkExpiry(driver.driving_license_expiry_date)
+                    ].filter(s => s === 'ok').length}/3 Valid
+                  </span>
+                  <Link href="/driver/profile" className={styles.statLink}>View Details →</Link>
                 </div>
-                <div className="card-body">
-                  <ul className={styles.documentList}>
-                    <li>
-                      <span>ID Card:</span>
-                      <span className={`badge badge-${checkExpiry(driver.id_card_expiry_date) === 'ok' ? 'success' : checkExpiry(driver.id_card_expiry_date)}`}>
-                        {driver.id_card_expiry_date || 'Not set'}
-                      </span>
-                    </li>
-                    <li>
-                      <span>Police Conduct:</span>
-                      <span className={`badge badge-${checkExpiry(driver.police_conduct_expiry_date) === 'ok' ? 'success' : checkExpiry(driver.police_conduct_expiry_date)}`}>
-                        {driver.police_conduct_expiry_date || 'Not set'}
-                      </span>
-                    </li>
-                    <li>
-                      <span>Driving License:</span>
-                      <span className={`badge badge-${checkExpiry(driver.driving_license_expiry_date) === 'ok' ? 'success' : checkExpiry(driver.driving_license_expiry_date)}`}>
-                        {driver.driving_license_expiry_date || 'Not set'}
-                      </span>
-                    </li>
-                  </ul>
+              </div>
+            </div>
+
+            {/* Document Status */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>Document Expiry</h2>
+                <Link href="/driver/profile" className={styles.viewAllBtn}>View All</Link>
+              </div>
+              <div className={styles.docGrid}>
+                <div className={`${styles.docItem} ${styles[checkExpiry(driver.id_card_expiry_date)]}`}>
+                  <span className={styles.docName}>ID Card</span>
+                  <span className={styles.docExpiry}>{getExpiryLabel(driver.id_card_expiry_date)}</span>
+                </div>
+                <div className={`${styles.docItem} ${styles[checkExpiry(driver.police_conduct_expiry_date)]}`}>
+                  <span className={styles.docName}>Police Conduct</span>
+                  <span className={styles.docExpiry}>{getExpiryLabel(driver.police_conduct_expiry_date)}</span>
+                </div>
+                <div className={`${styles.docItem} ${styles[checkExpiry(driver.driving_license_expiry_date)]}`}>
+                  <span className={styles.docName}>Driving License</span>
+                  <span className={styles.docExpiry}>{getExpiryLabel(driver.driving_license_expiry_date)}</span>
                 </div>
               </div>
             </div>
 
             {/* Recent Shifts */}
-            <div className="card">
-              <div className="card-header">
-                <h3>📋 Recent Shifts</h3>
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>Recent Shifts</h2>
+                <Link href="/driver/shifts" className={styles.viewAllBtn}>View All</Link>
               </div>
-              <div className="card-body">
-                {recentShifts && recentShifts.length > 0 ? (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Starting Mileage</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentShifts.map((shift) => (
-                        <tr key={shift.id}>
-                          <td>{new Date(shift.start_time).toLocaleString()}</td>
-                          <td>{shift.starting_mileage?.toLocaleString()} km</td>
-                          <td>
-                            <Link href={`/driver/shifts/${shift.id}`} className="btn btn-sm btn-outline">
-                              View
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-muted">No shifts recorded yet.</p>
-                )}
-                <div className={styles.viewAllLink}>
-                  <Link href="/driver/shifts">View all shifts →</Link>
+              {recentShifts && recentShifts.length > 0 ? (
+                <div className={styles.shiftsList}>
+                  {recentShifts.map((shift) => (
+                    <Link href={`/driver/shifts/${shift.id}`} key={shift.id} className={styles.shiftItem}>
+                      <div className={styles.shiftDate}>
+                        {new Date(shift.start_time).toLocaleDateString('en-GB', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short'
+                        })}
+                      </div>
+                      <div className={styles.shiftMileage}>
+                        {shift.starting_mileage?.toLocaleString()} km
+                      </div>
+                      <span className={styles.shiftArrow}>→</span>
+                    </Link>
+                  ))}
                 </div>
-              </div>
+              ) : (
+                <p className={styles.emptyText}>No shifts recorded yet</p>
+              )}
+            </div>
+
+            {/* Quick Links */}
+            <div className={styles.quickLinks}>
+              <Link href="/driver/roster" className={styles.quickLink}>
+                <span>📅</span>
+                My Roster
+              </Link>
+              <Link href="/driver/earnings" className={styles.quickLink}>
+                <span>💰</span>
+                Earnings
+              </Link>
+              <Link href="/driver/profile" className={styles.quickLink}>
+                <span>👤</span>
+                Profile
+              </Link>
             </div>
           </>
         )}

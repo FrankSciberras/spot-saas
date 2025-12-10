@@ -1,12 +1,12 @@
 // SPOT Dashboard Service Worker
-const CACHE_NAME = 'spot-dashboard-v2';
+const CACHE_NAME = 'spot-dashboard-v3';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use
 const STATIC_ASSETS = [
   '/',
   '/offline',
-  '/manifest.json',
+  '/manifest.webmanifest',
   '/icons/icon-192x192.png',
 ];
 

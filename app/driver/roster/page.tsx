@@ -95,7 +95,7 @@ export default async function DriverRosterPage() {
   });
 
   const rosters = Array.from(rostersMap.values()).sort(
-    (a, b) => new Date(b.week_start).getTime() - new Date(a.week_start).getTime()
+    (a, b) => new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
   );
 
   const formatDate = (dateStr: string) => {

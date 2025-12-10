@@ -312,6 +312,7 @@ export default function Sidebar({ user, variant }: SidebarProps) {
           className={styles.logoImage}
           width={98}
           height={28}
+          style={{ width: 'auto', height: 'auto' }}
           priority
         />
       </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import styles from './go-online.module.css';
 
@@ -236,223 +237,160 @@ export default function GoOnlinePage() {
 
   if (success) {
     return (
-      <div className={styles.container}>
-        <div className={styles.successMessage}>
-          <span className={styles.successIcon}>✅</span>
-          <h2>You are now online!</h2>
+      <div className={styles.page}>
+        <div className={styles.successCard}>
+          <div className={styles.successIcon}>✓</div>
+          <h2>You&apos;re Online!</h2>
           <p>Your shift has been recorded successfully.</p>
-          <p>Redirecting to your shifts...</p>
+          <p className={styles.successSub}>Redirecting to shifts...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <button onClick={() => router.back()} className="btn btn-outline">
-          ← Back
-        </button>
-        <h1>Go Online</h1>
-      </div>
+    <div className={styles.page}>
+      {/* Header */}
+      <header className={styles.header}>
+        <Link href="/driver" className={styles.backBtn}>
+          ←
+        </Link>
+        <h1>Start Shift</h1>
+        <div className={styles.headerSpacer} />
+      </header>
 
       <form onSubmit={handleSubmit} className={styles.form}>
         {error && (
-          <div className="alert alert-danger">
+          <div className={styles.errorMsg}>
             {error}
           </div>
         )}
 
-        <div className="card">
-          <div className="card-header">
-            <h3>Shift Details</h3>
-          </div>
-          <div className="card-body">
-            <div className={styles.formGrid}>
-              <div className="form-group">
-                <label htmlFor="name" className="form-label">
-                  Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  className="form-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your name"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="vehicle" className="form-label">
-                  Vehicle
-                </label>
-                <select
-                  id="vehicle"
-                  className="form-select"
-                  value={vehicleId}
-                  onChange={(e) => setVehicleId(e.target.value)}
-                  required
-                >
-                  <option value="">– Select Vehicle –</option>
-                  {vehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.registration_number} - {vehicle.make} {vehicle.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="mileage" className="form-label">
-                  Mileage (km)
-                </label>
-                <input
-                  id="mileage"
-                  type="number"
-                  className="form-input"
-                  value={mileage}
-                  onChange={(e) => setMileage(e.target.value)}
-                  placeholder="Enter the mileage before the shift"
-                  required
-                  min="0"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="startTime" className="form-label">
-                  Start Time
-                </label>
-                <input
-                  id="startTime"
-                  type="datetime-local"
-                  className="form-input"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h3>Vehicle Images</h3>
-          </div>
-          <div className="card-body">
-            <div className={styles.imageGrid}>
-              <div className={styles.imageUpload}>
-                <label htmlFor="frontImage" className="form-label">
-                  Front Image
-                </label>
-                <input
-                  id="frontImage"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange(setFrontImage)}
-                  className={styles.fileInput}
-                />
-                {frontImage && (
-                  <p className={styles.fileName}>📷 {frontImage.name}</p>
-                )}
-              </div>
-
-              <div className={styles.imageUpload}>
-                <label htmlFor="leftImage" className="form-label">
-                  Left Side (Driver Side)
-                </label>
-                <input
-                  id="leftImage"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange(setLeftImage)}
-                  className={styles.fileInput}
-                />
-                {leftImage && (
-                  <p className={styles.fileName}>📷 {leftImage.name}</p>
-                )}
-              </div>
-
-              <div className={styles.imageUpload}>
-                <label htmlFor="rightImage" className="form-label">
-                  Right Side (Passenger Side)
-                </label>
-                <input
-                  id="rightImage"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange(setRightImage)}
-                  className={styles.fileInput}
-                />
-                {rightImage && (
-                  <p className={styles.fileName}>📷 {rightImage.name}</p>
-                )}
-              </div>
-
-              <div className={styles.imageUpload}>
-                <label htmlFor="backImage" className="form-label">
-                  Back Image
-                </label>
-                <input
-                  id="backImage"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange(setBackImage)}
-                  className={styles.fileInput}
-                />
-                {backImage && (
-                  <p className={styles.fileName}>📷 {backImage.name}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h3>Checks</h3>
-          </div>
-          <div className="card-body">
-            <div className={styles.checksGrid}>
-              <label className="form-checkbox">
-                <input
-                  type="checkbox"
-                  checked={dashcamChecked}
-                  onChange={(e) => setDashcamChecked(e.target.checked)}
-                />
-                <span>Dashcam is working and properly positioned</span>
-              </label>
-
-              <label className="form-checkbox">
-                <input
-                  type="checkbox"
-                  checked={carInternalChecked}
-                  onChange={(e) => setCarInternalChecked(e.target.checked)}
-                />
-                <span>Car internal condition checked (clean, no damage)</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.submitSection}>
-          <button
-            type="submit"
-            className={`btn btn-primary btn-lg ${styles.submitBtn}`}
-            disabled={loading}
+        {/* Vehicle Selection */}
+        <section className={styles.section}>
+          <h2>Vehicle</h2>
+          <select
+            value={vehicleId}
+            onChange={(e) => setVehicleId(e.target.value)}
+            className={styles.select}
+            required
           >
-            {loading ? (
-              <>
-                <span className="spinner"></span>
-                Submitting...
-              </>
-            ) : (
-              '🟢 Go Online'
-            )}
-          </button>
-        </div>
+            <option value="">Select your vehicle</option>
+            {vehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.registration_number} - {vehicle.make} {vehicle.model}
+              </option>
+            ))}
+          </select>
+        </section>
+
+        {/* Mileage */}
+        <section className={styles.section}>
+          <h2>Current Mileage</h2>
+          <div className={styles.inputWrapper}>
+            <input
+              type="number"
+              value={mileage}
+              onChange={(e) => setMileage(e.target.value)}
+              placeholder="Enter current mileage"
+              className={styles.input}
+              required
+              min="0"
+              inputMode="numeric"
+            />
+            <span className={styles.inputSuffix}>km</span>
+          </div>
+        </section>
+
+        {/* Vehicle Photos */}
+        <section className={styles.section}>
+          <h2>Vehicle Photos</h2>
+          <p className={styles.sectionHint}>Take photos of all sides of the vehicle</p>
+          
+          <div className={styles.photoGrid}>
+            <label className={`${styles.photoBox} ${frontImage ? styles.hasPhoto : ''}`}>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange(setFrontImage)}
+              />
+              <span className={styles.photoIcon}>{frontImage ? '✓' : '📷'}</span>
+              <span className={styles.photoLabel}>Front</span>
+            </label>
+
+            <label className={`${styles.photoBox} ${leftImage ? styles.hasPhoto : ''}`}>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange(setLeftImage)}
+              />
+              <span className={styles.photoIcon}>{leftImage ? '✓' : '📷'}</span>
+              <span className={styles.photoLabel}>Left</span>
+            </label>
+
+            <label className={`${styles.photoBox} ${rightImage ? styles.hasPhoto : ''}`}>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange(setRightImage)}
+              />
+              <span className={styles.photoIcon}>{rightImage ? '✓' : '📷'}</span>
+              <span className={styles.photoLabel}>Right</span>
+            </label>
+
+            <label className={`${styles.photoBox} ${backImage ? styles.hasPhoto : ''}`}>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange(setBackImage)}
+              />
+              <span className={styles.photoIcon}>{backImage ? '✓' : '📷'}</span>
+              <span className={styles.photoLabel}>Back</span>
+            </label>
+          </div>
+        </section>
+
+        {/* Checklist */}
+        <section className={styles.section}>
+          <h2>Pre-Shift Checklist</h2>
+          
+          <label className={styles.checkItem}>
+            <input
+              type="checkbox"
+              checked={dashcamChecked}
+              onChange={(e) => setDashcamChecked(e.target.checked)}
+            />
+            <span className={styles.checkBox}>
+              {dashcamChecked && '✓'}
+            </span>
+            <span className={styles.checkText}>Dashcam working & positioned</span>
+          </label>
+
+          <label className={styles.checkItem}>
+            <input
+              type="checkbox"
+              checked={carInternalChecked}
+              onChange={(e) => setCarInternalChecked(e.target.checked)}
+            />
+            <span className={styles.checkBox}>
+              {carInternalChecked && '✓'}
+            </span>
+            <span className={styles.checkText}>Interior clean & no damage</span>
+          </label>
+        </section>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          className={styles.submitBtn}
+          disabled={loading || !vehicleId || !mileage}
+        >
+          {loading ? 'Starting...' : 'Start Shift'}
+        </button>
       </form>
     </div>
   );
