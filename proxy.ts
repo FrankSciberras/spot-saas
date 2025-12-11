@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 // Routes that don't require authentication
-const publicRoutes = ['/login', '/auth/callback'];
+const publicRoutes = ['/login', '/auth/callback', '/offline'];
 
 // Route patterns for role-based access
 const adminRoutes = /^\/admin/;
@@ -43,8 +43,11 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - manifest.webmanifest (PWA manifest)
+     * - sw.js (service worker)
+     * - icons folder (PWA icons)
+     * - public folder assets
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
