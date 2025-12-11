@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import ServicesFilter from '@/components/admin/ServicesFilter';
+import ServicesList from '@/components/admin/ServicesList';
 import styles from './services.module.css';
 
 interface VehicleService {
@@ -203,71 +204,10 @@ export default async function ServicesPage({ searchParams }: PageProps) {
 
         {/* Services List */}
         {services && services.length > 0 ? (
-          <div className={styles.servicesTable}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Vehicle</th>
-                  <th>Service Type</th>
-                  <th>Mileage</th>
-                  <th>Next Due</th>
-                  <th>Cost</th>
-                  <th>Provider</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {services.map((service: VehicleService) => (
-                  <tr key={service.id}>
-                    <td>{formatDate(service.service_date)}</td>
-                    <td>
-                      {service.vehicles ? (
-                        <Link href={`/admin/vehicles/${service.vehicles.id}`} className={styles.vehicleLink}>
-                          <span className={styles.vehicleReg}>{service.vehicles.registration_number}</span>
-                          <span className={styles.vehicleModel}>
-                            {service.vehicles.make} {service.vehicles.model}
-                          </span>
-                        </Link>
-                      ) : (
-                        <span className={styles.noVehicle}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={styles.serviceType}>
-                        {SERVICE_TYPE_LABELS[service.service_type] || service.service_type}
-                      </span>
-                    </td>
-                    <td>{service.mileage_at_service.toLocaleString()} km</td>
-                    <td>
-                      {service.next_service_mileage ? (
-                        <span>{service.next_service_mileage.toLocaleString()} km</span>
-                      ) : service.next_service_date ? (
-                        <span>{formatDate(service.next_service_date)}</span>
-                      ) : (
-                        <span className={styles.noValue}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      {service.cost ? (
-                        <span>{service.currency} {service.cost.toFixed(2)}</span>
-                      ) : (
-                        <span className={styles.noValue}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      {service.service_provider || <span className={styles.noValue}>-</span>}
-                    </td>
-                    <td>
-                      <Link href={`/admin/services/${service.id}`} className={styles.viewBtn}>
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ServicesList 
+            services={services as VehicleService[]} 
+            serviceTypeLabels={SERVICE_TYPE_LABELS} 
+          />
         ) : (
           <div className={styles.emptyState}>
             <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none">

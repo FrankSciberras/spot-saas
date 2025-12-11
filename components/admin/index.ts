@@ -6,3 +6,5 @@ export { default as DeleteVehicleButton } from './DeleteVehicleButton';
 export { default as StatisticsDashboard } from './StatisticsDashboard';
 export { default as RosterEditor } from './RosterEditor';
 export { default as ServicesFilter } from './ServicesFilter';
+export { default as ServicesList } from './ServicesList';
+export { default as RostersList } from './RostersList';

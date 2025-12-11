@@ -4,6 +4,7 @@
 
 export type UserRole = 'admin' | 'staff' | 'driver';
 export type DriverStatus = 'active' | 'inactive';
+export type EmploymentType = 'full_time' | 'part_time' | 'terminated';
 export type VehicleStatus = 'active' | 'in_service' | 'out_of_service';
 export type DocumentOwnerType = 'driver' | 'vehicle';
 export type DocumentType = 
@@ -35,6 +36,7 @@ export interface Driver {
   phone: string | null;
   address: string | null;
   status: DriverStatus;
+  employment_type: EmploymentType | null;
   assigned_vehicle_id: string | null;
   id_card_number: string | null;
   id_card_expiry_date: string | null;
@@ -291,6 +293,7 @@ export interface CreateDriverInput {
   phone?: string;
   address?: string;
   status?: DriverStatus;
+  employment_type?: EmploymentType;
   assigned_vehicle_id?: string;
   id_card_number?: string;
   id_card_expiry_date?: string;
@@ -305,6 +308,7 @@ export interface UpdateDriverInput {
   phone?: string;
   address?: string;
   status?: DriverStatus;
+  employment_type?: EmploymentType | null;
   assigned_vehicle_id?: string | null;
   id_card_number?: string;
   id_card_expiry_date?: string;

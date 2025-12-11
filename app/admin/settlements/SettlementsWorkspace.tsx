@@ -11,6 +11,7 @@ import {
 } from '@/lib/utils/settlementCalculations';
 import type { Driver, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './settlements.module.css';
+import bulkStyles from '@/components/admin/ServicesList.module.css';
 
 interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name'> {
   status: string;
@@ -85,6 +86,12 @@ export default function SettlementsWorkspace({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Bulk delete state
+  const [selectedSettlementIds, setSelectedSettlementIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
 
   // Month names
   const monthNames = [
@@ -491,6 +498,62 @@ export default function SettlementsWorkspace({
     }
   };
 
+  // Bulk selection handlers
+  const toggleSelectSettlement = useCallback((settlementId: string) => {
+    setSelectedSettlementIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(settlementId)) {
+        newSet.delete(settlementId);
+      } else {
+        newSet.add(settlementId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleSelectAllInPeriod = useCallback(() => {
+    if (selectedSettlementIds.size === periodSettlements.length) {
+      setSelectedSettlementIds(new Set());
+    } else {
+      setSelectedSettlementIds(new Set(periodSettlements.map(s => s.id)));
+    }
+  }, [periodSettlements, selectedSettlementIds.size]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedSettlementIds(new Set());
+  }, []);
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedSettlementIds.size === 0 || !isAdmin) return;
+
+    setBulkDeleteLoading(true);
+    setBulkDeleteError(null);
+
+    try {
+      const res = await fetch('/api/settlements/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedSettlementIds) }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete settlements');
+      }
+
+      setSelectedSettlementIds(new Set());
+      setShowBulkDeleteConfirm(false);
+      setSelectedDriverId(null);
+      router.refresh();
+    } catch (err) {
+      setBulkDeleteError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  };
+
   // Get current driver index and selected driver (computed directly, not memoized)
   const currentDriverIndex = selectedDriverId 
     ? displayedDrivers.findIndex(d => d.id === selectedDriverId) 
@@ -730,6 +793,59 @@ export default function SettlementsWorkspace({
         </div>
       )}
 
+      {/* Bulk Delete Actions Bar */}
+      {selectedSettlementIds.size > 0 && isAdmin && (
+        <div className={bulkStyles.bulkActions}>
+          <span className={bulkStyles.selectedCount}>
+            {selectedSettlementIds.size} settlement{selectedSettlementIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            type="button"
+            className={bulkStyles.deleteBtn}
+            onClick={() => setShowBulkDeleteConfirm(true)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+            Delete Selected
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div className={bulkStyles.modalOverlay} onClick={() => !bulkDeleteLoading && setShowBulkDeleteConfirm(false)}>
+          <div className={bulkStyles.modal} onClick={e => e.stopPropagation()}>
+            <h3>Confirm Deletion</h3>
+            <p>
+              Are you sure you want to delete <strong>{selectedSettlementIds.size}</strong> settlement{selectedSettlementIds.size !== 1 ? 's' : ''}? 
+              This will permanently remove all associated platform data. This action cannot be undone.
+            </p>
+            {bulkDeleteError && (
+              <div className={bulkStyles.error}>{bulkDeleteError}</div>
+            )}
+            <div className={bulkStyles.modalActions}>
+              <button
+                type="button"
+                className={bulkStyles.cancelBtn}
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                disabled={bulkDeleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={bulkStyles.confirmDeleteBtn}
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteLoading}
+              >
+                {bulkDeleteLoading ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={styles.workspaceMain}>
         {/* Driver List Sidebar - only show when period is selected */}
         {currentPeriod && (
@@ -758,29 +874,65 @@ export default function SettlementsWorkspace({
               />
             </div>
             
+            {/* Select All for bulk delete */}
+            {isAdmin && periodSettlements.length > 0 && (
+              <div className={styles.selectAllRow}>
+                <label className={styles.selectAllLabel}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSettlementIds.size === periodSettlements.length && periodSettlements.length > 0}
+                    onChange={toggleSelectAllInPeriod}
+                  />
+                  <span>Select all ({periodSettlements.length})</span>
+                </label>
+                {selectedSettlementIds.size > 0 && (
+                  <button className={styles.clearSelectionBtn} onClick={clearSelection}>
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+            
             <div className={styles.driverList}>
               {displayedDrivers.map(driver => {
                 const status = getDriverStatus(driver.id);
                 const isSelected = driver.id === selectedDriverId;
                 const driverSettlement = periodSettlements.find(s => s.driver_id === driver.id);
                 const isPaid = !!driverSettlement?.paid_at;
+                const isSettlementSelected = driverSettlement ? selectedSettlementIds.has(driverSettlement.id) : false;
                 
                 return (
-                  <button
+                  <div
                     key={driver.id}
-                    className={`${styles.driverItem} ${isSelected ? styles.selected : ''} ${isPaid ? styles.paid : ''}`}
-                    onClick={() => selectDriver(driver.id)}
+                    className={`${styles.driverItem} ${isSelected ? styles.selected : ''} ${isPaid ? styles.paid : ''} ${isSettlementSelected ? styles.bulkSelected : ''}`}
                   >
-                    <span className={styles.driverName}>{driver.full_name}</span>
-                    <div className={styles.driverIndicators}>
-                      {isPaid && <span className={styles.paidBadge} title="Paid">$</span>}
-                      <span className={`${styles.statusIndicator} ${styles[`status_${status}`]}`}>
-                        {status === 'finalized' && '✓'}
-                        {status === 'draft' && '○'}
-                        {status === 'pending' && '–'}
-                      </span>
-                    </div>
-                  </button>
+                    {isAdmin && driverSettlement && (
+                      <input
+                        type="checkbox"
+                        className={styles.driverCheckbox}
+                        checked={isSettlementSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelectSettlement(driverSettlement.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
+                    <button
+                      className={styles.driverItemBtn}
+                      onClick={() => selectDriver(driver.id)}
+                    >
+                      <span className={styles.driverName}>{driver.full_name}</span>
+                      <div className={styles.driverIndicators}>
+                        {isPaid && <span className={styles.paidBadge} title="Paid">$</span>}
+                        <span className={`${styles.statusIndicator} ${styles[`status_${status}`]}`}>
+                          {status === 'finalized' && '✓'}
+                          {status === 'draft' && '○'}
+                          {status === 'pending' && '–'}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
               {displayedDrivers.length === 0 && (

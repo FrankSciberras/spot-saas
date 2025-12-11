@@ -1,6 +1,7 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import RostersList from '@/components/admin/RostersList';
 import Link from 'next/link';
 import styles from './rosters.module.css';
 
@@ -12,11 +13,6 @@ export default async function RostersPage() {
     .from('rosters')
     .select('*')
     .order('week_start', { ascending: false });
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  };
 
   return (
     <DashboardLayout user={user} variant="admin" title="Rosters">
@@ -49,38 +45,7 @@ export default async function RostersPage() {
             </Link>
           </div>
         ) : (
-          <div className={styles.rosterGrid}>
-            {rosters.map((roster) => (
-              <Link 
-                key={roster.id} 
-                href={`/admin/rosters/${roster.id}`}
-                className={styles.rosterCard}
-              >
-                <div className={styles.rosterHeader}>
-                  <h3 className={styles.rosterTitle}>{roster.title}</h3>
-                  <span className={`${styles.statusBadge} ${styles[roster.status]}`}>
-                    {roster.status}
-                  </span>
-                </div>
-                <div className={styles.rosterDates}>
-                  {formatDate(roster.week_start)} - {formatDate(roster.week_end)}
-                </div>
-                {roster.notes && (
-                  <p className={styles.rosterNotes}>{roster.notes}</p>
-                )}
-                <div className={styles.rosterMeta}>
-                  <span>
-                    Created {new Date(roster.created_at).toLocaleDateString('en-GB')}
-                  </span>
-                  {roster.published_at && (
-                    <span>
-                      Published {new Date(roster.published_at).toLocaleDateString('en-GB')}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
+          <RostersList rosters={rosters} />
         )}
       </div>
     </DashboardLayout>

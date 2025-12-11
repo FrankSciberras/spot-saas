@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
-import type { DriverStatus } from '@/lib/types/database';
+import type { DriverStatus, EmploymentType } from '@/lib/types/database';
 import styles from './AdminForms.module.css';
 
 interface PartialVehicle {
@@ -36,6 +36,7 @@ interface PartialDriver {
   phone?: string | null;
   address?: string | null;
   status?: DriverStatus;
+  employment_type?: EmploymentType | null;
   assigned_vehicle_id?: string | null;
   id_card_number?: string | null;
   id_card_expiry_date?: string | null;
@@ -86,6 +87,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
     phone: driver?.phone || '',
     address: driver?.address || '',
     status: driver?.status || 'active' as DriverStatus,
+    employment_type: driver?.employment_type || '' as EmploymentType | '',
     assigned_vehicle_id: driver?.assigned_vehicle_id || '',
     id_card_number: driver?.id_card_number || '',
     id_card_expiry_date: driver?.id_card_expiry_date || '',
@@ -203,6 +205,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
       const payload = {
         ...formData,
         user_id: userId,
+        employment_type: formData.employment_type || null,
         assigned_vehicle_id: formData.assigned_vehicle_id || null,
         id_card_expiry_date: formData.id_card_expiry_date || null,
         police_conduct_expiry_date: formData.police_conduct_expiry_date || null,
@@ -401,6 +404,21 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="employment_type">Employment Type</label>
+            <select
+              id="employment_type"
+              name="employment_type"
+              value={formData.employment_type}
+              onChange={handleChange}
+            >
+              <option value="">Not specified</option>
+              <option value="full_time">Full Time</option>
+              <option value="part_time">Part Time</option>
+              <option value="terminated">Terminated</option>
             </select>
           </div>
         </div>

@@ -19,6 +19,14 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+// Format date as YYYY-MM-DD without timezone conversion
+function formatAsISODate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Parse various date formats
 function parseDate(input: string): Date | null {
   if (!input.trim()) return null;
@@ -153,7 +161,7 @@ export default function DatePicker({
     const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
     if (isDateDisabled(newDate)) return;
     
-    const isoDate = newDate.toISOString().split('T')[0];
+    const isoDate = formatAsISODate(newDate);
     onChange(isoDate);
     setIsOpen(false);
   };
@@ -234,7 +242,7 @@ export default function DatePicker({
   // Quick actions
   const setToday = () => {
     const today = new Date();
-    const isoDate = today.toISOString().split('T')[0];
+    const isoDate = formatAsISODate(today);
     onChange(isoDate);
     setViewDate(today);
     setIsTyping(false);
@@ -257,7 +265,7 @@ export default function DatePicker({
     // Try to parse the date
     const parsed = parseDate(val);
     if (parsed) {
-      const isoDate = parsed.toISOString().split('T')[0];
+      const isoDate = formatAsISODate(parsed);
       onChange(isoDate);
       setViewDate(parsed);
     }
@@ -291,7 +299,7 @@ export default function DatePicker({
     } else if (e.key === 'Enter') {
       const parsed = parseDate(inputValue);
       if (parsed) {
-        const isoDate = parsed.toISOString().split('T')[0];
+        const isoDate = formatAsISODate(parsed);
         onChange(isoDate);
         setViewDate(parsed);
         setIsOpen(false);
