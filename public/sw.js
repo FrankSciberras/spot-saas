@@ -1,5 +1,5 @@
 // Spot Dashboard Service Worker
-const CACHE_NAME = 'spot-dashboard-v5';
+const CACHE_NAME = 'spot-dashboard-v7';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use
@@ -77,10 +77,10 @@ self.addEventListener('push', (event) => {
   console.log('[SW] Push received');
   
   let data = {
-    title: 'SPOT Dashboard',
+    title: 'Spot Dashboard',
     body: 'You have a new notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
+    icon: '/icons/android-chrome-192x192.png',
+    badge: '/icons/favicon-32x32.png',
     data: { url: '/' },
   };
 
