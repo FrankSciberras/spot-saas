@@ -1,5 +1,5 @@
 // Spot Dashboard Service Worker
-const CACHE_NAME = 'spot-dashboard-v7';
+const CACHE_NAME = 'spot-dashboard-v10';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use

@@ -21,14 +21,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
+    icon: '/favicon.ico',
+    apple: '/icons/apple-touch-icon.png',
   },
 };
 
@@ -48,13 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* iOS PWA Support */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Spot" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-        {/* Android PWA */}
-        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="manifest" href="/manifest.webmanifest" />
       </head>
       <body className={figtree.className}>
         {children}
