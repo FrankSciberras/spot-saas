@@ -30,6 +30,7 @@ interface DriverData {
   phone: string | null;
   address: string | null;
   status: 'active' | 'inactive';
+  employment_type: 'full_time' | 'part_time' | 'terminated' | null;
   assigned_vehicle_id: string | null;
   id_card_number: string | null;
   id_card_expiry_date: string | null;
@@ -325,6 +326,19 @@ export default function DriverInlineEdit({
             options={[
               { value: 'active', label: 'Active' },
               { value: 'inactive', label: 'Inactive' },
+            ]}
+            onSave={handleSave}
+          />
+          <InlineEditField
+            label="Employment Type"
+            value={driver.employment_type || ''}
+            fieldName="employment_type"
+            type="select"
+            options={[
+              { value: '', label: 'Not specified' },
+              { value: 'full_time', label: 'Full Time' },
+              { value: 'part_time', label: 'Part Time' },
+              { value: 'terminated', label: 'Terminated' },
             ]}
             onSave={handleSave}
           />

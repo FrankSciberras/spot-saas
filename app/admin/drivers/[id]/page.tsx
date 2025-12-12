@@ -195,6 +195,15 @@ export default async function DriverDetailPage({ params }: PageProps) {
               {driverData.address || 'Not set'}
             </span>
           </div>
+          <div className={styles.detailItem}>
+            <span className={styles.detailLabel}>Employment Type</span>
+            <span className={`${styles.detailValue} ${!driverData.employment_type ? styles.empty : ''}`}>
+              {driverData.employment_type === 'full_time' ? 'Full Time' 
+                : driverData.employment_type === 'part_time' ? 'Part Time'
+                : driverData.employment_type === 'terminated' ? 'Terminated'
+                : 'Not specified'}
+            </span>
+          </div>
         </div>
       </div>
 
