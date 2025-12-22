@@ -38,6 +38,7 @@ interface PartialDriver {
   status?: DriverStatus;
   employment_type?: EmploymentType | null;
   assigned_vehicle_id?: string | null;
+  assigned_vehicle_ids?: string[];
   id_card_number?: string | null;
   id_card_expiry_date?: string | null;
   police_conduct_expiry_date?: string | null;
@@ -61,6 +62,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [vehicleToAddId, setVehicleToAddId] = useState('');
   const [createNewUser, setCreateNewUser] = useState(mode === 'create' && users.length === 0);
   const [newUserData, setNewUserData] = useState({ email: '', password: '', confirmPassword: '' });
   const [creatingUser, setCreatingUser] = useState(false);
@@ -89,6 +91,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
     status: driver?.status || 'active' as DriverStatus,
     employment_type: driver?.employment_type || '' as EmploymentType | '',
     assigned_vehicle_id: driver?.assigned_vehicle_id || '',
+    assigned_vehicle_ids: driver?.assigned_vehicle_ids || (driver?.assigned_vehicle_id ? [driver.assigned_vehicle_id] : []),
     id_card_number: driver?.id_card_number || '',
     id_card_expiry_date: driver?.id_card_expiry_date || '',
     police_conduct_expiry_date: driver?.police_conduct_expiry_date || '',
@@ -101,6 +104,31 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const addAssignedVehicle = () => {
+    if (!vehicleToAddId) return;
+    setFormData((prev) => {
+      if (prev.assigned_vehicle_ids.includes(vehicleToAddId)) return prev;
+      const next = [...prev.assigned_vehicle_ids, vehicleToAddId];
+      return {
+        ...prev,
+        assigned_vehicle_ids: next,
+        assigned_vehicle_id: next[0] || '',
+      };
+    });
+    setVehicleToAddId('');
+  };
+
+  const removeAssignedVehicle = (vehicleId: string) => {
+    setFormData((prev) => {
+      const next = prev.assigned_vehicle_ids.filter((id) => id !== vehicleId);
+      return {
+        ...prev,
+        assigned_vehicle_ids: next,
+        assigned_vehicle_id: next[0] || '',
+      };
+    });
   };
 
   const handleFileUpload = async (docType: string, file: File) => {
@@ -206,7 +234,8 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
         ...formData,
         user_id: userId,
         employment_type: formData.employment_type || null,
-        assigned_vehicle_id: formData.assigned_vehicle_id || null,
+        assigned_vehicle_id: formData.assigned_vehicle_ids[0] || formData.assigned_vehicle_id || null,
+        assigned_vehicle_ids: formData.assigned_vehicle_ids,
         id_card_expiry_date: formData.id_card_expiry_date || null,
         police_conduct_expiry_date: formData.police_conduct_expiry_date || null,
         driving_license_expiry_date: formData.driving_license_expiry_date || null,
@@ -241,11 +270,10 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
   // Filter users that are already drivers (for create mode)
   const availableUsers = mode === 'create' ? users.filter(u => u.role === 'driver') : users;
 
-  // Filter available vehicles (not assigned, assigned to this driver, or is this driver's assigned vehicle)
-  const availableVehicles = vehicles.filter(
-    v => !v.assigned_driver_id || 
-         v.assigned_driver_id === driver?.id ||  // Vehicle is assigned TO this driver
-         (driver?.assigned_vehicle_id && v.id === driver.assigned_vehicle_id)
+  const availableVehicles = vehicles;
+
+  const vehicleLabelById = new Map(
+    availableVehicles.map((v) => [v.id, `${v.registration_number} - ${v.make} ${v.model}`] as const)
   );
 
   return (
@@ -604,19 +632,48 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label htmlFor="assigned_vehicle_id">Assigned Vehicle</label>
-            <select
-              id="assigned_vehicle_id"
-              name="assigned_vehicle_id"
-              value={formData.assigned_vehicle_id}
-              onChange={handleChange}
-            >
-              <option value="">No vehicle assigned</option>
-              {availableVehicles.map(vehicle => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.registration_number} - {vehicle.make} {vehicle.model}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                id="assigned_vehicle_id"
+                name="assigned_vehicle_id"
+                value={vehicleToAddId}
+                onChange={(e) => setVehicleToAddId(e.target.value)}
+              >
+                <option value="">Select vehicle</option>
+                {availableVehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.registration_number} - {vehicle.make} {vehicle.model}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={addAssignedVehicle}
+                disabled={!vehicleToAddId}
+                title="Add"
+              >
+                +
+              </button>
+            </div>
+
+            {formData.assigned_vehicle_ids.length > 0 && (
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {formData.assigned_vehicle_ids.map((id) => (
+                  <div key={id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>{vehicleLabelById.get(id) || id}</div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => removeAssignedVehicle(id)}
+                      title="Remove"
+                    >
+                      -
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

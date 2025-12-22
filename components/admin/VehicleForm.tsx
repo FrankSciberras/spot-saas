@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
 import type { VehicleStatus } from '@/lib/types/database';
@@ -31,6 +31,7 @@ interface PartialVehicle {
   color?: string | null;
   status?: VehicleStatus;
   assigned_driver_id?: string | null;
+  assigned_driver_ids?: string[];
   insurance_expiry_date?: string | null;
   road_license_expiry_date?: string | null;
   notes?: string | null;
@@ -48,6 +49,10 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [driverToAddId, setDriverToAddId] = useState('');
+  const [assignedDriverIds, setAssignedDriverIds] = useState<string[]>(() => {
+    return vehicle?.assigned_driver_ids || (vehicle?.assigned_driver_id ? [vehicle.assigned_driver_id] : []);
+  });
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, FileRecord[]>>(() => {
     const grouped: Record<string, FileRecord[]> = {};
     documents.forEach(doc => {
@@ -78,9 +83,55 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
     notes: vehicle?.notes || '',
   });
 
+  useEffect(() => {
+    const loadAssignments = async () => {
+      if (mode !== 'edit' || !vehicle?.id) return;
+      try {
+        const res = await fetch(`/api/vehicles/${vehicle.id}`, { method: 'GET' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { data?: { assigned_driver_ids?: string[] } };
+        const ids = data.data?.assigned_driver_ids;
+        if (ids) {
+          setAssignedDriverIds(ids);
+          setFormData((prev) => ({
+            ...prev,
+            assigned_driver_id: ids[0] || '',
+          }));
+        }
+      } catch {
+      }
+    };
+    loadAssignments();
+  }, [mode, vehicle?.id]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const addAssignedDriver = () => {
+    if (!driverToAddId) return;
+    setAssignedDriverIds((prev) => {
+      if (prev.includes(driverToAddId)) return prev;
+      const next = [...prev, driverToAddId];
+      setFormData((fd) => ({
+        ...fd,
+        assigned_driver_id: next[0] || '',
+      }));
+      return next;
+    });
+    setDriverToAddId('');
+  };
+
+  const removeAssignedDriver = (driverId: string) => {
+    setAssignedDriverIds((prev) => {
+      const next = prev.filter((id) => id !== driverId);
+      setFormData((fd) => ({
+        ...fd,
+        assigned_driver_id: next[0] || '',
+      }));
+      return next;
+    });
   };
 
   const handleFileUpload = async (docType: string, file: File) => {
@@ -144,7 +195,8 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         ...formData,
         year: formData.year ? parseInt(formData.year) : null,
         mileage: parseInt(formData.mileage) || 0,
-        assigned_driver_id: formData.assigned_driver_id || null,
+        assigned_driver_id: assignedDriverIds[0] || formData.assigned_driver_id || null,
+        assigned_driver_ids: assignedDriverIds,
         insurance_expiry_date: formData.insurance_expiry_date || null,
         road_license_expiry_date: formData.road_license_expiry_date || null,
       };
@@ -170,9 +222,10 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
     }
   };
 
-  // Filter available drivers (not assigned or assigned to this vehicle)
-  const availableDrivers = drivers.filter(
-    d => !d.assigned_vehicle_id || (vehicle?.assigned_driver_id && d.id === vehicle.assigned_driver_id)
+  const availableDrivers = drivers;
+
+  const driverLabelById = new Map(
+    availableDrivers.map((d) => [d.id, `${d.full_name}${d.phone ? ` (${d.phone})` : ''}`] as const)
   );
 
   // Common car makes for quick selection
@@ -478,19 +531,48 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label htmlFor="assigned_driver_id">Assigned Driver</label>
-            <select
-              id="assigned_driver_id"
-              name="assigned_driver_id"
-              value={formData.assigned_driver_id}
-              onChange={handleChange}
-            >
-              <option value="">No driver assigned</option>
-              {availableDrivers.map(driver => (
-                <option key={driver.id} value={driver.id}>
-                  {driver.full_name} {driver.phone ? `(${driver.phone})` : ''}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                id="assigned_driver_id"
+                name="assigned_driver_id"
+                value={driverToAddId}
+                onChange={(e) => setDriverToAddId(e.target.value)}
+              >
+                <option value="">Select driver</option>
+                {availableDrivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.full_name} {driver.phone ? `(${driver.phone})` : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={addAssignedDriver}
+                disabled={!driverToAddId}
+                title="Add"
+              >
+                +
+              </button>
+            </div>
+
+            {assignedDriverIds.length > 0 && (
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {assignedDriverIds.map((id) => (
+                  <div key={id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>{driverLabelById.get(id) || id}</div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => removeAssignedDriver(id)}
+                      title="Remove"
+                    >
+                      -
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

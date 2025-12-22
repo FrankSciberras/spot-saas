@@ -101,6 +101,23 @@ export default async function DriverDetailPage({ params }: PageProps) {
     .order('start_time', { ascending: false })
     .limit(5);
 
+  const { data: assignmentRows } = await supabase
+    .from('driver_vehicle_assignments')
+    .select(`
+      vehicles:vehicle_id (id, registration_number, make, model)
+    `)
+    .eq('driver_id', id);
+
+  const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string } | null => {
+    if (!v) return null;
+    if (Array.isArray(v)) return (v[0] as { id: string; registration_number: string; make: string; model: string } | undefined) || null;
+    return v as { id: string; registration_number: string; make: string; model: string };
+  };
+
+  const assignedVehicles = (assignmentRows || [])
+    .map((r: unknown) => normalizeVehicle((r as { vehicles?: unknown }).vehicles))
+    .filter((v): v is { id: string; registration_number: string; make: string; model: string } => Boolean(v));
+
   // Group documents by type
   const getDocumentsByType = (type: string): FileRecord[] => {
     return (documents || []).filter((doc: FileRecord) => doc.type === type);
@@ -283,8 +300,21 @@ export default async function DriverDetailPage({ params }: PageProps) {
 
       {/* Assigned Vehicle */}
       <div className={styles.detailCard}>
-        <h3>Assigned Vehicle</h3>
-        {driverData.vehicles ? (
+        <h3>Assigned Vehicles</h3>
+        {assignedVehicles.length > 0 ? (
+          <div className={styles.detailGrid}>
+            {assignedVehicles.map((v) => (
+              <div key={v.id} className={styles.detailItem}>
+                <span className={styles.detailLabel}>Registration</span>
+                <span className={styles.detailValue}>
+                  <Link href={`/admin/vehicles/${v.id}`} className={styles.detailLink}>
+                    {v.registration_number}
+                  </Link>
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : driverData.vehicles ? (
           <div className={styles.detailGrid}>
             <div className={styles.detailItem}>
               <span className={styles.detailLabel}>Registration</span>

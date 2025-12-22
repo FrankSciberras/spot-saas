@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         year: body.year,
         mileage: body.mileage || 0,
         status: body.status || 'active',
-        assigned_driver_id: body.assigned_driver_id,
+        assigned_driver_id: body.assigned_driver_ids?.[0] || body.assigned_driver_id,
         insurance_expiry_date: body.insurance_expiry_date,
         road_license_expiry_date: body.road_license_expiry_date,
         color: body.color,
@@ -94,6 +94,22 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const driverIds = body.assigned_driver_ids;
+    if (driverIds && driverIds.length > 0) {
+      const records = driverIds.map((driverId) => ({
+        driver_id: driverId,
+        vehicle_id: vehicle.id,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('driver_vehicle_assignments')
+        .insert(records);
+
+      if (insertError) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ data: vehicle }, { status: 201 });

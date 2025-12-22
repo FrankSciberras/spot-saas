@@ -27,6 +27,24 @@ export default async function DriverDashboardPage() {
     .eq('user_id', user.id)
     .single();
 
+  const { data: assignmentRows } = driver ? await supabase
+    .from('driver_vehicle_assignments')
+    .select(`
+      vehicles:vehicle_id (id, registration_number, make, model)
+    `)
+    .eq('driver_id', driver.id)
+    : { data: null };
+
+  const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string } | null => {
+    if (!v) return null;
+    if (Array.isArray(v)) return (v[0] as { id: string; registration_number: string; make: string; model: string } | undefined) || null;
+    return v as { id: string; registration_number: string; make: string; model: string };
+  };
+
+  const assignedVehicles = (assignmentRows || [])
+    .map((r: unknown) => normalizeVehicle((r as { vehicles?: unknown }).vehicles))
+    .filter((v): v is { id: string; registration_number: string; make: string; model: string } => Boolean(v));
+
   // Get recent shifts
   const { data: recentShifts } = driver ? await supabase
     .from('driver_shifts')
@@ -94,7 +112,16 @@ export default async function DriverDashboardPage() {
                 <div className={styles.statIcon}>🚗</div>
                 <div className={styles.statContent}>
                   <span className={styles.statLabel}>My Vehicle</span>
-                  {driver.vehicles ? (
+                  {assignedVehicles.length > 0 ? (
+                    <>
+                      <span className={styles.statValue}>
+                        {assignedVehicles.map((v) => v.registration_number).join(', ')}
+                      </span>
+                      <span className={styles.statSub}>
+                        {assignedVehicles.length} assigned
+                      </span>
+                    </>
+                  ) : driver.vehicles ? (
                     <>
                       <span className={styles.statValue}>{driver.vehicles.registration_number}</span>
                       <span className={styles.statSub}>{driver.vehicles.make} {driver.vehicles.model}</span>

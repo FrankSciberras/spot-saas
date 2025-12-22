@@ -95,7 +95,7 @@ export async function POST(request: Request) {
         phone: body.phone,
         address: body.address,
         status: body.status || 'active',
-        assigned_vehicle_id: body.assigned_vehicle_id,
+        assigned_vehicle_id: body.assigned_vehicle_ids?.[0] || body.assigned_vehicle_id,
         id_card_number: body.id_card_number,
         id_card_expiry_date: body.id_card_expiry_date,
         police_conduct_expiry_date: body.police_conduct_expiry_date,
@@ -108,6 +108,22 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const vehicleIds = body.assigned_vehicle_ids;
+    if (vehicleIds && vehicleIds.length > 0) {
+      const records = vehicleIds.map((vehicleId) => ({
+        driver_id: driver.id,
+        vehicle_id: vehicleId,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('driver_vehicle_assignments')
+        .insert(records);
+
+      if (insertError) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ data: driver }, { status: 201 });

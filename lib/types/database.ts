@@ -295,6 +295,7 @@ export interface CreateDriverInput {
   status?: DriverStatus;
   employment_type?: EmploymentType;
   assigned_vehicle_id?: string;
+  assigned_vehicle_ids?: string[];
   id_card_number?: string;
   id_card_expiry_date?: string;
   police_conduct_expiry_date?: string;
@@ -310,6 +311,7 @@ export interface UpdateDriverInput {
   status?: DriverStatus;
   employment_type?: EmploymentType | null;
   assigned_vehicle_id?: string | null;
+  assigned_vehicle_ids?: string[];
   id_card_number?: string;
   id_card_expiry_date?: string;
   police_conduct_expiry_date?: string;
@@ -327,6 +329,7 @@ export interface CreateVehicleInput {
   mileage?: number;
   status?: VehicleStatus;
   assigned_driver_id?: string;
+  assigned_driver_ids?: string[];
   insurance_expiry_date?: string;
   road_license_expiry_date?: string;
   color?: string;
@@ -341,6 +344,7 @@ export interface UpdateVehicleInput {
   mileage?: number;
   status?: VehicleStatus;
   assigned_driver_id?: string | null;
+  assigned_driver_ids?: string[];
   insurance_expiry_date?: string;
   road_license_expiry_date?: string;
   color?: string;

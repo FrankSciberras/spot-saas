@@ -43,7 +43,37 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
 
-    return NextResponse.json({ data: driver });
+    const { data: assignments } = await supabase
+      .from('driver_vehicle_assignments')
+      .select(`
+        vehicle_id,
+        vehicles:vehicle_id (id, registration_number, make, model)
+      `)
+      .eq('driver_id', id);
+
+    const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string } | null => {
+      if (!v) return null;
+      if (Array.isArray(v)) return (v[0] as { id: string; registration_number: string; make: string; model: string } | undefined) || null;
+      return v as { id: string; registration_number: string; make: string; model: string };
+    };
+
+    const typedAssignments = (assignments || []) as Array<{ vehicle_id?: string | null; vehicles?: unknown }>;
+
+    const assignedVehicles = typedAssignments
+      .map((a) => normalizeVehicle(a.vehicles))
+      .filter(Boolean);
+
+    const assignedVehicleIds = typedAssignments
+      .map((a) => a.vehicle_id || null)
+      .filter(Boolean);
+
+    return NextResponse.json({
+      data: {
+        ...driver,
+        assigned_vehicle_ids: assignedVehicleIds,
+        assigned_vehicles: assignedVehicles,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -74,28 +104,65 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const body: UpdateDriverInput = await request.json();
 
+    const requestedVehicleIds = body.assigned_vehicle_ids;
+
+    const updateData: Record<string, unknown> = {};
+    if (body.full_name !== undefined) updateData.full_name = body.full_name;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.address !== undefined) updateData.address = body.address;
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.employment_type !== undefined) updateData.employment_type = body.employment_type;
+    if (body.id_card_number !== undefined) updateData.id_card_number = body.id_card_number;
+    if (body.id_card_expiry_date !== undefined) updateData.id_card_expiry_date = body.id_card_expiry_date;
+    if (body.police_conduct_expiry_date !== undefined) updateData.police_conduct_expiry_date = body.police_conduct_expiry_date;
+    if (body.driving_license_number !== undefined) updateData.driving_license_number = body.driving_license_number;
+    if (body.driving_license_expiry_date !== undefined) updateData.driving_license_expiry_date = body.driving_license_expiry_date;
+    if (body.tag_license_expiry_date !== undefined) updateData.tag_license_expiry_date = body.tag_license_expiry_date;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+
+    if (requestedVehicleIds !== undefined) {
+      updateData.assigned_vehicle_id = requestedVehicleIds[0] || null;
+    } else if (body.assigned_vehicle_id !== undefined) {
+      updateData.assigned_vehicle_id = body.assigned_vehicle_id;
+    }
+
+    updateData.updated_at = new Date().toISOString();
+
     const { data: driver, error } = await supabase
       .from('drivers')
-      .update({
-        full_name: body.full_name,
-        phone: body.phone,
-        address: body.address,
-        status: body.status,
-        assigned_vehicle_id: body.assigned_vehicle_id,
-        id_card_number: body.id_card_number,
-        id_card_expiry_date: body.id_card_expiry_date,
-        police_conduct_expiry_date: body.police_conduct_expiry_date,
-        driving_license_number: body.driving_license_number,
-        driving_license_expiry_date: body.driving_license_expiry_date,
-        tag_license_expiry_date: body.tag_license_expiry_date,
-        notes: body.notes,
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (requestedVehicleIds !== undefined) {
+      const { error: deleteError } = await supabase
+        .from('driver_vehicle_assignments')
+        .delete()
+        .eq('driver_id', id);
+
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      }
+
+      if (requestedVehicleIds.length > 0) {
+        const records = requestedVehicleIds.map((vehicleId) => ({
+          driver_id: id,
+          vehicle_id: vehicleId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('driver_vehicle_assignments')
+          .insert(records);
+
+        if (insertError) {
+          return NextResponse.json({ error: insertError.message }, { status: 500 });
+        }
+      }
     }
 
     return NextResponse.json({ data: driver });

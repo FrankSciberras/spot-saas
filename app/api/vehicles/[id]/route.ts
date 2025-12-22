@@ -32,7 +32,37 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
 
-    return NextResponse.json({ data: vehicle });
+    const { data: assignments } = await supabase
+      .from('driver_vehicle_assignments')
+      .select(`
+        driver_id,
+        drivers:driver_id (id, full_name, phone)
+      `)
+      .eq('vehicle_id', id);
+
+    const normalizeDriver = (d: unknown): { id: string; full_name: string; phone?: string | null } | null => {
+      if (!d) return null;
+      if (Array.isArray(d)) return (d[0] as { id: string; full_name: string; phone?: string | null } | undefined) || null;
+      return d as { id: string; full_name: string; phone?: string | null };
+    };
+
+    const typedAssignments = (assignments || []) as Array<{ driver_id?: string | null; drivers?: unknown }>;
+
+    const assignedDrivers = typedAssignments
+      .map((a) => normalizeDriver(a.drivers))
+      .filter(Boolean);
+
+    const assignedDriverIds = typedAssignments
+      .map((a) => a.driver_id || null)
+      .filter(Boolean);
+
+    return NextResponse.json({
+      data: {
+        ...vehicle,
+        assigned_driver_ids: assignedDriverIds,
+        assigned_drivers: assignedDrivers,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -63,27 +93,61 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const body: UpdateVehicleInput = await request.json();
 
+    const requestedDriverIds = body.assigned_driver_ids;
+
+    const updateData: Record<string, unknown> = {};
+    if (body.registration_number !== undefined) updateData.registration_number = body.registration_number;
+    if (body.make !== undefined) updateData.make = body.make;
+    if (body.model !== undefined) updateData.model = body.model;
+    if (body.year !== undefined) updateData.year = body.year;
+    if (body.mileage !== undefined) updateData.mileage = body.mileage;
+    if (body.status !== undefined) updateData.status = body.status;
+    if (requestedDriverIds !== undefined) {
+      updateData.assigned_driver_id = requestedDriverIds[0] || null;
+    } else if (body.assigned_driver_id !== undefined) {
+      updateData.assigned_driver_id = body.assigned_driver_id;
+    }
+    if (body.insurance_expiry_date !== undefined) updateData.insurance_expiry_date = body.insurance_expiry_date;
+    if (body.road_license_expiry_date !== undefined) updateData.road_license_expiry_date = body.road_license_expiry_date;
+    if (body.color !== undefined) updateData.color = body.color;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    updateData.updated_at = new Date().toISOString();
+
     const { data: vehicle, error } = await supabase
       .from('vehicles')
-      .update({
-        registration_number: body.registration_number,
-        make: body.make,
-        model: body.model,
-        year: body.year,
-        mileage: body.mileage,
-        status: body.status,
-        assigned_driver_id: body.assigned_driver_id,
-        insurance_expiry_date: body.insurance_expiry_date,
-        road_license_expiry_date: body.road_license_expiry_date,
-        color: body.color,
-        notes: body.notes,
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (requestedDriverIds !== undefined) {
+      const { error: deleteError } = await supabase
+        .from('driver_vehicle_assignments')
+        .delete()
+        .eq('vehicle_id', id);
+
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      }
+
+      if (requestedDriverIds.length > 0) {
+        const records = requestedDriverIds.map((driverId) => ({
+          driver_id: driverId,
+          vehicle_id: id,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('driver_vehicle_assignments')
+          .insert(records);
+
+        if (insertError) {
+          return NextResponse.json({ error: insertError.message }, { status: 500 });
+        }
+      }
     }
 
     return NextResponse.json({ data: vehicle });

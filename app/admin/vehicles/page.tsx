@@ -27,6 +27,24 @@ export default async function VehiclesPage() {
     `)
     .order('registration_number');
 
+  const { data: assignmentRows } = await supabase
+    .from('driver_vehicle_assignments')
+    .select(`
+      vehicle_id,
+      drivers:driver_id (id, full_name)
+    `);
+
+  const assignmentsByVehicle = new Map<string, Array<{ id: string; full_name: string }>>();
+  (assignmentRows || []).forEach((row: unknown) => {
+    const r = row as { vehicle_id?: string | null; drivers?: unknown };
+    if (!r.vehicle_id) return;
+    const d = Array.isArray(r.drivers) ? r.drivers[0] : r.drivers;
+    if (!d) return;
+    const driver = d as { id: string; full_name: string };
+    if (!assignmentsByVehicle.has(r.vehicle_id)) assignmentsByVehicle.set(r.vehicle_id, []);
+    assignmentsByVehicle.get(r.vehicle_id)!.push(driver);
+  });
+
   const isAdmin = user.role === 'admin';
 
   const isExpiringSoon = (dateStr: string | null): boolean => {
@@ -87,7 +105,12 @@ export default async function VehiclesPage() {
               </thead>
               <tbody>
                 {vehicles && vehicles.length > 0 ? (
-                  vehicles.map((vehicle: VehicleWithDriver) => (
+                  vehicles.map((vehicle: VehicleWithDriver) => {
+                    const assignedDrivers = assignmentsByVehicle.get(vehicle.id) || [];
+                    const display = assignedDrivers.length > 0
+                      ? assignedDrivers.map((d) => d.full_name).join(', ')
+                      : (vehicle.drivers ? vehicle.drivers.full_name : null);
+                    return (
                     <tr key={vehicle.id}>
                       <td>
                         <strong>{vehicle.registration_number}</strong>
@@ -101,8 +124,8 @@ export default async function VehiclesPage() {
                         </span>
                       </td>
                       <td>
-                        {vehicle.drivers ? (
-                          <span>{vehicle.drivers.full_name}</span>
+                        {display ? (
+                          <span>{display}</span>
                         ) : (
                           <span className="text-muted">Not assigned</span>
                         )}
@@ -140,7 +163,8 @@ export default async function VehiclesPage() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={9} className="text-center text-muted">

@@ -29,6 +29,24 @@ export default async function DriversPage() {
     `)
     .order('full_name');
 
+  const { data: assignmentRows } = await supabase
+    .from('driver_vehicle_assignments')
+    .select(`
+      driver_id,
+      vehicles:vehicle_id (id, registration_number)
+    `);
+
+  const assignmentsByDriver = new Map<string, Array<{ id: string; registration_number: string }>>();
+  (assignmentRows || []).forEach((row: unknown) => {
+    const r = row as { driver_id?: string | null; vehicles?: unknown };
+    if (!r.driver_id) return;
+    const v = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
+    if (!v) return;
+    const vehicle = v as { id: string; registration_number: string };
+    if (!assignmentsByDriver.has(r.driver_id)) assignmentsByDriver.set(r.driver_id, []);
+    assignmentsByDriver.get(r.driver_id)!.push(vehicle);
+  });
+
   const isAdmin = user.role === 'admin';
 
   // Helper function to check if date is expiring soon (within 30 days)
@@ -81,7 +99,12 @@ export default async function DriversPage() {
               </thead>
               <tbody>
                 {drivers && drivers.length > 0 ? (
-                  drivers.map((driver: DriverWithVehicle) => (
+                  drivers.map((driver: DriverWithVehicle) => {
+                    const assignedVehicles = assignmentsByDriver.get(driver.id) || [];
+                    const display = assignedVehicles.length > 0
+                      ? assignedVehicles.map((v) => v.registration_number).join(', ')
+                      : (driver.vehicles ? driver.vehicles.registration_number : null);
+                    return (
                     <tr key={driver.id}>
                       <td>
                         <strong>{driver.full_name}</strong>
@@ -93,8 +116,8 @@ export default async function DriversPage() {
                         </span>
                       </td>
                       <td>
-                        {driver.vehicles ? (
-                          <span>{driver.vehicles.registration_number}</span>
+                        {display ? (
+                          <span>{display}</span>
                         ) : (
                           <span className="text-muted">Not assigned</span>
                         )}
@@ -142,7 +165,8 @@ export default async function DriversPage() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={8} className="text-center text-muted">

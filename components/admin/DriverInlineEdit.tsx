@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import InlineEditField from './InlineEditField';
@@ -32,6 +32,7 @@ interface DriverData {
   status: 'active' | 'inactive';
   employment_type: 'full_time' | 'part_time' | 'terminated' | null;
   assigned_vehicle_id: string | null;
+  assigned_vehicle_ids?: string[];
   id_card_number: string | null;
   id_card_expiry_date: string | null;
   police_conduct_expiry_date: string | null;
@@ -43,6 +44,7 @@ interface DriverData {
   updated_at: string;
   users?: { email: string } | null;
   vehicles?: { id: string; registration_number: string; make: string; model: string } | null;
+  assigned_vehicles?: { id: string; registration_number: string; make: string; model: string }[];
 }
 
 interface DriverInlineEditProps {
@@ -67,6 +69,11 @@ export default function DriverInlineEdit({
   const [driver, setDriver] = useState(initialDriver);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [vehicleToAddId, setVehicleToAddId] = useState('');
+  const [assignedVehicleIds, setAssignedVehicleIds] = useState<string[]>(() => {
+    return initialDriver.assigned_vehicle_ids || (initialDriver.assigned_vehicle_id ? [initialDriver.assigned_vehicle_id] : []);
+  });
+  const [savingAssignments, setSavingAssignments] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, FileRecord[]>>(() => {
     const grouped: Record<string, FileRecord[]> = {};
     initialDocuments.forEach(doc => {
@@ -88,15 +95,33 @@ export default function DriverInlineEdit({
     setTimeout(() => setMessage(null), 3000);
   };
 
+  useEffect(() => {
+    const loadAssignments = async () => {
+      try {
+        const res = await fetch(`/api/drivers/${initialDriver.id}`, { method: 'GET' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { data?: { assigned_vehicle_ids?: string[]; assigned_vehicles?: DriverData['assigned_vehicles'] } };
+        const ids = data.data?.assigned_vehicle_ids;
+        if (ids) {
+          setAssignedVehicleIds(ids);
+          setDriver((prev) => ({
+            ...prev,
+            assigned_vehicle_ids: ids,
+            assigned_vehicles: data.data?.assigned_vehicles,
+          }));
+        }
+      } catch {
+      }
+    };
+    loadAssignments();
+  }, [initialDriver.id]);
+
   const handleSave = async (fieldName: string, value: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/drivers/${driver.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...driver, 
-          [fieldName]: value || null 
-        }),
+        body: JSON.stringify({ [fieldName]: value || null }),
       });
 
       if (!res.ok) {
@@ -104,7 +129,7 @@ export default function DriverInlineEdit({
         throw new Error(data.error || 'Failed to save');
       }
 
-      const { data } = await res.json();
+      await res.json();
       setDriver(prev => ({ ...prev, [fieldName]: value || null }));
       showMessage('success', 'Saved');
       router.refresh();
@@ -112,6 +137,47 @@ export default function DriverInlineEdit({
     } catch (err) {
       showMessage('error', err instanceof Error ? err.message : 'Failed to save');
       return false;
+    }
+  };
+
+  const addAssignedVehicle = () => {
+    if (!vehicleToAddId) return;
+    setAssignedVehicleIds((prev) => {
+      if (prev.includes(vehicleToAddId)) return prev;
+      return [...prev, vehicleToAddId];
+    });
+    setVehicleToAddId('');
+  };
+
+  const removeAssignedVehicle = (vehicleId: string) => {
+    setAssignedVehicleIds((prev) => prev.filter((id) => id !== vehicleId));
+  };
+
+  const saveAssignedVehicles = async () => {
+    setSavingAssignments(true);
+    try {
+      const res = await fetch(`/api/drivers/${driver.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_vehicle_ids: assignedVehicleIds }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save');
+      }
+
+      setDriver((prev) => ({
+        ...prev,
+        assigned_vehicle_id: assignedVehicleIds[0] || null,
+        assigned_vehicle_ids: assignedVehicleIds,
+      }));
+      showMessage('success', 'Saved');
+      router.refresh();
+    } catch (err) {
+      showMessage('error', err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSavingAssignments(false);
     }
   };
 
@@ -186,8 +252,10 @@ export default function DriverInlineEdit({
     return '';
   };
 
-  const availableVehicles = vehicles.filter(
-    v => !v.assigned_driver_id || v.id === driver.assigned_vehicle_id
+  const availableVehicles = vehicles;
+
+  const vehicleLabelById = new Map(
+    availableVehicles.map((v) => [v.id, `${v.registration_number} - ${v.make} ${v.model}`] as const)
   );
 
   const vehicleOptions = [
@@ -416,27 +484,67 @@ export default function DriverInlineEdit({
 
       {/* Assigned Vehicle */}
       <div className={styles.detailCard}>
-        <h3>Assigned Vehicle</h3>
+        <h3>Assigned Vehicles</h3>
         <div className={styles.detailGrid}>
-          <InlineEditField
-            label="Vehicle"
-            value={driver.assigned_vehicle_id || ''}
-            fieldName="assigned_vehicle_id"
-            type="select"
-            options={vehicleOptions}
-            onSave={handleSave}
-            placeholder="No vehicle assigned"
-          />
-          {driver.vehicles && (
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Vehicle Details</span>
-              <span className={styles.detailValue}>
-                <Link href={`/admin/vehicles/${driver.vehicles.id}`} className={styles.detailLink}>
-                  {driver.vehicles.make} {driver.vehicles.model}
-                </Link>
-              </span>
+          <div className={styles.detailItem}>
+            <span className={styles.detailLabel}>Vehicles</span>
+            <div className={styles.detailValue}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <select
+                  value={vehicleToAddId}
+                  onChange={(e) => setVehicleToAddId(e.target.value)}
+                  className={inlineStyles.input}
+                >
+                  <option value="">Select vehicle</option>
+                  {vehicleOptions
+                    .filter((o) => o.value !== '')
+                    .map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  className={inlineStyles.saveBtn}
+                  onClick={addAssignedVehicle}
+                  disabled={!vehicleToAddId}
+                  title="Add"
+                >
+                  +
+                </button>
+              </div>
+
+              {assignedVehicleIds.length > 0 && (
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {assignedVehicleIds.map((id) => (
+                    <div key={id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>{vehicleLabelById.get(id) || id}</div>
+                      <button
+                        type="button"
+                        className={inlineStyles.saveBtn}
+                        onClick={() => removeAssignedVehicle(id)}
+                        title="Remove"
+                      >
+                        -
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className={inlineStyles.saveBtn}
+                  onClick={saveAssignedVehicles}
+                  disabled={savingAssignments}
+                  title="Save"
+                >
+                  {savingAssignments ? '...' : '✓'}
+                </button>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 

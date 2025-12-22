@@ -107,6 +107,23 @@ export default async function VehicleDetailPage({ params }: PageProps) {
     .order('created_at', { ascending: false })
     .limit(5);
 
+  const { data: assignmentRows } = await supabase
+    .from('driver_vehicle_assignments')
+    .select(`
+      drivers:driver_id (id, full_name, phone)
+    `)
+    .eq('vehicle_id', id);
+
+  const normalizeDriver = (d: unknown): { id: string; full_name: string; phone?: string | null } | null => {
+    if (!d) return null;
+    if (Array.isArray(d)) return (d[0] as { id: string; full_name: string; phone?: string | null } | undefined) || null;
+    return d as { id: string; full_name: string; phone?: string | null };
+  };
+
+  const assignedDrivers = (assignmentRows || [])
+    .map((r: unknown) => normalizeDriver((r as { drivers?: unknown }).drivers))
+    .filter((d): d is { id: string; full_name: string; phone?: string | null } => Boolean(d));
+
   // Fetch the most recent service with next_service_mileage (by highest mileage)
   const { data: latestServiceWithDue } = await supabase
     .from('vehicle_services')
@@ -445,8 +462,22 @@ export default async function VehicleDetailPage({ params }: PageProps) {
 
       {/* Assigned Driver */}
       <div className={styles.detailCard}>
-        <h3>Assigned Driver</h3>
-        {vehicleData.drivers ? (
+        <h3>Assigned Drivers</h3>
+        {assignedDrivers.length > 0 ? (
+          <div className={styles.detailGrid}>
+            {assignedDrivers.map((d) => (
+              <div key={d.id} className={styles.detailItem}>
+                <span className={styles.detailLabel}>Driver</span>
+                <span className={styles.detailValue}>
+                  <Link href={`/admin/drivers/${d.id}`} className={styles.detailLink}>
+                    {d.full_name}
+                  </Link>
+                  {d.phone ? ` (${d.phone})` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : vehicleData.drivers ? (
           <div className={styles.detailGrid}>
             <div className={styles.detailItem}>
               <span className={styles.detailLabel}>Driver Name</span>

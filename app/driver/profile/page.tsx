@@ -71,6 +71,23 @@ export default async function DriverProfilePage() {
     .order('start_time', { ascending: false })
     .limit(5);
 
+  const { data: assignmentRows } = await supabase
+    .from('driver_vehicle_assignments')
+    .select(`
+      vehicles:vehicle_id (id, registration_number, make, model)
+    `)
+    .eq('driver_id', driverData.id);
+
+  const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string } | null => {
+    if (!v) return null;
+    if (Array.isArray(v)) return (v[0] as { id: string; registration_number: string; make: string; model: string } | undefined) || null;
+    return v as { id: string; registration_number: string; make: string; model: string };
+  };
+
+  const assignedVehicles = (assignmentRows || [])
+    .map((r: unknown) => normalizeVehicle((r as { vehicles?: unknown }).vehicles))
+    .filter((v): v is { id: string; registration_number: string; make: string; model: string } => Boolean(v));
+
   // Fetch next scheduled shift from roster
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -306,24 +323,31 @@ export default async function DriverProfilePage() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
-              <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2" />
+              <path d="M5 16l-1.5-4.5a2 2 0 011.5-2.5l1.5-1.5A2 2 0 018 6h8a2 2 0 011.5.5L19 8.5a2 2 0 011.5 2.5L19 16" />
               <circle cx="7" cy="17" r="2" />
               <circle cx="17" cy="17" r="2" />
             </svg>
             <h3>Assigned Vehicle</h3>
           </div>
           <div className={styles.cardContent}>
-            {driverData.vehicles ? (
-              <div className={styles.vehicleCard}>
-                <div className={styles.vehicleMain}>
+            {assignedVehicles.length > 0 ? (
+              <div className={styles.vehicleInfo}>
+                {assignedVehicles.map((v) => (
+                  <div key={v.id} className={styles.vehicleCard}>
+                    <span className={styles.vehicleReg}>{v.registration_number}</span>
+                    <span className={styles.vehicleModel}>{v.make} {v.model}</span>
+                  </div>
+                ))}
+              </div>
+            ) : driverData.vehicles ? (
+              <div className={styles.vehicleInfo}>
+                <div className={styles.vehicleCard}>
                   <span className={styles.vehicleReg}>{driverData.vehicles.registration_number}</span>
-                  <span className={styles.vehicleModel}>
-                    {driverData.vehicles.make} {driverData.vehicles.model}
-                  </span>
+                  <span className={styles.vehicleModel}>{driverData.vehicles.make} {driverData.vehicles.model}</span>
                 </div>
               </div>
             ) : (
-              <p className={styles.emptyMessage}>No vehicle currently assigned to you.</p>
+              <p className={styles.emptyMessage}>No vehicle assigned</p>
             )}
           </div>
         </div>

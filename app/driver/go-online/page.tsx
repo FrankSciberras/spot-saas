@@ -74,31 +74,59 @@ export default function GoOnlinePage() {
         }
       }
 
-      // Get ALL vehicles (including ones assigned to this driver regardless of status)
-      const { data: allVehicles } = await supabase
-        .from('vehicles')
-        .select('id, registration_number, make, model, assigned_driver_id, status')
-        .order('registration_number');
+      if (driver) {
+        const { data: assignments } = await supabase
+          .from('driver_vehicle_assignments')
+          .select(`
+            vehicle_id,
+            vehicles:vehicle_id (id, registration_number, make, model, status)
+          `)
+          .eq('driver_id', driver.id);
 
-      if (allVehicles && driver) {
-        // First, find vehicles specifically assigned to this driver (any status)
-        const driverVehicles = allVehicles.filter(
-          v => v.assigned_driver_id === driver.id || v.id === driver.assigned_vehicle_id
-        );
-        
-        // If driver has assigned vehicles, show those; otherwise show all active vehicles
-        if (driverVehicles.length > 0) {
-          setVehicles(driverVehicles);
-          // Auto-select the first assigned vehicle
-          setVehicleId(driverVehicles[0].id);
+        const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string; status?: string } | null => {
+          if (!v) return null;
+          if (Array.isArray(v)) {
+            return (v[0] as { id: string; registration_number: string; make: string; model: string; status?: string } | undefined) || null;
+          }
+          return v as { id: string; registration_number: string; make: string; model: string; status?: string };
+        };
+
+        const typedAssignments = (assignments || []) as Array<{ vehicles?: unknown }>;
+        const assignedVehicles = typedAssignments.map((a) => normalizeVehicle(a.vehicles)).filter(Boolean);
+
+        if (assignedVehicles.length > 0) {
+          setVehicles(assignedVehicles as unknown as Vehicle[]);
+          setVehicleId((assignedVehicles[0] as { id: string }).id);
         } else {
-          // No assigned vehicles, show all active ones
+          const { data: allVehicles } = await supabase
+            .from('vehicles')
+            .select('id, registration_number, make, model, assigned_driver_id, status')
+            .order('registration_number');
+
+          if (allVehicles) {
+            const driverVehicles = allVehicles.filter(
+              v => v.assigned_driver_id === driver.id || v.id === driver.assigned_vehicle_id
+            );
+
+            if (driverVehicles.length > 0) {
+              setVehicles(driverVehicles);
+              setVehicleId(driverVehicles[0].id);
+            } else {
+              const activeVehicles = allVehicles.filter(v => v.status === 'active');
+              setVehicles(activeVehicles);
+            }
+          }
+        }
+      } else {
+        const { data: allVehicles } = await supabase
+          .from('vehicles')
+          .select('id, registration_number, make, model, assigned_driver_id, status')
+          .order('registration_number');
+
+        if (allVehicles) {
           const activeVehicles = allVehicles.filter(v => v.status === 'active');
           setVehicles(activeVehicles);
         }
-      } else if (allVehicles) {
-        const activeVehicles = allVehicles.filter(v => v.status === 'active');
-        setVehicles(activeVehicles);
       }
 
       // Set default start time to now
