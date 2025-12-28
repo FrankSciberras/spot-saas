@@ -69,6 +69,9 @@ export default function DriverInlineEdit({
   const [driver, setDriver] = useState(initialDriver);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [vehicleToAddId, setVehicleToAddId] = useState('');
   const [assignedVehicleIds, setAssignedVehicleIds] = useState<string[]>(() => {
     return initialDriver.assigned_vehicle_ids || (initialDriver.assigned_vehicle_id ? [initialDriver.assigned_vehicle_id] : []);
@@ -309,6 +312,53 @@ export default function DriverInlineEdit({
         ))}
       </div>
     );
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      showMessage('error', 'Please fill in both password fields');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      showMessage('error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showMessage('error', 'Passwords do not match');
+      return;
+    }
+
+    if (!driver.user_id) {
+      showMessage('error', 'No user account linked to this driver');
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const res = await fetch('/api/users/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: driver.user_id,
+          new_password: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      showMessage('success', 'Password reset successfully');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      showMessage('error', err instanceof Error ? err.message : 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   return (
@@ -596,6 +646,48 @@ export default function DriverInlineEdit({
           placeholder="No notes"
         />
       </div>
+
+      {/* Account Security - Password Reset */}
+      {driver.user_id && (
+        <div className={styles.detailCard}>
+          <h3>Account Security</h3>
+          <div className={styles.detailGrid}>
+            <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+              <span className={styles.detailLabel}>Reset Password</span>
+              <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
+                Set a new password for this driver. They will be able to log in with this password immediately.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
+                <input
+                  type="password"
+                  placeholder="New password (min. 6 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={inlineStyles.input}
+                  minLength={6}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={inlineStyles.input}
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={resettingPassword || !newPassword || !confirmPassword}
+                  className="btn btn-primary"
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {resettingPassword ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Record Information */}
       <div className={styles.detailCard}>
