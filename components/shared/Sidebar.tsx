@@ -213,29 +213,33 @@ const SettlementIcon = () => (
 );
 
 const adminNavItems: NavItem[] = [
+  // Overview
   { label: 'Dashboard', href: '/admin', icon: <DashboardIcon /> },
+  // Operations
   { label: 'Drivers', href: '/admin/drivers', icon: <UserIcon /> },
   { label: 'Vehicles', href: '/admin/vehicles', icon: <VehicleIcon /> },
-  { label: 'Services', href: '/admin/services', icon: <ServiceIcon /> },
   { label: 'Rosters', href: '/admin/rosters', icon: <RosterIcon /> },
   { label: 'Shifts', href: '/admin/shifts', icon: <ListIcon /> },
+  // Maintenance
+  { label: 'Services', href: '/admin/services', icon: <ServiceIcon /> },
+  // Financial
+  { label: 'Earnings', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Settlements', href: '/admin/settlements', icon: <SettlementIcon />, roles: ['admin'] },
   { label: 'Statistics', href: '/admin/statistics', icon: <StatsIcon />, roles: ['admin'] },
-  { label: 'Earnings', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
+  // Admin
+  { label: 'Events', href: '/admin/events', icon: <CalendarIcon /> },
   { label: 'Notify', href: '/admin/notifications', icon: <BellIcon />, roles: ['admin'] },
   { label: 'Permissions', href: '/admin/permissions', icon: <ShieldIcon />, roles: ['admin'] },
-  { label: 'Events', href: '/admin/events', icon: <CalendarIcon /> },
 ];
 
 const driverNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/driver', icon: <DashboardIcon /> },
-  { label: 'My Roster', href: '/driver/roster', icon: <RosterIcon /> },
   { label: 'Go Online', href: '/driver/go-online', icon: <ListIcon /> },
   { label: 'My Shifts', href: '/driver/shifts', icon: <ListIcon /> },
-  { label: 'My Profile', href: '/driver/profile', icon: <UserIcon /> },
-  { label: 'My Settlements', href: '/driver/settlements', icon: <SettlementIcon /> },
+  { label: 'My Roster', href: '/driver/roster', icon: <RosterIcon /> },
   { label: 'My Earnings', href: '/driver/earnings', icon: <MoneyIcon /> },
-  { label: 'Notifications', href: '/driver/notifications', icon: <BellIcon /> },
+  { label: 'Settlements', href: '/driver/settlements', icon: <SettlementIcon /> },
+  { label: 'My Profile', href: '/driver/profile', icon: <UserIcon /> },
 ];
 
 interface SidebarProps {
@@ -276,7 +280,6 @@ export default function Sidebar({ user, variant }: SidebarProps) {
     '/driver/roster': 'roster-link',
     '/driver/go-online': 'go-online-link',
     '/driver/profile': 'profile-link',
-    '/driver/notifications': 'notifications-link',
   };
 
   return (
