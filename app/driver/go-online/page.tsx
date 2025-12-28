@@ -44,6 +44,7 @@ export default function GoOnlinePage() {
 
   // UI state
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -52,51 +53,79 @@ export default function GoOnlinePage() {
   // Load vehicles and driver info on mount
   useEffect(() => {
     const loadData = async () => {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // Get driver info
-      const { data: driver } = await supabase
-        .from('drivers')
-        .select('id, full_name, assigned_vehicle_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (driver) {
-        setDriverInfo(driver);
-        setName(driver.full_name);
-        if (driver.assigned_vehicle_id) {
-          setVehicleId(driver.assigned_vehicle_id);
+      try {
+        // Get current user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+          console.error('Auth error:', authError);
+          setError('Session expired. Please log in again.');
+          setInitialLoading(false);
+          setTimeout(() => router.push('/login'), 2000);
+          return;
         }
-      }
+        if (!user) {
+          router.push('/login');
+          return;
+        }
 
-      if (driver) {
-        const { data: assignments } = await supabase
-          .from('driver_vehicle_assignments')
-          .select(`
-            vehicle_id,
-            vehicles:vehicle_id (id, registration_number, make, model, status)
-          `)
-          .eq('driver_id', driver.id);
+        // Get driver info
+        const { data: driver } = await supabase
+          .from('drivers')
+          .select('id, full_name, assigned_vehicle_id')
+          .eq('user_id', user.id)
+          .single();
 
-        const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string; status?: string } | null => {
-          if (!v) return null;
-          if (Array.isArray(v)) {
-            return (v[0] as { id: string; registration_number: string; make: string; model: string; status?: string } | undefined) || null;
+        if (driver) {
+          setDriverInfo(driver);
+          setName(driver.full_name);
+          if (driver.assigned_vehicle_id) {
+            setVehicleId(driver.assigned_vehicle_id);
           }
-          return v as { id: string; registration_number: string; make: string; model: string; status?: string };
-        };
+        }
 
-        const typedAssignments = (assignments || []) as Array<{ vehicles?: unknown }>;
-        const assignedVehicles = typedAssignments.map((a) => normalizeVehicle(a.vehicles)).filter(Boolean);
+        if (driver) {
+          const { data: assignments } = await supabase
+            .from('driver_vehicle_assignments')
+            .select(`
+              vehicle_id,
+              vehicles:vehicle_id (id, registration_number, make, model, status)
+            `)
+            .eq('driver_id', driver.id);
 
-        if (assignedVehicles.length > 0) {
-          setVehicles(assignedVehicles as unknown as Vehicle[]);
-          setVehicleId((assignedVehicles[0] as { id: string }).id);
+          const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string; status?: string } | null => {
+            if (!v) return null;
+            if (Array.isArray(v)) {
+              return (v[0] as { id: string; registration_number: string; make: string; model: string; status?: string } | undefined) || null;
+            }
+            return v as { id: string; registration_number: string; make: string; model: string; status?: string };
+          };
+
+          const typedAssignments = (assignments || []) as Array<{ vehicles?: unknown }>;
+          const assignedVehicles = typedAssignments.map((a) => normalizeVehicle(a.vehicles)).filter(Boolean);
+
+          if (assignedVehicles.length > 0) {
+            setVehicles(assignedVehicles as unknown as Vehicle[]);
+            setVehicleId((assignedVehicles[0] as { id: string }).id);
+          } else {
+            const { data: allVehicles } = await supabase
+              .from('vehicles')
+              .select('id, registration_number, make, model, assigned_driver_id, status')
+              .order('registration_number');
+
+            if (allVehicles) {
+              const driverVehicles = allVehicles.filter(
+                v => v.assigned_driver_id === driver.id || v.id === driver.assigned_vehicle_id
+              );
+
+              if (driverVehicles.length > 0) {
+                setVehicles(driverVehicles);
+                setVehicleId(driverVehicles[0].id);
+              } else {
+                const activeVehicles = allVehicles.filter(v => v.status === 'active');
+                setVehicles(activeVehicles);
+              }
+            }
+          }
         } else {
           const { data: allVehicles } = await supabase
             .from('vehicles')
@@ -104,35 +133,21 @@ export default function GoOnlinePage() {
             .order('registration_number');
 
           if (allVehicles) {
-            const driverVehicles = allVehicles.filter(
-              v => v.assigned_driver_id === driver.id || v.id === driver.assigned_vehicle_id
-            );
-
-            if (driverVehicles.length > 0) {
-              setVehicles(driverVehicles);
-              setVehicleId(driverVehicles[0].id);
-            } else {
-              const activeVehicles = allVehicles.filter(v => v.status === 'active');
-              setVehicles(activeVehicles);
-            }
+            const activeVehicles = allVehicles.filter(v => v.status === 'active');
+            setVehicles(activeVehicles);
           }
         }
-      } else {
-        const { data: allVehicles } = await supabase
-          .from('vehicles')
-          .select('id, registration_number, make, model, assigned_driver_id, status')
-          .order('registration_number');
 
-        if (allVehicles) {
-          const activeVehicles = allVehicles.filter(v => v.status === 'active');
-          setVehicles(activeVehicles);
-        }
+        // Set default start time to now
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        setStartTime(now.toISOString().slice(0, 16));
+      } catch (err) {
+        console.error('Error loading go-online data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load data. Please refresh the page.');
+      } finally {
+        setInitialLoading(false);
       }
-
-      // Set default start time to now
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      setStartTime(now.toISOString().slice(0, 16));
     };
 
     loadData();
@@ -262,6 +277,18 @@ export default function GoOnlinePage() {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.successCard}>
+          <div className={styles.successIcon}>⏳</div>
+          <h2>Loading...</h2>
+          <p>Preparing your shift form</p>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (

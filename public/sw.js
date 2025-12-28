@@ -1,5 +1,5 @@
 // Spot Dashboard Service Worker
-const CACHE_NAME = 'spot-dashboard-v11';
+const CACHE_NAME = 'spot-dashboard-v12';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use
@@ -38,7 +38,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
+// Fetch event - network first with timeout, fallback to cache
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
@@ -49,6 +49,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // For navigation requests, use timeout to handle cold starts
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      Promise.race([
+        fetch(event.request).then((response) => {
+          // Cache successful navigation responses
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        }),
+        // 5 second timeout - if server is cold, serve cached version
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Network timeout')), 5000)
+        )
+      ]).catch(async () => {
+        // Try cache first, then offline page
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        return caches.match(OFFLINE_URL) || new Response('Offline', { status: 503 });
+      })
+    );
+    return;
+  }
+
+  // For other requests, standard network-first approach
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -65,10 +94,6 @@ self.addEventListener('fetch', (event) => {
         // Fallback to cache
         return caches.match(event.request).then((response) => {
           if (response) return response;
-          // If no cache, return offline page for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match(OFFLINE_URL);
-          }
           return new Response('Offline', { status: 503 });
         });
       })
