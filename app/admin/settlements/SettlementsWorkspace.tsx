@@ -13,9 +13,8 @@ import type { Driver, DriverSettlement, SettlementPlatform } from '@/lib/types/d
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
 
-interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name'> {
-  status: string;
-}
+interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name' | 'employment_type'> {
+  status: string;}
 
 interface SettlementWithRelations extends DriverSettlement {
   drivers: Pick<Driver, 'id' | 'full_name'> & { status: string } | null;
@@ -327,7 +326,10 @@ export default function SettlementsWorkspace({
     } else {
       // Reset to defaults - keep periodName from current period
       setPeriodName(currentPeriod.periodName || newPeriodName || '');
-      setFssTax(getDefaultFssTax().toString());
+      // Set FSS based on employment type: full_time = 22, part_time/terminated/null = 0
+      const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === driverId);
+      const defaultFss = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
+      setFssTax(defaultFss.toString());
       setNotes('');
       setPlatformData(PLATFORMS.map(p => ({
         platformId: p.id,
@@ -339,7 +341,7 @@ export default function SettlementsWorkspace({
         campaigns: '0',
       })));
     }
-  }, [currentPeriod, settlements, newPeriodName]);
+  }, [currentPeriod, settlements, newPeriodName, activeDrivers, archivedDrivers]);
 
   // Handle platform data change
   const handlePlatformChange = useCallback((

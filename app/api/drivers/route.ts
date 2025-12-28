@@ -95,6 +95,7 @@ export async function POST(request: Request) {
         phone: body.phone,
         address: body.address,
         status: body.status || 'active',
+        employment_type: body.employment_type || null,
         assigned_vehicle_id: body.assigned_vehicle_ids?.[0] || body.assigned_vehicle_id,
         id_card_number: body.id_card_number,
         id_card_expiry_date: body.id_card_expiry_date,

@@ -14,7 +14,7 @@ export default async function SettlementsPage() {
   // Fetch all drivers (active and inactive for archive)
   const { data: allDrivers } = await supabase
     .from('drivers')
-    .select('id, full_name, status')
+    .select('id, full_name, status, employment_type')
     .order('full_name');
 
   // Separate active and archived drivers

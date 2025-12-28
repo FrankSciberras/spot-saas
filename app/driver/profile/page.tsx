@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import PushNotificationToggle from '@/components/shared/PushNotificationToggle';
+import ChangePasswordForm from '@/components/shared/ChangePasswordForm';
 import type { Driver, Vehicle, User } from '@/lib/types/database';
 import styles from './profile.module.css';
 
@@ -408,6 +409,20 @@ export default async function DriverProfilePage() {
           </div>
           <div className={styles.cardContent}>
             <PushNotificationToggle />
+          </div>
+        </div>
+
+        {/* Change Password */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <h3>Change Password</h3>
+          </div>
+          <div className={styles.cardContent}>
+            <ChangePasswordForm />
           </div>
         </div>
 
