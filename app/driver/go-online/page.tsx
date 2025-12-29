@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -49,6 +49,9 @@ export default function GoOnlinePage() {
   const [success, setSuccess] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [driverInfo, setDriverInfo] = useState<DriverInfo | null>(null);
+  
+  // Ref to prevent double submissions (more reliable than state for race conditions)
+  const isSubmitting = useRef(false);
 
   // Load vehicles and driver info on mount
   useEffect(() => {
@@ -182,6 +185,14 @@ export default function GoOnlinePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submissions using ref (more reliable than state for fast clicks)
+    if (isSubmitting.current) {
+      console.log('Submission already in progress, ignoring duplicate click');
+      return;
+    }
+    isSubmitting.current = true;
+    
     setError('');
     setLoading(true);
 
@@ -273,6 +284,8 @@ export default function GoOnlinePage() {
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      // Reset submission lock on error so user can try again
+      isSubmitting.current = false;
     } finally {
       setLoading(false);
     }
