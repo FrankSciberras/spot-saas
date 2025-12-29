@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import ClickableImage from '@/components/shared/ClickableImage';
 import styles from '@/components/admin/AdminForms.module.css';
 import shiftStyles from '../shifts.module.css';
 
@@ -102,6 +102,11 @@ export default async function ShiftDetailPage({ params }: PageProps) {
               </span>
             </span>
           </div>
+        </div>
+        <div className={styles.pageActions}>
+          <Link href={`/admin/shifts/${shiftData.id}/edit`} className="btn btn-primary">
+            Edit Shift
+          </Link>
         </div>
       </div>
 
@@ -229,54 +234,45 @@ export default async function ShiftDetailPage({ params }: PageProps) {
       {hasImages && (
         <div className={styles.detailCard}>
           <h3>Vehicle Images</h3>
+          <p className="text-muted" style={{ marginBottom: '16px', fontSize: 'var(--font-sm)' }}>
+            Click on an image to view fullscreen
+          </p>
           <div className={shiftStyles.imageGrid}>
             {shiftData.front_image_url && (
-              <div className={shiftStyles.imageItem}>
-                <Image 
-                  src={shiftData.front_image_url} 
-                  alt="Front of vehicle"
-                  width={400}
-                  height={200}
-                  style={{ objectFit: 'cover', width: '100%', height: '200px' }}
-                />
-                <div className={shiftStyles.imageLabel}>Front</div>
-              </div>
+              <ClickableImage
+                src={shiftData.front_image_url}
+                alt="Front of vehicle"
+                className={shiftStyles.imageItem}
+                labelClassName={shiftStyles.imageLabel}
+                label="Front"
+              />
             )}
             {shiftData.back_image_url && (
-              <div className={shiftStyles.imageItem}>
-                <Image 
-                  src={shiftData.back_image_url} 
-                  alt="Back of vehicle"
-                  width={400}
-                  height={200}
-                  style={{ objectFit: 'cover', width: '100%', height: '200px' }}
-                />
-                <div className={shiftStyles.imageLabel}>Back</div>
-              </div>
+              <ClickableImage
+                src={shiftData.back_image_url}
+                alt="Back of vehicle"
+                className={shiftStyles.imageItem}
+                labelClassName={shiftStyles.imageLabel}
+                label="Back"
+              />
             )}
             {shiftData.left_image_url && (
-              <div className={shiftStyles.imageItem}>
-                <Image 
-                  src={shiftData.left_image_url} 
-                  alt="Left side of vehicle"
-                  width={400}
-                  height={200}
-                  style={{ objectFit: 'cover', width: '100%', height: '200px' }}
-                />
-                <div className={shiftStyles.imageLabel}>Left Side</div>
-              </div>
+              <ClickableImage
+                src={shiftData.left_image_url}
+                alt="Left side of vehicle"
+                className={shiftStyles.imageItem}
+                labelClassName={shiftStyles.imageLabel}
+                label="Left Side"
+              />
             )}
             {shiftData.right_image_url && (
-              <div className={shiftStyles.imageItem}>
-                <Image 
-                  src={shiftData.right_image_url} 
-                  alt="Right side of vehicle"
-                  width={400}
-                  height={200}
-                  style={{ objectFit: 'cover', width: '100%', height: '200px' }}
-                />
-                <div className={shiftStyles.imageLabel}>Right Side</div>
-              </div>
+              <ClickableImage
+                src={shiftData.right_image_url}
+                alt="Right side of vehicle"
+                className={shiftStyles.imageItem}
+                labelClassName={shiftStyles.imageLabel}
+                label="Right Side"
+              />
             )}
           </div>
         </div>
