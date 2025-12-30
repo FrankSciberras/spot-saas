@@ -249,6 +249,8 @@ const adminNavItems: NavItem[] = [
   { label: 'Events', href: '/admin/events', icon: <CalendarIcon /> },
   { label: 'Notify', href: '/admin/notifications', icon: <BellIcon />, roles: ['admin'] },
   { label: 'Permissions', href: '/admin/permissions', icon: <ShieldIcon />, roles: ['admin'] },
+  // Staff Profile
+  { label: 'My Profile', href: '/staff/profile', icon: <UserIcon />, roles: ['staff'] },
 ];
 
 const driverNavItems: NavItem[] = [
