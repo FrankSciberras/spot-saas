@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Figtree } from 'next/font/google';
 import './globals.css';
 import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistration';
+import ErrorRecovery from '@/components/shared/ErrorRecovery';
 
 const figtree = Figtree({
   subsets: ['latin'],
@@ -44,6 +45,7 @@ export default function RootLayout({
       <body className={figtree.className}>
         {children}
         <ServiceWorkerRegistration />
+        <ErrorRecovery />
       </body>
     </html>
   );
