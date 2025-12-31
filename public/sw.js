@@ -1,5 +1,5 @@
 // Spot Dashboard Service Worker
-const CACHE_NAME = 'spot-dashboard-v12';
+const CACHE_NAME = 'spot-dashboard-v14';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use
@@ -12,6 +12,36 @@ const STATIC_ASSETS = [
   '/icons/android-chrome-512x512.png',
   '/icons/apple-touch-icon.png',
 ];
+
+// Retry configuration for cold start handling
+const RETRY_CONFIG = {
+  maxRetries: 2,
+  retryDelay: 1500,
+  retryStatusCodes: [502, 503, 504],
+};
+
+// Helper: Fetch with retry for cold starts
+async function fetchWithRetry(request, retries = RETRY_CONFIG.maxRetries) {
+  try {
+    const response = await fetch(request.clone());
+    
+    // If gateway error and retries remaining, wait and retry
+    if (RETRY_CONFIG.retryStatusCodes.includes(response.status) && retries > 0) {
+      console.log(`[SW] Got ${response.status}, retrying... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.retryDelay));
+      return fetchWithRetry(request, retries - 1);
+    }
+    
+    return response;
+  } catch (error) {
+    if (retries > 0) {
+      console.log(`[SW] Fetch failed, retrying... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.retryDelay));
+      return fetchWithRetry(request, retries - 1);
+    }
+    throw error;
+  }
+}
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -49,11 +79,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation requests, use timeout to handle cold starts
+  // For navigation requests, use retry logic to handle cold starts
   if (event.request.mode === 'navigate') {
     event.respondWith(
       Promise.race([
-        fetch(event.request).then((response) => {
+        fetchWithRetry(event.request).then((response) => {
           // Cache successful navigation responses
           if (response.ok) {
             const responseClone = response.clone();
@@ -63,9 +93,9 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         }),
-        // 5 second timeout - if server is cold, serve cached version
+        // 10 second timeout (accounts for retries) - if server is cold, serve cached version
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Network timeout')), 5000)
+          setTimeout(() => reject(new Error('Network timeout')), 10000)
         )
       ]).catch(async () => {
         // Try cache first, then offline page

@@ -3,6 +3,7 @@ import { Figtree } from 'next/font/google';
 import './globals.css';
 import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistration';
 import ErrorRecovery from '@/components/shared/ErrorRecovery';
+import SplashScreen from '@/components/shared/SplashScreen';
 
 const figtree = Figtree({
   subsets: ['latin'],
@@ -42,9 +43,29 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: `
+          /* Inline critical splash screen styles to prevent FOUC */
+          body { margin: 0; background: #0f172a; }
+          .splash-fallback {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+          }
+          .splash-fallback::after {
+            content: ''; width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #60a5fa; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}} />
+      </head>
       <body className={figtree.className}>
-        {children}
         <ServiceWorkerRegistration />
+        <SplashScreen>
+          {children}
+        </SplashScreen>
         <ErrorRecovery />
       </body>
     </html>
