@@ -28,8 +28,11 @@ export async function sendEmailNotification(params: EmailNotificationParams): Pr
   }
 
   try {
-    const fromEmail = process.env.EMAIL_FROM || 'noreply@spotdashboard.com';
+    // Use Resend's test domain if no verified domain is configured
+    const fromEmail = process.env.EMAIL_FROM || 'SPOT Dashboard <onboarding@resend.dev>';
     const appName = process.env.NEXT_PUBLIC_APP_NAME || 'SPOT Dashboard';
+    
+    console.log(`Sending email to ${to} from ${fromEmail}`);
 
     const htmlContent = `
 <!DOCTYPE html>

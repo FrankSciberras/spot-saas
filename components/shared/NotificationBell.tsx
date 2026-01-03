@@ -46,7 +46,12 @@ export default function NotificationBell() {
       const res = await fetch('/api/notifications?limit=10');
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data.data || []);
+        // Ensure created_at has a fallback to sent_at for older notifications
+        const notifications = (data.data || []).map((n: Notification & { sent_at?: string }) => ({
+          ...n,
+          created_at: n.created_at || n.sent_at || new Date().toISOString(),
+        }));
+        setNotifications(notifications);
         setUnreadCount(data.unread_count || 0);
       }
     } catch (error) {

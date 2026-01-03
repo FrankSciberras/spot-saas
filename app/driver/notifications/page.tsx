@@ -28,8 +28,14 @@ export default function NotificationsPage() {
     try {
       const res = await fetch('/api/notifications');
       if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
+        const response = await res.json();
+        // API returns { data, unread_count } - extract the array and map fields
+        const notificationData = (response.data || response || []).map((n: Record<string, unknown>) => ({
+          ...n,
+          is_read: n.read_at != null,
+          created_at: n.created_at || n.sent_at,
+        }));
+        setNotifications(notificationData);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);

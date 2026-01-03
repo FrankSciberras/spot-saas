@@ -35,6 +35,11 @@ export async function POST(request: Request) {
     specific_ids, // array of driver or user IDs if recipients === 'specific'
   } = body;
 
+  console.log('=== NOTIFICATION SEND REQUEST ===');
+  console.log('Recipients:', recipients);
+  console.log('Channels:', channels);
+  console.log('Title:', title);
+
   if (!title || !message || !channels || channels.length === 0) {
     return NextResponse.json({ 
       error: 'Title, message, and at least one channel are required' 
@@ -61,10 +66,12 @@ export async function POST(request: Request) {
     }
 
     if (recipients === 'all_admins' || recipients === 'all') {
-      const { data: admins } = await supabase
+      const { data: admins, error: adminsError } = await supabase
         .from('users')
-        .select('id, email, full_name')
+        .select('id, email, full_name, role')
         .in('role', ['admin', 'staff']);
+      
+      console.log('Fetching admins/staff:', { admins, error: adminsError });
       targetUsers = admins || [];
     }
 
@@ -98,13 +105,15 @@ export async function POST(request: Request) {
 
       // Send app notifications to drivers
       if (channels.includes('app')) {
+        const now = new Date().toISOString();
         const appNotifications = targetDrivers.map(driver => ({
           driver_id: driver.id,
           title,
           body: message,
           type: 'info',
           action_url: action_url || null,
-          sent_at: new Date().toISOString(),
+          sent_at: now,
+          created_at: now,
         }));
 
         const { error } = await supabase
@@ -114,6 +123,7 @@ export async function POST(request: Request) {
         if (!error) {
           results.app.sent += targetDrivers.length;
         } else {
+          console.error('Failed to insert notifications:', error);
           results.app.failed += targetDrivers.length;
         }
       }
@@ -161,7 +171,36 @@ export async function POST(request: Request) {
     }
 
     // Send to admin/staff users
+    console.log(`Processing ${targetUsers.length} admin/staff users for notification`);
     if (targetUsers.length > 0) {
+      // App notifications for admin/staff (broadcast with driver_id = null)
+      if (channels.includes('app')) {
+        const now = new Date().toISOString();
+        console.log('Inserting admin app notification with driver_id = null');
+        // Insert a single broadcast notification for admins (driver_id = null means visible to all admins)
+        const { data: insertedNotif, error } = await supabase
+          .from('notifications')
+          .insert({
+            driver_id: null, // null = visible to admins/staff
+            title,
+            body: message,
+            type: 'info',
+            action_url: action_url || null,
+            sent_at: now,
+            created_at: now,
+          })
+          .select()
+          .single();
+
+        if (!error) {
+          console.log('Admin notification inserted successfully:', insertedNotif?.id);
+          results.app.sent += targetUsers.length;
+        } else {
+          console.error('Failed to insert admin notification:', error);
+          results.app.failed += targetUsers.length;
+        }
+      }
+
       // Push notifications for users
       if (channels.includes('push')) {
         for (const u of targetUsers) {
@@ -181,7 +220,9 @@ export async function POST(request: Request) {
 
       // Email notifications for users
       if (channels.includes('email')) {
+        console.log(`Sending emails to ${targetUsers.length} admin/staff users`);
         for (const u of targetUsers) {
+          console.log(`Attempting email to: ${u.email}`);
           try {
             const sent = await sendEmailNotification({
               to: u.email,
@@ -190,9 +231,15 @@ export async function POST(request: Request) {
               driverName: u.full_name || undefined,
               actionUrl: action_url || undefined,
             });
-            if (sent) results.email.sent++;
-            else results.email.failed++;
-          } catch {
+            if (sent) {
+              console.log(`Email sent successfully to ${u.email}`);
+              results.email.sent++;
+            } else {
+              console.log(`Email failed for ${u.email}`);
+              results.email.failed++;
+            }
+          } catch (err) {
+            console.error(`Email error for ${u.email}:`, err);
             results.email.failed++;
           }
         }
