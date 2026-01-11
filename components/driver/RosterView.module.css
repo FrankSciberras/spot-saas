@@ -1,0 +1,440 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* Filter Bar */
+.filterBar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: var(--spacing-sm);
+}
+
+.filterTabs {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  gap: 4px;
+}
+
+.filterTab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filterTab svg {
+  width: 16px;
+  height: 16px;
+}
+
+.filterTab:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.filterTab.active {
+  background: var(--bg-primary);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  text-align: center;
+  background: var(--bg-primary);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+}
+
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-muted);
+}
+
+.emptyIcon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.emptyState h3 {
+  font-size: var(--font-xl);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.emptyState p {
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+}
+
+/* My Shifts View - Roster List */
+.rosterList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.rosterCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.rosterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rosterTitle {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.weekDates {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* Shift List */
+.shiftList {
+  display: flex;
+  flex-direction: column;
+}
+
+.shiftItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.shiftItem:last-child {
+  border-bottom: none;
+}
+
+.shiftItem:hover {
+  background: var(--bg-secondary);
+}
+
+.shiftItem.today {
+  background: rgba(var(--color-primary-rgb), 0.06);
+  border-left: 3px solid var(--color-primary);
+}
+
+.shiftItem.past {
+  opacity: 0.6;
+}
+
+.shiftDate {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.todayBadge {
+  padding: 3px 8px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+.sharedBadge {
+  padding: 3px 8px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+.shiftItem.secondary {
+  background: rgba(245, 158, 11, 0.04);
+  border-left: 3px solid #f59e0b;
+}
+
+.dateText {
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.shiftVehicle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.vehicleReg {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.vehicleModel {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+/* All Shifts View */
+.allShiftsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.dayCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.dayCard.todayCard {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.dayCard.pastCard {
+  opacity: 0.7;
+}
+
+.dayHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dayInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.dayName {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dayDate {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.shiftCount {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+/* Vehicle Grid */
+.vehicleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+}
+
+.vehicleCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  transition: all var(--transition-fast);
+}
+
+.vehicleCard:hover {
+  border-color: var(--text-muted);
+}
+
+.vehicleCard.myVehicle {
+  background: rgba(var(--color-primary-rgb), 0.06);
+  border-color: var(--color-primary);
+}
+
+.vehicleCard.unassigned {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.4);
+  border-style: dashed;
+}
+
+.vehicleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.vehicleRegAll {
+  font-size: var(--font-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vehicleModelAll {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: var(--spacing-sm);
+}
+
+.youBadge {
+  padding: 2px 6px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.availableBadge {
+  padding: 2px 6px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.driverInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.driverRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-sm);
+}
+
+.driverLabel {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.driverName {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.driverName.isYou {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.driverName.secondaryName {
+  color: var(--text-secondary);
+}
+
+.noDriver {
+  color: #059669;
+  font-style: italic;
+  font-size: var(--font-sm);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .filterTabs {
+    width: 100%;
+  }
+
+  .filterTab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 12px;
+  }
+
+  .rosterHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .shiftItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .shiftVehicle {
+    align-items: flex-start;
+  }
+
+  .dayHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .vehicleGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import styles from './driver.module.css';
 
 /**
@@ -53,6 +54,45 @@ export default async function DriverDashboardPage() {
     .order('start_time', { ascending: false })
     .limit(3) : { data: null };
 
+  // Get earnings stats from settlements
+  const thisWeekStart = new Date();
+  const dayOfWeek = thisWeekStart.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  thisWeekStart.setDate(thisWeekStart.getDate() + diffToMonday);
+  thisWeekStart.setHours(0, 0, 0, 0);
+
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  // Get finalized settlements for stats
+  const { data: settlements } = driver ? await supabase
+    .from('driver_settlements')
+    .select('week_start, week_label, final_balance, total_gross_fare, total_net, status')
+    .eq('driver_id', driver.id)
+    .eq('status', 'finalized')
+    .order('week_start', { ascending: false })
+    .limit(12) : { data: null };
+
+  // Calculate earnings stats
+  const latestSettlement = settlements?.[0];
+  const previousSettlement = settlements?.[1];
+  
+  // This month's total
+  const monthlyEarnings = settlements?.filter(s => {
+    const weekStart = new Date(s.week_start);
+    return weekStart >= monthStart;
+  }).reduce((sum, s) => sum + (s.final_balance || 0), 0) || 0;
+
+  // Total rides (approximate from shifts)
+  const { count: totalShifts } = driver ? await supabase
+    .from('driver_shifts')
+    .select('*', { count: 'exact', head: true })
+    .eq('driver_id', driver.id) : { count: 0 };
+
   // Check for expiring documents
   const checkExpiry = (dateStr: string | null): 'ok' | 'warning' | 'danger' => {
     if (!dateStr) return 'warning';
@@ -103,6 +143,50 @@ export default async function DriverDashboardPage() {
                 <span className={styles.goOnlineIcon}>▶</span>
                 Go Online
               </Link>
+            </div>
+
+            {/* Earnings Overview Card */}
+            <div className={styles.earningsCard}>
+              <div className={styles.earningsHeader}>
+                <div className={styles.earningsTitle}>
+                  <span className={styles.earningsIcon}>💰</span>
+                  <div>
+                    <h2>My Earnings</h2>
+                    <span className={styles.earningsPeriod}>
+                      {latestSettlement ? latestSettlement.week_label : 'No settlements yet'}
+                    </span>
+                  </div>
+                </div>
+                <Link href="/driver/settlements" className={styles.settlementsBtn}>
+                  View Settlements
+                </Link>
+              </div>
+              <div className={styles.earningsStats}>
+                <div className={styles.earningStat}>
+                  <span className={styles.earningAmount}>
+                    {latestSettlement ? formatCurrency(latestSettlement.final_balance) : '€0.00'}
+                  </span>
+                  <span className={styles.earningLabel}>Latest Balance</span>
+                  {previousSettlement && latestSettlement && (
+                    <span className={`${styles.earningChange} ${latestSettlement.final_balance >= previousSettlement.final_balance ? styles.positive : styles.negative}`}>
+                      {latestSettlement.final_balance >= previousSettlement.final_balance ? '↑' : '↓'}
+                      {formatCurrency(Math.abs(latestSettlement.final_balance - previousSettlement.final_balance))}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.earningStat}>
+                  <span className={styles.earningAmount}>
+                    {formatCurrency(monthlyEarnings)}
+                  </span>
+                  <span className={styles.earningLabel}>This Month</span>
+                </div>
+                <div className={styles.earningStat}>
+                  <span className={styles.earningAmount}>
+                    {totalShifts || 0}
+                  </span>
+                  <span className={styles.earningLabel}>Total Shifts</span>
+                </div>
+              </div>
             </div>
 
             {/* Quick Stats */}
@@ -202,13 +286,17 @@ export default async function DriverDashboardPage() {
 
             {/* Quick Links */}
             <div className={styles.quickLinks}>
-              <Link href="/driver/roster" className={styles.quickLink}>
-                <span>📅</span>
-                My Roster
+              <Link href="/driver/settlements" className={styles.quickLink}>
+                <span>📊</span>
+                Settlements
               </Link>
               <Link href="/driver/earnings" className={styles.quickLink}>
                 <span>💰</span>
                 Earnings
+              </Link>
+              <Link href="/driver/roster" className={styles.quickLink}>
+                <span>📅</span>
+                Roster
               </Link>
               <Link href="/driver/profile" className={styles.quickLink}>
                 <span>👤</span>

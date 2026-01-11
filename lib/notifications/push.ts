@@ -1,16 +1,25 @@
 import { createClient } from '@/lib/supabase/server';
 import webpush from 'web-push';
 
-// Configure web-push with VAPID keys
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+// Lazy-initialize web-push VAPID configuration
+let vapidConfigured = false;
 
-if (vapidPublicKey && vapidPrivateKey) {
-  webpush.setVapidDetails(
-    `mailto:${process.env.VAPID_EMAIL || 'admin@example.com'}`,
-    vapidPublicKey,
-    vapidPrivateKey
-  );
+function ensureVapidConfigured(): boolean {
+  if (vapidConfigured) return true;
+  
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  
+  if (publicKey && privateKey) {
+    webpush.setVapidDetails(
+      `mailto:${process.env.VAPID_EMAIL || 'admin@example.com'}`,
+      publicKey,
+      privateKey
+    );
+    vapidConfigured = true;
+    return true;
+  }
+  return false;
 }
 
 interface PushNotificationPayload {
@@ -30,7 +39,7 @@ export async function sendPushNotification(
   payload: PushNotificationPayload
 ): Promise<boolean> {
   // Check if push is configured
-  if (!vapidPublicKey || !vapidPrivateKey) {
+  if (!ensureVapidConfigured()) {
     console.log('Push notifications not configured (missing VAPID keys)');
     return false;
   }
@@ -101,12 +110,12 @@ export async function sendPushNotification(
  * Check if push notifications are configured
  */
 export function isPushConfigured(): boolean {
-  return Boolean(vapidPublicKey && vapidPrivateKey);
+  return Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 }
 
 /**
  * Get the public VAPID key for client-side subscription
  */
 export function getVapidPublicKey(): string {
-  return vapidPublicKey;
+  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 }

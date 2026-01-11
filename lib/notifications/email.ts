@@ -1,8 +1,16 @@
 import { Resend } from 'resend';
 
-// Initialize Resend client (or use nodemailer as fallback)
-const resendApiKey = process.env.RESEND_API_KEY;
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+// Lazy-initialize Resend client to ensure env vars are available at runtime
+let resend: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (resend) return resend;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    resend = new Resend(apiKey);
+  }
+  return resend;
+}
 
 interface EmailNotificationParams {
   to: string;
@@ -21,7 +29,8 @@ export async function sendEmailNotification(params: EmailNotificationParams): Pr
   const { to, subject, body, driverName, rosterTitle, actionUrl } = params;
 
   // Check if email is configured
-  if (!resend) {
+  const client = getResendClient();
+  if (!client) {
     console.log('Email notifications not configured (missing RESEND_API_KEY)');
     console.log(`Would send email to ${to}: ${subject}`);
     return false;
@@ -73,7 +82,7 @@ export async function sendEmailNotification(params: EmailNotificationParams): Pr
 </html>
     `;
 
-    const { error } = await resend.emails.send({
+    const { error } = await client.emails.send({
       from: fromEmail,
       to: [to],
       subject: `${appName} - ${subject}`,
@@ -96,5 +105,5 @@ export async function sendEmailNotification(params: EmailNotificationParams): Pr
  * Check if email notifications are configured
  */
 export function isEmailConfigured(): boolean {
-  return Boolean(resendApiKey);
+  return Boolean(process.env.RESEND_API_KEY);
 }
