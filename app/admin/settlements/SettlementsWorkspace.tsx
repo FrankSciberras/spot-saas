@@ -9,6 +9,7 @@ import {
   formatCurrency, 
   type PlatformEarningsInput 
 } from '@/lib/utils/settlementCalculations';
+import { exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
 import type { Driver, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
@@ -284,6 +285,43 @@ export default function SettlementsWorkspace({
   const hasSettlement = useCallback((driverId: string) => {
     return periodSettlements.some(s => s.driver_id === driverId);
   }, [periodSettlements]);
+
+  // Export PDF handler
+  const handleExportPdf = useCallback(() => {
+    if (!currentPeriod || periodSettlements.length === 0) return;
+
+    const settlementsData = periodSettlements.map(s => {
+      const platforms = s.settlement_platforms || [];
+      return {
+        driverName: s.drivers?.full_name || 'Unknown Driver',
+        weekLabel: s.week_label,
+        periodName: s.period_name,
+        platforms,
+        totalGrossFare: s.total_gross_fare,
+        totalFiftyPercent: platforms.reduce((sum, p) => sum + p.fifty_percent, 0),
+        totalFee: platforms.reduce((sum, p) => sum + p.fee, 0),
+        totalNet: s.total_net,
+        totalCashRide: platforms.reduce((sum, p) => sum + p.cash_ride, 0),
+        totalTips: platforms.reduce((sum, p) => sum + p.tips, 0),
+        totalCampaigns: platforms.reduce((sum, p) => sum + p.campaigns, 0),
+        totalBalanceBeforeTax: s.total_balance_before_tax,
+        fssTax: s.fss_tax,
+        finalBalance: s.final_balance,
+        status: s.status,
+        paidAt: s.paid_at,
+        notes: s.notes,
+      };
+    });
+
+    // Sort by driver name
+    settlementsData.sort((a, b) => a.driverName.localeCompare(b.driverName));
+
+    exportSettlementsPdf({
+      periodLabel: currentPeriod.label,
+      periodName: currentPeriod.periodName,
+      settlements: settlementsData,
+    });
+  }, [currentPeriod, periodSettlements]);
 
   // Get driver's settlement status
   const getDriverStatus = useCallback((driverId: string) => {
@@ -792,6 +830,22 @@ export default function SettlementsWorkspace({
               {activeDrivers.length - periodSettlements.length} Pending
             </span>
           </div>
+          {periodSettlements.length > 0 && (
+            <button
+              type="button"
+              className={styles.exportPdfBtn}
+              onClick={handleExportPdf}
+              title="Export all settlements for this week as PDF"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+              Export PDF
+            </button>
+          )}
         </div>
       )}
 

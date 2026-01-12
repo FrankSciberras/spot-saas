@@ -399,6 +399,54 @@
   border-radius: 50%;
 }
 
+/* Export PDF Button */
+.exportPdfBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 8px 14px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.exportPdfBtn:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.exportPdfBtn:active {
+  transform: translateY(0);
+}
+
+.exportPdfBtn svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .weekStatsBar {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+  
+  .weekStats {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+  
+  .exportPdfBtn {
+    width: 100%;
+    justify-content: center;
+    margin-top: var(--spacing-sm);
+  }
+}
+
 /* Month Selector */
 .monthSelector {
   display: flex;
