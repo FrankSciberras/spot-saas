@@ -242,7 +242,7 @@ const adminNavItems: NavItem[] = [
   // Maintenance
   { label: 'Services', href: '/admin/services', icon: <ServiceIcon /> },
   // Financial
-  { label: 'Earnings', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
+  { label: 'Bookkeeping', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Settlements', href: '/admin/settlements', icon: <SettlementIcon />, roles: ['admin'] },
   { label: 'Adjustments', href: '/admin/adjustments', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Statistics', href: '/admin/statistics', icon: <StatsIcon />, roles: ['admin'] },

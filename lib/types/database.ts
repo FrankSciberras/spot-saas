@@ -512,53 +512,38 @@ export interface UpdateSettlementInput {
 }
 
 // =============================================================================
-// Monthly Earnings Types
+// Weekly Bookkeeping Types
 // =============================================================================
 
-export type MonthlyEarningsStatus = 'draft' | 'finalized';
-
-export interface MonthlyEarnings {
+export interface WeeklyBookkeeping {
   id: string;
-  month: string; // ISO date string (first of month)
+  week_start: string;
+  week_end: string;
+  week_label: string;
+  period_name: string | null;
   
-  // Platform Revenue
-  bolt_gross: number;
-  uber_gross: number;
-  offapp_gross: number;
-  
-  // VAT
-  bolt_vat: number;
-  uber_vat: number;
-  offapp_vat: number;
-  
-  // Commissions
-  bolt_commission: number;
-  uber_commission: number;
-  
-  // Driver Costs
-  driver_settlements_total: number;
+  // Income (Platform Earnings)
+  uber_earnings: number;
+  bolt_earnings: number;
+  ecabs_earnings: number;
+  other_earnings: number;
   
   // Expenses
-  rent: number;
-  utilities: number;
+  employees: number;      // Driver settlements
+  repairs: number;
   insurance: number;
-  ni_tax: number;
-  services_total: number;
-  fuel: number;
-  vehicle_expenses: number;
+  investments: number;
+  vat: number;
+  rent: number;
+  employee_tax: number;
   other_expenses: number;
-  other_expenses_notes: string | null;
   
   // Calculated Totals
-  total_gross_revenue: number;
-  total_vat: number;
-  total_commissions: number;
-  net_revenue: number;
+  total_income: number;
   total_expenses: number;
   net_profit: number;
   
-  // Status
-  status: MonthlyEarningsStatus;
+  // Notes
   notes: string | null;
   
   // Metadata
@@ -567,28 +552,24 @@ export interface MonthlyEarnings {
   updated_at: string;
 }
 
-export interface MonthlyEarningsInput {
-  month: string;
-  bolt_gross?: number;
-  uber_gross?: number;
-  offapp_gross?: number;
-  bolt_vat?: number;
-  uber_vat?: number;
-  offapp_vat?: number;
-  bolt_commission?: number;
-  uber_commission?: number;
-  driver_settlements_total?: number;
-  rent?: number;
-  utilities?: number;
+export interface WeeklyBookkeepingInput {
+  week_start: string;
+  week_end: string;
+  week_label: string;
+  period_name?: string;
+  uber_earnings?: number;
+  bolt_earnings?: number;
+  ecabs_earnings?: number;
+  other_earnings?: number;
+  employees?: number;
+  repairs?: number;
   insurance?: number;
-  ni_tax?: number;
-  services_total?: number;
-  fuel?: number;
-  vehicle_expenses?: number;
+  investments?: number;
+  vat?: number;
+  rent?: number;
+  employee_tax?: number;
   other_expenses?: number;
-  other_expenses_notes?: string;
   notes?: string;
-  status?: MonthlyEarningsStatus;
 }
 
 // =============================================================================

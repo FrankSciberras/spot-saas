@@ -1,51 +1,64 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { exportEarningsPdf } from '@/lib/utils/earningsPdfExport';
-import type { MonthlyEarnings } from '@/lib/types/database';
+import type { WeeklyBookkeeping } from '@/lib/types/database';
 import styles from './earnings.module.css';
 
-interface EarningsWorkspaceProps {
-  earnings: MonthlyEarnings[];
+interface SettlementPeriod {
+  week_start: string;
+  week_end: string;
+  week_label: string;
+  period_name: string | null;
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
+interface EarningsWorkspaceProps {
+  entries: WeeklyBookkeeping[];
+  settlementPeriods: SettlementPeriod[];
+}
 
 function formatCurrency(value: number): string {
   return `€${value.toFixed(2)}`;
 }
 
-export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) {
+function formatDateDisplay(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function formatDateInput(dateStr: string): string {
+  return dateStr.split('T')[0];
+}
+
+export default function EarningsWorkspace({ entries, settlementPeriods }: EarningsWorkspaceProps) {
   const router = useRouter();
   
-  // Year/month navigation
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  // Selected period
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(
+    entries.length > 0 ? `${entries[0].week_start}_${entries[0].week_end}` : null
+  );
+  
+  // New period form state
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newWeekStart, setNewWeekStart] = useState('');
+  const [newWeekEnd, setNewWeekEnd] = useState('');
+  const [newWeekLabel, setNewWeekLabel] = useState('');
+  const [newPeriodName, setNewPeriodName] = useState('');
   
   // Form state
   const [formData, setFormData] = useState({
-    bolt_gross: '',
-    uber_gross: '',
-    offapp_gross: '',
-    bolt_vat: '',
-    uber_vat: '',
-    offapp_vat: '',
-    bolt_commission: '',
-    uber_commission: '',
-    driver_settlements_total: '',
-    rent: '',
-    utilities: '',
+    uber_earnings: '',
+    bolt_earnings: '',
+    ecabs_earnings: '',
+    other_earnings: '',
+    employees: '',
+    repairs: '',
     insurance: '',
-    ni_tax: '',
-    services_total: '',
-    fuel: '',
-    vehicle_expenses: '',
+    investments: '',
+    vat: '',
+    rent: '',
+    employee_tax: '',
     other_expenses: '',
-    other_expenses_notes: '',
     notes: '',
   });
   
@@ -55,180 +68,187 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
   const [success, setSuccess] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Get available years
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    const now = new Date();
-    years.add(now.getFullYear());
-    years.add(now.getFullYear() - 1);
-    
-    earnings.forEach(e => {
-      years.add(new Date(e.month).getFullYear());
+  // Map entries by period key
+  const entriesMap = useMemo(() => {
+    const map = new Map<string, WeeklyBookkeeping>();
+    entries.forEach(e => {
+      map.set(`${e.week_start}_${e.week_end}`, e);
     });
-    
-    return Array.from(years).sort((a, b) => b - a);
-  }, [earnings]);
+    return map;
+  }, [entries]);
 
-  // Get months with data for selected year
-  const monthsData = useMemo(() => {
-    const data = new Map<number, MonthlyEarnings>();
-    
-    earnings.forEach(e => {
-      const date = new Date(e.month);
-      if (date.getFullYear() === selectedYear) {
-        data.set(date.getMonth(), e);
-      }
+  // Current entry
+  const currentEntry = useMemo(() => {
+    if (!selectedPeriodId) return null;
+    return entriesMap.get(selectedPeriodId) || null;
+  }, [entriesMap, selectedPeriodId]);
+
+  // Settlement periods that don't have bookkeeping entries yet
+  const availableSettlementPeriods = useMemo(() => {
+    return settlementPeriods.filter(sp => {
+      const key = `${sp.week_start}_${sp.week_end}`;
+      return !entriesMap.has(key);
     });
-    
-    return data;
-  }, [earnings, selectedYear]);
+  }, [settlementPeriods, entriesMap]);
 
-  // Current selected earnings record
-  const currentEarnings = useMemo(() => {
-    if (selectedMonth === null) return null;
-    return monthsData.get(selectedMonth) || null;
-  }, [selectedMonth, monthsData]);
-
-  // Load form data when selecting a month
-  const selectMonth = useCallback((month: number) => {
-    setSelectedMonth(month);
+  // Load form data when period changes
+  useEffect(() => {
     setError(null);
     setSuccess(null);
     setShowDeleteConfirm(false);
     
-    const existing = monthsData.get(month);
-    
-    if (existing) {
+    if (currentEntry) {
       setFormData({
-        bolt_gross: existing.bolt_gross.toString(),
-        uber_gross: existing.uber_gross.toString(),
-        offapp_gross: existing.offapp_gross.toString(),
-        bolt_vat: existing.bolt_vat.toString(),
-        uber_vat: existing.uber_vat.toString(),
-        offapp_vat: existing.offapp_vat.toString(),
-        bolt_commission: existing.bolt_commission.toString(),
-        uber_commission: existing.uber_commission.toString(),
-        driver_settlements_total: existing.driver_settlements_total.toString(),
-        rent: existing.rent.toString(),
-        utilities: existing.utilities.toString(),
-        insurance: existing.insurance.toString(),
-        ni_tax: existing.ni_tax.toString(),
-        services_total: existing.services_total.toString(),
-        fuel: existing.fuel.toString(),
-        vehicle_expenses: existing.vehicle_expenses.toString(),
-        other_expenses: existing.other_expenses.toString(),
-        other_expenses_notes: existing.other_expenses_notes || '',
-        notes: existing.notes || '',
+        uber_earnings: currentEntry.uber_earnings.toString(),
+        bolt_earnings: currentEntry.bolt_earnings.toString(),
+        ecabs_earnings: currentEntry.ecabs_earnings.toString(),
+        other_earnings: currentEntry.other_earnings.toString(),
+        employees: currentEntry.employees.toString(),
+        repairs: currentEntry.repairs.toString(),
+        insurance: currentEntry.insurance.toString(),
+        investments: currentEntry.investments.toString(),
+        vat: currentEntry.vat.toString(),
+        rent: currentEntry.rent.toString(),
+        employee_tax: currentEntry.employee_tax.toString(),
+        other_expenses: currentEntry.other_expenses.toString(),
+        notes: currentEntry.notes || '',
       });
     } else {
       setFormData({
-        bolt_gross: '0',
-        uber_gross: '0',
-        offapp_gross: '0',
-        bolt_vat: '0',
-        uber_vat: '0',
-        offapp_vat: '0',
-        bolt_commission: '0',
-        uber_commission: '0',
-        driver_settlements_total: '0',
-        rent: '0',
-        utilities: '0',
-        insurance: '0',
-        ni_tax: '0',
-        services_total: '0',
-        fuel: '0',
-        vehicle_expenses: '0',
-        other_expenses: '0',
-        other_expenses_notes: '',
+        uber_earnings: '',
+        bolt_earnings: '',
+        ecabs_earnings: '',
+        other_earnings: '',
+        employees: '',
+        repairs: '',
+        insurance: '',
+        investments: '',
+        vat: '',
+        rent: '',
+        employee_tax: '',
+        other_expenses: '',
         notes: '',
       });
     }
-  }, [monthsData]);
+  }, [currentEntry, selectedPeriodId]);
+
+  // Calculate totals
+  const calculations = useMemo(() => {
+    const uberEarnings = parseFloat(formData.uber_earnings) || 0;
+    const boltEarnings = parseFloat(formData.bolt_earnings) || 0;
+    const ecabsEarnings = parseFloat(formData.ecabs_earnings) || 0;
+    const otherEarnings = parseFloat(formData.other_earnings) || 0;
+    
+    const employees = parseFloat(formData.employees) || 0;
+    const repairs = parseFloat(formData.repairs) || 0;
+    const insurance = parseFloat(formData.insurance) || 0;
+    const investments = parseFloat(formData.investments) || 0;
+    const vat = parseFloat(formData.vat) || 0;
+    const rent = parseFloat(formData.rent) || 0;
+    const employeeTax = parseFloat(formData.employee_tax) || 0;
+    const otherExpenses = parseFloat(formData.other_expenses) || 0;
+    
+    const totalIncome = uberEarnings + boltEarnings + ecabsEarnings + otherEarnings;
+    const totalExpenses = employees + repairs + insurance + investments + vat + rent + employeeTax + otherExpenses;
+    const netProfit = totalIncome - totalExpenses;
+    
+    return { totalIncome, totalExpenses, netProfit };
+  }, [formData]);
 
   // Handle input change
   const handleChange = useCallback((field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  // Calculate totals in real-time
-  const calculations = useMemo(() => {
-    const boltGross = parseFloat(formData.bolt_gross) || 0;
-    const uberGross = parseFloat(formData.uber_gross) || 0;
-    const offappGross = parseFloat(formData.offapp_gross) || 0;
-    
-    const boltVat = parseFloat(formData.bolt_vat) || 0;
-    const uberVat = parseFloat(formData.uber_vat) || 0;
-    const offappVat = parseFloat(formData.offapp_vat) || 0;
-    
-    const boltCommission = parseFloat(formData.bolt_commission) || 0;
-    const uberCommission = parseFloat(formData.uber_commission) || 0;
-    
-    const driverSettlements = parseFloat(formData.driver_settlements_total) || 0;
-    const rent = parseFloat(formData.rent) || 0;
-    const utilities = parseFloat(formData.utilities) || 0;
-    const insurance = parseFloat(formData.insurance) || 0;
-    const niTax = parseFloat(formData.ni_tax) || 0;
-    const servicesTotal = parseFloat(formData.services_total) || 0;
-    const fuel = parseFloat(formData.fuel) || 0;
-    const vehicleExpenses = parseFloat(formData.vehicle_expenses) || 0;
-    const otherExpenses = parseFloat(formData.other_expenses) || 0;
-    
-    const totalGrossRevenue = boltGross + uberGross + offappGross;
-    const totalVat = boltVat + uberVat + offappVat;
-    const totalCommissions = boltCommission + uberCommission;
-    const netRevenue = totalGrossRevenue - totalVat - totalCommissions;
-    const totalExpenses = driverSettlements + rent + utilities + insurance + niTax + servicesTotal + fuel + vehicleExpenses + otherExpenses;
-    const netProfit = netRevenue - totalExpenses;
-    
-    return {
-      totalGrossRevenue,
-      totalVat,
-      totalCommissions,
-      netRevenue,
-      totalExpenses,
-      netProfit,
-    };
-  }, [formData]);
+  // Get current period info for display
+  const currentPeriodInfo = useMemo(() => {
+    if (isCreatingNew && newWeekStart && newWeekEnd) {
+      return {
+        week_start: newWeekStart,
+        week_end: newWeekEnd,
+        week_label: newWeekLabel || `${formatDateDisplay(newWeekStart)} - ${formatDateDisplay(newWeekEnd)}`,
+        period_name: newPeriodName || null,
+      };
+    }
+    if (currentEntry) {
+      return {
+        week_start: currentEntry.week_start,
+        week_end: currentEntry.week_end,
+        week_label: currentEntry.week_label,
+        period_name: currentEntry.period_name,
+      };
+    }
+    return null;
+  }, [isCreatingNew, newWeekStart, newWeekEnd, newWeekLabel, newPeriodName, currentEntry]);
+
+  // Select from settlement period
+  const selectSettlementPeriod = (period: SettlementPeriod) => {
+    setIsCreatingNew(true);
+    setNewWeekStart(formatDateInput(period.week_start));
+    setNewWeekEnd(formatDateInput(period.week_end));
+    setNewWeekLabel(period.week_label);
+    setNewPeriodName(period.period_name || '');
+    setSelectedPeriodId(null);
+  };
+
+  // Start new custom period
+  const startNewPeriod = () => {
+    setIsCreatingNew(true);
+    setNewWeekStart('');
+    setNewWeekEnd('');
+    setNewWeekLabel('');
+    setNewPeriodName('');
+    setSelectedPeriodId(null);
+  };
+
+  // Cancel new period
+  const cancelNewPeriod = () => {
+    setIsCreatingNew(false);
+    setNewWeekStart('');
+    setNewWeekEnd('');
+    setNewWeekLabel('');
+    setNewPeriodName('');
+    if (entries.length > 0) {
+      setSelectedPeriodId(`${entries[0].week_start}_${entries[0].week_end}`);
+    }
+  };
 
   // Save handler
-  const handleSave = async (status: 'draft' | 'finalized' = 'draft') => {
-    if (selectedMonth === null) return;
+  const handleSave = async () => {
+    if (!currentPeriodInfo) return;
     
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const weekLabel = currentPeriodInfo.week_label || 
+        `${formatDateDisplay(currentPeriodInfo.week_start)} - ${formatDateDisplay(currentPeriodInfo.week_end)}`;
       
       const payload = {
-        month: monthStr,
-        bolt_gross: parseFloat(formData.bolt_gross) || 0,
-        uber_gross: parseFloat(formData.uber_gross) || 0,
-        offapp_gross: parseFloat(formData.offapp_gross) || 0,
-        bolt_vat: parseFloat(formData.bolt_vat) || 0,
-        uber_vat: parseFloat(formData.uber_vat) || 0,
-        offapp_vat: parseFloat(formData.offapp_vat) || 0,
-        bolt_commission: parseFloat(formData.bolt_commission) || 0,
-        uber_commission: parseFloat(formData.uber_commission) || 0,
-        driver_settlements_total: parseFloat(formData.driver_settlements_total) || 0,
-        rent: parseFloat(formData.rent) || 0,
-        utilities: parseFloat(formData.utilities) || 0,
+        week_start: currentPeriodInfo.week_start,
+        week_end: currentPeriodInfo.week_end,
+        week_label: weekLabel,
+        period_name: currentPeriodInfo.period_name || null,
+        uber_earnings: parseFloat(formData.uber_earnings) || 0,
+        bolt_earnings: parseFloat(formData.bolt_earnings) || 0,
+        ecabs_earnings: parseFloat(formData.ecabs_earnings) || 0,
+        other_earnings: parseFloat(formData.other_earnings) || 0,
+        employees: parseFloat(formData.employees) || 0,
+        repairs: parseFloat(formData.repairs) || 0,
         insurance: parseFloat(formData.insurance) || 0,
-        ni_tax: parseFloat(formData.ni_tax) || 0,
-        services_total: parseFloat(formData.services_total) || 0,
-        fuel: parseFloat(formData.fuel) || 0,
-        vehicle_expenses: parseFloat(formData.vehicle_expenses) || 0,
+        investments: parseFloat(formData.investments) || 0,
+        vat: parseFloat(formData.vat) || 0,
+        rent: parseFloat(formData.rent) || 0,
+        employee_tax: parseFloat(formData.employee_tax) || 0,
         other_expenses: parseFloat(formData.other_expenses) || 0,
-        other_expenses_notes: formData.other_expenses_notes || null,
         notes: formData.notes || null,
-        status,
       };
 
-      const url = currentEarnings 
-        ? `/api/earnings/${currentEarnings.id}` 
-        : '/api/earnings';
-      const method = currentEarnings ? 'PUT' : 'POST';
+      const url = currentEntry 
+        ? `/api/bookkeeping/${currentEntry.id}` 
+        : '/api/bookkeeping';
+      const method = currentEntry ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
         method,
@@ -242,7 +262,14 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
         throw new Error(data.error || 'Something went wrong');
       }
 
-      setSuccess(`Earnings ${currentEarnings ? 'updated' : 'saved'} successfully!`);
+      setSuccess(`Entry ${currentEntry ? 'updated' : 'saved'} successfully!`);
+      
+      // If was creating new, switch to the new entry
+      if (isCreatingNew) {
+        setIsCreatingNew(false);
+        setSelectedPeriodId(`${currentPeriodInfo.week_start}_${currentPeriodInfo.week_end}`);
+      }
+      
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -253,13 +280,13 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
 
   // Delete handler
   const handleDelete = async () => {
-    if (!currentEarnings) return;
+    if (!currentEntry) return;
     
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/earnings/${currentEarnings.id}`, {
+      const res = await fetch(`/api/bookkeeping/${currentEntry.id}`, {
         method: 'DELETE',
       });
 
@@ -268,9 +295,9 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
         throw new Error(data.error || 'Failed to delete');
       }
 
-      setSuccess('Earnings record deleted');
-      setSelectedMonth(null);
+      setSuccess('Entry deleted');
       setShowDeleteConfirm(false);
+      setSelectedPeriodId(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -279,128 +306,119 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
     }
   };
 
-  // Export PDF
-  const handleExportPdf = useCallback(() => {
-    if (selectedMonth === null) return;
-    
-    const monthLabel = `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
-    
-    exportEarningsPdf({
-      monthLabel,
-      data: {
-        boltGross: parseFloat(formData.bolt_gross) || 0,
-        uberGross: parseFloat(formData.uber_gross) || 0,
-        offappGross: parseFloat(formData.offapp_gross) || 0,
-        boltVat: parseFloat(formData.bolt_vat) || 0,
-        uberVat: parseFloat(formData.uber_vat) || 0,
-        offappVat: parseFloat(formData.offapp_vat) || 0,
-        boltCommission: parseFloat(formData.bolt_commission) || 0,
-        uberCommission: parseFloat(formData.uber_commission) || 0,
-        driverSettlements: parseFloat(formData.driver_settlements_total) || 0,
-        rent: parseFloat(formData.rent) || 0,
-        utilities: parseFloat(formData.utilities) || 0,
-        insurance: parseFloat(formData.insurance) || 0,
-        niTax: parseFloat(formData.ni_tax) || 0,
-        servicesTotal: parseFloat(formData.services_total) || 0,
-        fuel: parseFloat(formData.fuel) || 0,
-        vehicleExpenses: parseFloat(formData.vehicle_expenses) || 0,
-        otherExpenses: parseFloat(formData.other_expenses) || 0,
-        otherExpensesNotes: formData.other_expenses_notes,
-        notes: formData.notes,
-        ...calculations,
-      },
-      status: currentEarnings?.status || 'draft',
-    });
-  }, [selectedMonth, selectedYear, formData, calculations, currentEarnings]);
-
   return (
-    <>
-      <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
-          <h2>Monthly Earnings</h2>
-          <p className={styles.pageSubtitle}>
-            Track monthly revenue, expenses, and profit
-          </p>
+    <div className={styles.workspace}>
+      {/* Navigation Header */}
+      <div className={styles.navHeader}>
+        {/* Period Selection */}
+        <div className={styles.weekNav}>
+          <div className={styles.weekNavButtons}>
+            <button 
+              className={`${styles.navBtn} ${styles.primary}`} 
+              onClick={startNewPeriod}
+            >
+              + New Period
+            </button>
+            
+            {availableSettlementPeriods.length > 0 && (
+              <select 
+                className={styles.navBtn}
+                onChange={(e) => {
+                  const period = availableSettlementPeriods.find(
+                    p => `${p.week_start}_${p.week_end}` === e.target.value
+                  );
+                  if (period) selectSettlementPeriod(period);
+                }}
+                value=""
+                style={{ minWidth: '200px' }}
+              >
+                <option value="">Import from Settlements...</option>
+                {availableSettlementPeriods.map((period) => (
+                  <option 
+                    key={`${period.week_start}_${period.week_end}`} 
+                    value={`${period.week_start}_${period.week_end}`}
+                  >
+                    {period.week_label} ({formatDateDisplay(period.week_start)} - {formatDateDisplay(period.week_end)})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          
+          {currentPeriodInfo && (
+            <div className={styles.weekInfo}>
+              <div className={styles.weekNumber}>
+                {currentPeriodInfo.period_name || currentPeriodInfo.week_label}
+              </div>
+              <div className={styles.weekDates}>
+                {formatDateDisplay(currentPeriodInfo.week_start)} - {formatDateDisplay(currentPeriodInfo.week_end)}
+              </div>
+            </div>
+          )}
+          
+          <div className={styles.weekNavButtons}>
+            {isCreatingNew && (
+              <button className={styles.navBtn} onClick={cancelNewPeriod}>
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className={styles.container}>
-        {/* Sidebar - Month Selection */}
+      {/* Main Content */}
+      <div className={styles.mainContent}>
+        {/* Sidebar - Recent Entries */}
         <div className={styles.sidebar}>
-          <div className={styles.monthList}>
-            <div className={styles.monthListHeader}>
-              <h3>Select Month</h3>
-              <div className={styles.yearSelector}>
-                <button 
-                  onClick={() => setSelectedYear(y => y - 1)}
-                  disabled={!availableYears.includes(selectedYear - 1) && selectedYear <= Math.min(...availableYears)}
+          <div className={styles.sidebarHeader}>
+            <h3>Recent Entries</h3>
+          </div>
+          <div className={styles.weeksList}>
+            {entries.length === 0 ? (
+              <div className={styles.emptyWeeks}>No entries yet</div>
+            ) : (
+              entries.slice(0, 20).map((entry) => (
+                <button
+                  key={entry.id}
+                  className={`${styles.weekCard} ${selectedPeriodId === `${entry.week_start}_${entry.week_end}` && !isCreatingNew ? styles.active : ''}`}
+                  onClick={() => {
+                    setIsCreatingNew(false);
+                    setSelectedPeriodId(`${entry.week_start}_${entry.week_end}`);
+                  }}
                 >
-                  ←
-                </button>
-                <span>{selectedYear}</span>
-                <button 
-                  onClick={() => setSelectedYear(y => y + 1)}
-                  disabled={selectedYear >= new Date().getFullYear()}
-                >
-                  →
-                </button>
-              </div>
-            </div>
-            <div className={styles.monthItems}>
-              {MONTH_NAMES.map((name, idx) => {
-                const data = monthsData.get(idx);
-                const isFuture = selectedYear === new Date().getFullYear() && idx > new Date().getMonth();
-                
-                if (isFuture) return null;
-                
-                return (
-                  <div
-                    key={idx}
-                    className={`${styles.monthItem} ${selectedMonth === idx ? styles.selected : ''} ${data ? styles.hasData : ''}`}
-                    onClick={() => selectMonth(idx)}
-                  >
-                    <div className={styles.monthName}>
-                      <span>{name}</span>
-                      {data && (
-                        <span className={`${styles.monthStatus} ${data.status === 'draft' ? styles.draft : ''}`}>
-                          {data.status}
-                        </span>
-                      )}
-                    </div>
-                    {data && (
-                      <span className={`${styles.monthProfit} ${data.net_profit >= 0 ? styles.positive : styles.negative}`}>
-                        {formatCurrency(data.net_profit)}
-                      </span>
-                    )}
+                  <div className={styles.weekCardInfo}>
+                    <span className={styles.weekCardLabel}>
+                      {entry.period_name || entry.week_label}
+                    </span>
+                    <span className={styles.weekCardDates}>
+                      {formatDateDisplay(entry.week_start)} - {formatDateDisplay(entry.week_end)}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                  <span className={`${styles.weekCardProfit} ${entry.net_profit >= 0 ? styles.positive : styles.negative}`}>
+                    {formatCurrency(entry.net_profit)}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Main Content - Form */}
-        <div className={styles.mainContent}>
-          {selectedMonth === null ? (
-            <div className={styles.formCard}>
-              <div className={styles.emptyState}>
-                <h3>Select a Month</h3>
-                <p>Choose a month from the list to view or enter earnings data</p>
+        {/* Form Panel */}
+        <div className={styles.formPanel}>
+          {!currentPeriodInfo && !isCreatingNew ? (
+            <div className={styles.formBody} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                <p>Select an entry from the sidebar or create a new period</p>
               </div>
             </div>
           ) : (
-            <div className={styles.formCard}>
+            <>
               <div className={styles.formHeader}>
-                <h3>{MONTH_NAMES[selectedMonth]} {selectedYear}</h3>
-                <div className={styles.pageActions}>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={handleExportPdf}
-                    disabled={loading}
-                  >
-                    📄 Export PDF
-                  </button>
-                  {currentEarnings && (
+                <h3>
+                  {isCreatingNew ? 'New Entry' : (currentPeriodInfo?.period_name || currentPeriodInfo?.week_label)}
+                </h3>
+                <div className={styles.headerActions}>
+                  {currentEntry && (
                     <button 
                       className="btn btn-danger-outline"
                       onClick={() => setShowDeleteConfirm(true)}
@@ -413,13 +431,13 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
               </div>
 
               <div className={styles.formBody}>
-                {error && <div className={styles.error}>{error}</div>}
-                {success && <div className={styles.success}>{success}</div>}
+                {error && <div className={`${styles.alert} ${styles.error}`}>{error}</div>}
+                {success && <div className={`${styles.alert} ${styles.success}`}>{success}</div>}
                 
                 {showDeleteConfirm && (
                   <div className={styles.deleteConfirm}>
-                    <p>Are you sure you want to delete this earnings record?</p>
-                    <div className="actions">
+                    <p>Are you sure you want to delete this entry?</p>
+                    <div className={styles.actions}>
                       <button className="btn btn-danger" onClick={handleDelete} disabled={loading}>
                         Yes, Delete
                       </button>
@@ -430,243 +448,55 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
                   </div>
                 )}
 
-                {/* Revenue Section */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Platform Revenue (Gross)</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Bolt Gross Sales</label>
-                      <div className={styles.currencyInput}>
+                {/* Period Dates (editable for new entries) */}
+                {isCreatingNew && (
+                  <div className={styles.section}>
+                    <h4 className={styles.sectionTitle}>Period Dates</h4>
+                    <div className={styles.inputGrid}>
+                      <div className={styles.inputGroup}>
+                        <label>Start Date</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          value={formData.bolt_gross}
-                          onChange={(e) => handleChange('bolt_gross', e.target.value)}
+                          type="date"
+                          value={newWeekStart}
+                          onChange={(e) => setNewWeekStart(e.target.value)}
                         />
                       </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Uber Gross Sales</label>
-                      <div className={styles.currencyInput}>
+                      <div className={styles.inputGroup}>
+                        <label>End Date</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          value={formData.uber_gross}
-                          onChange={(e) => handleChange('uber_gross', e.target.value)}
+                          type="date"
+                          value={newWeekEnd}
+                          onChange={(e) => setNewWeekEnd(e.target.value)}
                         />
                       </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Off-App / Other</label>
-                      <div className={styles.currencyInput}>
+                      <div className={styles.inputGroup}>
+                        <label>Label (e.g., Week 1)</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          value={formData.offapp_gross}
-                          onChange={(e) => handleChange('offapp_gross', e.target.value)}
+                          type="text"
+                          value={newWeekLabel}
+                          onChange={(e) => setNewWeekLabel(e.target.value)}
+                          placeholder="Week 1"
                         />
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* VAT Section */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>VAT (18%)</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Bolt VAT</label>
-                      <div className={styles.currencyInput}>
+                      <div className={styles.inputGroup}>
+                        <label>Period Name (optional)</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          value={formData.bolt_vat}
-                          onChange={(e) => handleChange('bolt_vat', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Uber VAT</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.uber_vat}
-                          onChange={(e) => handleChange('uber_vat', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Off-App VAT</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.offapp_vat}
-                          onChange={(e) => handleChange('offapp_vat', e.target.value)}
+                          type="text"
+                          value={newPeriodName}
+                          onChange={(e) => setNewPeriodName(e.target.value)}
+                          placeholder="January Week 1"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Commissions Section */}
+                {/* Summary at top */}
                 <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Platform Commissions (20%)</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Bolt Commission</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.bolt_commission}
-                          onChange={(e) => handleChange('bolt_commission', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Uber Commission</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.uber_commission}
-                          onChange={(e) => handleChange('uber_commission', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Driver Settlements */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Driver Costs</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Total Driver Settlements</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.driver_settlements_total}
-                          onChange={(e) => handleChange('driver_settlements_total', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Operating Expenses */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Operating Expenses</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Rent</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.rent}
-                          onChange={(e) => handleChange('rent', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Utilities</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.utilities}
-                          onChange={(e) => handleChange('utilities', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Insurance</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.insurance}
-                          onChange={(e) => handleChange('insurance', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>NI / Tax</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.ni_tax}
-                          onChange={(e) => handleChange('ni_tax', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Services Total</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.services_total}
-                          onChange={(e) => handleChange('services_total', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Fuel</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.fuel}
-                          onChange={(e) => handleChange('fuel', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Vehicle Expenses</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.vehicle_expenses}
-                          onChange={(e) => handleChange('vehicle_expenses', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Other Expenses</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.other_expenses}
-                          onChange={(e) => handleChange('other_expenses', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className={`${styles.inputGroup} ${styles.fullWidth}`}>
-                      <label>Other Expenses Notes</label>
-                      <textarea
-                        value={formData.other_expenses_notes}
-                        onChange={(e) => handleChange('other_expenses_notes', e.target.value)}
-                        placeholder="Describe other expenses..."
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Summary */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Summary</h4>
                   <div className={styles.summaryGrid}>
-                    <div className={`${styles.summaryCard} ${styles.revenue}`}>
-                      <div className={styles.summaryLabel}>Net Revenue</div>
-                      <div className={styles.summaryValue}>{formatCurrency(calculations.netRevenue)}</div>
+                    <div className={`${styles.summaryCard} ${styles.income}`}>
+                      <div className={styles.summaryLabel}>Total Income</div>
+                      <div className={styles.summaryValue}>{formatCurrency(calculations.totalIncome)}</div>
                     </div>
                     <div className={`${styles.summaryCard} ${styles.expenses}`}>
                       <div className={styles.summaryLabel}>Total Expenses</div>
@@ -679,6 +509,164 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
                   </div>
                 </div>
 
+                {/* Income Section */}
+                <div className={styles.section}>
+                  <h4 className={styles.sectionTitle}>Income (Platform Earnings)</h4>
+                  <div className={styles.inputGrid}>
+                    <div className={styles.inputGroup}>
+                      <label>Uber</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.uber_earnings}
+                          onChange={(e) => handleChange('uber_earnings', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Bolt</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.bolt_earnings}
+                          onChange={(e) => handleChange('bolt_earnings', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>eCabs</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.ecabs_earnings}
+                          onChange={(e) => handleChange('ecabs_earnings', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Other</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.other_earnings}
+                          onChange={(e) => handleChange('other_earnings', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expenses Section */}
+                <div className={styles.section}>
+                  <h4 className={styles.sectionTitle}>Expenses</h4>
+                  <div className={styles.inputGrid}>
+                    <div className={styles.inputGroup}>
+                      <label>Employees</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.employees}
+                          onChange={(e) => handleChange('employees', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Repairs</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.repairs}
+                          onChange={(e) => handleChange('repairs', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Insurance</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.insurance}
+                          onChange={(e) => handleChange('insurance', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Investments</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.investments}
+                          onChange={(e) => handleChange('investments', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>VAT</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.vat}
+                          onChange={(e) => handleChange('vat', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Rent</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.rent}
+                          onChange={(e) => handleChange('rent', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Employee Tax</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.employee_tax}
+                          onChange={(e) => handleChange('employee_tax', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Other</label>
+                      <div className={styles.currencyInput}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.other_expenses}
+                          onChange={(e) => handleChange('other_expenses', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Notes */}
                 <div className={styles.section}>
                   <h4 className={styles.sectionTitle}>Notes</h4>
@@ -687,34 +675,36 @@ export default function EarningsWorkspace({ earnings }: EarningsWorkspaceProps) 
                       <textarea
                         value={formData.notes}
                         onChange={(e) => handleChange('notes', e.target.value)}
-                        placeholder="Any additional notes for this month..."
+                        placeholder="Any notes for this period..."
                       />
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Actions */}
-                <div className={styles.formActions}>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => handleSave('draft')}
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving...' : 'Save Draft'}
-                  </button>
+              {/* Form Footer */}
+              <div className={styles.formFooter}>
+                <div className={styles.footerLeft}>
+                  {currentEntry && (
+                    <span style={{ fontSize: 'var(--font-sm)', color: 'var(--text-muted)' }}>
+                      Last updated: {new Date(currentEntry.updated_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.footerRight}>
                   <button 
                     className="btn btn-primary"
-                    onClick={() => handleSave('finalized')}
-                    disabled={loading}
+                    onClick={handleSave}
+                    disabled={loading || (isCreatingNew && (!newWeekStart || !newWeekEnd))}
                   >
-                    {loading ? 'Saving...' : 'Save & Finalize'}
+                    {loading ? 'Saving...' : currentEntry ? 'Update' : 'Save'}
                   </button>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
