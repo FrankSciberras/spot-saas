@@ -385,6 +385,46 @@ export interface PaginatedResponse<T> {
 }
 
 // =============================================================================
+// Driver Adjustments Types
+// =============================================================================
+
+export type AdjustmentType = 'expense' | 'bonus' | 'deduction' | 'reimbursement' | 'other';
+
+export interface DriverAdjustment {
+  id: string;
+  driver_id: string;
+  type: AdjustmentType;
+  amount: number;
+  description: string;
+  date: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DriverAdjustmentWithDriver extends DriverAdjustment {
+  drivers?: Pick<Driver, 'id' | 'full_name'> | null;
+}
+
+export interface CreateAdjustmentInput {
+  driver_id: string;
+  type: AdjustmentType;
+  amount: number;
+  description: string;
+  date: string;
+  notes?: string;
+}
+
+export interface UpdateAdjustmentInput {
+  type?: AdjustmentType;
+  amount?: number;
+  description?: string;
+  date?: string;
+  notes?: string;
+}
+
+// =============================================================================
 // Driver Settlements Types
 // =============================================================================
 
@@ -469,6 +509,86 @@ export interface UpdateSettlementInput {
   notes?: string;
   status?: SettlementStatus;
   paid_at?: string | null;
+}
+
+// =============================================================================
+// Monthly Earnings Types
+// =============================================================================
+
+export type MonthlyEarningsStatus = 'draft' | 'finalized';
+
+export interface MonthlyEarnings {
+  id: string;
+  month: string; // ISO date string (first of month)
+  
+  // Platform Revenue
+  bolt_gross: number;
+  uber_gross: number;
+  offapp_gross: number;
+  
+  // VAT
+  bolt_vat: number;
+  uber_vat: number;
+  offapp_vat: number;
+  
+  // Commissions
+  bolt_commission: number;
+  uber_commission: number;
+  
+  // Driver Costs
+  driver_settlements_total: number;
+  
+  // Expenses
+  rent: number;
+  utilities: number;
+  insurance: number;
+  ni_tax: number;
+  services_total: number;
+  fuel: number;
+  vehicle_expenses: number;
+  other_expenses: number;
+  other_expenses_notes: string | null;
+  
+  // Calculated Totals
+  total_gross_revenue: number;
+  total_vat: number;
+  total_commissions: number;
+  net_revenue: number;
+  total_expenses: number;
+  net_profit: number;
+  
+  // Status
+  status: MonthlyEarningsStatus;
+  notes: string | null;
+  
+  // Metadata
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonthlyEarningsInput {
+  month: string;
+  bolt_gross?: number;
+  uber_gross?: number;
+  offapp_gross?: number;
+  bolt_vat?: number;
+  uber_vat?: number;
+  offapp_vat?: number;
+  bolt_commission?: number;
+  uber_commission?: number;
+  driver_settlements_total?: number;
+  rent?: number;
+  utilities?: number;
+  insurance?: number;
+  ni_tax?: number;
+  services_total?: number;
+  fuel?: number;
+  vehicle_expenses?: number;
+  other_expenses?: number;
+  other_expenses_notes?: string;
+  notes?: string;
+  status?: MonthlyEarningsStatus;
 }
 
 // =============================================================================

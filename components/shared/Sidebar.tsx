@@ -244,6 +244,7 @@ const adminNavItems: NavItem[] = [
   // Financial
   { label: 'Earnings', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Settlements', href: '/admin/settlements', icon: <SettlementIcon />, roles: ['admin'] },
+  { label: 'Adjustments', href: '/admin/adjustments', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Statistics', href: '/admin/statistics', icon: <StatsIcon />, roles: ['admin'] },
   // Admin
   { label: 'Events', href: '/admin/events', icon: <CalendarIcon /> },

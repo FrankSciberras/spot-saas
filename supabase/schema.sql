@@ -480,10 +480,17 @@ CREATE POLICY "Admins can manage notifications"
   ON notifications FOR ALL
   USING (get_user_role(auth.uid()) = 'admin');
 
--- Drivers can mark their notifications as read
+-- Drivers can mark their notifications as read (including broadcasts)
 CREATE POLICY "Drivers can update own notifications"
   ON notifications FOR UPDATE
-  USING (driver_id = get_driver_id(auth.uid()));
+  USING (
+    driver_id = get_driver_id(auth.uid()) 
+    OR driver_id IS NULL
+  )
+  WITH CHECK (
+    driver_id = get_driver_id(auth.uid()) 
+    OR driver_id IS NULL
+  );
 
 -- =============================================================================
 -- CHAT MESSAGES TABLE POLICIES
