@@ -70,19 +70,19 @@
 }
 
 .statIconBlue {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  background: var(--stat-blue-bg);
 }
 
 .statIconGreen {
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  background: var(--stat-green-bg);
 }
 
 .statIconPurple {
-  background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
+  background: var(--stat-purple-bg);
 }
 
 .statIconOrange {
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  background: var(--stat-orange-bg);
 }
 
 .statContent {

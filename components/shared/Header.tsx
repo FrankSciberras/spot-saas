@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/lib/types/database';
 import NotificationBell from './NotificationBell';
+import ThemeToggle from './ThemeToggle';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -28,6 +29,7 @@ export default function Header({ user, title }: HeaderProps) {
       </div>
 
       <div className={styles.right}>
+        <ThemeToggle />
         <NotificationBell />
         {user && (
           <div className={styles.userInfo}>

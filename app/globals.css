@@ -3,7 +3,7 @@
    ============================================================================= */
 
 :root {
-  /* Primary Colors */
+  /* Primary Colors - These stay consistent across themes */
   --color-primary: #2563eb;
   --color-primary-dark: #1d4ed8;
   --color-primary-light: #60a5fa;
@@ -12,8 +12,11 @@
   /* Secondary & Status Colors */
   --color-secondary: #64748b;
   --color-success: #10b981;
+  --color-success-rgb: 16, 185, 129;
   --color-warning: #f59e0b;
+  --color-warning-rgb: 245, 158, 11;
   --color-danger: #ef4444;
+  --color-danger-rgb: 239, 68, 68;
   --color-info: #0ea5e9;
 
   /* Background colors */
@@ -22,12 +25,14 @@
   --bg-tertiary: #f1f5f9;
   --bg-dark: #0f172a;
   --bg-card: #ffffff;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
 
   /* Text colors */
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
   --text-light: #ffffff;
+  --text-on-primary: #ffffff;
 
   /* Border colors */
   --border-color: #e2e8f0;
@@ -42,6 +47,48 @@
   --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.04);
   --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.12);
+
+  /* Status badge backgrounds - Light theme */
+  --badge-success-bg: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  --badge-success-text: #047857;
+  --badge-warning-bg: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  --badge-warning-text: #b45309;
+  --badge-danger-bg: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  --badge-danger-text: #b91c1c;
+  --badge-info-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  --badge-info-text: #1d4ed8;
+  --badge-primary-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  --badge-primary-text: var(--color-primary);
+
+  /* Alert backgrounds - Light theme */
+  --alert-success-bg: #dcfce7;
+  --alert-success-border: #86efac;
+  --alert-success-text: #166534;
+  --alert-warning-bg: #fef3c7;
+  --alert-warning-border: #fcd34d;
+  --alert-warning-text: #92400e;
+  --alert-danger-bg: #fee2e2;
+  --alert-danger-border: #fca5a5;
+  --alert-danger-text: #991b1b;
+  --alert-info-bg: #cffafe;
+  --alert-info-border: #67e8f9;
+  --alert-info-text: #155e75;
+
+  /* Stat icon backgrounds - Light theme */
+  --stat-blue-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  --stat-green-bg: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  --stat-purple-bg: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
+  --stat-orange-bg: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+
+  /* Sidebar gradient - Light theme */
+  --sidebar-bg: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+
+  /* Login page gradient */
+  --login-bg: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+
+  /* Icon filter for dark mode (no filter in light mode) */
+  --icon-filter: none;
+  --logo-filter: none;
 
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -84,6 +131,81 @@
   --sidebar-width: 250px;
   --sidebar-collapsed-width: 70px;
   --header-height: 64px;
+}
+
+/* =============================================================================
+   Dark Theme
+   ============================================================================= */
+[data-theme="dark"] {
+  /* Background colors - Dark theme */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16162a;
+  --bg-tertiary: #252542;
+  --bg-dark: #0f0f1a;
+  --bg-card: #1e1e36;
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Text colors - Dark theme */
+  --text-primary: #f1f5f9;
+  --text-secondary: #a1a1b5;
+  --text-muted: #6b6b80;
+  --text-light: #ffffff;
+
+  /* Border colors - Dark theme */
+  --border-color: #2d2d4a;
+  --border-color-dark: #3d3d5c;
+  --border-subtle: rgba(100, 100, 140, 0.2);
+
+  /* Shadows - Dark theme (more subtle) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+  /* Status badge backgrounds - Dark theme */
+  --badge-success-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+  --badge-success-text: #34d399;
+  --badge-warning-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  --badge-warning-text: #fbbf24;
+  --badge-danger-bg: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+  --badge-danger-text: #f87171;
+  --badge-info-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
+  --badge-info-text: #60a5fa;
+  --badge-primary-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
+  --badge-primary-text: #60a5fa;
+
+  /* Alert backgrounds - Dark theme */
+  --alert-success-bg: rgba(16, 185, 129, 0.15);
+  --alert-success-border: rgba(16, 185, 129, 0.3);
+  --alert-success-text: #34d399;
+  --alert-warning-bg: rgba(245, 158, 11, 0.15);
+  --alert-warning-border: rgba(245, 158, 11, 0.3);
+  --alert-warning-text: #fbbf24;
+  --alert-danger-bg: rgba(239, 68, 68, 0.15);
+  --alert-danger-border: rgba(239, 68, 68, 0.3);
+  --alert-danger-text: #f87171;
+  --alert-info-bg: rgba(14, 165, 233, 0.15);
+  --alert-info-border: rgba(14, 165, 233, 0.3);
+  --alert-info-text: #38bdf8;
+
+  /* Stat icon backgrounds - Dark theme */
+  --stat-blue-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
+  --stat-green-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+  --stat-purple-bg: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
+  --stat-orange-bg: linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.1) 100%);
+
+  /* Sidebar gradient - Dark theme */
+  --sidebar-bg: linear-gradient(180deg, #1e1e36 0%, #1a1a2e 100%);
+
+  /* Login page gradient - stays similar but slightly adjusted */
+  --login-bg: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+
+  /* Icon filter for dark mode - invert dark icons to light */
+  --icon-filter: brightness(0) invert(1);
+  --logo-filter: brightness(0) invert(1);
 }
 
 /* Reset */
@@ -437,23 +559,23 @@ tr:hover td {
 }
 
 .badge-success {
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  color: #047857;
+  background: var(--badge-success-bg);
+  color: var(--badge-success-text);
 }
 
 .badge-warning {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  color: #b45309;
+  background: var(--badge-warning-bg);
+  color: var(--badge-warning-text);
 }
 
 .badge-danger {
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-  color: #b91c1c;
+  background: var(--badge-danger-bg);
+  color: var(--badge-danger-text);
 }
 
 .badge-info {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  color: #1d4ed8;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-text);
 }
 
 .badge-secondary {
@@ -462,8 +584,8 @@ tr:hover td {
 }
 
 .badge-primary {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  color: var(--color-primary);
+  background: var(--badge-primary-bg);
+  color: var(--badge-primary-text);
 }
 
 /* Loading spinner */
@@ -581,27 +703,27 @@ tr:hover td {
 }
 
 .alert-success {
-  background-color: #dcfce7;
-  border: 1px solid #86efac;
-  color: #166534;
+  background-color: var(--alert-success-bg);
+  border: 1px solid var(--alert-success-border);
+  color: var(--alert-success-text);
 }
 
 .alert-warning {
-  background-color: #fef3c7;
-  border: 1px solid #fcd34d;
-  color: #92400e;
+  background-color: var(--alert-warning-bg);
+  border: 1px solid var(--alert-warning-border);
+  color: var(--alert-warning-text);
 }
 
 .alert-danger {
-  background-color: #fee2e2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
+  background-color: var(--alert-danger-bg);
+  border: 1px solid var(--alert-danger-border);
+  color: var(--alert-danger-text);
 }
 
 .alert-info {
-  background-color: #cffafe;
-  border: 1px solid #67e8f9;
-  color: #155e75;
+  background-color: var(--alert-info-bg);
+  border: 1px solid var(--alert-info-border);
+  color: var(--alert-info-text);
 }
 
 /* Expiry status helpers */

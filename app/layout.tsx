@@ -4,6 +4,7 @@ import './globals.css';
 import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistration';
 import ErrorRecovery from '@/components/shared/ErrorRecovery';
 import SplashScreen from '@/components/shared/SplashScreen';
+import { ThemeProvider } from '@/components/shared/ThemeProvider';
 
 const figtree = Figtree({
   subsets: ['latin'],
@@ -62,11 +63,13 @@ export default function RootLayout({
         `}} />
       </head>
       <body className={figtree.className}>
-        <ServiceWorkerRegistration />
-        <SplashScreen>
-          {children}
-        </SplashScreen>
-        <ErrorRecovery />
+        <ThemeProvider>
+          <ServiceWorkerRegistration />
+          <SplashScreen>
+            {children}
+          </SplashScreen>
+          <ErrorRecovery />
+        </ThemeProvider>
       </body>
     </html>
   );

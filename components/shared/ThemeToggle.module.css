@@ -1,0 +1,47 @@
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toggle:hover {
+  background: var(--bg-secondary);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.toggle svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .toggle svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .toggle {
+    width: 30px;
+    height: 30px;
+  }
+
+  .toggle svg {
+    width: 14px;
+    height: 14px;
+  }
+}

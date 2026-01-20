@@ -58,10 +58,10 @@
 /* Error Message */
 .errorMsg {
   padding: var(--spacing-md);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-danger-rgb), 0.1);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
   border-radius: var(--radius-md);
-  color: #dc2626;
+  color: var(--badge-danger-text);
   font-size: 0.875rem;
 }
 
@@ -182,7 +182,7 @@
 .photoBox.hasPhoto {
   border-style: solid;
   border-color: var(--color-success);
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(var(--color-success-rgb), 0.1);
 }
 
 .photoIcon {
@@ -244,20 +244,20 @@
 .submitBtn {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--color-success) 0%, #16a34a 100%);
+  color: var(--text-light);
   border: none;
   border-radius: var(--radius-lg);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--color-success-rgb), 0.3);
 }
 
 .submitBtn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  box-shadow: 0 4px 12px rgba(var(--color-success-rgb), 0.4);
 }
 
 .submitBtn:disabled {
@@ -286,8 +286,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--color-success) 0%, #16a34a 100%);
+  color: var(--text-light);
   font-size: 2rem;
   border-radius: 50%;
   margin: 0 auto var(--spacing-lg);

@@ -1,7 +1,7 @@
 .sidebar {
   width: var(--sidebar-width);
   height: 100vh;
-  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  background: var(--sidebar-bg);
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
@@ -24,6 +24,7 @@
   max-width: 98px;
   height: auto;
   display: block;
+  filter: var(--logo-filter);
 }
 
 .logoIcon {
