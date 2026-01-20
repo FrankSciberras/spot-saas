@@ -26,9 +26,11 @@ export async function POST() {
     .is('read_at', null);
 
   if (driver) {
-    query = query.or(`driver_id.eq.${driver.id},driver_id.is.null`);
+    // Drivers can mark read: their notifications OR broadcasts targeted to drivers/all
+    query = query.or(`driver_id.eq.${driver.id},and(driver_id.is.null,target_role.in.(driver,all))`);
   } else {
-    query = query.or(`user_id.eq.${user.id},user_id.is.null,driver_id.is.null`);
+    // Admins can mark read: broadcasts targeted to admin/all
+    query = query.is('driver_id', null).in('target_role', ['admin', 'all']);
   }
 
   const { error } = await query;

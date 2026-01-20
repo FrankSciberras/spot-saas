@@ -20,6 +20,7 @@ export interface NotificationPayload {
   body: string;
   type?: 'info' | 'warning' | 'alert';
   actionUrl?: string;
+  targetRole?: 'driver' | 'admin' | 'all'; // who should see this notification
 }
 
 export interface Notification {
@@ -65,6 +66,7 @@ export async function createNotification(
         body: payload.body,
         type: payload.type || 'info',
         action_url: payload.actionUrl || null,
+        target_role: payload.targetRole || (payload.driverId ? 'driver' : 'all'),
         sent_at: sendPush ? new Date().toISOString() : null,
       })
       .select()
@@ -111,10 +113,11 @@ export async function getDriverNotifications(
 ): Promise<Notification[]> {
   const supabase = await createClient();
 
+  // Drivers see: their notifications OR broadcasts targeted to drivers/all
   let query = supabase
     .from('notifications')
     .select('*')
-    .or(`driver_id.eq.${driverId},driver_id.is.null`)
+    .or(`driver_id.eq.${driverId},and(driver_id.is.null,target_role.in.(driver,all))`)
     .order('created_at', { ascending: false });
 
   if (unreadOnly) {
@@ -155,10 +158,11 @@ export async function markAllNotificationsAsRead(
 ): Promise<boolean> {
   const supabase = await createClient();
 
+  // Mark read: driver's notifications OR broadcasts targeted to drivers/all
   const { error } = await supabase
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
-    .or(`driver_id.eq.${driverId},driver_id.is.null`)
+    .or(`driver_id.eq.${driverId},and(driver_id.is.null,target_role.in.(driver,all))`)
     .is('read_at', null);
 
   return !error;
@@ -215,10 +219,11 @@ async function deliverPushNotification(
 export async function getUnreadCount(driverId: string): Promise<number> {
   const supabase = await createClient();
 
+  // Count: driver's notifications OR broadcasts targeted to drivers/all
   const { count, error } = await supabase
     .from('notifications')
     .select('*', { count: 'exact', head: true })
-    .or(`driver_id.eq.${driverId},driver_id.is.null`)
+    .or(`driver_id.eq.${driverId},and(driver_id.is.null,target_role.in.(driver,all))`)
     .is('read_at', null);
 
   if (error) {

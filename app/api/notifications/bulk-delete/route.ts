@@ -17,12 +17,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No notification IDs provided' }, { status: 400 });
     }
 
-    // Delete the notifications (RLS will ensure user can only delete their own)
-    const { error } = await supabase
+    // Get driver_id if user is a driver
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    // Delete the notifications (with proper filtering)
+    let query = supabase
       .from('notifications')
       .delete()
-      .in('id', ids)
-      .eq('user_id', user.id);
+      .in('id', ids);
+
+    if (driver) {
+      // Drivers can delete their notifications OR broadcasts targeted to drivers/all
+      query = query.or(`driver_id.eq.${driver.id},and(driver_id.is.null,target_role.in.(driver,all))`);
+    } else {
+      // Admins can delete broadcasts targeted to admin/all
+      query = query.is('driver_id', null).in('target_role', ['admin', 'all']);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 

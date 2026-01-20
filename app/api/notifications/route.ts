@@ -32,11 +32,12 @@ export async function GET(request: Request) {
 
   // Filter notifications based on user role
   if (driver) {
-    // Drivers see: notifications for them OR broadcast (driver_id is null)
-    query = query.or(`driver_id.eq.${driver.id},driver_id.is.null`);
+    // Drivers see: their notifications OR broadcasts targeted to drivers/all
+    // RLS enforces target_role, but we also filter here for clarity
+    query = query.or(`driver_id.eq.${driver.id},and(driver_id.is.null,target_role.in.(driver,all))`);
   } else {
-    // Admins/staff/others see: broadcast notifications (driver_id is null)
-    query = query.is('driver_id', null);
+    // Admins/staff see: broadcasts targeted to admin/all (not driver-only broadcasts)
+    query = query.is('driver_id', null).in('target_role', ['admin', 'all']);
   }
 
   if (unreadOnly) {
@@ -56,9 +57,9 @@ export async function GET(request: Request) {
     .is('read_at', null);
 
   if (driver) {
-    countQuery = countQuery.or(`driver_id.eq.${driver.id},driver_id.is.null`);
+    countQuery = countQuery.or(`driver_id.eq.${driver.id},and(driver_id.is.null,target_role.in.(driver,all))`);
   } else {
-    countQuery = countQuery.is('driver_id', null);
+    countQuery = countQuery.is('driver_id', null).in('target_role', ['admin', 'all']);
   }
 
   const { count: unreadCount } = await countQuery;
@@ -109,6 +110,10 @@ export async function POST(request: Request) {
   // If broadcasting, driver_id stays null (goes to everyone)
   if (!broadcast && driver_id) {
     notificationData.driver_id = driver_id;
+    notificationData.target_role = 'driver';
+  } else {
+    // Broadcast notification - set target_role based on body param or default to 'all'
+    notificationData.target_role = body.target_role || 'all';
   }
 
   const { data: notification, error } = await supabase

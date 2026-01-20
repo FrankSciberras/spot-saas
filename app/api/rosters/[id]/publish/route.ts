@@ -130,6 +130,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       body: notificationBody,
       type: 'info',
       action_url: actionUrl,
+      target_role: 'driver',
       sent_at: new Date().toISOString(),
     }));
 

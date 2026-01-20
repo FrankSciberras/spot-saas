@@ -112,6 +112,7 @@ export async function POST(request: Request) {
           body: message,
           type: 'info',
           action_url: action_url || null,
+          target_role: 'driver',
           sent_at: now,
           created_at: now,
         }));
@@ -177,15 +178,16 @@ export async function POST(request: Request) {
       if (channels.includes('app')) {
         const now = new Date().toISOString();
         console.log('Inserting admin app notification with driver_id = null');
-        // Insert a single broadcast notification for admins (driver_id = null means visible to all admins)
+        // Insert a single broadcast notification for admins (driver_id = null + target_role = 'admin')
         const { data: insertedNotif, error } = await supabase
           .from('notifications')
           .insert({
-            driver_id: null, // null = visible to admins/staff
+            driver_id: null,
             title,
             body: message,
             type: 'info',
             action_url: action_url || null,
+            target_role: recipients === 'all' ? 'all' : 'admin', // 'admin' for admin-only, 'all' for everyone
             sent_at: now,
             created_at: now,
           })
