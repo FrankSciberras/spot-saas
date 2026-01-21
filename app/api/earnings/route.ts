@@ -1,6 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import type { MonthlyEarningsInput } from '@/lib/types/database';
+
+interface MonthlyEarningsInput {
+  month: string;
+  bolt_gross?: number;
+  uber_gross?: number;
+  offapp_gross?: number;
+  bolt_vat?: number;
+  uber_vat?: number;
+  offapp_vat?: number;
+  bolt_commission?: number;
+  uber_commission?: number;
+  driver_settlements_total?: number;
+  rent?: number;
+  utilities?: number;
+  insurance?: number;
+  ni_tax?: number;
+  services_total?: number;
+  fuel?: number;
+  vehicle_expenses?: number;
+  other_expenses?: number;
+  other_expenses_notes?: string;
+  notes?: string;
+  status?: string;
+}
 
 /**
  * Calculate totals from input data
