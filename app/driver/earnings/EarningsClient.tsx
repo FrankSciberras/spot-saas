@@ -16,9 +16,74 @@ interface EarningsClientProps {
 }
 
 type ViewMode = 'weekly' | 'monthly';
+type WeekRange = 4 | 8 | 12 | 'all' | 'single';
 
-export default function EarningsClient({ settlements, driverName }: EarningsClientProps) {
+const WEEK_RANGES: { value: WeekRange; label: string }[] = [
+  { value: 4, label: 'Last 4 Weeks' },
+  { value: 8, label: 'Last 8 Weeks' },
+  { value: 12, label: 'Last 12 Weeks' },
+  { value: 'all', label: 'All Time' },
+  { value: 'single', label: 'Specific Week' },
+];
+
+function parseDateOnly(value: string): Date {
+  const dateStr = value.includes('T') ? value.split('T')[0] : value;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function getSettlementTotal(s: SettlementWithPlatforms): number {
+  const tips = s.settlement_platforms.reduce((sum, p) => sum + p.tips, 0);
+  const campaigns = s.settlement_platforms.reduce((sum, p) => sum + (p.campaigns || 0), 0);
+  return s.total_net + tips + campaigns;
+}
+
+function formatPct(value: number): string {
+  if (!Number.isFinite(value)) return '0.0%';
+  return `${value.toFixed(1)}%`;
+}
+
+function buildSmoothPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+    const cx = (curr.x + next.x) / 2;
+    const cy = (curr.y + next.y) / 2;
+    d += ` Q ${curr.x} ${curr.y} ${cx} ${cy}`;
+  }
+  const secondLast = points[points.length - 2];
+  const last = points[points.length - 1];
+  d += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`;
+  return d;
+}
+
+export default function EarningsClient({ settlements: allSettlements, driverName }: EarningsClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
+  const [weekRange, setWeekRange] = useState<WeekRange>(8);
+  const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
+  const [activePointIdx, setActivePointIdx] = useState<number | null>(null);
+
+  // Filter settlements based on selected week range
+  const settlements = useMemo(() => {
+    if (weekRange === 'single' && selectedWeekId) {
+      const found = allSettlements.find(s => s.id === selectedWeekId);
+      return found ? [found] : [];
+    }
+    if (weekRange === 'all') return allSettlements;
+    return allSettlements.slice(0, weekRange as number);
+  }, [allSettlements, weekRange, selectedWeekId]);
+
+  // Handle week range change
+  const handleWeekRangeChange = (range: WeekRange) => {
+    setWeekRange(range);
+    if (range === 'single' && allSettlements.length > 0 && !selectedWeekId) {
+      setSelectedWeekId(allSettlements[0].id);
+    }
+  };
 
   // Calculate totals and stats
   const stats = useMemo(() => {
@@ -44,7 +109,7 @@ export default function EarningsClient({ settlements, driverName }: EarningsClie
     let bestWeek: SettlementWithPlatforms | null = null;
 
     // Weekly data for chart
-    const weeklyData = settlements.slice(0, 12).reverse().map(s => {
+    const weeklyData = settlements.slice(0, Math.min(settlements.length, 16)).reverse().map(s => {
       const tips = s.settlement_platforms.reduce((sum, p) => sum + p.tips, 0);
       const campaigns = s.settlement_platforms.reduce((sum, p) => sum + (p.campaigns || 0), 0);
       return {
@@ -88,7 +153,7 @@ export default function EarningsClient({ settlements, driverName }: EarningsClie
     // Monthly data
     const monthlyMap = new Map<string, { net: number; tips: number; campaigns: number; weeks: number }>();
     settlements.forEach(s => {
-      const month = new Date(s.week_start).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const month = parseDateOnly(String(s.week_start)).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       const tips = s.settlement_platforms.reduce((sum, p) => sum + p.tips, 0);
       const campaigns = s.settlement_platforms.reduce((sum, p) => sum + (p.campaigns || 0), 0);
       
@@ -112,7 +177,7 @@ export default function EarningsClient({ settlements, driverName }: EarningsClie
       totalTips,
       totalCampaigns,
       totalGross,
-      avgWeeklyEarnings: settlements.length > 0 ? totalNet / settlements.length : 0,
+      avgWeeklyEarnings: settlements.length > 0 ? (totalNet + totalTips + totalCampaigns) / settlements.length : 0,
       bestWeek,
       platformBreakdown,
       weeklyData,
@@ -123,8 +188,10 @@ export default function EarningsClient({ settlements, driverName }: EarningsClie
   // Get current period earnings
   const currentWeek = settlements[0];
   const lastWeek = settlements[1];
-  const weekChange = currentWeek && lastWeek 
-    ? ((currentWeek.total_net - lastWeek.total_net) / lastWeek.total_net) * 100 
+  const currentWeekTotal = currentWeek ? getSettlementTotal(currentWeek) : 0;
+  const lastWeekTotal = lastWeek ? getSettlementTotal(lastWeek) : 0;
+  const weekChange = currentWeek && lastWeek && lastWeekTotal > 0
+    ? ((currentWeekTotal - lastWeekTotal) / lastWeekTotal) * 100
     : 0;
 
   // Get platform icon
@@ -134,48 +201,215 @@ export default function EarningsClient({ settlements, driverName }: EarningsClie
 
   // Chart max for scaling
   const chartData = viewMode === 'weekly' ? stats.weeklyData : stats.monthlyData;
-  const maxValue = Math.max(...chartData.map(d => d.net + d.tips + d.campaigns), 1);
+
+  // Calculate growth trend (comparing first half to second half of period)
+  const growthTrend = useMemo(() => {
+    if (settlements.length < 4) return 0;
+
+    const getTotal = (s: SettlementWithPlatforms) => {
+      const tips = s.settlement_platforms.reduce((sum, p) => sum + p.tips, 0);
+      const campaigns = s.settlement_platforms.reduce((sum, p) => sum + (p.campaigns || 0), 0);
+      return s.total_net + tips + campaigns;
+    };
+
+    const half = Math.floor(settlements.length / 2);
+    const recentHalf = settlements.slice(0, half);
+    const olderHalf = settlements.slice(half);
+    const recentAvg = recentHalf.reduce((sum, s) => sum + getTotal(s), 0) / recentHalf.length;
+    const olderAvg = olderHalf.reduce((sum, s) => sum + getTotal(s), 0) / olderHalf.length;
+    return olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
+  }, [settlements]);
+
+  const periodTotal = stats.totalNet + stats.totalTips + stats.totalCampaigns;
+
+  const comparison = useMemo(() => {
+    if (allSettlements.length === 0) return { previousTotal: 0, deltaPct: 0, hasPrevious: false };
+
+    const sumTotal = (items: SettlementWithPlatforms[]) =>
+      items.reduce((sum, s) => sum + getSettlementTotal(s), 0);
+
+    if (weekRange === 'single' && selectedWeekId) {
+      const idx = allSettlements.findIndex(s => s.id === selectedWeekId);
+      const prev = idx >= 0 ? allSettlements[idx + 1] : undefined;
+      if (!prev) return { previousTotal: 0, deltaPct: 0, hasPrevious: false };
+      const current = sumTotal(settlements);
+      const previous = sumTotal([prev]);
+      const deltaPct = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+      return { previousTotal: previous, deltaPct, hasPrevious: true };
+    }
+
+    const n = weekRange === 'all' ? 8 : (weekRange as number);
+    const currentSlice = allSettlements.slice(0, n);
+    const previousSlice = allSettlements.slice(n, n * 2);
+    if (previousSlice.length === 0) return { previousTotal: 0, deltaPct: 0, hasPrevious: false };
+    const current = weekRange === 'all' ? periodTotal : sumTotal(currentSlice);
+    const previous = sumTotal(previousSlice);
+    const deltaPct = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+    return { previousTotal: previous, deltaPct, hasPrevious: true };
+  }, [allSettlements, periodTotal, settlements, selectedWeekId, weekRange]);
+
+  const tipsShare = periodTotal > 0 ? (stats.totalTips / periodTotal) * 100 : 0;
+  const campaignsShare = periodTotal > 0 ? (stats.totalCampaigns / periodTotal) * 100 : 0;
+
+  const topPlatform = useMemo(() => {
+    if (stats.platformBreakdown.length === 0) return null;
+    return [...stats.platformBreakdown].sort((a, b) => b.total - a.total)[0];
+  }, [stats.platformBreakdown]);
 
   return (
     <div className={styles.container}>
+      {/* Week Range Selector */}
+      <div className={styles.periodSelector}>
+        <span className={styles.periodLabel}>Show earnings for:</span>
+        <div className={styles.periodButtons}>
+          {WEEK_RANGES.map(range => (
+            <button
+              key={range.value}
+              className={`${styles.periodBtn} ${weekRange === range.value ? styles.active : ''}`}
+              onClick={() => handleWeekRangeChange(range.value)}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+        
+        {/* Specific Week Dropdown */}
+        {weekRange === 'single' && allSettlements.length > 0 && (
+          <select
+            className={styles.weekSelect}
+            value={selectedWeekId || ''}
+            onChange={(e) => setSelectedWeekId(e.target.value)}
+          >
+            {allSettlements.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.week_label} — {formatCurrency(s.total_net)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Summary Banner */}
+      <div className={styles.summaryBanner}>
+        <div className={styles.summaryMain}>
+          <span className={styles.summaryLabel}>Total Earnings</span>
+          <span className={styles.summaryAmount}>
+            {formatCurrency(periodTotal)}
+          </span>
+          <span className={styles.summaryPeriod}>
+            {weekRange === 'all'
+              ? 'all time'
+              : `from ${settlements.length} week${settlements.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
+        <div className={styles.trendBadges}>
+          {comparison.hasPrevious && (
+            <div className={`${styles.trendBadge} ${comparison.deltaPct >= 0 ? styles.positive : styles.negative}`}>
+              {comparison.deltaPct >= 0 ? '↑' : '↓'} {formatPct(Math.abs(comparison.deltaPct))} vs prev
+            </div>
+          )}
+          {growthTrend !== 0 && (
+            <div className={`${styles.trendBadge} ${growthTrend >= 0 ? styles.positive : styles.negative}`}>
+              {growthTrend >= 0 ? '↑' : '↓'} {formatPct(Math.abs(growthTrend))} trend
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Header Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statIcon}>💰</div>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
           <div className={styles.statContent}>
-            <span className={styles.statLabel}>This Week</span>
+            <span className={styles.statLabel}>Latest Week</span>
             <span className={styles.statValue}>
-              {currentWeek ? formatCurrency(currentWeek.total_net) : '€0.00'}
+              {currentWeek ? formatCurrency(currentWeekTotal) : '€0.00'}
             </span>
             {weekChange !== 0 && (
               <span className={`${styles.statChange} ${weekChange >= 0 ? styles.positive : styles.negative}`}>
-                {weekChange >= 0 ? '↑' : '↓'} {Math.abs(weekChange).toFixed(1)}%
+                {weekChange >= 0 ? '↑' : '↓'} {formatPct(Math.abs(weekChange))}
               </span>
             )}
           </div>
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon}>📈</div>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 3v18h18" />
+              <path d="M7 15l4-4 3 3 6-6" />
+            </svg>
+          </div>
           <div className={styles.statContent}>
-            <span className={styles.statLabel}>Avg Weekly</span>
+            <span className={styles.statLabel}>Avg / Week</span>
             <span className={styles.statValue}>{formatCurrency(stats.avgWeeklyEarnings)}</span>
           </div>
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon}>💵</div>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 1v22" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14" />
+            </svg>
+          </div>
           <div className={styles.statContent}>
-            <span className={styles.statLabel}>Total Tips</span>
+            <span className={styles.statLabel}>Tips</span>
             <span className={styles.statValue}>{formatCurrency(stats.totalTips)}</span>
+            <span className={styles.statChange}>{formatPct(tipsShare)} of total</span>
           </div>
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon}>🎯</div>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" />
+            </svg>
+          </div>
           <div className={styles.statContent}>
             <span className={styles.statLabel}>Campaigns</span>
             <span className={styles.statValue}>{formatCurrency(stats.totalCampaigns)}</span>
+            <span className={styles.statChange}>{formatPct(campaignsShare)} of total</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 21h8" />
+              <path d="M12 17v4" />
+              <path d="M7 4h10" />
+              <path d="M17 4a5 5 0 0 1-10 0" />
+              <path d="M5 9h14" />
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statLabel}>Best Week</span>
+            <span className={styles.statValue}>
+              {stats.bestWeek ? formatCurrency(getSettlementTotal(stats.bestWeek)) : '—'}
+            </span>
+            <span className={styles.statChange}>{stats.bestWeek ? stats.bestWeek.week_label : 'no data yet'}</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 19V5" />
+              <path d="M4 19h16" />
+              <path d="M8 17V9" />
+              <path d="M12 17V7" />
+              <path d="M16 17v-5" />
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statLabel}>Top Platform</span>
+            <span className={styles.statValue}>{topPlatform ? topPlatform.name : '—'}</span>
+            <span className={styles.statChange}>{topPlatform ? formatPct(topPlatform.percentage) : 'no platform data'}</span>
           </div>
         </div>
       </div>
@@ -208,54 +442,153 @@ export default function EarningsClient({ settlements, driverName }: EarningsClie
             </div>
           ) : (
             <div className={styles.chart}>
-              <div className={styles.chartBars}>
-                {chartData.map((item, i) => {
-                  const netHeight = (item.net / maxValue) * 100;
-                  const tipsHeight = (item.tips / maxValue) * 100;
-                  const campaignsHeight = (item.campaigns / maxValue) * 100;
-                  const total = item.net + item.tips + item.campaigns;
-                  
-                  return (
-                    <div key={i} className={styles.barGroup}>
-                      <div className={styles.barContainer}>
-                        <div className={styles.barStack}>
-                          <div 
-                            className={styles.barCampaigns} 
-                            style={{ height: `${campaignsHeight}%` }}
-                            title={`Campaigns: ${formatCurrency(item.campaigns)}`}
-                          />
-                          <div 
-                            className={styles.barTips} 
-                            style={{ height: `${tipsHeight}%` }}
-                            title={`Tips: ${formatCurrency(item.tips)}`}
-                          />
-                          <div 
-                            className={styles.barNet} 
-                            style={{ height: `${netHeight}%` }}
-                            title={`Net: ${formatCurrency(item.net)}`}
-                          />
-                        </div>
-                        <div className={styles.barValue}>{formatCurrency(total)}</div>
-                      </div>
-                      <span className={styles.barLabel}>{item.label}</span>
+              {(() => {
+                const series = chartData.map(item => ({
+                  label: item.label,
+                  net: item.net,
+                  tips: item.tips,
+                  campaigns: item.campaigns,
+                  total: item.net + item.tips + item.campaigns,
+                }));
+
+                const w = 640;
+                const h = 240;
+                const padX = 22;
+                const padY = 20;
+                const innerW = w - padX * 2;
+                const innerH = h - padY * 2;
+                const baseY = padY + innerH;
+
+                const max = Math.max(...series.map(s => s.total), 1);
+                const denom = Math.max(max, 1);
+
+                const points = series.map((s, i) => {
+                  const x = padX + (series.length === 1 ? innerW / 2 : (innerW * i) / (series.length - 1));
+                  const y = padY + innerH - (s.total / denom) * innerH;
+                  return { x, y };
+                });
+
+                const linePath = buildSmoothPath(points);
+                const areaPath = `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`;
+
+                const topLabel = series.length > 0 ? series[series.length - 1].label : '';
+                const bottomLabel = series.length > 0 ? series[0].label : '';
+
+                const effectiveActiveIdx =
+                  series.length === 0
+                    ? null
+                    : activePointIdx === null
+                      ? series.length - 1
+                      : Math.min(Math.max(activePointIdx, 0), series.length - 1);
+
+                const activePoint = effectiveActiveIdx === null ? null : points[effectiveActiveIdx];
+                const activeValue = effectiveActiveIdx === null ? null : series[effectiveActiveIdx];
+                const activeLabel = activeValue ? formatCurrency(activeValue.total) : '';
+                const tooltipFontSize = 11;
+                const tooltipPadX = 8;
+                const tooltipPadY = 5;
+                const approxCharW = 6.6;
+                const tooltipW = activeLabel.length * approxCharW + tooltipPadX * 2;
+                const tooltipH = tooltipFontSize + tooltipPadY * 2;
+                const tooltipXRaw = activePoint ? activePoint.x - tooltipW / 2 : 0;
+                const tooltipX = Math.max(6, Math.min(tooltipXRaw, w - tooltipW - 6));
+                const tooltipYRaw = activePoint ? activePoint.y - tooltipH - 10 : 0;
+                const tooltipY = Math.max(6, tooltipYRaw);
+
+                return (
+                  <div className={styles.trendChart}>
+                    <div className={styles.trendMeta}>
+                      <span className={styles.trendMetaLabel}>Peak</span>
+                      <span className={styles.trendMetaValue}>{formatCurrency(max)}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className={styles.trendCanvas}>
+                      <svg className={styles.trendSvg} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
+                        <defs>
+                          <linearGradient id="earningsAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={`rgba(var(--color-primary-rgb), 0.35)`} />
+                            <stop offset="100%" stopColor={`rgba(var(--color-primary-rgb), 0)`} />
+                          </linearGradient>
+                        </defs>
+
+                        {[0.25, 0.5, 0.75].map(t => (
+                          <line
+                            key={t}
+                            className={styles.trendGridLine}
+                            x1={padX}
+                            x2={w - padX}
+                            y1={padY + innerH * (1 - t)}
+                            y2={padY + innerH * (1 - t)}
+                          />
+                        ))}
+
+                        <path className={styles.trendArea} d={areaPath} fill="url(#earningsAreaGradient)" />
+                        <path className={styles.trendLine} d={linePath} />
+
+                        {activePoint && activeValue && (
+                          <g className={styles.trendTooltip} pointerEvents="none">
+                            <rect
+                              className={styles.trendTooltipBg}
+                              x={tooltipX}
+                              y={tooltipY}
+                              width={tooltipW}
+                              height={tooltipH}
+                              rx={8}
+                            />
+                            <text
+                              className={styles.trendTooltipText}
+                              x={tooltipX + tooltipW / 2}
+                              y={tooltipY + tooltipH / 2}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {activeLabel}
+                            </text>
+                          </g>
+                        )}
+
+                        {points.map((p, idx) => {
+                          const isActive = effectiveActiveIdx === idx;
+                          const pointLabel = `${series[idx]?.label ?? ''}: ${formatCurrency(series[idx]?.total ?? 0)}`;
+                          return (
+                            <g
+                              key={idx}
+                              className={styles.trendDotGroup}
+                              onMouseEnter={() => setActivePointIdx(idx)}
+                              onMouseLeave={() => setActivePointIdx(null)}
+                              onFocus={() => setActivePointIdx(idx)}
+                              onBlur={() => setActivePointIdx(null)}
+                              onClick={() => setActivePointIdx(prev => (prev === idx ? null : idx))}
+                              tabIndex={0}
+                              role="button"
+                              aria-label={pointLabel}
+                            >
+                              <circle
+                                className={`${styles.trendDot} ${isActive ? styles.trendDotActive : ''}`}
+                                cx={p.x}
+                                cy={p.y}
+                                r={3.5}
+                              >
+                                <title>{pointLabel}</title>
+                              </circle>
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    </div>
+
+                    <div className={styles.trendXAxis}>
+                      <span className={styles.trendAxisLabel}>{bottomLabel}</span>
+                      <span className={styles.trendAxisLabel}>{topLabel}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               
               {/* Legend */}
               <div className={styles.chartLegend}>
                 <span className={styles.legendItem}>
                   <span className={styles.legendDot} style={{ background: 'var(--color-primary)' }} />
-                  Net Earnings
-                </span>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDot} style={{ background: '#22c55e' }} />
-                  Tips
-                </span>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDot} style={{ background: '#f59e0b' }} />
-                  Campaigns
+                  Total earnings (net + tips + campaigns)
                 </span>
               </div>
             </div>

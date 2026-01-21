@@ -338,6 +338,16 @@ export default async function DriverDashboardPage() {
         <section className={styles.actionsSection}>
           <h2 className={styles.sectionTitle}>Quick Actions</h2>
           <div className={styles.actionsGrid}>
+            <Link href="/driver/settlements" className={styles.actionBtn}>
+              <div className={styles.actionBtnIcon}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                  <rect x="9" y="3" width="6" height="4" rx="1"/>
+                  <path d="M9 12h6M9 16h6"/>
+                </svg>
+              </div>
+              <span>Settlements</span>
+            </Link>
             <Link href="/driver/earnings" className={styles.actionBtn}>
               <div className={styles.actionBtnIcon}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -363,15 +373,6 @@ export default async function DriverDashboardPage() {
                 </svg>
               </div>
               <span>Shifts</span>
-            </Link>
-            <Link href="/driver/profile" className={styles.actionBtn}>
-              <div className={styles.actionBtnIcon}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </div>
-              <span>Profile</span>
             </Link>
           </div>
         </section>
