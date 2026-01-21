@@ -95,9 +95,25 @@ export default async function DriverRosterPage() {
     });
   });
 
-  const rosters = Array.from(rostersMap.values()).sort(
-    (a, b) => new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
-  );
+  // Sort rosters: current/future weeks first (by week_start ascending), then past weeks (most recent first)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const rosters = Array.from(rostersMap.values()).sort((a, b) => {
+    const aIsPast = a.week_end < todayStr;
+    const bIsPast = b.week_end < todayStr;
+    
+    // If one is past and one is current/future, show current/future first
+    if (aIsPast !== bIsPast) {
+      return aIsPast ? 1 : -1;
+    }
+    
+    // For current/future rosters: ascending order (soonest first)
+    // For past rosters: descending order (most recent past first)
+    if (!aIsPast) {
+      return new Date(a.week_start).getTime() - new Date(b.week_start).getTime();
+    } else {
+      return new Date(b.week_start).getTime() - new Date(a.week_start).getTime();
+    }
+  });
 
   return (
     <DashboardLayout user={user} variant="driver" title="Roster">

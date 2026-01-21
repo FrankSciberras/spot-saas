@@ -1,37 +1,71 @@
+/* =============================================================================
+   Driver Profile Page - Modern Mobile-First Design
+   ============================================================================= */
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Container */
 .container {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 16px;
   max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
 }
 
 /* Error Card */
 .errorCard {
-  padding: var(--spacing-xl);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--radius-xl);
+  padding: 32px 24px;
+  background: rgba(var(--color-danger-rgb), 0.08);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.2);
+  border-radius: 20px;
   text-align: center;
+  animation: fadeInUp 0.4s ease-out;
 }
 
 .errorCard h3 {
-  color: var(--color-danger);
-  margin-bottom: var(--spacing-sm);
+  color: var(--badge-danger-text);
+  margin-bottom: 8px;
+  font-size: 1.1rem;
 }
 
 .errorCard p {
   color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
 /* Profile Header */
 .profileHeader {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
-  padding: 1.5rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
+  gap: 18px;
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  animation: fadeInUp 0.4s ease-out;
 }
 
 .avatar {
@@ -40,84 +74,99 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
-  font-size: 28px;
+  font-size: 1.75rem;
   font-weight: 700;
-  border-radius: var(--radius-xl);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(var(--color-primary-rgb), 0.25);
+  flex-shrink: 0;
 }
 
 .profileInfo {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 6px;
 }
 
 .name {
-  font-size: var(--font-xl);
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .statusBadge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: var(--font-xs);
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
   width: fit-content;
 }
 
 .statusBadge.active {
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--badge-success-text);
 }
 
 .statusBadge.inactive {
-  background: rgba(100, 116, 139, 0.1);
-  color: var(--color-secondary);
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
 }
 
 /* Cards */
 .card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
   overflow: hidden;
+  animation: fadeInUp 0.4s ease-out backwards;
 }
+
+.card:nth-child(2) { animation-delay: 0.05s; }
+.card:nth-child(3) { animation-delay: 0.1s; }
+.card:nth-child(4) { animation-delay: 0.15s; }
+.card:nth-child(5) { animation-delay: 0.2s; }
+.card:nth-child(6) { animation-delay: 0.25s; }
+.card:nth-child(7) { animation-delay: 0.3s; }
 
 .cardHeader {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: 1rem 1.25rem;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  gap: 10px;
+  padding: 16px 18px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .cardHeader svg {
   width: 20px;
   height: 20px;
   color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .cardHeader h3 {
-  font-size: var(--font-base);
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
+  margin: 0;
 }
 
 .cardContent {
-  padding: 1.25rem;
+  padding: 18px;
 }
 
 /* Info Grid */
 .infoGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-lg);
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 
 .infoItem {
@@ -127,15 +176,16 @@
 }
 
 .infoLabel {
-  font-size: var(--font-xs);
-  font-weight: 500;
+  font-size: 0.7rem;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .infoValue {
-  font-size: var(--font-base);
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -148,28 +198,26 @@
 .documentsList {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 12px;
 }
 
 .documentItem {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: var(--spacing-md);
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  gap: var(--spacing-md);
+  border-radius: 14px;
 }
 
 .documentInfo {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex: 1;
 }
 
 .documentLabel {
-  font-size: var(--font-sm);
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -177,11 +225,12 @@
 .documentDetails {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .documentValue {
-  font-size: var(--font-sm);
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
@@ -191,71 +240,72 @@
 }
 
 .expiryDate {
-  font-size: var(--font-sm);
+  font-size: 0.8rem;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .expiryBadge {
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .expiryOk {
-  color: var(--color-success);
+  color: var(--badge-success-text);
 }
 
 .expiryOk .expiryBadge {
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--badge-success-text);
 }
 
 .expiryWarning {
-  color: #f59e0b;
+  color: var(--badge-warning-text);
 }
 
 .expiryWarning .expiryBadge {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
+  background: rgba(var(--color-warning-rgb), 0.1);
+  color: var(--badge-warning-text);
 }
 
 .expiryDanger {
-  color: var(--color-danger);
+  color: var(--badge-danger-text);
 }
 
 .expiryDanger .expiryBadge {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--color-danger);
+  background: rgba(var(--color-danger-rgb), 0.1);
+  color: var(--badge-danger-text);
 }
 
 .documentAttachments {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .attachmentLink {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: rgba(var(--color-primary-rgb), 0.1);
+  padding: 8px 14px;
+  background: rgba(var(--color-primary-rgb), 0.08);
   color: var(--color-primary);
-  border-radius: var(--radius-md);
-  font-size: var(--font-xs);
+  border-radius: 10px;
+  font-size: 0.75rem;
   font-weight: 500;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: all 0.2s ease;
 }
 
 .attachmentLink:hover {
-  background: rgba(var(--color-primary-rgb), 0.2);
+  background: rgba(var(--color-primary-rgb), 0.15);
 }
 
 .attachmentLink svg {
@@ -264,18 +314,25 @@
 }
 
 .noAttachment {
-  font-size: var(--font-xs);
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-style: italic;
 }
 
 /* Vehicle Card */
+.vehicleInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .vehicleCard {
   display: flex;
-  align-items: center;
-  padding: var(--spacing-md);
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  border-radius: 14px;
 }
 
 .vehicleMain {
@@ -285,13 +342,14 @@
 }
 
 .vehicleReg {
-  font-size: var(--font-lg);
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: 0.02em;
 }
 
 .vehicleModel {
-  font-size: var(--font-sm);
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
@@ -299,34 +357,34 @@
 .shiftsList {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: 10px;
 }
 
 .shiftItem {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-md);
+  gap: 16px;
+  padding: 14px 16px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  border-radius: 14px;
 }
 
 .shiftDate {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 50px;
+  min-width: 48px;
 }
 
 .shiftDay {
-  font-size: var(--font-xs);
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .shiftFullDate {
-  font-size: var(--font-sm);
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -339,38 +397,40 @@
 }
 
 .shiftTime {
-  font-size: var(--font-sm);
+  font-size: 0.85rem;
   color: var(--text-primary);
+  font-weight: 500;
 }
 
 .activeShift {
   display: inline-flex;
-  padding: 2px 8px;
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--color-success);
-  border-radius: var(--radius-full);
-  font-size: 10px;
+  padding: 3px 10px;
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--badge-success-text);
+  border-radius: 20px;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .shiftMileage {
-  font-size: var(--font-xs);
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
 /* Empty Message */
 .emptyMessage {
   color: var(--text-muted);
-  font-size: var(--font-sm);
+  font-size: 0.9rem;
   text-align: center;
-  padding: var(--spacing-md);
+  padding: 24px 16px;
+  margin: 0;
 }
 
 /* Next Shift Card */
 .nextShiftCard {
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.05), rgba(var(--color-primary-rgb), 0.02));
-  border-color: rgba(var(--color-primary-rgb), 0.2);
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.06) 0%, rgba(var(--color-primary-rgb), 0.02) 100%);
+  border-color: rgba(var(--color-primary-rgb), 0.15);
 }
 
 .nextShiftCard .cardHeader {
@@ -381,7 +441,7 @@
 .nextShiftContent {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 16px;
 }
 
 .nextShiftDate {
@@ -391,13 +451,13 @@
 }
 
 .nextShiftDay {
-  font-size: var(--font-xl);
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-primary);
 }
 
 .nextShiftFullDate {
-  font-size: var(--font-base);
+  font-size: 0.9rem;
   color: var(--text-secondary);
 }
 
@@ -405,43 +465,109 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: var(--spacing-md);
+  padding: 14px 16px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
 }
 
 .vehicleLabel {
-  font-size: var(--font-xs);
-  font-weight: 500;
+  font-size: 0.7rem;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .vehicleValue {
-  font-size: var(--font-base);
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-primary);
 }
 
-/* Tablet */
-@media (max-width: 768px) {
-  .container { max-width: 100%; }
-  .profileHeader { padding: 1rem; }
-  .avatar { width: 56px; height: 56px; font-size: 22px; }
-  .name { font-size: var(--font-lg); }
-  .cardContent { padding: 1rem; }
-  .cardHeader { padding: 0.875rem 1rem; }
+/* Tablet Enhancements */
+@media (min-width: 600px) {
+  .container {
+    padding: 24px;
+    gap: 20px;
+  }
+
+  .profileHeader {
+    padding: 28px;
+  }
+
+  .avatar {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+  }
+
+  .name {
+    font-size: 1.6rem;
+  }
+
+  .infoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardContent {
+    padding: 20px;
+  }
+
+  .documentItem {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .shiftsList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .shiftItem {
+    flex-direction: row;
+  }
+
+  .shiftDate {
+    flex-direction: column;
+  }
 }
 
-/* Mobile */
-@media (max-width: 640px) {
-  .profileHeader { flex-direction: column; text-align: center; }
-  .infoGrid { grid-template-columns: 1fr; }
-  .documentItem { flex-direction: column; }
-  .documentAttachments { align-items: flex-start; width: 100%; }
-  .shiftItem { flex-direction: column; align-items: flex-start; }
-  .shiftDate { flex-direction: row; gap: var(--spacing-sm); }
-  .nextShiftDay { font-size: var(--font-lg); }
-  .vehicleReg { font-size: var(--font-base); }
+/* Desktop Enhancements */
+@media (min-width: 900px) {
+  .container {
+    padding: 32px;
+    gap: 24px;
+  }
+
+  .profileHeader {
+    padding: 32px;
+  }
+
+  .avatar {
+    width: 88px;
+    height: 88px;
+    font-size: 2.25rem;
+  }
+
+  .name {
+    font-size: 1.8rem;
+  }
+
+  .cardHeader {
+    padding: 18px 22px;
+  }
+
+  .cardContent {
+    padding: 24px;
+  }
+
+  .documentsList {
+    gap: 14px;
+  }
+
+  .documentItem {
+    padding: 18px 20px;
+  }
 }

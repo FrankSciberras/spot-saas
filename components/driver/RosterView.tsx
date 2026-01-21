@@ -43,12 +43,33 @@ interface RosterViewProps {
 }
 
 type ViewMode = 'my-shifts' | 'all-shifts';
+type TimeFilter = 'upcoming' | 'past';
 
 export default function RosterView({ myRosters, driverId }: RosterViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('my-shifts');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('upcoming');
   const [allRosters, setAllRosters] = useState<Roster[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+
+  // Filter rosters based on time filter
+  const getFilteredRosters = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    if (timeFilter === 'upcoming') {
+      // Show rosters where week_end >= today (current week and future)
+      return myRosters.filter(r => r.week_end >= todayStr);
+    } else {
+      // Show rosters where week_end < today (past weeks)
+      return myRosters.filter(r => r.week_end < todayStr);
+    }
+  };
+
+  // Count past rosters for badge
+  const pastRostersCount = myRosters.filter(r => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return r.week_end < todayStr;
+  }).length;
 
   useEffect(() => {
     // Only fetch once when switching to all-shifts for the first time
@@ -154,6 +175,8 @@ export default function RosterView({ myRosters, driverId }: RosterViewProps) {
   };
 
   const renderMyShifts = () => {
+    const filteredRosters = getFilteredRosters();
+    
     if (!myRosters || myRosters.length === 0) {
       return (
         <div className={styles.emptyState}>
@@ -169,9 +192,26 @@ export default function RosterView({ myRosters, driverId }: RosterViewProps) {
       );
     }
 
+    if (filteredRosters.length === 0) {
+      return (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>
+            <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M3 10h18M9 4v6M15 4v6" />
+            </svg>
+          </div>
+          <h3>{timeFilter === 'upcoming' ? 'No Upcoming Shifts' : 'No Past Shifts'}</h3>
+          <p>{timeFilter === 'upcoming' 
+            ? 'You don\'t have any upcoming shifts scheduled.' 
+            : 'No past shift records found.'}</p>
+        </div>
+      );
+    }
+
     return (
       <div className={styles.rosterList}>
-        {myRosters.map((roster) => (
+        {filteredRosters.map((roster) => (
           <div key={roster.id} className={styles.rosterCard}>
             <div className={styles.rosterHeader}>
               <h3 className={styles.rosterTitle}>{roster.title}</h3>
@@ -336,6 +376,36 @@ export default function RosterView({ myRosters, driverId }: RosterViewProps) {
           </button>
         </div>
       </div>
+
+      {/* Time filter - only show for My Shifts view */}
+      {viewMode === 'my-shifts' && (
+        <div className={styles.timeFilterBar}>
+          <button
+            className={`${styles.timeFilterBtn} ${timeFilter === 'upcoming' ? styles.active : ''}`}
+            onClick={() => setTimeFilter('upcoming')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Upcoming
+          </button>
+          <button
+            className={`${styles.timeFilterBtn} ${timeFilter === 'past' ? styles.active : ''}`}
+            onClick={() => setTimeFilter('past')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M12 7v5l4 2" />
+            </svg>
+            Past
+            {pastRostersCount > 0 && (
+              <span className={styles.pastCount}>{pastRostersCount}</span>
+            )}
+          </button>
+        </div>
+      )}
 
       {viewMode === 'my-shifts' ? renderMyShifts() : renderAllShifts()}
     </div>

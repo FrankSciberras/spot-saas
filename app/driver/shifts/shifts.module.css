@@ -1,56 +1,337 @@
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
+/* =============================================================================
+   Driver Shifts Page - Modern Mobile-First Design
+   ============================================================================= */
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+/* Container */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Header */
 .header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-lg);
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+  animation: fadeInUp 0.4s ease-out;
 }
 
 .header h2 {
-  font-size: var(--font-xl);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.goOnlineBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: white;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.goOnlineBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(var(--color-primary-rgb), 0.4);
+}
+
+/* Shifts List */
+.shiftsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Shift Card */
+.shiftCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  padding: 18px;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.4s ease-out backwards;
+}
+
+.shiftCard:nth-child(1) { animation-delay: 0.05s; }
+.shiftCard:nth-child(2) { animation-delay: 0.1s; }
+.shiftCard:nth-child(3) { animation-delay: 0.15s; }
+.shiftCard:nth-child(4) { animation-delay: 0.2s; }
+.shiftCard:nth-child(5) { animation-delay: 0.25s; }
+
+.shiftCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 24px rgba(var(--color-primary-rgb), 0.1);
+  transform: translateY(-2px);
+}
+
+.shiftCard:active {
+  transform: translateY(0);
+}
+
+.shiftCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.shiftDate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shiftDateMain {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.shiftTime {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.shiftMileage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.shiftMileageIcon {
+  color: var(--color-primary);
+}
+
+/* Vehicle Info */
+.shiftVehicle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.vehicleIcon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border-radius: 10px;
+  color: var(--color-primary);
+}
+
+.vehicleInfo {
+  flex: 1;
+}
+
+.vehicleReg {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.vehicleModel {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Checks Row */
+.shiftChecks {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.checkBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
-.checks {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+.checkBadge.success {
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--badge-success-text);
 }
 
-.imageLinks {
+.checkBadge.inactive {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+/* Images Row */
+.shiftImages {
   display: flex;
+  gap: 8px;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
 }
 
-.imageLinks a {
+.imageLink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(var(--color-primary-rgb), 0.08);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: var(--color-primary);
-  font-size: var(--font-sm);
+  text-decoration: none;
+  transition: all 0.15s ease;
 }
 
-.imageLinks a:hover {
-  text-decoration: underline;
+.imageLink:hover {
+  background: rgba(var(--color-primary-rgb), 0.15);
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
+.noImages {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: 48px 24px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.emptyIcon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  color: var(--text-muted);
+}
+
+.emptyState h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Alert */
+.alertCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: rgba(var(--color-warning-rgb), 0.08);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.2);
+  border-radius: 16px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.alertIcon {
+  font-size: 1.25rem;
+}
+
+.alertCard p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+/* Legacy support */
+.checks { display: none; }
+.imageLinks { display: none; }
+
+/* Tablet Enhancements */
+@media (min-width: 600px) {
+  .container {
+    padding: 24px;
+  }
+
   .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 
-  .header h2 {
-    font-size: var(--font-lg);
+  .goOnlineBtn {
+    width: auto;
+  }
+
+  .shiftsList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .shiftCard {
+    animation-delay: 0s !important;
   }
 }
 
-@media (max-width: 480px) {
+/* Desktop Enhancements */
+@media (min-width: 900px) {
+  .container {
+    padding: 32px;
+  }
+
   .header h2 {
-    font-size: var(--font-base);
+    font-size: 1.75rem;
+  }
+
+  .shiftCard {
+    padding: 22px;
+  }
+
+  .shiftCardHeader {
+    margin-bottom: 16px;
+  }
+
+  .shiftDateMain {
+    font-size: 1.1rem;
   }
 }
