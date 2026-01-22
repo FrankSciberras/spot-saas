@@ -65,7 +65,6 @@ export default function EarningsClient({ settlements: allSettlements, driverName
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [weekRange, setWeekRange] = useState<WeekRange>(8);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
-  const [activePointIdx, setActivePointIdx] = useState<number | null>(null);
 
   // Filter settlements based on selected week range
   const settlements = useMemo(() => {
@@ -474,27 +473,6 @@ export default function EarningsClient({ settlements: allSettlements, driverName
                 const topLabel = series.length > 0 ? series[series.length - 1].label : '';
                 const bottomLabel = series.length > 0 ? series[0].label : '';
 
-                const effectiveActiveIdx =
-                  series.length === 0
-                    ? null
-                    : activePointIdx === null
-                      ? series.length - 1
-                      : Math.min(Math.max(activePointIdx, 0), series.length - 1);
-
-                const activePoint = effectiveActiveIdx === null ? null : points[effectiveActiveIdx];
-                const activeValue = effectiveActiveIdx === null ? null : series[effectiveActiveIdx];
-                const activeLabel = activeValue ? formatCurrency(activeValue.total) : '';
-                const tooltipFontSize = 11;
-                const tooltipPadX = 8;
-                const tooltipPadY = 5;
-                const approxCharW = 6.6;
-                const tooltipW = activeLabel.length * approxCharW + tooltipPadX * 2;
-                const tooltipH = tooltipFontSize + tooltipPadY * 2;
-                const tooltipXRaw = activePoint ? activePoint.x - tooltipW / 2 : 0;
-                const tooltipX = Math.max(6, Math.min(tooltipXRaw, w - tooltipW - 6));
-                const tooltipYRaw = activePoint ? activePoint.y - tooltipH - 10 : 0;
-                const tooltipY = Math.max(6, tooltipYRaw);
-
                 return (
                   <div className={styles.trendChart}>
                     <div className={styles.trendMeta}>
@@ -502,7 +480,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
                       <span className={styles.trendMetaValue}>{formatCurrency(max)}</span>
                     </div>
                     <div className={styles.trendCanvas}>
-                      <svg className={styles.trendSvg} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
+                      <svg className={styles.trendSvg} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="earningsAreaGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={`rgba(var(--color-primary-rgb), 0.35)`} />
@@ -524,55 +502,9 @@ export default function EarningsClient({ settlements: allSettlements, driverName
                         <path className={styles.trendArea} d={areaPath} fill="url(#earningsAreaGradient)" />
                         <path className={styles.trendLine} d={linePath} />
 
-                        {activePoint && activeValue && (
-                          <g className={styles.trendTooltip} pointerEvents="none">
-                            <rect
-                              className={styles.trendTooltipBg}
-                              x={tooltipX}
-                              y={tooltipY}
-                              width={tooltipW}
-                              height={tooltipH}
-                              rx={8}
-                            />
-                            <text
-                              className={styles.trendTooltipText}
-                              x={tooltipX + tooltipW / 2}
-                              y={tooltipY + tooltipH / 2}
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                            >
-                              {activeLabel}
-                            </text>
-                          </g>
-                        )}
-
-                        {points.map((p, idx) => {
-                          const isActive = effectiveActiveIdx === idx;
-                          const pointLabel = `${series[idx]?.label ?? ''}: ${formatCurrency(series[idx]?.total ?? 0)}`;
-                          return (
-                            <g
-                              key={idx}
-                              className={styles.trendDotGroup}
-                              onMouseEnter={() => setActivePointIdx(idx)}
-                              onMouseLeave={() => setActivePointIdx(null)}
-                              onFocus={() => setActivePointIdx(idx)}
-                              onBlur={() => setActivePointIdx(null)}
-                              onClick={() => setActivePointIdx(prev => (prev === idx ? null : idx))}
-                              tabIndex={0}
-                              role="button"
-                              aria-label={pointLabel}
-                            >
-                              <circle
-                                className={`${styles.trendDot} ${isActive ? styles.trendDotActive : ''}`}
-                                cx={p.x}
-                                cy={p.y}
-                                r={3.5}
-                              >
-                                <title>{pointLabel}</title>
-                              </circle>
-                            </g>
-                          );
-                        })}
+                        {points.map((p, idx) => (
+                          <circle key={idx} className={styles.trendDot} cx={p.x} cy={p.y} r={3.5} />
+                        ))}
                       </svg>
                     </div>
 
