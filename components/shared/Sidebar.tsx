@@ -11,9 +11,36 @@ import styles from './Sidebar.module.css';
 interface NavItem {
   label: string;
   href: string;
+  section?: string;
   icon: ReactNode;
   roles?: ('admin' | 'staff' | 'driver')[];
 }
+
+ interface NavSection {
+  title: string;
+  items: NavItem[];
+ }
+
+ function groupNavItems(items: NavItem[], preferredOrder: string[]): NavSection[] {
+  const groups = new Map<string, NavItem[]>();
+  const discoveredOrder: string[] = [];
+
+  for (const item of items) {
+    const sectionTitle = item.section || 'General';
+    if (!groups.has(sectionTitle)) {
+      groups.set(sectionTitle, []);
+      discoveredOrder.push(sectionTitle);
+    }
+    groups.get(sectionTitle)!.push(item);
+  }
+
+  const orderedTitles = [
+    ...preferredOrder.filter((title) => groups.has(title)),
+    ...discoveredOrder.filter((title) => !preferredOrder.includes(title)),
+  ];
+
+  return orderedTitles.map((title) => ({ title, items: groups.get(title)! }));
+ }
 
 const DashboardIcon = () => (
   <svg
@@ -232,37 +259,38 @@ const StaffIcon = () => (
 
 const adminNavItems: NavItem[] = [
   // Overview
-  { label: 'Dashboard', href: '/admin', icon: <DashboardIcon /> },
+  { label: 'Dashboard', href: '/admin', section: 'Overview', icon: <DashboardIcon /> },
   // Operations
-  { label: 'Staff', href: '/admin/staff', icon: <StaffIcon />, roles: ['admin'] },
-  { label: 'Drivers', href: '/admin/drivers', icon: <UserIcon /> },
-  { label: 'Vehicles', href: '/admin/vehicles', icon: <VehicleIcon /> },
-  { label: 'Rosters', href: '/admin/rosters', icon: <RosterIcon /> },
-  { label: 'Shifts', href: '/admin/shifts', icon: <ListIcon /> },
+  { label: 'Staff', href: '/admin/staff', section: 'Operations', icon: <StaffIcon />, roles: ['admin'] },
+  { label: 'Drivers', href: '/admin/drivers', section: 'Operations', icon: <UserIcon /> },
+  { label: 'Vehicles', href: '/admin/vehicles', section: 'Operations', icon: <VehicleIcon /> },
+  { label: 'Rosters', href: '/admin/rosters', section: 'Operations', icon: <RosterIcon /> },
+  { label: 'Shifts', href: '/admin/shifts', section: 'Operations', icon: <ListIcon /> },
   // Maintenance
-  { label: 'Services', href: '/admin/services', icon: <ServiceIcon /> },
+  { label: 'Services', href: '/admin/services', section: 'Maintenance', icon: <ServiceIcon /> },
   // Financial
-  { label: 'Bookkeeping', href: '/admin/earnings', icon: <MoneyIcon />, roles: ['admin'] },
-  { label: 'Settlements', href: '/admin/settlements', icon: <SettlementIcon />, roles: ['admin'] },
-  { label: 'Adjustments', href: '/admin/adjustments', icon: <MoneyIcon />, roles: ['admin'] },
-  { label: 'Statistics', href: '/admin/statistics', icon: <StatsIcon />, roles: ['admin'] },
+  { label: 'Bookkeeping', href: '/admin/earnings', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
+  { label: 'Financials', href: '/admin/financials', section: 'Financial', icon: <StatsIcon />, roles: ['admin'] },
+  { label: 'Settlements', href: '/admin/settlements', section: 'Financial', icon: <SettlementIcon />, roles: ['admin'] },
+  { label: 'Adjustments', href: '/admin/adjustments', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
   // Admin
-  { label: 'Events', href: '/admin/events', icon: <CalendarIcon /> },
-  { label: 'Notify', href: '/admin/notifications', icon: <BellIcon />, roles: ['admin'] },
-  { label: 'Permissions', href: '/admin/permissions', icon: <ShieldIcon />, roles: ['admin'] },
+  { label: 'Events', href: '/admin/events', section: 'Admin', icon: <CalendarIcon /> },
+  { label: 'Notify', href: '/admin/notifications', section: 'Admin', icon: <BellIcon />, roles: ['admin'] },
+  { label: 'Permissions', href: '/admin/permissions', section: 'Admin', icon: <ShieldIcon />, roles: ['admin'] },
   // Profile
-  { label: 'My Profile', href: '/admin/profile', icon: <UserIcon />, roles: ['admin'] },
-  { label: 'My Profile', href: '/staff/profile', icon: <UserIcon />, roles: ['staff'] },
+  { label: 'My Profile', href: '/admin/profile', section: 'Profile', icon: <UserIcon />, roles: ['admin'] },
+  { label: 'My Profile', href: '/staff/profile', section: 'Profile', icon: <UserIcon />, roles: ['staff'] },
 ];
 
 const driverNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/driver', icon: <DashboardIcon /> },
-  { label: 'Go Online', href: '/driver/go-online', icon: <ListIcon /> },
-  { label: 'My Shifts', href: '/driver/shifts', icon: <ListIcon /> },
-  { label: 'My Roster', href: '/driver/roster', icon: <RosterIcon /> },
-  { label: 'My Earnings', href: '/driver/earnings', icon: <MoneyIcon /> },
-  { label: 'Settlements', href: '/driver/settlements', icon: <SettlementIcon /> },
-  { label: 'My Profile', href: '/driver/profile', icon: <UserIcon /> },
+  { label: 'Dashboard', href: '/driver', section: 'Overview', icon: <DashboardIcon /> },
+  { label: 'Go Online', href: '/driver/go-online', section: 'Work', icon: <ListIcon /> },
+  { label: 'My Shifts', href: '/driver/shifts', section: 'Work', icon: <ListIcon /> },
+  { label: 'My Roster', href: '/driver/roster', section: 'Work', icon: <RosterIcon /> },
+  { label: 'My Earnings', href: '/driver/earnings', section: 'Financial', icon: <MoneyIcon /> },
+  { label: 'Settlements', href: '/driver/settlements', section: 'Financial', icon: <SettlementIcon /> },
+  { label: 'Notifications', href: '/driver/notifications', section: 'Updates', icon: <BellIcon /> },
+  { label: 'My Profile', href: '/driver/profile', section: 'Profile', icon: <UserIcon /> },
 ];
 
 interface SidebarProps {
@@ -280,6 +308,13 @@ export default function Sidebar({ user, variant }: SidebarProps) {
     if (!user?.role) return false;
     return item.roles.includes(user.role);
   });
+
+  const navSections = groupNavItems(
+    filteredNavItems,
+    variant === 'admin'
+      ? ['Overview', 'Operations', 'Maintenance', 'Financial', 'Admin', 'Profile', 'General']
+      : ['Overview', 'Work', 'Financial', 'Updates', 'Profile', 'General']
+  );
 
   // Close sidebar on route change
   useEffect(() => {
@@ -344,22 +379,27 @@ export default function Sidebar({ user, variant }: SidebarProps) {
       </div>
 
       <nav className={styles.nav}>
-        {filteredNavItems.map((item) => {
-          const isActive = pathname === item.href || 
-            (item.href !== '/admin' && item.href !== '/driver' && pathname.startsWith(item.href));
-          
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
-              data-tour={tourIds[item.href]}
-            >
-              {item.icon}
-              <span className={styles.navLabel}>{item.label}</span>
-            </Link>
-          );
-        })}
+        {navSections.map((section) => (
+          <div key={section.title} className={styles.navSection}>
+            <div className={styles.navSectionTitle}>{section.title}</div>
+            {section.items.map((item) => {
+              const isActive = pathname === item.href ||
+                (item.href !== '/admin' && item.href !== '/driver' && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
+                  data-tour={tourIds[item.href]}
+                >
+                  {item.icon}
+                  <span className={styles.navLabel}>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {user && (

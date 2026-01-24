@@ -121,6 +121,12 @@
   margin-bottom: 12px;
 }
 
+ .monthActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+ }
+
 .weeksHeader h3 {
   font-size: var(--font-lg);
   font-weight: 600;

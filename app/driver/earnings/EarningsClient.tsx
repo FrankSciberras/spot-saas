@@ -1,6 +1,20 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 import { PLATFORMS } from '@/lib/config/settlements';
 import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
@@ -16,12 +30,11 @@ interface EarningsClientProps {
 }
 
 type ViewMode = 'weekly' | 'monthly';
-type WeekRange = 4 | 8 | 12 | 'all' | 'single';
+type WeekRange = 1 | 4 | 'all' | 'single';
 
 const WEEK_RANGES: { value: WeekRange; label: string }[] = [
+  { value: 1, label: 'Last Week' },
   { value: 4, label: 'Last 4 Weeks' },
-  { value: 8, label: 'Last 8 Weeks' },
-  { value: 12, label: 'Last 12 Weeks' },
   { value: 'all', label: 'All Time' },
   { value: 'single', label: 'Specific Week' },
 ];
@@ -43,27 +56,9 @@ function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-function buildSmoothPath(points: { x: number; y: number }[]): string {
-  if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
-    const cx = (curr.x + next.x) / 2;
-    const cy = (curr.y + next.y) / 2;
-    d += ` Q ${curr.x} ${curr.y} ${cx} ${cy}`;
-  }
-  const secondLast = points[points.length - 2];
-  const last = points[points.length - 1];
-  d += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`;
-  return d;
-}
-
 export default function EarningsClient({ settlements: allSettlements, driverName }: EarningsClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
-  const [weekRange, setWeekRange] = useState<WeekRange>(8);
+  const [weekRange, setWeekRange] = useState<WeekRange>(4);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
 
   // Filter settlements based on selected week range
@@ -237,11 +232,15 @@ export default function EarningsClient({ settlements: allSettlements, driverName
       return { previousTotal: previous, deltaPct, hasPrevious: true };
     }
 
-    const n = weekRange === 'all' ? 8 : (weekRange as number);
+    if (weekRange === 'all') {
+      return { previousTotal: 0, deltaPct: 0, hasPrevious: false };
+    }
+
+    const n = weekRange as number;
     const currentSlice = allSettlements.slice(0, n);
     const previousSlice = allSettlements.slice(n, n * 2);
     if (previousSlice.length === 0) return { previousTotal: 0, deltaPct: 0, hasPrevious: false };
-    const current = weekRange === 'all' ? periodTotal : sumTotal(currentSlice);
+    const current = sumTotal(currentSlice);
     const previous = sumTotal(previousSlice);
     const deltaPct = previous > 0 ? ((current - previous) / previous) * 100 : 0;
     return { previousTotal: previous, deltaPct, hasPrevious: true };
@@ -253,6 +252,28 @@ export default function EarningsClient({ settlements: allSettlements, driverName
   const topPlatform = useMemo(() => {
     if (stats.platformBreakdown.length === 0) return null;
     return [...stats.platformBreakdown].sort((a, b) => b.total - a.total)[0];
+  }, [stats.platformBreakdown]);
+
+  const trendSeries = useMemo(() => {
+    return (chartData as Array<{ label: string; net: number; tips: number; campaigns: number }>).map((item) => ({
+      label: item.label,
+      net: item.net,
+      tips: item.tips,
+      campaigns: item.campaigns,
+      total: item.net + item.tips + item.campaigns,
+    }));
+  }, [chartData]);
+
+  const trendMax = useMemo(() => {
+    return Math.max(...trendSeries.map((s) => s.total), 1);
+  }, [trendSeries]);
+
+  const platformPieData = useMemo(() => {
+    return stats.platformBreakdown.map((p) => ({
+      name: p.name,
+      value: p.total,
+      color: p.color,
+    }));
   }, [stats.platformBreakdown]);
 
   return (
@@ -441,80 +462,93 @@ export default function EarningsClient({ settlements: allSettlements, driverName
             </div>
           ) : (
             <div className={styles.chart}>
-              {(() => {
-                const series = chartData.map(item => ({
-                  label: item.label,
-                  net: item.net,
-                  tips: item.tips,
-                  campaigns: item.campaigns,
-                  total: item.net + item.tips + item.campaigns,
-                }));
+              <div className={styles.trendChart}>
+                <div className={styles.trendMeta}>
+                  <span className={styles.trendMetaLabel}>Peak</span>
+                  <span className={styles.trendMetaValue}>{formatCurrency(trendMax)}</span>
+                </div>
 
-                const w = 640;
-                const h = 240;
-                const padX = 22;
-                const padY = 20;
-                const innerW = w - padX * 2;
-                const innerH = h - padY * 2;
-                const baseY = padY + innerH;
+                <div className={styles.trendCanvas}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={trendSeries} margin={{ top: 10, right: 12, bottom: 0, left: 0 }}>
+                      <defs>
+                        <linearGradient id="driverEarningsNet" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="rgba(var(--color-primary-rgb), 0.45)" />
+                          <stop offset="100%" stopColor="rgba(var(--color-primary-rgb), 0.06)" />
+                        </linearGradient>
+                        <linearGradient id="driverEarningsTips" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="rgba(var(--color-success-rgb), 0.35)" />
+                          <stop offset="100%" stopColor="rgba(var(--color-success-rgb), 0.06)" />
+                        </linearGradient>
+                        <linearGradient id="driverEarningsCampaigns" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="rgba(var(--color-warning-rgb), 0.35)" />
+                          <stop offset="100%" stopColor="rgba(var(--color-warning-rgb), 0.06)" />
+                        </linearGradient>
+                      </defs>
 
-                const max = Math.max(...series.map(s => s.total), 1);
-                const denom = Math.max(max, 1);
+                      <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                        tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: 12,
+                          boxShadow: 'var(--shadow-md)',
+                        }}
+                        formatter={(value: unknown) => formatCurrency(Number(value))}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
 
-                const points = series.map((s, i) => {
-                  const x = padX + (series.length === 1 ? innerW / 2 : (innerW * i) / (series.length - 1));
-                  const y = padY + innerH - (s.total / denom) * innerH;
-                  return { x, y };
-                });
-
-                const linePath = buildSmoothPath(points);
-                const areaPath = `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`;
-
-                const topLabel = series.length > 0 ? series[series.length - 1].label : '';
-                const bottomLabel = series.length > 0 ? series[0].label : '';
-
-                return (
-                  <div className={styles.trendChart}>
-                    <div className={styles.trendMeta}>
-                      <span className={styles.trendMetaLabel}>Peak</span>
-                      <span className={styles.trendMetaValue}>{formatCurrency(max)}</span>
-                    </div>
-                    <div className={styles.trendCanvas}>
-                      <svg className={styles.trendSvg} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="earningsAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={`rgba(var(--color-primary-rgb), 0.35)`} />
-                            <stop offset="100%" stopColor={`rgba(var(--color-primary-rgb), 0)`} />
-                          </linearGradient>
-                        </defs>
-
-                        {[0.25, 0.5, 0.75].map(t => (
-                          <line
-                            key={t}
-                            className={styles.trendGridLine}
-                            x1={padX}
-                            x2={w - padX}
-                            y1={padY + innerH * (1 - t)}
-                            y2={padY + innerH * (1 - t)}
-                          />
-                        ))}
-
-                        <path className={styles.trendArea} d={areaPath} fill="url(#earningsAreaGradient)" />
-                        <path className={styles.trendLine} d={linePath} />
-
-                        {points.map((p, idx) => (
-                          <circle key={idx} className={styles.trendDot} cx={p.x} cy={p.y} r={3.5} />
-                        ))}
-                      </svg>
-                    </div>
-
-                    <div className={styles.trendXAxis}>
-                      <span className={styles.trendAxisLabel}>{bottomLabel}</span>
-                      <span className={styles.trendAxisLabel}>{topLabel}</span>
-                    </div>
-                  </div>
-                );
-              })()}
+                      <Area
+                        type="monotone"
+                        dataKey="net"
+                        name="Net"
+                        stackId="earnings"
+                        stroke="var(--color-primary)"
+                        fill="url(#driverEarningsNet)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="tips"
+                        name="Tips"
+                        stackId="earnings"
+                        stroke="var(--color-success)"
+                        fill="url(#driverEarningsTips)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="campaigns"
+                        name="Campaigns"
+                        stackId="earnings"
+                        stroke="var(--color-warning)"
+                        fill="url(#driverEarningsCampaigns)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        name="Total"
+                        stroke="var(--text-primary)"
+                        strokeWidth={2.5}
+                        dot={false}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
               
               {/* Legend */}
               <div className={styles.chartLegend}>
@@ -536,31 +570,62 @@ export default function EarningsClient({ settlements: allSettlements, driverName
               <p>No platform data available</p>
             </div>
           ) : (
-            <div className={styles.platformBreakdown}>
-              {stats.platformBreakdown.map(platform => (
-                <div key={platform.id} className={styles.platformCard}>
-                  <div className={styles.platformHeader}>
-                    <span className={styles.platformIcon}>{platform.icon}</span>
-                    <span className={styles.platformName}>{platform.name}</span>
-                  </div>
-                  <div className={styles.platformAmount}>
-                    {formatCurrency(platform.total)}
-                  </div>
-                  <div className={styles.platformBar}>
-                    <div 
-                      className={styles.platformProgress}
-                      style={{ 
-                        width: `${platform.percentage}%`,
-                        background: platform.color 
+            <>
+              <div className={styles.platformChart}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 12,
+                        boxShadow: 'var(--shadow-md)',
                       }}
+                      formatter={(value: unknown) => formatCurrency(Number(value))}
                     />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Pie
+                      data={platformPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={60}
+                      outerRadius={95}
+                      paddingAngle={2}
+                    >
+                      {platformPieData.map((p) => (
+                        <Cell key={p.name} fill={p.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className={styles.platformBreakdown}>
+                {stats.platformBreakdown.map(platform => (
+                  <div key={platform.id} className={styles.platformCard}>
+                    <div className={styles.platformHeader}>
+                      <span className={styles.platformIcon}>{platform.icon}</span>
+                      <span className={styles.platformName}>{platform.name}</span>
+                    </div>
+                    <div className={styles.platformAmount}>
+                      {formatCurrency(platform.total)}
+                    </div>
+                    <div className={styles.platformBar}>
+                      <div 
+                        className={styles.platformProgress}
+                        style={{ 
+                          width: `${platform.percentage}%`,
+                          background: platform.color 
+                        }}
+                      />
+                    </div>
+                    <div className={styles.platformPercentage}>
+                      {platform.percentage.toFixed(1)}% of total
+                    </div>
                   </div>
-                  <div className={styles.platformPercentage}>
-                    {platform.percentage.toFixed(1)}% of total
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Total Summary */}

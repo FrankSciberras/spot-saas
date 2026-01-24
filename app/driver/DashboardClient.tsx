@@ -1,6 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import { formatCurrency, safeNumber } from '@/lib/utils/settlementCalculations';
 import styles from './driver.module.css';
 
@@ -45,25 +56,6 @@ function getSettlementTotal(settlement: Settlement): number {
   const tips = platforms.reduce((sum, p) => sum + safeNumber(p.tips), 0);
   const campaigns = platforms.reduce((sum, p) => sum + safeNumber(p.campaigns), 0);
   return safeNumber(settlement.total_net) + tips + campaigns;
-}
-
-function buildSmoothPath(points: { x: number; y: number }[]): string {
-  if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
-    const cx = (curr.x + next.x) / 2;
-    const cy = (curr.y + next.y) / 2;
-    d += ` Q ${curr.x} ${curr.y} ${cx} ${cy}`;
-  }
-
-  const secondLast = points[points.length - 2];
-  const last = points[points.length - 1];
-  d += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`;
-  return d;
 }
 
 export default function DashboardClient(props: {
@@ -134,27 +126,22 @@ export default function DashboardClient(props: {
     .reduce((sum, s) => sum + getSettlementTotal(s), 0);
 
   const chartData = periodSettlements.slice(0, 8).reverse();
-  const chartTotals = chartData.map(s => getSettlementTotal(s));
-
-  const chartWidth = 600;
-  const chartHeight = 220;
-  const chartBaseY = 180;
-  const chartPlotHeight = 120;
-
-  const maxEarning = Math.max(...chartTotals, 1);
-  const minEarning = Math.min(...chartTotals, 0);
-  const chartRange = maxEarning - minEarning || 1;
-
-  const points = chartTotals.map((value, i) => {
-    const x = chartTotals.length > 1 ? (i / (chartTotals.length - 1)) * chartWidth : chartWidth / 2;
-    const y = chartBaseY - ((value - minEarning) / chartRange) * chartPlotHeight;
-    return { x, y };
+  const earningsSeries = chartData.map((s) => {
+    const platforms = Array.isArray(s.settlement_platforms) ? s.settlement_platforms : [];
+    const net = safeNumber(s.total_net);
+    const tips = platforms.reduce((sum, p) => sum + safeNumber(p.tips), 0);
+    const campaigns = platforms.reduce((sum, p) => sum + safeNumber(p.campaigns), 0);
+    const total = net + tips + campaigns;
+    const label = new Date(s.week_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    return {
+      label,
+      week_label: s.week_label,
+      net,
+      tips,
+      campaigns,
+      total,
+    };
   });
-
-  const linePath = buildSmoothPath(points);
-  const areaPath = points.length > 0
-    ? `${linePath} L ${points[points.length - 1].x} ${chartBaseY} L ${points[0].x} ${chartBaseY} Z`
-    : '';
 
   const recentSettlements = settlementsData.slice(0, 5);
 
@@ -205,40 +192,80 @@ export default function DashboardClient(props: {
 
           {chartData.length > 1 ? (
             <div className={styles.chartWrap}>
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className={styles.chart} preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="dashboardArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.22" />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d={areaPath} fill="url(#dashboardArea)" />
-                <path d={linePath} fill="none" stroke="var(--color-primary)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                {chartData.map((d, i) => {
-                  const point = points[i];
-                  if (!point) return null;
-                  const total = chartTotals[i] || 0;
-                  return (
-                    <circle
-                      key={d.week_start}
-                      cx={point.x}
-                      cy={point.y}
-                      r={i === chartData.length - 1 ? 8 : 5}
-                      fill={i === chartData.length - 1 ? 'var(--color-primary)' : 'var(--bg-card)'}
+              <div className={styles.chart}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={earningsSeries} margin={{ top: 10, right: 12, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="driverDashboardNet" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(var(--color-primary-rgb), 0.45)" />
+                        <stop offset="100%" stopColor="rgba(var(--color-primary-rgb), 0.05)" />
+                      </linearGradient>
+                      <linearGradient id="driverDashboardTips" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(var(--color-success-rgb), 0.35)" />
+                        <stop offset="100%" stopColor="rgba(var(--color-success-rgb), 0.05)" />
+                      </linearGradient>
+                      <linearGradient id="driverDashboardCampaigns" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(var(--color-warning-rgb), 0.35)" />
+                        <stop offset="100%" stopColor="rgba(var(--color-warning-rgb), 0.05)" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                    <YAxis
+                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                      tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 12,
+                        boxShadow: 'var(--shadow-md)',
+                      }}
+                      labelFormatter={(_, payload) => (payload?.[0] as any)?.payload?.week_label ?? ''}
+                      formatter={(value: unknown) => formatCurrency(Number(value))}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="net"
+                      name="Net"
+                      stackId="earnings"
                       stroke="var(--color-primary)"
-                      strokeWidth="2"
-                    >
-                      <title>{`${new Date(d.week_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} • ${formatCurrency(total)}`}</title>
-                    </circle>
-                  );
-                })}
-              </svg>
-              <div className={styles.chartLabels}>
-                {chartData.map((d, i) => (
-                  <span key={d.week_start} className={i === chartData.length - 1 ? styles.chartLabelActive : ''}>
-                    {new Date(d.week_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                  </span>
-                ))}
+                      fill="url(#driverDashboardNet)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="tips"
+                      name="Tips"
+                      stackId="earnings"
+                      stroke="var(--color-success)"
+                      fill="url(#driverDashboardTips)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="campaigns"
+                      name="Campaigns"
+                      stackId="earnings"
+                      stroke="var(--color-warning)"
+                      fill="url(#driverDashboardCampaigns)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      name="Total"
+                      stroke="var(--text-primary)"
+                      strokeWidth={2.5}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
           ) : (

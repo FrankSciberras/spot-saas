@@ -9,7 +9,7 @@ import {
   formatCurrency, 
   type PlatformEarningsInput 
 } from '@/lib/utils/settlementCalculations';
-import { exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
+import { exportMonthlySettlementsPdf, exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
 import type { Driver, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
@@ -285,6 +285,41 @@ export default function SettlementsWorkspace({
   const hasSettlement = useCallback((driverId: string) => {
     return periodSettlements.some(s => s.driver_id === driverId);
   }, [periodSettlements]);
+
+  const monthSettlements = useMemo(() => {
+    if (selectedMonth === null) return [];
+
+    return settlements.filter(s => {
+      const monthDate = s.settlement_month ? new Date(s.settlement_month) : new Date(s.week_start);
+      return monthDate.getFullYear() === selectedYear && monthDate.getMonth() === selectedMonth;
+    });
+  }, [settlements, selectedMonth, selectedYear]);
+
+  const handleExportMonthPdf = useCallback(() => {
+    if (selectedMonth === null || monthSettlements.length === 0) return;
+
+    const monthLabel = `${monthNames[selectedMonth]} ${selectedYear}`;
+
+    const exportRows = monthSettlements.map(s => ({
+      driverId: s.driver_id,
+      driverName: s.drivers?.full_name || 'Unknown Driver',
+      weekStart: s.week_start,
+      weekLabel: s.week_label,
+      periodName: s.period_name,
+      status: s.status,
+      paidAt: s.paid_at,
+      totalGrossFare: s.total_gross_fare,
+      totalNet: s.total_net,
+      fssTax: s.fss_tax,
+      finalBalance: s.final_balance,
+      platforms: s.settlement_platforms || [],
+    }));
+
+    exportMonthlySettlementsPdf({
+      monthLabel,
+      settlements: exportRows,
+    });
+  }, [monthNames, monthSettlements, selectedMonth, selectedYear]);
 
   // Export PDF handler
   const handleExportPdf = useCallback(() => {
@@ -694,19 +729,31 @@ export default function SettlementsWorkspace({
             <div className={styles.weeksHeader}>
               <h3>{monthNames[selectedMonth]} {selectedYear}</h3>
               {isAdmin && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => {
-                    setIsCreatingPeriod(true);
-                    setSelectedWeekId(null);
-                    setSelectedDriverId(null);
-                    // Pre-fill month - use string construction to avoid timezone issues
-                    const month = String(selectedMonth + 1).padStart(2, '0');
-                    setNewPeriodMonth(`${selectedYear}-${month}-01`);
-                  }}
-                >
-                  + New Week
-                </button>
+                <div className={styles.monthActions}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleExportMonthPdf}
+                    disabled={monthSettlements.length === 0}
+                    title="Export all settlements for this month as a PDF"
+                    type="button"
+                  >
+                    Export Month PDF
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      setIsCreatingPeriod(true);
+                      setSelectedWeekId(null);
+                      setSelectedDriverId(null);
+                      // Pre-fill month - use string construction to avoid timezone issues
+                      const month = String(selectedMonth + 1).padStart(2, '0');
+                      setNewPeriodMonth(`${selectedYear}-${month}-01`);
+                    }}
+                    type="button"
+                  >
+                    + New Week
+                  </button>
+                </div>
               )}
             </div>
 

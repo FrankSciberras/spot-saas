@@ -1,6 +1,7 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import AdminDashboardInsights from '@/components/admin/AdminDashboardInsights';
 import styles from './admin.module.css';
 
 /**
@@ -67,6 +68,103 @@ export default async function AdminDashboardPage() {
 
   const hasDriverDocs = !!expiringDrivers && expiringDrivers.length > 0;
   const hasVehicleDocs = !!expiringVehicles && expiringVehicles.length > 0;
+  const since = new Date();
+  since.setDate(since.getDate() - 29);
+  since.setHours(0, 0, 0, 0);
+  const sinceIso = since.toISOString().split('T')[0];
+
+  const { data: recentSettlements } = await supabase
+    .from('driver_settlements')
+    .select(
+      `
+        id,
+        driver_id,
+        week_start,
+        week_label,
+        status,
+        total_net,
+        drivers:driver_id (full_name),
+        settlement_platforms (platform_id, platform_name, net, tips, campaigns)
+      `
+    )
+    .eq('status', 'finalized')
+    .gte('week_start', sinceIso)
+    .order('week_start', { ascending: true });
+
+  const settlementRows = recentSettlements || [];
+
+  const seriesMap = new Map<string, { label: string; net: number; tips: number; campaigns: number; total: number }>();
+  const platformMap = new Map<string, { name: string; value: number }>();
+  const driverMap = new Map<string, { name: string; total: number }>();
+
+  let totalNet = 0;
+  let totalTips = 0;
+  let totalCampaigns = 0;
+
+  for (const s of settlementRows as any[]) {
+    const weekStart = String(s.week_start || '');
+    const key = weekStart;
+    const label = weekStart
+      ? new Date(weekStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+      : 'Period';
+
+    const platforms = Array.isArray(s.settlement_platforms) ? s.settlement_platforms : [];
+    const net = Number(s.total_net) || 0;
+    const tips = platforms.reduce((sum: number, p: any) => sum + (Number(p.tips) || 0), 0);
+    const campaigns = platforms.reduce((sum: number, p: any) => sum + (Number(p.campaigns) || 0), 0);
+    const total = net + tips + campaigns;
+
+    totalNet += net;
+    totalTips += tips;
+    totalCampaigns += campaigns;
+
+    const existing = seriesMap.get(key) || { label, net: 0, tips: 0, campaigns: 0, total: 0 };
+    existing.net += net;
+    existing.tips += tips;
+    existing.campaigns += campaigns;
+    existing.total += total;
+    seriesMap.set(key, existing);
+
+    for (const p of platforms) {
+      const pid = String(p.platform_id || p.platform_name || 'platform');
+      const pname = String(p.platform_name || p.platform_id || 'Platform');
+      const pTotal = (Number(p.net) || 0) + (Number(p.tips) || 0) + (Number(p.campaigns) || 0);
+      const prev = platformMap.get(pid) || { name: pname, value: 0 };
+      prev.value += pTotal;
+      platformMap.set(pid, prev);
+    }
+
+    const driverId = String(s.driver_id || 'driver');
+    const driverName = String(s.drivers?.full_name || 'Unknown Driver');
+    const prevDriver = driverMap.get(driverId) || { name: driverName, total: 0 };
+    prevDriver.total += total;
+    driverMap.set(driverId, prevDriver);
+  }
+
+  const earningsSeries = Array.from(seriesMap.values());
+  const totals = {
+    total: totalNet + totalTips + totalCampaigns,
+    net: totalNet,
+    tips: totalTips,
+    campaigns: totalCampaigns,
+    settlements: settlementRows.length,
+  };
+
+  const defaultPlatformColors: Record<string, string> = {
+    bolt: '#34D186',
+    uber: '#111827',
+    ecabs: '#FFB800',
+  };
+
+  const platformSeries = Array.from(platformMap.entries()).map(([id, p]) => ({
+    name: p.name,
+    value: p.value,
+    color: defaultPlatformColors[id] || 'var(--color-primary)',
+  }));
+
+  const topDrivers = Array.from(driverMap.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
 
   return (
     <DashboardLayout user={user} variant="admin" title="">
@@ -76,6 +174,13 @@ export default async function AdminDashboardPage() {
           <h1 className={styles.welcomeTitle}>Welcome back 👋</h1>
           <p className={styles.welcomeSubtitle}>Here&apos;s what&apos;s happening with your fleet today.</p>
         </div>
+
+        <AdminDashboardInsights
+          earningsSeries={earningsSeries}
+          totals={totals}
+          platformSeries={platformSeries}
+          topDrivers={topDrivers}
+        />
 
         {/* Stats Cards */}
         <div className={styles.statsGrid}>

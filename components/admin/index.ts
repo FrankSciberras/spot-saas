@@ -4,6 +4,7 @@ export { default as VehicleForm } from './VehicleForm';
 export { default as DeleteDriverButton } from './DeleteDriverButton';
 export { default as DeleteVehicleButton } from './DeleteVehicleButton';
 export { default as StatisticsDashboard } from './StatisticsDashboard';
+export { default as FinancialsDashboard } from './FinancialsDashboard';
 export { default as RosterEditor } from './RosterEditor';
 export { default as ServicesFilter } from './ServicesFilter';
 export { default as ServicesList } from './ServicesList';

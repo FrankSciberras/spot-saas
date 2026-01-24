@@ -54,7 +54,7 @@
 }
 
 .summaryCard {
-  background: var(--card-bg);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
@@ -85,7 +85,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,7 +96,9 @@
 }
 
 .modalContent {
-  background: var(--card-bg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-elevated);
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl);
   width: 100%;

@@ -467,6 +467,15 @@
   padding: var(--spacing-lg);
 }
 
+.platformChart {
+  height: 280px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
 .platformSection h2 {
   margin: 0 0 var(--spacing-lg);
   font-size: 1.125rem;
@@ -940,6 +949,13 @@
   .platformSection {
     padding: var(--spacing-md);
     border-radius: var(--radius-lg);
+  }
+
+  .platformChart {
+    height: 240px;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
   }
 
   .platformSection h2 {

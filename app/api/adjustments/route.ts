@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { CreateAdjustmentInput } from '@/lib/types/database';
 
+function normalizeAdjustmentsError(message: string): string {
+  if (
+    message.includes("Could not find the table 'public.driver_adjustments'") ||
+    (message.includes('Could not find the table') && message.includes('driver_adjustments'))
+  ) {
+    return "The 'driver_adjustments' table is missing in your Supabase database/schema cache. Apply the migration 'supabase/migrations/20260120_driver_adjustments.sql' to the Supabase project you're connected to, then reload the schema cache and refresh.";
+  }
+  return message;
+}
+
 /**
  * GET /api/adjustments - List driver adjustments
  * Query params: driver_id, type, from_date, to_date
@@ -75,7 +85,7 @@ export async function GET(request: Request) {
     const { data: adjustments, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: normalizeAdjustmentsError(error.message) }, { status: 500 });
     }
 
     return NextResponse.json({ data: adjustments });
@@ -153,7 +163,7 @@ export async function POST(request: Request) {
 
     if (adjustmentError) {
       console.error('Adjustment creation error:', adjustmentError);
-      return NextResponse.json({ error: adjustmentError.message }, { status: 500 });
+      return NextResponse.json({ error: normalizeAdjustmentsError(adjustmentError.message) }, { status: 500 });
     }
 
     return NextResponse.json({ data: adjustment }, { status: 201 });
