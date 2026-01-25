@@ -1,7 +1,22 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { SettlementPlatform } from '@/lib/types/database';
+import type { DriverAdjustment, SettlementPlatform } from '@/lib/types/database';
 import { formatCurrency, round2 } from './settlementCalculations';
+
+function signedAdjustmentAmount(type: DriverAdjustment['type'], amount: number): number {
+  if (type === 'expense' || type === 'deduction') return -amount;
+  if (type === 'bonus' || type === 'reimbursement') return amount;
+  return 0;
+}
+
+function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
+  return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, Number(adj.amount) || 0), 0);
+}
+
+function formatSignedCurrency(value: number): string {
+  const abs = Math.abs(value);
+  return `${value >= 0 ? '+' : '-'}${formatCurrency(abs)}`;
+}
 
 interface DriverSettlementData {
   driverName: string;
@@ -18,6 +33,8 @@ interface DriverSettlementData {
   totalBalanceBeforeTax: number;
   fssTax: number;
   finalBalance: number;
+  driverAdjustments?: DriverAdjustment[];
+  driverAdjustmentsNet?: number;
   status: string;
   paidAt: string | null;
   notes: string | null;
@@ -51,6 +68,11 @@ export function exportSettlementsPdf(options: ExportOptions): void {
     }
 
     let yPos = margin;
+
+    const driverAdjustments = Array.isArray(settlement.driverAdjustments) ? settlement.driverAdjustments : [];
+    const driverAdjustmentsNet = typeof settlement.driverAdjustmentsNet === 'number'
+      ? settlement.driverAdjustmentsNet
+      : calculateAdjustmentsNet(driverAdjustments);
 
     // Header
     doc.setFontSize(18);
@@ -132,6 +154,50 @@ export function exportSettlementsPdf(options: ExportOptions): void {
 
     yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
 
+    if (driverAdjustments.length > 0) {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Driver Adjustments', margin, yPos);
+      yPos += 2;
+
+      const adjHeaders = ['Date', 'Type', 'Description', 'Amount'];
+      const sorted = [...driverAdjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const adjRows = sorted.map((a) => {
+        const signed = signedAdjustmentAmount(a.type, Number(a.amount) || 0);
+        return [
+          a.date,
+          a.type,
+          a.description,
+          formatSignedCurrency(signed),
+        ];
+      });
+
+      adjRows.push(['', '', 'TOTAL', formatSignedCurrency(driverAdjustmentsNet)]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [adjHeaders],
+        body: adjRows,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          0: { halign: 'left', cellWidth: 22 },
+          1: { halign: 'left', cellWidth: 28 },
+          2: { halign: 'left' },
+          3: { halign: 'right', cellWidth: 26 },
+        },
+        didParseCell: (data) => {
+          if (data.row.index === adjRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 240, 240];
+          }
+        },
+      });
+
+      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+    }
+
     // Table 2: Adjustments (Cash, Tips, Campaigns)
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -195,6 +261,7 @@ export function exportSettlementsPdf(options: ExportOptions): void {
       ['Tips', `+${formatCurrency(settlement.totalTips)}`],
       ['Campaigns', `+${formatCurrency(settlement.totalCampaigns)}`],
       ['Balance Before Tax', formatCurrency(settlement.totalBalanceBeforeTax)],
+      ['Driver Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
     ];
 
     autoTable(doc, {
@@ -217,10 +284,13 @@ export function exportSettlementsPdf(options: ExportOptions): void {
     doc.text('4. Final Settlement', margin, yPos);
     yPos += 2;
 
+    const payableBalance = round2((settlement.finalBalance || 0) + driverAdjustmentsNet);
     const finalData = [
       ['Balance Before Tax', formatCurrency(settlement.totalBalanceBeforeTax)],
       ['FSS / Tax Deduction', `-${formatCurrency(settlement.fssTax)}`],
-      ['FINAL BALANCE', formatCurrency(settlement.finalBalance)],
+      ['Final Balance (Settlement)', formatCurrency(settlement.finalBalance)],
+      ['Driver Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
+      ['PAYABLE BALANCE', formatCurrency(payableBalance)],
     ];
 
     autoTable(doc, {
@@ -233,9 +303,9 @@ export function exportSettlementsPdf(options: ExportOptions): void {
         1: { halign: 'right', cellWidth: contentWidth * 0.4, fontStyle: 'bold' },
       },
       didParseCell: (data) => {
-        if (data.row.index === 2) {
+        if (data.row.index === finalData.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = settlement.finalBalance >= 0 
+          data.cell.styles.fillColor = payableBalance >= 0 
             ? [220, 252, 231] // green
             : [254, 226, 226]; // red
           data.cell.styles.fontSize = 11;
@@ -302,6 +372,7 @@ export function exportMonthlySettlementsPdf(options: {
     finalBalance: number;
     platforms: SettlementPlatform[];
   }>;
+  driverAdjustmentsByDriver?: Record<string, DriverAdjustment[]>;
 }): void {
   const { monthLabel, settlements } = options;
 
@@ -345,18 +416,20 @@ export function exportMonthlySettlementsPdf(options: {
   doc.text(monthLabel, margin, margin + 8);
   doc.setTextColor(0);
 
-  const summaryHeaders = ['Driver', 'Finalized Total', 'Draft Total', 'Finalized', 'Paid'];
+  const summaryHeaders = ['Driver', 'Settlements (Finalized)', 'Adjustments', 'Payable Total', 'Paid'];
   const summaryRows = drivers.map(d => {
     const finalized = d.rows.filter(r => r.status === 'finalized');
-    const drafts = d.rows.filter(r => r.status !== 'finalized');
     const finalizedTotal = round2(finalized.reduce((sum, r) => sum + (r.finalBalance || 0), 0));
-    const draftTotal = round2(drafts.reduce((sum, r) => sum + (r.finalBalance || 0), 0));
     const paidFinalized = finalized.filter(r => !!r.paidAt).length;
+
+    const adj = options.driverAdjustmentsByDriver?.[d.driverId] || [];
+    const adjNet = round2(calculateAdjustmentsNet(adj));
+    const payable = round2(finalizedTotal + adjNet);
     return [
       d.driverName,
       formatCurrency(finalizedTotal),
-      formatCurrency(draftTotal),
-      `${finalized.length}/${d.rows.length}`,
+      formatSignedCurrency(adjNet),
+      formatCurrency(payable),
       finalized.length === 0 ? '-' : `${paidFinalized}/${finalized.length}`,
     ];
   });
@@ -364,15 +437,19 @@ export function exportMonthlySettlementsPdf(options: {
   const monthFinalizedTotal = round2(drivers.reduce((sum, d) => {
     return sum + d.rows.filter(r => r.status === 'finalized').reduce((s2, r) => s2 + (r.finalBalance || 0), 0);
   }, 0));
-  const monthDraftTotal = round2(drivers.reduce((sum, d) => {
-    return sum + d.rows.filter(r => r.status !== 'finalized').reduce((s2, r) => s2 + (r.finalBalance || 0), 0);
+
+  const monthAdjustmentsTotal = round2(drivers.reduce((sum, d) => {
+    const adj = options.driverAdjustmentsByDriver?.[d.driverId] || [];
+    return sum + calculateAdjustmentsNet(adj);
   }, 0));
+
+  const monthPayableTotal = round2(monthFinalizedTotal + monthAdjustmentsTotal);
 
   summaryRows.push([
     'TOTAL',
     formatCurrency(monthFinalizedTotal),
-    formatCurrency(monthDraftTotal),
-    '-',
+    formatSignedCurrency(monthAdjustmentsTotal),
+    formatCurrency(monthPayableTotal),
     '-',
   ]);
 
@@ -385,10 +462,10 @@ export function exportMonthlySettlementsPdf(options: {
     headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
       0: { halign: 'left', cellWidth: contentWidth * 0.42 },
-      1: { halign: 'right', cellWidth: contentWidth * 0.17 },
-      2: { halign: 'right', cellWidth: contentWidth * 0.17 },
-      3: { halign: 'center', cellWidth: contentWidth * 0.12 },
-      4: { halign: 'center', cellWidth: contentWidth * 0.12 },
+      1: { halign: 'right', cellWidth: contentWidth * 0.19 },
+      2: { halign: 'right', cellWidth: contentWidth * 0.15 },
+      3: { halign: 'right', cellWidth: contentWidth * 0.16 },
+      4: { halign: 'center', cellWidth: contentWidth * 0.08 },
     },
     didParseCell: (data) => {
       if (data.row.index === summaryRows.length - 1) {
@@ -409,6 +486,10 @@ export function exportMonthlySettlementsPdf(options: {
     const driverAllTotal2 = round2(rowsSorted.reduce((sum, r) => sum + (r.finalBalance || 0), 0));
     const paidFinalized2 = finalizedRows.filter(r => !!r.paidAt).length;
 
+    const driverAdjustments = options.driverAdjustmentsByDriver?.[driver.driverId] || [];
+    const driverAdjustmentsNet2 = round2(calculateAdjustmentsNet(driverAdjustments));
+    const driverPayableTotal2 = round2(driverFinalizedTotal2 + driverAdjustmentsNet2);
+
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text(driver.driverName, margin, yPos);
@@ -422,7 +503,9 @@ export function exportMonthlySettlementsPdf(options: {
     yPos += 6;
 
     const summaryData = [
-      ['Payable Total (Finalized)', formatCurrency(driverFinalizedTotal2)],
+      ['Payable Total (Finalized + Adjustments)', formatCurrency(driverPayableTotal2)],
+      ['Settlements Total (Finalized)', formatCurrency(driverFinalizedTotal2)],
+      ['Adjustments Total', formatSignedCurrency(driverAdjustmentsNet2)],
       ['All Weeks Total (Finalized + Draft)', formatCurrency(driverAllTotal2)],
       ['Finalized Weeks Paid', `${paidFinalized2}/${finalizedRows.length}`],
     ];
@@ -440,6 +523,39 @@ export function exportMonthlySettlementsPdf(options: {
     });
 
     yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+
+    if (driverAdjustments.length > 0) {
+      const adjHeaders = ['Date', 'Type', 'Description', 'Amount'];
+      const sorted = [...driverAdjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const adjRows = sorted.map((a) => {
+        const signed = signedAdjustmentAmount(a.type, Number(a.amount) || 0);
+        return [a.date, a.type, a.description, formatSignedCurrency(signed)];
+      });
+      adjRows.push(['', '', 'TOTAL', formatSignedCurrency(driverAdjustmentsNet2)]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [adjHeaders],
+        body: adjRows,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          0: { halign: 'left', cellWidth: contentWidth * 0.14 },
+          1: { halign: 'left', cellWidth: contentWidth * 0.14 },
+          2: { halign: 'left', cellWidth: contentWidth * 0.52 },
+          3: { halign: 'right', cellWidth: contentWidth * 0.20 },
+        },
+        didParseCell: (data) => {
+          if (data.row.index === adjRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 240, 240];
+          }
+        },
+      });
+
+      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+    }
 
     const weekHeaders = ['Week', 'Status', 'Paid', 'Gross', 'Net', 'FSS', 'Final'];
     const weekRows = rowsSorted.map(r => {

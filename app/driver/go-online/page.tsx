@@ -35,12 +35,14 @@ export default function GoOnlinePage() {
   const [startTime, setStartTime] = useState('');
   const [dashcamChecked, setDashcamChecked] = useState(false);
   const [carInternalChecked, setCarInternalChecked] = useState(false);
+  const [checklistError, setChecklistError] = useState('');
 
   // Image files
   const [frontImage, setFrontImage] = useState<File | null>(null);
   const [leftImage, setLeftImage] = useState<File | null>(null);
   const [rightImage, setRightImage] = useState<File | null>(null);
   const [backImage, setBackImage] = useState<File | null>(null);
+  const [damageImages, setDamageImages] = useState<File[]>([]);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -163,6 +165,11 @@ export default function GoOnlinePage() {
     setter(file);
   };
 
+  const handleMultiFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setDamageImages(files);
+  };
+
   const uploadImage = async (file: File, folder: string): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -194,6 +201,7 @@ export default function GoOnlinePage() {
     isSubmitting.current = true;
     
     setError('');
+    setChecklistError('');
     setLoading(true);
 
     try {
@@ -207,6 +215,13 @@ export default function GoOnlinePage() {
 
       if (!mileage || isNaN(Number(mileage))) {
         throw new Error('Please enter a valid mileage');
+      }
+
+      if (!dashcamChecked || !carInternalChecked) {
+        const msg =
+          'Mandatory: Before going online you must complete the pre-shift checks and confirm the vehicle is in good condition (internal & external). If you proceed without checking and reporting issues/damage, you will be held liable for any unreported damage/issues.';
+        setChecklistError(msg);
+        throw new Error(msg);
       }
 
       // Upload images
@@ -228,6 +243,12 @@ export default function GoOnlinePage() {
         backUrl = await uploadImage(backImage, 'back');
       }
 
+      const damageUrls: string[] = [];
+      for (const f of damageImages) {
+        const url = await uploadImage(f, 'damage');
+        if (url) damageUrls.push(url);
+      }
+
       // Create shift record
       const { error: insertError } = await supabase
         .from('driver_shifts')
@@ -243,6 +264,7 @@ export default function GoOnlinePage() {
           back_image_url: backUrl,
           dashcam_checked: dashcamChecked,
           car_internal_checked: carInternalChecked,
+          notes: damageUrls.length ? JSON.stringify({ damage_image_urls: damageUrls }) : null,
         });
 
       if (insertError) {
@@ -449,13 +471,34 @@ export default function GoOnlinePage() {
             </span>
             <span className={styles.checkText}>Interior clean & no damage</span>
           </label>
+
+          {(!dashcamChecked || !carInternalChecked) && (
+            <div className={styles.mandatoryNote}>
+              Mandatory: You must check the vehicle internally & externally and confirm everything is in good condition before proceeding. If you proceed without checking and reporting issues/damage, you will be held liable for any unreported damage/issues.
+            </div>
+          )}
+
+          {checklistError && <div className={styles.mandatoryError}>{checklistError}</div>}
+        </section>
+
+        <section className={styles.section}>
+          <h2>Scratches / Damage (Optional)</h2>
+          <p className={styles.sectionHint}>Upload any photos of scratches/damage you notice before starting</p>
+
+          <label className={`${styles.damageBox} ${damageImages.length > 0 ? styles.hasDamage : ''}`}>
+            <input type="file" accept="image/*" multiple onChange={handleMultiFileChange} />
+            <span className={styles.damageIcon}>{damageImages.length > 0 ? '✓' : '📷'}</span>
+            <span className={styles.damageLabel}>
+              {damageImages.length > 0 ? `${damageImages.length} photo${damageImages.length === 1 ? '' : 's'} selected` : 'Add damage photos'}
+            </span>
+          </label>
         </section>
 
         {/* Submit */}
         <button
           type="submit"
           className={styles.submitBtn}
-          disabled={loading || !vehicleId || !mileage}
+          disabled={loading || !vehicleId || !mileage || !dashcamChecked || !carInternalChecked}
         >
           {loading ? 'Starting...' : 'Start Shift'}
         </button>

@@ -18,23 +18,17 @@ import {
 } from 'recharts';
 import styles from './AdminDashboardInsights.module.css';
 
-type EarningsPoint = {
+type FinancialPoint = {
   label: string;
-  net: number;
-  tips: number;
-  campaigns: number;
-  total: number;
+  income: number;
+  expenses: number;
+  profit: number;
 };
 
-type PlatformPoint = {
+type BreakdownPoint = {
   name: string;
   value: number;
   color: string;
-};
-
-type DriverPoint = {
-  name: string;
-  total: number;
 };
 
 function formatCurrency(value: number): string {
@@ -42,14 +36,20 @@ function formatCurrency(value: number): string {
 }
 
 export default function AdminDashboardInsights(props: {
-  earningsSeries: EarningsPoint[];
-  totals: { total: number; net: number; tips: number; campaigns: number; settlements: number };
-  platformSeries: PlatformPoint[];
-  topDrivers: DriverPoint[];
+  financialSeries: FinancialPoint[];
+  totals: {
+    income: number;
+    expenses: number;
+    profit: number;
+  };
+  incomeBreakdown: BreakdownPoint[];
+  expenseBreakdown: BreakdownPoint[];
 }) {
-  const earningsSeries = Array.isArray(props.earningsSeries) ? props.earningsSeries : [];
-  const platformSeries = Array.isArray(props.platformSeries) ? props.platformSeries : [];
-  const topDrivers = Array.isArray(props.topDrivers) ? props.topDrivers : [];
+  const financialSeries = Array.isArray(props.financialSeries) ? props.financialSeries : [];
+  const incomeBreakdown = Array.isArray(props.incomeBreakdown) ? props.incomeBreakdown : [];
+  const expenseBreakdown = Array.isArray(props.expenseBreakdown) ? props.expenseBreakdown : [];
+
+  const hasData = financialSeries.length > 0;
 
   return (
     <div className={styles.wrapper}>
@@ -58,77 +58,72 @@ export default function AdminDashboardInsights(props: {
           <div className={styles.cardHeader}>
             <div>
               <div className={styles.cardTitle}>Earnings</div>
-              <div className={styles.cardSubtitle}>Last 30 days</div>
+              <div className={styles.cardSubtitle}>All time</div>
             </div>
           </div>
 
           <div className={styles.kpiRow}>
             <div className={styles.kpi}>
-              <div className={styles.kpiLabel}>Total</div>
-              <div className={styles.kpiValue}>{formatCurrency(props.totals.total)}</div>
+              <div className={styles.kpiLabel}>Income</div>
+              <div className={styles.kpiValue}>{formatCurrency(props.totals.income)}</div>
             </div>
             <div className={styles.kpi}>
-              <div className={styles.kpiLabel}>Net</div>
-              <div className={styles.kpiValue}>{formatCurrency(props.totals.net)}</div>
+              <div className={styles.kpiLabel}>Expenses</div>
+              <div className={styles.kpiValue}>{formatCurrency(props.totals.expenses)}</div>
             </div>
             <div className={styles.kpi}>
-              <div className={styles.kpiLabel}>Tips</div>
-              <div className={styles.kpiValue}>{formatCurrency(props.totals.tips)}</div>
+              <div className={styles.kpiLabel}>Profit</div>
+              <div className={styles.kpiValue}>{formatCurrency(props.totals.profit)}</div>
             </div>
             <div className={styles.kpi}>
-              <div className={styles.kpiLabel}>Campaigns</div>
-              <div className={styles.kpiValue}>{formatCurrency(props.totals.campaigns)}</div>
-            </div>
-            <div className={styles.kpi}>
-              <div className={styles.kpiLabel}>Settlements</div>
-              <div className={styles.kpiValue}>{props.totals.settlements}</div>
+              <div className={styles.kpiLabel}>Margin</div>
+              <div className={styles.kpiValue}>
+                {props.totals.income > 0
+                  ? `${((props.totals.profit / props.totals.income) * 100).toFixed(1)}%`
+                  : '0.0%'}
+              </div>
             </div>
           </div>
 
-          <div className={styles.chart}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={earningsSeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="adminEarningsNet" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(var(--color-primary-rgb), 0.35)" />
-                    <stop offset="100%" stopColor="rgba(var(--color-primary-rgb), 0.05)" />
-                  </linearGradient>
-                  <linearGradient id="adminEarningsTips" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(var(--color-success-rgb), 0.25)" />
-                    <stop offset="100%" stopColor="rgba(var(--color-success-rgb), 0.05)" />
-                  </linearGradient>
-                  <linearGradient id="adminEarningsCampaigns" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(var(--color-warning-rgb), 0.25)" />
-                    <stop offset="100%" stopColor="rgba(var(--color-warning-rgb), 0.05)" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
-                <Tooltip
-                  contentStyle={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 12,
-                    boxShadow: 'var(--shadow-md)',
-                  }}
-                  formatter={(value: unknown) => formatCurrency(Number(value))}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="net" name="Net" stackId="earnings" stroke="var(--color-primary)" fill="url(#adminEarningsNet)" strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="tips" name="Tips" stackId="earnings" stroke="var(--color-success)" fill="url(#adminEarningsTips)" strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="campaigns" name="Campaigns" stackId="earnings" stroke="var(--color-warning)" fill="url(#adminEarningsCampaigns)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="total" name="Total" stroke="var(--text-primary)" strokeWidth={2.5} dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          {hasData ? (
+            <div className={styles.chart}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={financialSeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="adminEarningsIncome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgba(var(--color-success-rgb), 0.25)" />
+                      <stop offset="100%" stopColor="rgba(var(--color-success-rgb), 0.05)" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
+                  <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 12,
+                      boxShadow: 'var(--shadow-md)',
+                    }}
+                    formatter={(value: unknown) => formatCurrency(Number(value))}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="income" name="Income" stroke="var(--color-success)" fill="url(#adminEarningsIncome)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="expenses" name="Expenses" stroke="var(--color-danger)" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="profit" name="Profit" stroke="var(--text-primary)" strokeWidth={2.5} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.empty}>No bookkeeping entries yet.</div>
+          )}
         </div>
 
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <div>
               <div className={styles.cardTitle}>Breakdown</div>
-              <div className={styles.cardSubtitle}>Platforms + top drivers</div>
+              <div className={styles.cardSubtitle}>Income + expenses</div>
             </div>
           </div>
 
@@ -146,8 +141,8 @@ export default function AdminDashboardInsights(props: {
                     formatter={(value: unknown) => formatCurrency(Number(value))}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Pie data={platformSeries} dataKey="value" nameKey="name" innerRadius={44} outerRadius={72} paddingAngle={2}>
-                    {platformSeries.map((p) => (
+                  <Pie data={incomeBreakdown} dataKey="value" nameKey="name" innerRadius={44} outerRadius={72} paddingAngle={2}>
+                    {incomeBreakdown.map((p) => (
                       <Cell key={p.name} fill={p.color} />
                     ))}
                   </Pie>
@@ -157,7 +152,7 @@ export default function AdminDashboardInsights(props: {
 
             <div className={styles.miniChart}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topDrivers} layout="vertical" margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <BarChart data={expenseBreakdown} layout="vertical" margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
                   <XAxis
                     type="number"
@@ -174,7 +169,7 @@ export default function AdminDashboardInsights(props: {
                     }}
                     formatter={(value: unknown) => formatCurrency(Number(value))}
                   />
-                  <Bar dataKey="total" name="Top drivers" fill="var(--color-primary)" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="value" name="Expenses" fill="var(--color-danger)" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

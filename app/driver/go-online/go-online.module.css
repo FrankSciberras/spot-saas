@@ -317,6 +317,84 @@
   color: var(--text-primary);
 }
 
+.mandatoryNote {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  background: rgba(var(--color-warning-rgb), 0.08);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.22);
+  color: var(--badge-warning-text);
+}
+
+.mandatoryError {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  background: rgba(var(--color-danger-rgb), 0.08);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.22);
+  color: var(--badge-danger-text);
+}
+
+.damageBox {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.damageBox input {
+  display: none;
+}
+
+.damageBox:hover {
+  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.05);
+  transform: translateY(-1px);
+}
+
+.damageBox:active {
+  transform: translateY(0);
+}
+
+.damageBox.hasDamage {
+  border-style: solid;
+  border-color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.1);
+}
+
+.damageIcon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.damageBox.hasDamage .damageIcon {
+  background: rgba(var(--color-success-rgb), 0.18);
+  color: var(--color-success);
+}
+
+.damageLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* Submit Button */
 .submitBtn {
   width: 100%;
@@ -431,6 +509,27 @@
   }
 
   .checkText {
+    font-size: 0.85rem;
+  }
+
+  .mandatoryNote,
+  .mandatoryError {
+    font-size: 0.82rem;
+    padding: 12px 12px;
+  }
+
+  .damageBox {
+    padding: 12px 12px;
+    border-radius: 12px;
+  }
+
+  .damageIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .damageLabel {
     font-size: 0.85rem;
   }
 

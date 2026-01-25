@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
 import { PLATFORMS, getDefaultFssTax } from '@/lib/config/settlements';
@@ -10,9 +10,23 @@ import {
   type PlatformEarningsInput 
 } from '@/lib/utils/settlementCalculations';
 import { exportMonthlySettlementsPdf, exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
-import type { Driver, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
+import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment } from '@/lib/types/database';
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
+
+function dateOnly(value: string): string {
+  return value.includes('T') ? value.split('T')[0] : value;
+}
+
+function signedAdjustmentAmount(type: DriverAdjustment['type'], amount: number): number {
+  if (type === 'expense' || type === 'deduction') return -amount;
+  if (type === 'bonus' || type === 'reimbursement') return amount;
+  return 0;
+}
+
+function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
+  return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, adj.amount), 0);
+}
 
 interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name' | 'employment_type'> {
   status: string;}
@@ -86,6 +100,8 @@ export default function SettlementsWorkspace({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [selectedDriverAdjustmentsNet, setSelectedDriverAdjustmentsNet] = useState(0);
   
   // Bulk delete state
   const [selectedSettlementIds, setSelectedSettlementIds] = useState<Set<string>>(new Set());
@@ -295,10 +311,70 @@ export default function SettlementsWorkspace({
     });
   }, [settlements, selectedMonth, selectedYear]);
 
-  const handleExportMonthPdf = useCallback(() => {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSelectedDriverAdjustments() {
+      if (!selectedDriverId || !currentPeriod) {
+        setSelectedDriverAdjustmentsNet(0);
+        return;
+      }
+
+      const fromDate = dateOnly(currentPeriod.startISO);
+      const toDate = dateOnly(currentPeriod.endISO);
+
+      try {
+        const url = `/api/adjustments?driver_id=${encodeURIComponent(selectedDriverId)}&from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(json.error || 'Failed to load adjustments');
+        }
+
+        const adjustments: DriverAdjustment[] = Array.isArray(json.data) ? json.data : [];
+        const net = calculateAdjustmentsNet(adjustments);
+
+        if (!cancelled) {
+          setSelectedDriverAdjustmentsNet(net);
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedDriverAdjustmentsNet(0);
+        }
+      }
+    }
+
+    loadSelectedDriverAdjustments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPeriod, selectedDriverId]);
+
+  const handleExportMonthPdf = useCallback(async () => {
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
     const monthLabel = `${monthNames[selectedMonth]} ${selectedYear}`;
+
+    const monthNum = selectedMonth + 1;
+    const fromDate = `${selectedYear}-${String(monthNum).padStart(2, '0')}-01`;
+    const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const toDate = `${selectedYear}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    let adjustmentsByDriver: Record<string, DriverAdjustment[]> = {};
+    try {
+      const res = await fetch(`/api/adjustments?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`);
+      const json = await res.json();
+      if (res.ok) {
+        const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
+        adjustments.forEach((adj) => {
+          adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
+          adjustmentsByDriver[adj.driver_id].push(adj);
+        });
+      }
+    } catch {
+      adjustmentsByDriver = {};
+    }
 
     const exportRows = monthSettlements.map(s => ({
       driverId: s.driver_id,
@@ -318,15 +394,36 @@ export default function SettlementsWorkspace({
     exportMonthlySettlementsPdf({
       monthLabel,
       settlements: exportRows,
+      driverAdjustmentsByDriver: adjustmentsByDriver,
     });
   }, [monthNames, monthSettlements, selectedMonth, selectedYear]);
 
   // Export PDF handler
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     if (!currentPeriod || periodSettlements.length === 0) return;
+
+    const fromDate = dateOnly(currentPeriod.startISO);
+    const toDate = dateOnly(currentPeriod.endISO);
+
+    let adjustmentsByDriver: Record<string, DriverAdjustment[]> = {};
+    try {
+      const res = await fetch(`/api/adjustments?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`);
+      const json = await res.json();
+      if (res.ok) {
+        const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
+        adjustments.forEach((adj) => {
+          adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
+          adjustmentsByDriver[adj.driver_id].push(adj);
+        });
+      }
+    } catch {
+      adjustmentsByDriver = {};
+    }
 
     const settlementsData = periodSettlements.map(s => {
       const platforms = s.settlement_platforms || [];
+      const driverAdjustments = adjustmentsByDriver[s.driver_id] || [];
+      const driverAdjustmentsNet = calculateAdjustmentsNet(driverAdjustments);
       return {
         driverName: s.drivers?.full_name || 'Unknown Driver',
         weekLabel: s.week_label,
@@ -342,6 +439,8 @@ export default function SettlementsWorkspace({
         totalBalanceBeforeTax: s.total_balance_before_tax,
         fssTax: s.fss_tax,
         finalBalance: s.final_balance,
+        driverAdjustments,
+        driverAdjustmentsNet,
         status: s.status,
         paidAt: s.paid_at,
         notes: s.notes,
@@ -1198,6 +1297,12 @@ export default function SettlementsWorkspace({
                   <span>Campaigns</span>
                   <span>+{formatCurrency(calculation.totalCampaigns)}</span>
                 </div>
+                <div className={styles.totalItem}>
+                  <span>Adjustments</span>
+                  <span className={selectedDriverAdjustmentsNet >= 0 ? styles.balancePositive : styles.balanceNegative}>
+                    {formatCurrency(selectedDriverAdjustmentsNet)}
+                  </span>
+                </div>
                 <div className={styles.fssTaxCompact}>
                   <span>FSS/Tax</span>
                   <input
@@ -1210,9 +1315,9 @@ export default function SettlementsWorkspace({
                   />
                 </div>
                 <div className={styles.finalBalanceCompact}>
-                  <span>Final Balance</span>
-                  <span className={calculation.finalBalance >= 0 ? styles.balancePositive : styles.balanceNegative}>
-                    {formatCurrency(calculation.finalBalance)}
+                  <span>Payable Balance</span>
+                  <span className={(calculation.finalBalance + selectedDriverAdjustmentsNet) >= 0 ? styles.balancePositive : styles.balanceNegative}>
+                    {formatCurrency(calculation.finalBalance + selectedDriverAdjustmentsNet)}
                   </span>
                 </div>
               </div>

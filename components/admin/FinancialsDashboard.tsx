@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 
 type GroupBy = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+type GroupByWithAllTime = GroupBy | 'all_time';
 
 interface FinancialsDashboardProps {
   entries: WeeklyBookkeeping[];
@@ -185,11 +186,18 @@ export default function FinancialsDashboard({ entries }: FinancialsDashboardProp
     };
   }, [sortedEntries]);
 
-  const [groupBy, setGroupBy] = useState<GroupBy>('monthly');
+  const [groupBy, setGroupBy] = useState<GroupByWithAllTime>('monthly');
   const [startDate, setStartDate] = useState<string>(defaultRange.start);
   const [endDate, setEndDate] = useState<string>(defaultRange.end);
 
+  useEffect(() => {
+    if (groupBy !== 'all_time') return;
+    setStartDate(defaultRange.start);
+    setEndDate(defaultRange.end);
+  }, [groupBy, defaultRange.start, defaultRange.end]);
+
   const filteredEntries = useMemo(() => {
+    if (groupBy === 'all_time') return sortedEntries;
     const start = parseISO(startDate);
     const end = parseISO(endDate);
 
@@ -198,7 +206,7 @@ export default function FinancialsDashboard({ entries }: FinancialsDashboardProp
       const ed = parseISO(e.week_end);
       return ed >= start && s <= end;
     });
-  }, [sortedEntries, startDate, endDate]);
+  }, [groupBy, sortedEntries, startDate, endDate]);
 
   const aggregated = useMemo<AggregatedPeriod[]>(() => {
     const map = new Map<string, AggregatedPeriod>();
@@ -212,7 +220,12 @@ export default function FinancialsDashboard({ entries }: FinancialsDashboardProp
       let start: string;
       let end: string;
 
-      if (groupBy === 'weekly') {
+      if (groupBy === 'all_time') {
+        key = 'all_time';
+        start = defaultRange.start;
+        end = defaultRange.end;
+        label = 'All time';
+      } else if (groupBy === 'weekly') {
         key = e.id;
         start = e.week_start.split('T')[0];
         end = e.week_end.split('T')[0];
@@ -296,7 +309,7 @@ export default function FinancialsDashboard({ entries }: FinancialsDashboardProp
       total_expenses: Math.round(p.total_expenses * 100) / 100,
       net_profit: Math.round(p.net_profit * 100) / 100,
     }));
-  }, [filteredEntries, groupBy]);
+  }, [defaultRange.end, defaultRange.start, filteredEntries, groupBy]);
 
   const totals = useMemo(() => {
     const totalIncome = aggregated.reduce((acc, p) => acc + p.total_income, 0);
@@ -540,19 +553,35 @@ export default function FinancialsDashboard({ entries }: FinancialsDashboardProp
           <div className={styles.filtersGrid}>
             <div className={styles.filterGroup}>
               <div className={styles.filterLabel}>From</div>
-              <DatePicker value={startDate} onChange={setStartDate} maxDate={endDate} />
+              <DatePicker
+                value={startDate}
+                onChange={setStartDate}
+                maxDate={endDate}
+                disabled={groupBy === 'all_time'}
+              />
             </div>
             <div className={styles.filterGroup}>
               <div className={styles.filterLabel}>To</div>
-              <DatePicker value={endDate} onChange={setEndDate} minDate={startDate} maxDate={safeIso(new Date())} />
+              <DatePicker
+                value={endDate}
+                onChange={setEndDate}
+                minDate={startDate}
+                maxDate={safeIso(new Date())}
+                disabled={groupBy === 'all_time'}
+              />
             </div>
             <div className={styles.filterGroup}>
               <div className={styles.filterLabel}>Group By</div>
-              <select className={styles.select} value={groupBy} onChange={(e) => setGroupBy(e.target.value as GroupBy)}>
+              <select
+                className={styles.select}
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value as GroupByWithAllTime)}
+              >
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
                 <option value="yearly">Yearly</option>
+                <option value="all_time">All time</option>
               </select>
             </div>
             <div className={styles.filterGroup}>
