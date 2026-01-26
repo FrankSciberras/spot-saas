@@ -21,6 +21,37 @@
   color: var(--color-primary);
 }
 
+.actionButtons {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.paidBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--color-success);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.paidBtn:hover {
+  background: #047857;
+}
+
+.paidBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .deleteBtn {
   display: inline-flex;
   align-items: center;

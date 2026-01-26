@@ -12,7 +12,6 @@ interface SettlementWithPlatforms extends DriverSettlement {
 
 interface SettlementsClientProps {
   settlements: SettlementWithPlatforms[];
-  driverName: string;
 }
 
 type FilterMode = 'recent' | 'calendar' | 'all';
@@ -37,7 +36,11 @@ function weekOverlapsSettlement(weekStart: Date, weekEnd: Date, settlement: Sett
   return start <= weekEnd && end >= weekStart;
 }
 
-export default function SettlementsClient({ settlements: allSettlements, driverName }: SettlementsClientProps) {
+function isSettlementPaid(settlement: SettlementWithPlatforms): boolean {
+  return Boolean(settlement.paid_at);
+}
+
+export default function SettlementsClient({ settlements: allSettlements }: SettlementsClientProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('recent');
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -229,7 +232,7 @@ export default function SettlementsClient({ settlements: allSettlements, driverN
               {calendarData.map((week, weekIndex) => (
                 <div 
                   key={weekIndex} 
-                  className={`${styles.calendarWeekRow} ${week.settlement ? styles.hasSettlement : ''} ${week.settlement?.id === selectedWeekId ? styles.selected : ''}`}
+                  className={`${styles.calendarWeekRow} ${week.settlement ? (isSettlementPaid(week.settlement) ? styles.hasPaidSettlement : styles.hasUnpaidSettlement) : ''} ${week.settlement?.id === selectedWeekId ? styles.selected : ''}`}
                   onClick={() => week.settlement && handleWeekSelect(week.settlement.id)}
                 >
                   {week.dates.map((date, dayIndex) => {
@@ -287,9 +290,14 @@ export default function SettlementsClient({ settlements: allSettlements, driverN
                       <span className={styles.periodName}>{settlement.period_name}</span>
                     )}
                   </div>
-                  <span className={`${styles.finalBalance} ${settlement.final_balance >= 0 ? styles.positive : styles.negative}`}>
-                    {formatCurrency(settlement.final_balance)}
-                  </span>
+                  <div className={styles.headerRight}>
+                    <span className={`${styles.paymentBadge} ${isSettlementPaid(settlement) ? styles.paid : styles.unpaid}`}>
+                      {isSettlementPaid(settlement) ? 'Paid' : 'Unpaid'}
+                    </span>
+                    <span className={`${styles.finalBalance} ${settlement.final_balance >= 0 ? styles.positive : styles.negative}`}>
+                      {formatCurrency(settlement.final_balance)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Platform breakdown */}

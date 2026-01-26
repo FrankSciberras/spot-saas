@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
-import SettlementsClient from './SettlementsClient';
+import MonthlySettlementsClient from './MonthlySettlementsClient';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './driver-settlements.module.css';
 
@@ -51,7 +51,7 @@ export default async function DriverSettlementsPage() {
 
   return (
     <DashboardLayout user={user} variant="driver" title="My Settlements">
-      <SettlementsClient 
+      <MonthlySettlementsClient 
         settlements={(settlements || []) as SettlementWithPlatforms[]} 
         driverName={driver.full_name}
       />

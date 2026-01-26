@@ -34,7 +34,7 @@ interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name' | 'employment
 interface SettlementWithRelations extends DriverSettlement {
   drivers: Pick<Driver, 'id' | 'full_name'> & { status: string } | null;
   settlement_platforms: SettlementPlatform[];
-  settlement_month?: string | null;
+  settlement_month: string | null;
 }
 
 interface PlatformFormData {
@@ -108,6 +108,10 @@ export default function SettlementsWorkspace({
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+
+  const [showBulkPaidConfirm, setShowBulkPaidConfirm] = useState(false);
+  const [bulkPaidLoading, setBulkPaidLoading] = useState(false);
+  const [bulkPaidError, setBulkPaidError] = useState<string | null>(null);
 
   // Month names
   const monthNames = [
@@ -625,6 +629,35 @@ export default function SettlementsWorkspace({
     }
   };
 
+  const handleBulkMarkPaid = async () => {
+    if (selectedSettlementIds.size === 0 || !isAdmin) return;
+
+    setBulkPaidLoading(true);
+    setBulkPaidError(null);
+
+    try {
+      const res = await fetch('/api/settlements/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedSettlementIds), paid_at: new Date().toISOString() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to mark settlements as paid');
+      }
+
+      setSelectedSettlementIds(new Set());
+      setShowBulkPaidConfirm(false);
+      router.refresh();
+    } catch (err) {
+      setBulkPaidError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setBulkPaidLoading(false);
+    }
+  };
+
   // Delete settlement
   const handleDelete = async () => {
     if (!existingSettlement || !isAdmin) return;
@@ -1001,16 +1034,60 @@ export default function SettlementsWorkspace({
           <span className={bulkStyles.selectedCount}>
             {selectedSettlementIds.size} settlement{selectedSettlementIds.size !== 1 ? 's' : ''} selected
           </span>
-          <button
-            type="button"
-            className={bulkStyles.deleteBtn}
-            onClick={() => setShowBulkDeleteConfirm(true)}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-            </svg>
-            Delete Selected
-          </button>
+          <div className={bulkStyles.actionButtons}>
+            <button
+              type="button"
+              className={bulkStyles.paidBtn}
+              onClick={() => setShowBulkPaidConfirm(true)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              Mark Paid Selected
+            </button>
+            <button
+              type="button"
+              className={bulkStyles.deleteBtn}
+              onClick={() => setShowBulkDeleteConfirm(true)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showBulkPaidConfirm && (
+        <div className={bulkStyles.modalOverlay} onClick={() => !bulkPaidLoading && setShowBulkPaidConfirm(false)}>
+          <div className={bulkStyles.modal} onClick={e => e.stopPropagation()}>
+            <h3>Confirm Paid</h3>
+            <p>
+              Mark <strong>{selectedSettlementIds.size}</strong> settlement{selectedSettlementIds.size !== 1 ? 's' : ''} as paid?
+            </p>
+            {bulkPaidError && (
+              <div className={bulkStyles.error}>{bulkPaidError}</div>
+            )}
+            <div className={bulkStyles.modalActions}>
+              <button
+                type="button"
+                className={bulkStyles.cancelBtn}
+                onClick={() => setShowBulkPaidConfirm(false)}
+                disabled={bulkPaidLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={bulkStyles.paidBtn}
+                onClick={handleBulkMarkPaid}
+                disabled={bulkPaidLoading}
+              >
+                {bulkPaidLoading ? 'Marking...' : 'Yes, Mark Paid'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

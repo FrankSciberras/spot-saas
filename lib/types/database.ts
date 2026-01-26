@@ -437,6 +437,7 @@ export interface DriverSettlement {
   week_end: string;
   week_label: string;
   period_name: string | null;
+  settlement_month: string | null;
   fss_tax: number;
   total_gross_fare: number;
   total_net: number;

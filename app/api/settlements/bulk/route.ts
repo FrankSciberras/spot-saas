@@ -52,3 +52,46 @@ export async function DELETE(request: Request) {
     deleted: ids.length 
   });
 }
+
+export async function PUT(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { ids, paid_at } = body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return NextResponse.json({ error: 'No settlement IDs provided' }, { status: 400 });
+  }
+
+  const nextPaidAt = paid_at === null ? null : typeof paid_at === 'string' ? paid_at : new Date().toISOString();
+
+  const { error } = await supabase
+    .from('driver_settlements')
+    .update({ paid_at: nextPaidAt })
+    .in('id', ids);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    updated: ids.length,
+    paid_at: nextPaidAt,
+  });
+}
