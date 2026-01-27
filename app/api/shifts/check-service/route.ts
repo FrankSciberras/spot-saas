@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { sendEmailNotification } from '@/lib/notifications/email';
 
 /**
  * POST /api/shifts/check-service
@@ -161,6 +163,54 @@ export async function POST(request: Request) {
         );
       }
 
+      let emailResults: { sent: number; failed: number } | undefined;
+      const shouldSendEmail = Boolean(
+        serviceRule && (serviceRule.channel === 'email' || serviceRule.channel === 'all')
+      );
+      const shouldEmailAdmins = Boolean(
+        serviceRule && (serviceRule.target_role === 'admin' || serviceRule.target_role === 'all')
+      );
+
+      if (shouldSendEmail && shouldEmailAdmins) {
+        emailResults = { sent: 0, failed: 0 };
+        try {
+          const adminClient = createAdminClient();
+          const { data: adminUsers, error: adminUsersError } = await adminClient
+            .from('users')
+            .select('id, email, full_name, role')
+            .in('role', ['admin', 'staff'])
+            .not('email', 'is', null);
+
+          if (adminUsersError) {
+            console.error('Error fetching admin/staff emails for service notification:', adminUsersError);
+          }
+
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+          const actionUrl = `/admin/vehicles/${vehicle_id}`;
+          const fullActionUrl = `${appUrl}${actionUrl}`;
+
+          for (const u of adminUsers || []) {
+            if (!u.email) continue;
+            try {
+              const sent = await sendEmailNotification({
+                to: u.email,
+                subject: finalTitle,
+                body: finalBody,
+                driverName: u.full_name || undefined,
+                actionUrl: fullActionUrl,
+              });
+              if (sent) emailResults.sent++;
+              else emailResults.failed++;
+            } catch (err) {
+              console.error(`Service notification email failed for ${u.email}:`, err);
+              emailResults.failed++;
+            }
+          }
+        } catch (err) {
+          console.error('Unhandled error sending service notification emails:', err);
+        }
+      }
+
       // Log to notification_log (only if rule exists)
       if (serviceRule) {
         await supabase
@@ -177,6 +227,7 @@ export async function POST(request: Request) {
               current_mileage,
               next_service_mileage: nextServiceMileage,
               km_remaining: kmRemaining,
+              email_results: emailResults,
             },
             sent_at: new Date().toISOString(),
           });
@@ -190,6 +241,7 @@ export async function POST(request: Request) {
         notification_id: notificationId,
         km_remaining: kmRemaining,
         threshold_km: thresholdKm,
+        email_results: emailResults,
         message: `Service notification created: ${kmRemaining > 0 ? kmRemaining + ' km remaining' : Math.abs(kmRemaining) + ' km overdue'}`
       });
     }
