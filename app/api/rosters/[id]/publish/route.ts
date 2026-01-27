@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 
@@ -14,6 +15,7 @@ interface RouteParams {
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const supabase = await createClient();
+  const adminClient = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -40,7 +42,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   // Get roster
-  const { data: roster, error: rosterError } = await supabase
+  const { data: roster, error: rosterError } = await adminClient
     .from('rosters')
     .select('*')
     .eq('id', id)
@@ -53,7 +55,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   const isUpdate = roster.status === 'published' || republish;
 
   // Update roster status to published
-  const { error: updateError } = await supabase
+  const { error: updateError } = await adminClient
     .from('rosters')
     .update({
       status: 'published',
@@ -67,7 +69,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   // Get all unique drivers assigned to this roster with their user info
-  const { data: assignments } = await supabase
+  const { data: assignments } = await adminClient
     .from('roster_assignments')
     .select(`
       driver_id,
@@ -105,12 +107,18 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Fetch the notification rule to get custom action_url
     const triggerType = isUpdate ? 'roster_updated' : 'roster_published';
-    const { data: rule } = await supabase
+    const { data: rule } = await adminClient
       .from('notification_rules')
-      .select('trigger_config, title_template, body_template')
+      .select('id, trigger_config, title_template, body_template, channel, target_role')
       .eq('trigger_type', triggerType)
       .eq('is_active', true)
       .single();
+
+    const effectiveChannel = rule?.channel || 'all';
+    const effectiveTargetRole = rule?.target_role || 'driver';
+    const shouldSendApp = effectiveChannel === 'app' || effectiveChannel === 'all';
+    const shouldSendPush = effectiveChannel === 'push' || effectiveChannel === 'all';
+    const shouldSendEmail = effectiveChannel === 'email' || effectiveChannel === 'all';
 
     // Use rule templates if available, otherwise use defaults
     const actionUrl = (rule?.trigger_config as Record<string, string>)?.action_url || '/driver/roster';
@@ -123,60 +131,167 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const drivers = Array.from(driversMap.values());
 
-    // Create in-app notifications for each driver
-    const appNotifications = drivers.map(driver => ({
-      driver_id: driver.id,
-      title: notificationTitle,
-      body: notificationBody,
-      type: 'info',
-      action_url: actionUrl,
-      target_role: 'driver',
-      sent_at: new Date().toISOString(),
-    }));
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const fullActionUrl = `${appUrl}${actionUrl}`;
 
-    const { error: notifyError } = await supabase
-      .from('notifications')
-      .insert(appNotifications);
+    const includeAdmins = effectiveTargetRole === 'admin' || effectiveTargetRole === 'all';
+    const includeDrivers = effectiveTargetRole === 'driver' || effectiveTargetRole === 'all';
 
-    if (!notifyError) {
-      notificationResults.app = drivers.length;
-    } else {
-      console.error('Failed to send app notifications:', notifyError);
+    const adminUsers: { id: string; email: string | null; full_name: string | null }[] = [];
+    if (includeAdmins && (shouldSendEmail || shouldSendPush || shouldSendApp)) {
+      const { data: admins, error: adminsError } = await adminClient
+        .from('users')
+        .select('id, email, full_name, role')
+        .in('role', ['admin', 'staff']);
+
+      if (adminsError) {
+        console.error('Error fetching admin/staff recipients for roster notification:', adminsError);
+      }
+
+      for (const u of admins || []) {
+        adminUsers.push({
+          id: u.id,
+          email: u.email,
+          full_name: u.full_name,
+        });
+      }
     }
 
-    // Send push notifications (if configured)
-    for (const driver of drivers) {
-      if (driver.user_id) {
-        try {
-          await sendPushNotification(driver.user_id, {
+    if (shouldSendApp) {
+      if (includeDrivers) {
+        const appNotifications = drivers.map(driver => ({
+          driver_id: driver.id,
+          title: notificationTitle,
+          body: notificationBody,
+          type: 'info',
+          action_url: actionUrl,
+          target_role: 'driver',
+          sent_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+        }));
+
+        const { error: notifyError } = await adminClient
+          .from('notifications')
+          .insert(appNotifications);
+
+        if (!notifyError) {
+          notificationResults.app += drivers.length;
+        } else {
+          console.error('Failed to send app notifications:', notifyError);
+        }
+      }
+
+      if (includeAdmins) {
+        const { error: adminBroadcastError } = await adminClient
+          .from('notifications')
+          .insert({
+            driver_id: null,
             title: notificationTitle,
             body: notificationBody,
-            url: actionUrl,
+            type: 'info',
+            action_url: actionUrl,
+            target_role: 'admin',
+            sent_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
           });
-          notificationResults.push++;
-        } catch (err) {
-          console.error(`Push notification failed for ${driver.full_name}:`, err);
+
+        if (!adminBroadcastError) {
+          notificationResults.app += adminUsers.length;
+        } else {
+          console.error('Failed to insert admin roster broadcast notification:', adminBroadcastError);
         }
       }
     }
 
-    // Send email notifications (if configured)
-    for (const driver of drivers) {
-      if (driver.email) {
-        try {
-          await sendEmailNotification({
-            to: driver.email,
-            subject: notificationTitle,
-            body: notificationBody,
-            driverName: driver.full_name,
-            rosterTitle: roster.title,
-            actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}${actionUrl}`,
-          });
-          notificationResults.email++;
-        } catch (err) {
-          console.error(`Email notification failed for ${driver.email}:`, err);
+    if (shouldSendPush) {
+      if (includeDrivers) {
+        for (const driver of drivers) {
+          if (driver.user_id) {
+            try {
+              await sendPushNotification(driver.user_id, {
+                title: notificationTitle,
+                body: notificationBody,
+                url: actionUrl,
+              });
+              notificationResults.push++;
+            } catch (err) {
+              console.error(`Push notification failed for ${driver.full_name}:`, err);
+            }
+          }
         }
       }
+
+      if (includeAdmins) {
+        for (const u of adminUsers) {
+          try {
+            await sendPushNotification(u.id, {
+              title: notificationTitle,
+              body: notificationBody,
+              url: '/admin/rosters',
+            });
+            notificationResults.push++;
+          } catch (err) {
+            console.error(`Push notification failed for ${u.id}:`, err);
+          }
+        }
+      }
+    }
+
+    if (shouldSendEmail) {
+      if (includeDrivers) {
+        for (const driver of drivers) {
+          if (driver.email) {
+            try {
+              await sendEmailNotification({
+                to: driver.email,
+                subject: notificationTitle,
+                body: notificationBody,
+                driverName: driver.full_name,
+                rosterTitle: roster.title,
+                actionUrl: fullActionUrl,
+              });
+              notificationResults.email++;
+            } catch (err) {
+              console.error(`Email notification failed for ${driver.email}:`, err);
+            }
+          }
+        }
+      }
+
+      if (includeAdmins) {
+        for (const u of adminUsers) {
+          if (!u.email) continue;
+          try {
+            await sendEmailNotification({
+              to: u.email,
+              subject: notificationTitle,
+              body: notificationBody,
+              driverName: u.full_name || undefined,
+              actionUrl: `${appUrl}/admin/rosters`,
+            });
+            notificationResults.email++;
+          } catch (err) {
+            console.error(`Email notification failed for ${u.email}:`, err);
+          }
+        }
+      }
+    }
+
+    if (rule) {
+      await adminClient.from('notification_log').insert({
+        rule_id: rule.id,
+        channel: effectiveChannel,
+        title: notificationTitle,
+        body: notificationBody,
+        status: 'sent',
+        metadata: {
+          roster_id: roster.id,
+          trigger_type: triggerType,
+          target_role: effectiveTargetRole,
+          results: notificationResults,
+        },
+        sent_at: new Date().toISOString(),
+      });
     }
   }
 
