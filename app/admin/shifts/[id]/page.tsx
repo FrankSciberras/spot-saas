@@ -39,6 +39,8 @@ export default async function ShiftDetailPage({ params }: PageProps) {
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
 
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
+
   const { data: shift, error } = await supabase
     .from('driver_shifts')
     .select(`
@@ -57,6 +59,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-GB', {
+      timeZone,
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -67,6 +70,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
+      timeZone,
       day: '2-digit',
       month: 'short',
       year: 'numeric'
@@ -75,6 +79,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('en-GB', {
+      timeZone,
       hour: '2-digit',
       minute: '2-digit'
     });

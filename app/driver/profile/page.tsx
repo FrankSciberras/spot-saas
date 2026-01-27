@@ -28,6 +28,8 @@ export default async function DriverProfilePage() {
   const user = await requireRole(['driver', 'admin', 'staff']);
   const supabase = await createClient();
 
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
+
   // Get driver record for current user
   const { data: driver, error } = await supabase
     .from('drivers')
@@ -369,18 +371,18 @@ export default async function DriverProfilePage() {
                   <div key={shift.id} className={styles.shiftItem}>
                     <div className={styles.shiftDate}>
                       <span className={styles.shiftDay}>
-                        {new Date(shift.start_time).toLocaleDateString('en-GB', { weekday: 'short' })}
+                        {new Date(shift.start_time).toLocaleDateString('en-GB', { timeZone, weekday: 'short' })}
                       </span>
                       <span className={styles.shiftFullDate}>
-                        {new Date(shift.start_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        {new Date(shift.start_time).toLocaleDateString('en-GB', { timeZone, day: '2-digit', month: 'short' })}
                       </span>
                     </div>
                     <div className={styles.shiftDetails}>
                       <span className={styles.shiftTime}>
-                        {new Date(shift.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(shift.start_time).toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' })}
                         {' → '}
                         {shift.end_time 
-                          ? new Date(shift.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          ? new Date(shift.end_time).toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' })
                           : <span className={styles.activeShift}>Active</span>
                         }
                       </span>

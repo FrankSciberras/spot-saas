@@ -11,6 +11,8 @@ export default async function ShiftsPage() {
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
 
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
+
   const { data: shifts, error } = await supabase
     .from('driver_shifts')
     .select(`
@@ -22,7 +24,14 @@ export default async function ShiftsPage() {
     .limit(100);
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+    return new Date(dateStr).toLocaleString('en-GB', {
+      timeZone,
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (

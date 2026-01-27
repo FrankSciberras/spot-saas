@@ -47,6 +47,8 @@ export default async function DriverShiftsPage() {
   const user = await requireRole(['driver']);
   const supabase = await createClient();
 
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
+
   // Get driver profile
   const { data: driver } = await supabase
     .from('drivers')
@@ -79,6 +81,7 @@ export default async function DriverShiftsPage() {
 
   const formatDateMain = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
+      timeZone,
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -88,6 +91,7 @@ export default async function DriverShiftsPage() {
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('en-GB', {
+      timeZone,
       hour: '2-digit',
       minute: '2-digit'
     });

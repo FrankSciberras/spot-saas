@@ -101,6 +101,8 @@ export async function POST(request: Request) {
 
     // Check if service is due soon (within threshold)
     if (kmRemaining <= thresholdKm && kmRemaining > -1000) {
+      const actionUrl = `/admin/vehicles/${vehicle_id}`;
+
       // Check if we already sent a notification for this vehicle recently (within 24 hours)
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -108,17 +110,72 @@ export async function POST(request: Request) {
       const { data: existingNotif } = await adminClient
         .from('notifications')
         .select('id')
-        .eq('action_url', `/admin/vehicles/${vehicle_id}`)
+        .eq('action_url', actionUrl)
         .gte('created_at', oneDayAgo.toISOString())
         .limit(1)
         .single();
 
+      const effectiveChannel = serviceRule?.channel || 'app';
+      const shouldSendEmail = effectiveChannel === 'email' || effectiveChannel === 'all';
+      const shouldSendPush = effectiveChannel === 'push' || effectiveChannel === 'all';
+
+      const emailConfigured = Boolean(process.env.RESEND_API_KEY);
+
+      const rawTargetRole = serviceRule?.target_role || 'admin';
+      const effectiveTargetRole = rawTargetRole === 'staff' ? 'admin' : rawTargetRole;
+
+      const serviceRoleConfigured = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+      // If we already created an in-app notification in the last 24h, we still may want to send
+      // email/push (e.g., if production env was missing RESEND_API_KEY at the time).
+      let skipInAppInsert = false;
       if (existingNotif) {
-        return NextResponse.json({
-          checked: true,
-          alert_created: false,
-          reason: 'Notification already sent within 24 hours'
-        });
+        if (!serviceRule || (!shouldSendEmail && !shouldSendPush)) {
+          return NextResponse.json({
+            checked: true,
+            alert_created: false,
+            reason: 'Notification already sent within 24 hours'
+          });
+        }
+
+        const { data: lastLog, error: lastLogError } = await adminClient
+          .from('notification_log')
+          .select('id, metadata, created_at')
+          .eq('rule_id', serviceRule.id)
+          .contains('metadata', { vehicle_id })
+          .gte('created_at', oneDayAgo.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastLogError) {
+          console.error('Error checking prior notification_log for service_due:', lastLogError);
+        }
+
+        const priorEmailSent = Boolean(
+          lastLog &&
+          typeof lastLog.metadata === 'object' &&
+          lastLog.metadata &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((lastLog.metadata as any).email_results?.sent ?? 0) > 0
+        );
+        const priorPushSent = Boolean(
+          lastLog &&
+          typeof lastLog.metadata === 'object' &&
+          lastLog.metadata &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((lastLog.metadata as any).push_results?.sent ?? 0) > 0
+        );
+
+        if ((shouldSendEmail && priorEmailSent) || (shouldSendPush && priorPushSent)) {
+          return NextResponse.json({
+            checked: true,
+            alert_created: false,
+            reason: 'Notification already sent within 24 hours'
+          });
+        }
+
+        skipInAppInsert = true;
       }
 
       // Build notification from rule template or use defaults
@@ -152,15 +209,12 @@ export async function POST(request: Request) {
         : `${kmRemaining} km remaining. ${notifBody}`;
       const notifType = kmRemaining <= 0 ? 'alert' : 'warning';
 
-      const actionUrl = `/admin/vehicles/${vehicle_id}`;
-      const effectiveTargetRole = serviceRule?.target_role || 'admin';
-
       const insertedNotificationIds: string[] = [];
       const nowIso = new Date().toISOString();
 
       // Create in-app notification(s) based on target_role
       let notifError: unknown = null;
-      if (effectiveTargetRole === 'admin') {
+      if (!skipInAppInsert && effectiveTargetRole === 'admin') {
         const { data: insertedNotif, error } = await adminClient
           .from('notifications')
           .insert({
@@ -177,7 +231,7 @@ export async function POST(request: Request) {
           .single();
         if (error) notifError = error;
         if (insertedNotif?.id) insertedNotificationIds.push(insertedNotif.id);
-      } else if (effectiveTargetRole === 'driver') {
+      } else if (!skipInAppInsert && effectiveTargetRole === 'driver') {
         if (currentDriver?.id) {
           const { data: insertedNotif, error } = await adminClient
             .from('notifications')
@@ -198,7 +252,7 @@ export async function POST(request: Request) {
         } else {
           console.warn('Service due rule targets drivers, but current user is not a driver - skipping driver in-app notification');
         }
-      } else if (effectiveTargetRole === 'all') {
+      } else if (!skipInAppInsert && effectiveTargetRole === 'all') {
         const { data: insertedAdminNotif, error: adminError } = await adminClient
           .from('notifications')
           .insert({
@@ -246,10 +300,6 @@ export async function POST(request: Request) {
         );
       }
 
-      const effectiveChannel = serviceRule?.channel || 'app';
-      const shouldSendEmail = effectiveChannel === 'email' || effectiveChannel === 'all';
-      const shouldSendPush = effectiveChannel === 'push' || effectiveChannel === 'all';
-
       const pushResults: { sent: number; failed: number } | undefined = shouldSendPush
         ? { sent: 0, failed: 0 }
         : undefined;
@@ -263,6 +313,9 @@ export async function POST(request: Request) {
       // Resolve recipients based on target_role
       const target = effectiveTargetRole;
       const recipients: { user_id: string; email: string | null; full_name: string | null }[] = [];
+
+      let adminRecipientCount = 0;
+      let driverRecipientCount = 0;
 
       if (target === 'admin' || target === 'all') {
         const { data: adminUsers, error: adminUsersError } = await adminClient
@@ -281,6 +334,8 @@ export async function POST(request: Request) {
             full_name: u.full_name,
           });
         }
+
+        adminRecipientCount = (adminUsers || []).length;
       }
 
       if (target === 'driver' || target === 'all') {
@@ -292,12 +347,31 @@ export async function POST(request: Request) {
             email,
             full_name: currentDriver.full_name || null,
           });
+
+          driverRecipientCount = 1;
         } else {
           console.warn('Service due rule targets drivers, but current user is not a driver - skipping driver recipients');
         }
       }
 
+      const emailStatus = !shouldSendEmail
+        ? 'sent'
+        : !emailConfigured
+          ? 'failed'
+          : emailResults
+            ? emailResults.sent > 0 && emailResults.failed === 0
+              ? 'sent'
+              : emailResults.sent > 0
+                ? 'partial'
+                : recipients.length > 0
+                  ? 'failed'
+                  : 'failed'
+            : 'sent';
+
       if (shouldSendEmail && emailResults) {
+        if (!emailConfigured) {
+          console.warn('Email notifications not configured (missing RESEND_API_KEY)');
+        }
         for (const r of recipients) {
           if (!r.email) {
             emailResults.failed++;
@@ -346,7 +420,7 @@ export async function POST(request: Request) {
             channel: effectiveChannel,
             title: finalTitle,
             body: finalBody,
-            status: 'sent',
+            status: emailStatus,
             metadata: {
               vehicle_id,
               vehicle_reg: vehicle.registration_number,
@@ -354,6 +428,14 @@ export async function POST(request: Request) {
               next_service_mileage: nextServiceMileage,
               km_remaining: kmRemaining,
               target_role: effectiveTargetRole,
+              dedupe_skipped_app: skipInAppInsert,
+              email_configured: emailConfigured,
+              service_role_configured: serviceRoleConfigured,
+              email_attempted: shouldSendEmail,
+              push_attempted: shouldSendPush,
+              recipient_count: recipients.length,
+              admin_recipient_count: adminRecipientCount,
+              driver_recipient_count: driverRecipientCount,
               email_results: emailResults,
               push_results: pushResults,
             },
@@ -365,12 +447,18 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         checked: true,
-        alert_created: true,
+        alert_created: !skipInAppInsert,
         notification_id: insertedNotificationIds[0] || null,
         notification_ids: insertedNotificationIds,
         km_remaining: kmRemaining,
         threshold_km: thresholdKm,
         target_role: effectiveTargetRole,
+        dedupe_skipped_app: skipInAppInsert,
+        email_configured: emailConfigured,
+        service_role_configured: serviceRoleConfigured,
+        recipient_count: recipients.length,
+        admin_recipient_count: adminRecipientCount,
+        driver_recipient_count: driverRecipientCount,
         email_results: emailResults,
         push_results: pushResults,
         message: `Service notification created: ${kmRemaining > 0 ? kmRemaining + ' km remaining' : Math.abs(kmRemaining) + ' km overdue'}`
