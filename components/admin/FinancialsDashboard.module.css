@@ -51,6 +51,39 @@
   flex-wrap: wrap;
 }
 
+ .modeToggle {
+  display: flex;
+  align-items: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 4px;
+  box-shadow: var(--shadow-xs);
+ }
+
+ .toggleBtn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+ }
+
+ .toggleBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+ }
+
+ .toggleBtnActive {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: var(--text-light);
+  box-shadow: 0 1px 2px rgba(var(--color-primary-rgb), 0.25);
+ }
+
 .actionBtn,
 .actionBtnSecondary {
   padding: 10px 14px;
@@ -422,6 +455,15 @@
   .filtersTop {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .modeToggle {
+    width: 100%;
+  }
+
+  .toggleBtn {
+    flex: 1;
+    justify-content: center;
   }
 
   .grid2 {

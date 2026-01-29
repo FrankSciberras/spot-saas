@@ -49,6 +49,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [driverToAddId, setDriverToAddId] = useState('');
   const [assignedDriverIds, setAssignedDriverIds] = useState<string[]>(() => {
     return vehicle?.assigned_driver_ids || (vehicle?.assigned_driver_id ? [vehicle.assigned_driver_id] : []);
@@ -180,6 +181,33 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
 
   const triggerFileInput = (docType: keyof typeof fileInputRefs) => {
     fileInputRefs[docType].current?.click();
+  };
+
+  const handleFileDelete = async (docType: string, fileId: string) => {
+    const confirmed = window.confirm('Remove this file?');
+    if (!confirmed) return;
+
+    setDeletingFileId(fileId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete file');
+      }
+
+      setUploadedFiles((prev) => {
+        const list = prev[docType] || [];
+        return {
+          ...prev,
+          [docType]: list.filter((f) => f.id !== fileId),
+        };
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete file');
+    } finally {
+      setDeletingFileId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -376,23 +404,35 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {mode === 'edit' && (
               <button
                 type="button"
-                className={`btn btn-secondary ${styles.uploadBtn}`}
+                className={styles.uploadBtnWide}
                 onClick={() => triggerFileInput('VEHICLE_INSURANCE')}
                 disabled={uploadingType === 'VEHICLE_INSURANCE'}
               >
-                {uploadingType === 'VEHICLE_INSURANCE' ? 'Uploading...' : '📎 Upload'}
+                {uploadingType === 'VEHICLE_INSURANCE' ? 'Uploading...' : 'Upload'}
               </button>
             )}
             {uploadedFiles.VEHICLE_INSURANCE?.map(file => (
-              <a
-                key={file.id}
-                href={file.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.uploadedFile}
-              >
-                📄 {file.file_name || 'Insurance Document'}
-              </a>
+              <span key={file.id} className={styles.uploadedFileRow}>
+                <a
+                  href={file.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.uploadedFile}
+                >
+                  📄 {file.file_name || 'Insurance Document'}
+                </a>
+                {mode === 'edit' && (
+                  <button
+                    type="button"
+                    className={styles.fileRemoveBtn}
+                    onClick={() => handleFileDelete('VEHICLE_INSURANCE', file.id)}
+                    disabled={deletingFileId === file.id}
+                    title="Remove file"
+                  >
+                    {deletingFileId === file.id ? '…' : '×'}
+                  </button>
+                )}
+              </span>
             ))}
           </div>
         </div>
@@ -421,23 +461,35 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {mode === 'edit' && (
               <button
                 type="button"
-                className={`btn btn-secondary ${styles.uploadBtn}`}
+                className={styles.uploadBtnWide}
                 onClick={() => triggerFileInput('ROAD_LICENSE')}
                 disabled={uploadingType === 'ROAD_LICENSE'}
               >
-                {uploadingType === 'ROAD_LICENSE' ? 'Uploading...' : '📎 Upload'}
+                {uploadingType === 'ROAD_LICENSE' ? 'Uploading...' : 'Upload'}
               </button>
             )}
             {uploadedFiles.ROAD_LICENSE?.map(file => (
-              <a
-                key={file.id}
-                href={file.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.uploadedFile}
-              >
-                📄 {file.file_name || 'Road License'}
-              </a>
+              <span key={file.id} className={styles.uploadedFileRow}>
+                <a
+                  href={file.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.uploadedFile}
+                >
+                  📄 {file.file_name || 'Road License'}
+                </a>
+                {mode === 'edit' && (
+                  <button
+                    type="button"
+                    className={styles.fileRemoveBtn}
+                    onClick={() => handleFileDelete('ROAD_LICENSE', file.id)}
+                    disabled={deletingFileId === file.id}
+                    title="Remove file"
+                  >
+                    {deletingFileId === file.id ? '…' : '×'}
+                  </button>
+                )}
+              </span>
             ))}
           </div>
         </div>
@@ -459,23 +511,35 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {mode === 'edit' && (
               <button
                 type="button"
-                className={`btn btn-secondary ${styles.uploadBtn}`}
+                className={styles.uploadBtnWide}
                 onClick={() => triggerFileInput('LOGBOOK')}
                 disabled={uploadingType === 'LOGBOOK'}
               >
-                {uploadingType === 'LOGBOOK' ? 'Uploading...' : '📎 Upload'}
+                {uploadingType === 'LOGBOOK' ? 'Uploading...' : 'Upload'}
               </button>
             )}
             {uploadedFiles.LOGBOOK?.map(file => (
-              <a
-                key={file.id}
-                href={file.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.uploadedFile}
-              >
-                📄 {file.file_name || 'Logbook'}
-              </a>
+              <span key={file.id} className={styles.uploadedFileRow}>
+                <a
+                  href={file.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.uploadedFile}
+                >
+                  📄 {file.file_name || 'Logbook'}
+                </a>
+                {mode === 'edit' && (
+                  <button
+                    type="button"
+                    className={styles.fileRemoveBtn}
+                    onClick={() => handleFileDelete('LOGBOOK', file.id)}
+                    disabled={deletingFileId === file.id}
+                    title="Remove file"
+                  >
+                    {deletingFileId === file.id ? '…' : '×'}
+                  </button>
+                )}
+              </span>
             ))}
           </div>
         </div>
@@ -497,23 +561,35 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {mode === 'edit' && (
               <button
                 type="button"
-                className={`btn btn-secondary ${styles.uploadBtn}`}
+                className={styles.uploadBtnWide}
                 onClick={() => triggerFileInput('OTHER')}
                 disabled={uploadingType === 'OTHER'}
               >
-                {uploadingType === 'OTHER' ? 'Uploading...' : '📎 Upload'}
+                {uploadingType === 'OTHER' ? 'Uploading...' : 'Upload'}
               </button>
             )}
             {uploadedFiles.OTHER?.map(file => (
-              <a
-                key={file.id}
-                href={file.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.uploadedFile}
-              >
-                📄 {file.file_name || 'Document'}
-              </a>
+              <span key={file.id} className={styles.uploadedFileRow}>
+                <a
+                  href={file.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.uploadedFile}
+                >
+                  📄 {file.file_name || 'Document'}
+                </a>
+                {mode === 'edit' && (
+                  <button
+                    type="button"
+                    className={styles.fileRemoveBtn}
+                    onClick={() => handleFileDelete('OTHER', file.id)}
+                    disabled={deletingFileId === file.id}
+                    title="Remove file"
+                  >
+                    {deletingFileId === file.id ? '…' : '×'}
+                  </button>
+                )}
+              </span>
             ))}
           </div>
         </div>

@@ -375,6 +375,32 @@
   transition: all var(--transition-fast);
 }
 
+ .uploadBtnWide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+ }
+
+ .uploadBtnWide:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--color-primary);
+ }
+
+ .uploadBtnWide:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+ }
+
 .uploadBtn:hover:not(:disabled) {
   background: var(--bg-tertiary);
   border-color: var(--color-primary);
@@ -462,6 +488,36 @@
   text-decoration: none;
   transition: all var(--transition-fast);
 }
+
+ .uploadedFileRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+ }
+
+ .fileRemoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.35);
+  background: rgba(var(--color-danger-rgb), 0.08);
+  color: var(--badge-danger-text);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+ }
+
+ .fileRemoveBtn:hover:not(:disabled) {
+  background: rgba(var(--color-danger-rgb), 0.14);
+  border-color: rgba(var(--color-danger-rgb), 0.55);
+ }
+
+ .fileRemoveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+ }
 
 .uploadedFile:hover {
   background: rgba(var(--color-success-rgb), 0.2);
