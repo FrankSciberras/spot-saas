@@ -286,6 +286,7 @@ const driverNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/driver', section: 'Overview', icon: <DashboardIcon /> },
   { label: 'Go Online', href: '/driver/go-online', section: 'Work', icon: <ListIcon /> },
   { label: 'My Shifts', href: '/driver/shifts', section: 'Work', icon: <ListIcon /> },
+  { label: 'Vehicles', href: '/driver/vehicles', section: 'Work', icon: <VehicleIcon /> },
   { label: 'My Roster', href: '/driver/roster', section: 'Work', icon: <RosterIcon /> },
   { label: 'My Earnings', href: '/driver/earnings', section: 'Financial', icon: <MoneyIcon /> },
   { label: 'Settlements', href: '/driver/settlements', section: 'Financial', icon: <SettlementIcon /> },
