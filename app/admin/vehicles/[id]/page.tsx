@@ -200,6 +200,9 @@ export default async function VehicleDetailPage({ params }: PageProps) {
           </div>
         </div>
         <div className={styles.pageActions}>
+          <Link href={`/admin/vehicles/${id}/damages`} className="btn btn-outline">
+            Damages
+          </Link>
           {isAdmin && (
             <>
               <Link href={`/admin/vehicles/${id}/edit`} className="btn btn-primary">

@@ -574,6 +574,78 @@ export interface WeeklyBookkeepingInput {
 }
 
 // =============================================================================
+// Vehicle Damages Types
+// =============================================================================
+
+export type DamageSeverity = 'minor' | 'moderate' | 'severe';
+export type DamageStatus = 'open' | 'repaired' | 'monitoring';
+
+export type DamageZone =
+  | 'front_bumper'
+  | 'rear_bumper'
+  | 'hood'
+  | 'trunk'
+  | 'roof'
+  | 'front_left_door'
+  | 'front_right_door'
+  | 'rear_left_door'
+  | 'rear_right_door'
+  | 'front_left_fender'
+  | 'front_right_fender'
+  | 'rear_left_fender'
+  | 'rear_right_fender'
+  | 'windshield'
+  | 'rear_window'
+  | 'left_side'
+  | 'right_side';
+
+export interface VehicleDamage {
+  id: string;
+  vehicle_id: string;
+  zone: DamageZone;
+  description: string;
+  severity: DamageSeverity;
+  status: DamageStatus;
+  repair_cost: number | null;
+  currency: string;
+  images: string[];
+  reported_by: string | null;
+  reported_at: string;
+  repaired_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleDamageWithReporter extends VehicleDamage {
+  reporter?: { full_name: string | null; email: string } | null;
+}
+
+export interface CreateDamageInput {
+  vehicle_id: string;
+  zone: DamageZone;
+  description: string;
+  severity?: DamageSeverity;
+  status?: DamageStatus;
+  repair_cost?: number;
+  currency?: string;
+  images?: string[];
+  notes?: string;
+}
+
+export interface UpdateDamageInput {
+  zone?: DamageZone;
+  description?: string;
+  severity?: DamageSeverity;
+  status?: DamageStatus;
+  repair_cost?: number | null;
+  currency?: string;
+  images?: string[];
+  repaired_at?: string | null;
+  notes?: string;
+}
+
+// =============================================================================
 // Session & Auth Types
 // =============================================================================
 

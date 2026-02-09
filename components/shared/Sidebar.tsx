@@ -222,6 +222,23 @@ const ShieldIcon = () => (
   </svg>
 );
 
+const DamagesIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
 const SettlementIcon = () => (
   <svg
     className={styles.navIcon}
@@ -268,6 +285,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Shifts', href: '/admin/shifts', section: 'Operations', icon: <ListIcon /> },
   // Maintenance
   { label: 'Services', href: '/admin/services', section: 'Maintenance', icon: <ServiceIcon /> },
+  { label: 'Damages', href: '/admin/damages', section: 'Maintenance', icon: <DamagesIcon /> },
   // Financial
   { label: 'Bookkeeping', href: '/admin/earnings', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
   { label: 'Financials', href: '/admin/financials', section: 'Financial', icon: <StatsIcon />, roles: ['admin'] },
