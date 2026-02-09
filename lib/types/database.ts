@@ -220,6 +220,7 @@ export type PermissionResource =
   | 'shifts'
   | 'rosters'
   | 'services'
+  | 'damages'
   | 'notifications'
   | 'reports'
   | 'settings';

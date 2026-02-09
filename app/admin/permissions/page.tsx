@@ -12,6 +12,7 @@ const RESOURCE_INFO: Record<string, { label: string; icon: string; description: 
   shifts: { label: 'Shifts', icon: '⏰', description: 'View and manage work shifts' },
   rosters: { label: 'Rosters', icon: '📅', description: 'Manage weekly rosters' },
   services: { label: 'Services', icon: '🔧', description: 'Vehicle service records' },
+  damages: { label: 'Damages', icon: '⚠️', description: 'Vehicle damage tracking and reports' },
   notifications: { label: 'Notifications', icon: '🔔', description: 'Send and manage notifications' },
   reports: { label: 'Reports', icon: '📈', description: 'View and export reports' },
   settings: { label: 'Settings', icon: '⚙️', description: 'System settings and configuration' },
