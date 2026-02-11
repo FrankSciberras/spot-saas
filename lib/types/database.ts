@@ -9,10 +9,15 @@ export type VehicleStatus = 'active' | 'in_service' | 'out_of_service';
 export type DocumentOwnerType = 'driver' | 'vehicle';
 export type DocumentType = 
   | 'ID_CARD' 
+  | 'ID_CARD_FRONT'
+  | 'ID_CARD_BACK'
   | 'POLICE_CONDUCT' 
   | 'DRIVING_LICENSE' 
+  | 'DRIVING_LICENSE_FRONT'
+  | 'DRIVING_LICENSE_BACK'
   | 'VEHICLE_INSURANCE' 
   | 'ROAD_LICENSE' 
+  | 'TAG_LICENSE'
   | 'OTHER';
 
 // =============================================================================
