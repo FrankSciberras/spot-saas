@@ -162,9 +162,35 @@
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
+.resetLink {
+  display: inline;
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast);
+}
+
+.resetLink:hover {
+  opacity: 1;
+}
+
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.kpiGrid6 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-lg);
 }
 
@@ -184,6 +210,14 @@
   inset: 0;
   background: radial-gradient(circle at 20% 20%, rgba(var(--color-primary-rgb), 0.12), transparent 55%);
   pointer-events: none;
+}
+
+.kpiCardAlert::before {
+  background: radial-gradient(circle at 20% 20%, rgba(var(--color-danger-rgb), 0.14), transparent 55%);
+}
+
+.kpiCardAlert {
+  border-color: rgba(var(--color-danger-rgb), 0.25);
 }
 
 .kpiLabel {
@@ -326,6 +360,12 @@
   border-bottom: none;
 }
 
+.summaryBoxSecondary {
+  margin-top: var(--spacing-sm);
+  background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.04) 0%, var(--bg-primary) 100%);
+  border-color: rgba(var(--color-primary-rgb), 0.15);
+}
+
 .mono {
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   color: var(--text-primary);
@@ -442,6 +482,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .kpiGrid6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .grid3 {
     grid-template-columns: 1fr;
   }
@@ -485,6 +529,10 @@
   }
 
   .kpiGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiGrid6 {
     grid-template-columns: 1fr;
   }
 }

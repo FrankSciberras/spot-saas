@@ -379,7 +379,7 @@ textarea.fieldInput {
 /* Document Cards */
 .docGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -389,6 +389,8 @@ textarea.fieldInput {
   padding: 16px;
   background: var(--bg-primary);
   transition: border-color var(--transition-fast);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .docCard:hover {
@@ -421,6 +423,7 @@ textarea.fieldInput {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .docSlotLabel {
@@ -472,15 +475,18 @@ textarea.fieldInput {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   background: rgba(var(--color-success-rgb), 0.06);
   border: 1px solid rgba(var(--color-success-rgb), 0.15);
   border-radius: var(--radius-md);
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .docFileName {
   flex: 1;
+  min-width: 0;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-primary);

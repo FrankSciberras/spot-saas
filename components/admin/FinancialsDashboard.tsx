@@ -287,6 +287,81 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     });
   }, [endDate, groupBy, selectedDriverId, sortedSettlements, startDate]);
 
+  const allFleetPeriodOptions = useMemo(() => {
+    if (groupBy === 'all_time') return [{ key: 'all_time', label: 'All time', start: bookkeepingRange.start, end: bookkeepingRange.end }];
+    const map = new Map<string, { key: string; label: string; start: string; end: string }>();
+    for (const e of sortedEntries) {
+      const weekStart = parseISO(e.week_start.split('T')[0]);
+      let key: string, label: string, start: string, end: string;
+      if (groupBy === 'weekly') {
+        key = e.id;
+        start = e.week_start.split('T')[0];
+        end = e.week_end.split('T')[0];
+        label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
+      } else if (groupBy === 'monthly') {
+        const mStart = startOfMonth(weekStart);
+        const mEnd = endOfMonth(weekStart);
+        key = `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`;
+        label = mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+        start = safeIso(mStart);
+        end = safeIso(mEnd);
+      } else if (groupBy === 'quarterly') {
+        const q = getQuarter(weekStart);
+        key = `${weekStart.getFullYear()}-Q${q}`;
+        label = `${weekStart.getFullYear()} Q${q}`;
+        start = safeIso(new Date(weekStart.getFullYear(), (q - 1) * 3, 1));
+        end = safeIso(new Date(weekStart.getFullYear(), q * 3, 0));
+      } else {
+        key = String(weekStart.getFullYear());
+        label = key;
+        start = safeIso(new Date(weekStart.getFullYear(), 0, 1));
+        end = safeIso(new Date(weekStart.getFullYear(), 11, 31));
+      }
+      if (!map.has(key)) map.set(key, { key, label, start, end });
+    }
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => parseISO(a.start).getTime() - parseISO(b.start).getTime());
+    return arr;
+  }, [bookkeepingRange.end, bookkeepingRange.start, groupBy, sortedEntries]);
+
+  const allDriverPeriodOptions = useMemo(() => {
+    if (groupBy === 'all_time') return [{ key: 'all_time', label: 'All time', start: settlementsRange.start, end: settlementsRange.end }];
+    const base = selectedDriverId === 'all' ? sortedSettlements : sortedSettlements.filter((s) => s.driver_id === selectedDriverId);
+    const map = new Map<string, { key: string; label: string; start: string; end: string }>();
+    for (const s of base) {
+      const weekStart = parseISO(s.week_start.split('T')[0]);
+      let key: string, label: string, start: string, end: string;
+      if (groupBy === 'weekly') {
+        start = s.week_start.split('T')[0];
+        end = s.week_end.split('T')[0];
+        key = `${start}_${end}`;
+        label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
+      } else if (groupBy === 'monthly') {
+        const mStart = startOfMonth(weekStart);
+        const mEnd = endOfMonth(weekStart);
+        key = `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`;
+        label = mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+        start = safeIso(mStart);
+        end = safeIso(mEnd);
+      } else if (groupBy === 'quarterly') {
+        const q = getQuarter(weekStart);
+        key = `${weekStart.getFullYear()}-Q${q}`;
+        label = `${weekStart.getFullYear()} Q${q}`;
+        start = safeIso(new Date(weekStart.getFullYear(), (q - 1) * 3, 1));
+        end = safeIso(new Date(weekStart.getFullYear(), q * 3, 0));
+      } else {
+        key = String(weekStart.getFullYear());
+        label = key;
+        start = safeIso(new Date(weekStart.getFullYear(), 0, 1));
+        end = safeIso(new Date(weekStart.getFullYear(), 11, 31));
+      }
+      if (!map.has(key)) map.set(key, { key, label, start, end });
+    }
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => parseISO(a.start).getTime() - parseISO(b.start).getTime());
+    return arr;
+  }, [groupBy, selectedDriverId, settlementsRange.end, settlementsRange.start, sortedSettlements]);
+
   const aggregated = useMemo<AggregatedPeriod[]>(() => {
     const map = new Map<string, AggregatedPeriod>();
 
@@ -407,9 +482,9 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
         end = settlementsRange.end;
         label = 'All time';
       } else if (groupBy === 'weekly') {
-        key = s.id;
         start = s.week_start.split('T')[0];
         end = s.week_end.split('T')[0];
+        key = `${start}_${end}`;
         label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
       } else if (groupBy === 'monthly') {
         const mStart = startOfMonth(weekStart);
@@ -552,6 +627,37 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     };
   }, [driverAggregated]);
 
+  const unpaidTotals = useMemo(() => {
+    const unpaid = filteredSettlements.filter((s) => !s.paid_at);
+    const unpaidCount = unpaid.length;
+    const unpaidPayout = unpaid.reduce((acc, s) => acc + (s.final_balance || 0), 0);
+    const unpaidGross = unpaid.reduce((acc, s) => acc + (s.total_gross_fare || 0), 0);
+
+    let unpaidIncome = initIncome();
+    for (const s of unpaid) {
+      const platforms = s.settlement_platforms || [];
+      if (platforms.length > 0) {
+        for (const p of platforms) {
+          unpaidIncome = addPlatformIncome(unpaidIncome, p.platform_id, p.gross_fare);
+        }
+      } else {
+        unpaidIncome = { ...unpaidIncome, other_earnings: unpaidIncome.other_earnings + (s.total_gross_fare || 0) };
+      }
+    }
+
+    const paidCount = filteredSettlements.length - unpaidCount;
+    const paidPayout = filteredSettlements.reduce((acc, s) => acc + (s.final_balance || 0), 0) - unpaidPayout;
+
+    return {
+      unpaidCount,
+      unpaidPayout: Math.round(unpaidPayout * 100) / 100,
+      unpaidGross: Math.round(unpaidGross * 100) / 100,
+      unpaidIncome,
+      paidCount,
+      paidPayout: Math.round(paidPayout * 100) / 100,
+    };
+  }, [filteredSettlements]);
+
   const driverRankings = useMemo(() => {
     if (selectedDriverId !== 'all') return [] as Array<{ driver_id: string; driver_name: string; payout: number; net: number; gross: number; settlements: number }>;
     const map = new Map<string, { driver_id: string; driver_name: string; payout: number; net: number; gross: number; settlements: number }>();
@@ -571,7 +677,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     }
 
     const rows = Array.from(map.values());
-    rows.sort((a, b) => b.payout - a.payout);
+    rows.sort((a, b) => b.gross - a.gross);
     return rows;
   }, [drivers, filteredSettlements, selectedDriverId]);
 
@@ -862,6 +968,18 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 {mode === 'fleet'
                   ? 'Advanced breakdown from Weekly Bookkeeping entries'
                   : 'Compare drivers by gross, net and payout from Driver Settlements'}
+                {(startDate !== activeRange.start || endDate !== activeRange.end) && groupBy !== 'all_time' ? (
+                  <button
+                    type="button"
+                    className={styles.resetLink}
+                    onClick={() => {
+                      setStartDate(activeRange.start);
+                      setEndDate(activeRange.end);
+                    }}
+                  >
+                    Reset to all dates
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -963,19 +1081,19 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 <div className={styles.filterLabel}>Active Period</div>
                 <select
                   className={styles.select}
-                  value={selectedPeriod?.key ?? ''}
+                  value={selectedKey ?? ''}
                   onChange={(e) => {
                     const nextKey = e.target.value;
                     setSelectedKey(nextKey);
-                    const period = aggregated.find((p) => p.key === nextKey);
+                    const period = allFleetPeriodOptions.find((p) => p.key === nextKey);
                     if (period) {
                       setStartDate(period.start);
                       setEndDate(period.end);
                     }
                   }}
-                  disabled={aggregated.length === 0}
+                  disabled={allFleetPeriodOptions.length === 0}
                 >
-                  {aggregated.map((p) => (
+                  {allFleetPeriodOptions.map((p) => (
                     <option key={p.key} value={p.key}>
                       {p.label}
                     </option>
@@ -987,19 +1105,19 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 <div className={styles.filterLabel}>Active Period</div>
                 <select
                   className={styles.select}
-                  value={selectedDriverPeriod?.key ?? ''}
+                  value={selectedKey ?? ''}
                   onChange={(e) => {
                     const nextKey = e.target.value;
                     setSelectedKey(nextKey);
-                    const period = driverAggregated.find((p) => p.key === nextKey);
+                    const period = allDriverPeriodOptions.find((p) => p.key === nextKey);
                     if (period) {
                       setStartDate(period.start);
                       setEndDate(period.end);
                     }
                   }}
-                  disabled={driverAggregated.length === 0}
+                  disabled={allDriverPeriodOptions.length === 0}
                 >
-                  {driverAggregated.map((p) => (
+                  {allDriverPeriodOptions.map((p) => (
                     <option key={p.key} value={p.key}>
                       {p.label}
                     </option>
@@ -1342,31 +1460,201 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
 
       {mode === 'drivers' && driverAggregated.length > 0 ? (
         <>
-          <div className={styles.kpiGrid}>
+          {/* Primary KPIs */}
+          <div className={styles.kpiGrid6}>
+            <div className={`${styles.kpiCard} ${styles.kpiCardAlert}`}>
+              <div className={styles.kpiLabel}>Unpaid Settlements</div>
+              <div className={`${styles.kpiValue} ${unpaidTotals.unpaidPayout > 0 ? styles.negative : ''}`}>
+                {formatCurrencyEUR(unpaidTotals.unpaidPayout)}
+              </div>
+              <div className={styles.kpiMeta}>{unpaidTotals.unpaidCount} settlement{unpaidTotals.unpaidCount !== 1 ? 's' : ''} pending</div>
+            </div>
             <div className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>Gross (Driver Revenue)</div>
+              <div className={styles.kpiLabel}>Total Gross</div>
               <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.totalGross)}</div>
-              <div className={styles.kpiMeta}>Last period: {deltaLabel(driverDeltas.grossDelta)}</div>
+              <div className={styles.kpiMeta}>{driverTotals.settlementCount} settlement{driverTotals.settlementCount !== 1 ? 's' : ''}</div>
             </div>
             <div className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>Net</div>
-              <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.totalNet)}</div>
-              <div className={styles.kpiMeta}>Settlements: {driverTotals.settlementCount}</div>
-            </div>
-            <div className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>Payout (Final Balance)</div>
+              <div className={styles.kpiLabel}>Driver Cut (Payout)</div>
               <div className={`${styles.kpiValue} ${driverTotals.totalPayout >= 0 ? styles.positive : styles.negative}`}>
                 {formatCurrencyEUR(driverTotals.totalPayout)}
               </div>
-              <div className={styles.kpiMeta}>Last period: {deltaLabel(driverDeltas.payoutDelta)}</div>
+              <div className={styles.kpiMeta}>{(driverTotals.payoutMargin * 100).toFixed(1)}% of gross</div>
             </div>
             <div className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>Payout Margin</div>
-              <div className={styles.kpiValue}>{(driverTotals.payoutMargin * 100).toFixed(1)}%</div>
+              <div className={styles.kpiLabel}>Uber Earnings</div>
+              <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.income.uber_earnings)}</div>
+              <div className={styles.kpiMeta}>
+                {driverTotals.totalGross > 0
+                  ? `${((driverTotals.income.uber_earnings / driverTotals.totalGross) * 100).toFixed(1)}% of gross`
+                  : '—'}
+              </div>
+            </div>
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiLabel}>Bolt Earnings</div>
+              <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.income.bolt_earnings)}</div>
+              <div className={styles.kpiMeta}>
+                {driverTotals.totalGross > 0
+                  ? `${((driverTotals.income.bolt_earnings / driverTotals.totalGross) * 100).toFixed(1)}% of gross`
+                  : '—'}
+              </div>
+            </div>
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiLabel}>FSS / Tax</div>
+              <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.totalTax)}</div>
               <div className={styles.kpiMeta}>Last period: {deltaLabel(driverDeltas.marginDelta)}</div>
             </div>
           </div>
 
+          {/* Financial Summary panels */}
+          <div className={styles.grid3}>
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div className={styles.panelTitle}>Unpaid Breakdown</div>
+                <div className={styles.panelSubtitle}>Settlements not yet paid out</div>
+              </div>
+              <div className={styles.summaryBox}>
+                <div className={styles.summaryRow}>
+                  <span>Unpaid Payout Total</span>
+                  <span className={`${styles.mono} ${unpaidTotals.unpaidPayout > 0 ? styles.negative : ''}`}>
+                    {formatCurrencyEUR(unpaidTotals.unpaidPayout)}
+                  </span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Unpaid Gross</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidGross)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Unpaid from Uber</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome.uber_earnings)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Unpaid from Bolt</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome.bolt_earnings)}</span>
+                </div>
+                {unpaidTotals.unpaidIncome.ecabs_earnings > 0 ? (
+                  <div className={styles.summaryRow}>
+                    <span>Unpaid from eCabs</span>
+                    <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome.ecabs_earnings)}</span>
+                  </div>
+                ) : null}
+                <div className={styles.summaryRow}>
+                  <span>Paid so far</span>
+                  <span className={`${styles.mono} ${styles.positive}`}>{formatCurrencyEUR(unpaidTotals.paidPayout)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Paid settlements</span>
+                  <span className={styles.mono}>{unpaidTotals.paidCount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div className={styles.panelTitle}>Platform Breakdown</div>
+                <div className={styles.panelSubtitle}>Gross earnings by platform</div>
+              </div>
+              <div className={styles.summaryBox}>
+                <div className={styles.summaryRow}>
+                  <span>Uber</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.uber_earnings)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Bolt</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.bolt_earnings)}</span>
+                </div>
+                {driverTotals.income.ecabs_earnings > 0 ? (
+                  <div className={styles.summaryRow}>
+                    <span>eCabs</span>
+                    <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.ecabs_earnings)}</span>
+                  </div>
+                ) : null}
+                {driverTotals.income.other_earnings > 0 ? (
+                  <div className={styles.summaryRow}>
+                    <span>Other</span>
+                    <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.other_earnings)}</span>
+                  </div>
+                ) : null}
+              </div>
+              <div className={`${styles.summaryBox} ${styles.summaryBoxSecondary}`}>
+                <div className={styles.summaryRow}>
+                  <span>Total Gross</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalGross)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Total Net</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalNet)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Driver Cut (Payout)</span>
+                  <span className={`${styles.mono} ${styles.positive}`}>{formatCurrencyEUR(driverTotals.totalPayout)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>FSS/Tax</span>
+                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalTax)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div className={styles.panelTitle}>{selectedDriverId === 'all' ? 'Top Drivers' : 'Driver Summary'}</div>
+                <div className={styles.panelSubtitle}>{selectedDriverId === 'all' ? 'Ranked by total gross' : 'Selected period details'}</div>
+              </div>
+
+              {selectedDriverId === 'all' ? (
+                <div className={styles.summaryBox}>
+                  {driverRankings.slice(0, 10).map((r) => (
+                    <div key={r.driver_id} className={styles.summaryRow}>
+                      <span>{r.driver_name}</span>
+                      <span className={styles.mono}>{formatCurrencyEUR(r.gross)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className={styles.highlights}>
+                    <div className={styles.highlightCard}>
+                      <div className={styles.highlightLabel}>Best Period</div>
+                      <div className={styles.highlightValue}>
+                        {driverTotals.best ? formatCurrencyEUR(driverTotals.best.total_payout) : '—'}
+                      </div>
+                      <div className={styles.highlightMeta}>{driverTotals.best ? driverTotals.best.label : ''}</div>
+                    </div>
+                    <div className={styles.highlightCard}>
+                      <div className={styles.highlightLabel}>Worst Period</div>
+                      <div className={`${styles.highlightValue} ${styles.negative}`}>
+                        {driverTotals.worst ? formatCurrencyEUR(driverTotals.worst.total_payout) : '—'}
+                      </div>
+                      <div className={styles.highlightMeta}>{driverTotals.worst ? driverTotals.worst.label : ''}</div>
+                    </div>
+                  </div>
+                  <div className={styles.summaryBox}>
+                    <div className={styles.summaryRow}>
+                      <span>Selected period</span>
+                      <span className={styles.mono}>{selectedDriverPeriod ? selectedDriverPeriod.label : '—'}</span>
+                    </div>
+                    <div className={styles.summaryRow}>
+                      <span>Gross</span>
+                      <span className={styles.mono}>{selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_gross) : '—'}</span>
+                    </div>
+                    <div className={styles.summaryRow}>
+                      <span>Payout</span>
+                      <span className={`${styles.mono} ${selectedDriverPeriod && selectedDriverPeriod.total_payout < 0 ? styles.negative : styles.positive}`}>
+                        {selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_payout) : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.summaryRow}>
+                      <span>FSS/Tax</span>
+                      <span className={styles.mono}>{selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_fss_tax) : '—'}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Charts (secondary) */}
           <div className={styles.grid2}>
             <div className={styles.panel}>
               <div className={styles.panelHeader}>
@@ -1374,7 +1662,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 <div className={styles.panelSubtitle}>Trend across {groupBy} periods</div>
               </div>
               <div className={styles.chartWrap}>
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={driverChartData} margin={{ top: 10, right: 18, bottom: 0, left: 0 }}>
                     <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
                     <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} interval="preserveStartEnd" />
@@ -1399,44 +1687,11 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
 
             <div className={styles.panel}>
               <div className={styles.panelHeader}>
-                <div className={styles.panelTitle}>Payout Margin</div>
-                <div className={styles.panelSubtitle}>Payout vs gross</div>
-              </div>
-              <div className={styles.chartWrap}>
-                <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={driverChartData} margin={{ top: 10, right: 18, bottom: 0, left: 0 }}>
-                    <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} interval="preserveStartEnd" />
-                    <YAxis
-                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                      tickFormatter={(v) => `${Math.round(v * 100)}%`}
-                      domain={['auto', 'auto']}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 12,
-                        boxShadow: 'var(--shadow-md)',
-                      }}
-                      formatter={(value: unknown) => `${(Number(value) * 100).toFixed(1)}%`}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="payout_margin" name="Margin" stroke="var(--color-warning)" strokeWidth={2.4} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.grid2}>
-            <div className={styles.panel}>
-              <div className={styles.panelHeader}>
                 <div className={styles.panelTitle}>Gross Breakdown (Stacked)</div>
                 <div className={styles.panelSubtitle}>Uber / Bolt / eCabs / Other</div>
               </div>
               <div className={styles.chartWrap}>
-                <ResponsiveContainer width="100%" height={340}>
+                <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={driverChartData} margin={{ top: 10, right: 18, bottom: 0, left: 0 }}>
                     <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
                     <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} interval="preserveStartEnd" />
@@ -1459,61 +1714,16 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 </ResponsiveContainer>
               </div>
             </div>
-
-            <div className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div className={styles.panelTitle}>Highlights</div>
-                <div className={styles.panelSubtitle}>Best / worst payout</div>
-              </div>
-
-              <div className={styles.highlights}>
-                <div className={styles.highlightCard}>
-                  <div className={styles.highlightLabel}>Best Period</div>
-                  <div className={styles.highlightValue}>
-                    {driverTotals.best ? formatCurrencyEUR(driverTotals.best.total_payout) : '—'}
-                  </div>
-                  <div className={styles.highlightMeta}>{driverTotals.best ? driverTotals.best.label : ''}</div>
-                </div>
-                <div className={styles.highlightCard}>
-                  <div className={styles.highlightLabel}>Worst Period</div>
-                  <div className={`${styles.highlightValue} ${styles.negative}`}>
-                    {driverTotals.worst ? formatCurrencyEUR(driverTotals.worst.total_payout) : '—'}
-                  </div>
-                  <div className={styles.highlightMeta}>{driverTotals.worst ? driverTotals.worst.label : ''}</div>
-                </div>
-              </div>
-
-              <div className={styles.summaryBox}>
-                <div className={styles.summaryRow}>
-                  <span>Selected period</span>
-                  <span className={styles.mono}>{selectedDriverPeriod ? selectedDriverPeriod.label : '—'}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Gross</span>
-                  <span className={styles.mono}>{selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_gross) : '—'}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Payout</span>
-                  <span className={`${styles.mono} ${selectedDriverPeriod && selectedDriverPeriod.total_payout < 0 ? styles.negative : styles.positive}`}>
-                    {selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_payout) : '—'}
-                  </span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>FSS/Tax</span>
-                  <span className={styles.mono}>{selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_fss_tax) : '—'}</span>
-                </div>
-              </div>
-            </div>
           </div>
 
-          <div className={styles.grid3}>
+          <div className={styles.grid2}>
             <div className={styles.panel}>
               <div className={styles.panelHeader}>
                 <div className={styles.panelTitle}>Gross Mix</div>
                 <div className={styles.panelSubtitle}>Contribution by platform</div>
               </div>
               <div className={styles.chartWrap}>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Tooltip
                       contentStyle={{
@@ -1525,7 +1735,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                       formatter={(value: unknown) => formatCurrencyEUR(Number(value))}
                     />
                     <Legend />
-                    <Pie data={driverIncomePie} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={2}>
+                    <Pie data={driverIncomePie} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={2}>
                       {driverIncomePie.map((_, idx) => (
                         <Cell key={idx} fill={palette.income[idx % palette.income.length]} />
                       ))}
@@ -1537,48 +1747,32 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
 
             <div className={styles.panel}>
               <div className={styles.panelHeader}>
-                <div className={styles.panelTitle}>Top Drivers</div>
-                <div className={styles.panelSubtitle}>Ranked by total payout</div>
+                <div className={styles.panelTitle}>Payout Margin</div>
+                <div className={styles.panelSubtitle}>Payout vs gross</div>
               </div>
-              <div className={styles.summaryBox}>
-                {(selectedDriverId === 'all' ? driverRankings.slice(0, 8) : []).map((r) => (
-                  <div key={r.driver_id} className={styles.summaryRow}>
-                    <span>{r.driver_name}</span>
-                    <span className={styles.mono}>{formatCurrencyEUR(r.payout)}</span>
-                  </div>
-                ))}
-                {selectedDriverId !== 'all' ? (
-                  <div className={styles.summaryRow}>
-                    <span>Viewing</span>
-                    <span className={styles.mono}>{drivers.find((d) => d.id === selectedDriverId)?.full_name ?? 'Selected driver'}</span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div className={styles.panelTitle}>Totals</div>
-                <div className={styles.panelSubtitle}>Quick rollup</div>
-              </div>
-
-              <div className={styles.summaryBox}>
-                <div className={styles.summaryRow}>
-                  <span>Gross</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalGross)}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Net</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalNet)}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Payout</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalPayout)}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>FSS/Tax</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.totalTax)}</span>
-                </div>
+              <div className={styles.chartWrap}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={driverChartData} margin={{ top: 10, right: 18, bottom: 0, left: 0 }}>
+                    <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} interval="preserveStartEnd" />
+                    <YAxis
+                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                      tickFormatter={(v) => `${Math.round(v * 100)}%`}
+                      domain={['auto', 'auto']}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 12,
+                        boxShadow: 'var(--shadow-md)',
+                      }}
+                      formatter={(value: unknown) => `${(Number(value) * 100).toFixed(1)}%`}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="payout_margin" name="Margin" stroke="var(--color-warning)" strokeWidth={2.4} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>

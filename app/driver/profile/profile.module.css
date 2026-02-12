@@ -319,6 +319,28 @@
   font-style: italic;
 }
 
+/* Legacy Files */
+.legacyFiles {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.legacyLabel {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.legacyLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* Vehicle Card */
 .vehicleInfo {
   display: flex;

@@ -143,11 +143,17 @@ export default async function DriverProfilePage() {
   };
 
   const documentTypes = [
-    { key: 'ID_CARD', label: 'ID Card', expiry: driverData.id_card_expiry_date },
-    { key: 'DRIVING_LICENSE', label: 'Driving License', expiry: driverData.driving_license_expiry_date },
+    { key: 'ID_CARD_FRONT', label: 'ID Card (Front)', expiry: driverData.id_card_expiry_date },
+    { key: 'ID_CARD_BACK', label: 'ID Card (Back)', expiry: null },
+    { key: 'DRIVING_LICENSE_FRONT', label: 'Driving License (Front)', expiry: driverData.driving_license_expiry_date },
+    { key: 'DRIVING_LICENSE_BACK', label: 'Driving License (Back)', expiry: null },
     { key: 'POLICE_CONDUCT', label: 'Police Conduct', expiry: driverData.police_conduct_expiry_date },
     { key: 'TAG_LICENSE', label: 'TAG License', expiry: driverData.tag_license_expiry_date },
   ];
+
+  // Legacy documents uploaded under old types (before front/back split)
+  const legacyIdCards = getDocumentsByType('ID_CARD');
+  const legacyLicenses = getDocumentsByType('DRIVING_LICENSE');
 
   return (
     <DashboardLayout user={user} variant="driver" title="My Profile">
@@ -319,6 +325,31 @@ export default async function DriverProfilePage() {
                 </div>
               </div>
             </div>
+
+            {/* Legacy uploads (files uploaded under old types before front/back was available) */}
+            {(legacyIdCards.length > 0 || legacyLicenses.length > 0) && (
+              <div className={styles.legacyFiles}>
+                <span className={styles.legacyLabel}>Older uploads (before front/back split):</span>
+                <div className={styles.legacyLinks}>
+                  {legacyIdCards.map((f: FileRecord) => (
+                    <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className={styles.attachmentLink}>
+                      <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                      ID Card — {f.file_name || 'View'}
+                    </a>
+                  ))}
+                  {legacyLicenses.map((f: FileRecord) => (
+                    <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className={styles.attachmentLink}>
+                      <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                      License — {f.file_name || 'View'}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
