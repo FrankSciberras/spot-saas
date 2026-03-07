@@ -228,6 +228,57 @@
   letter-spacing: 0.08em;
 }
 
+.kpiLabelWithTip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+}
+
+.tipIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--border-color);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.tipIcon:hover + .tipText,
+.tipText:hover {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tipText {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+  pointer-events: auto;
+}
+
 .kpiValue {
   font-size: 1.6rem;
   font-weight: 800;

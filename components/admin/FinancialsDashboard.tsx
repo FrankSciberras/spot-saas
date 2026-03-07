@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Driver, DriverSettlement, SettlementPlatform, WeeklyBookkeeping } from '@/lib/types/database';
+import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, WeeklyBookkeeping } from '@/lib/types/database';
 import DatePicker from '@/components/shared/DatePicker';
 import styles from './FinancialsDashboard.module.css';
 import {
@@ -203,6 +203,16 @@ function toCsv(rows: Array<Record<string, string | number>>): string {
   return lines.join('\n');
 }
 
+function signedAdjustmentAmount(type: DriverAdjustment['type'], amount: number): number {
+  if (type === 'expense' || type === 'deduction') return -amount;
+  if (type === 'bonus' || type === 'reimbursement') return amount;
+  return 0;
+}
+
+function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
+  return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, Number(adj.amount) || 0), 0);
+}
+
 export default function FinancialsDashboard({ entries, drivers, settlements }: FinancialsDashboardProps) {
   const [mode, setMode] = useState<DashboardMode>('fleet');
 
@@ -260,6 +270,37 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     setStartDate(activeRange.start);
     setEndDate(activeRange.end);
   }, [activeRange.end, activeRange.start, mode]);
+
+  const [adjustmentsByDriver, setAdjustmentsByDriver] = useState<Record<string, DriverAdjustment[]>>({});
+
+  useEffect(() => {
+    if (mode !== 'drivers') return;
+    let cancelled = false;
+
+    async function fetchAdjustments() {
+      try {
+        const params = new URLSearchParams();
+        params.set('from_date', startDate);
+        params.set('to_date', endDate);
+        if (selectedDriverId !== 'all') params.set('driver_id', selectedDriverId);
+        const res = await fetch(`/api/adjustments?${params.toString()}`);
+        const json = await res.json();
+        if (!res.ok || cancelled) return;
+        const adjustments: DriverAdjustment[] = Array.isArray(json.data) ? json.data : [];
+        const grouped: Record<string, DriverAdjustment[]> = {};
+        for (const adj of adjustments) {
+          if (!grouped[adj.driver_id]) grouped[adj.driver_id] = [];
+          grouped[adj.driver_id].push(adj);
+        }
+        if (!cancelled) setAdjustmentsByDriver(grouped);
+      } catch {
+        if (!cancelled) setAdjustmentsByDriver({});
+      }
+    }
+
+    fetchAdjustments();
+    return () => { cancelled = true; };
+  }, [mode, startDate, endDate, selectedDriverId]);
 
   const filteredEntries = useMemo(() => {
     if (groupBy === 'all_time') return sortedEntries;
@@ -648,6 +689,12 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     const paidCount = filteredSettlements.length - unpaidCount;
     const paidPayout = filteredSettlements.reduce((acc, s) => acc + (s.final_balance || 0), 0) - unpaidPayout;
 
+    const totalAdjustmentsNet = Object.values(adjustmentsByDriver).reduce(
+      (acc, adjs) => acc + calculateAdjustmentsNet(adjs), 0
+    );
+
+    const totalPayable = Math.round((unpaidPayout + totalAdjustmentsNet) * 100) / 100;
+
     return {
       unpaidCount,
       unpaidPayout: Math.round(unpaidPayout * 100) / 100,
@@ -655,12 +702,59 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
       unpaidIncome,
       paidCount,
       paidPayout: Math.round(paidPayout * 100) / 100,
+      totalAdjustmentsNet: Math.round(totalAdjustmentsNet * 100) / 100,
+      totalPayable,
     };
-  }, [filteredSettlements]);
+  }, [adjustmentsByDriver, filteredSettlements]);
+
+  const perDriverUnpaid = useMemo(() => {
+    const unpaid = filteredSettlements.filter((s) => !s.paid_at);
+    const map = new Map<string, { driver_id: string; driver_name: string; unpaidPayout: number; unpaidCount: number; adjustmentsNet: number; totalPayable: number }>();
+
+    for (const s of unpaid) {
+      const name = s.drivers?.full_name || drivers.find((d) => d.id === s.driver_id)?.full_name || 'Unknown Driver';
+      const existing = map.get(s.driver_id);
+      map.set(s.driver_id, {
+        driver_id: s.driver_id,
+        driver_name: name,
+        unpaidPayout: (existing?.unpaidPayout || 0) + (s.final_balance || 0),
+        unpaidCount: (existing?.unpaidCount || 0) + 1,
+        adjustmentsNet: 0,
+        totalPayable: 0,
+      });
+    }
+
+    for (const [driverId, adjs] of Object.entries(adjustmentsByDriver)) {
+      const net = calculateAdjustmentsNet(adjs);
+      const existing = map.get(driverId);
+      if (existing) {
+        existing.adjustmentsNet = net;
+      } else {
+        const name = drivers.find((d) => d.id === driverId)?.full_name || 'Unknown Driver';
+        map.set(driverId, {
+          driver_id: driverId,
+          driver_name: name,
+          unpaidPayout: 0,
+          unpaidCount: 0,
+          adjustmentsNet: net,
+          totalPayable: 0,
+        });
+      }
+    }
+
+    const rows = Array.from(map.values()).map((r) => ({
+      ...r,
+      unpaidPayout: Math.round(r.unpaidPayout * 100) / 100,
+      adjustmentsNet: Math.round(r.adjustmentsNet * 100) / 100,
+      totalPayable: Math.round((r.unpaidPayout + r.adjustmentsNet) * 100) / 100,
+    }));
+    rows.sort((a, b) => b.totalPayable - a.totalPayable);
+    return rows;
+  }, [adjustmentsByDriver, drivers, filteredSettlements]);
 
   const driverRankings = useMemo(() => {
-    if (selectedDriverId !== 'all') return [] as Array<{ driver_id: string; driver_name: string; payout: number; net: number; gross: number; settlements: number }>;
-    const map = new Map<string, { driver_id: string; driver_name: string; payout: number; net: number; gross: number; settlements: number }>();
+    if (selectedDriverId !== 'all') return [] as Array<{ driver_id: string; driver_name: string; payout: number; net: number; gross: number; settlements: number; adjustmentsNet: number }>;
+    const map = new Map<string, { driver_id: string; driver_name: string; payout: number; net: number; gross: number; settlements: number; adjustmentsNet: number }>();
 
     for (const s of filteredSettlements) {
       const name = s.drivers?.full_name || drivers.find((d) => d.id === s.driver_id)?.full_name || 'Unknown Driver';
@@ -672,14 +766,23 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
         net: (existing?.net || 0) + (s.total_net || 0),
         gross: (existing?.gross || 0) + (s.total_gross_fare || 0),
         settlements: (existing?.settlements || 0) + 1,
+        adjustmentsNet: 0,
       };
       map.set(s.driver_id, next);
+    }
+
+    for (const [driverId, adjs] of Object.entries(adjustmentsByDriver)) {
+      const net = calculateAdjustmentsNet(adjs);
+      const existing = map.get(driverId);
+      if (existing) {
+        existing.adjustmentsNet = Math.round(net * 100) / 100;
+      }
     }
 
     const rows = Array.from(map.values());
     rows.sort((a, b) => b.gross - a.gross);
     return rows;
-  }, [drivers, filteredSettlements, selectedDriverId]);
+  }, [adjustmentsByDriver, drivers, filteredSettlements, selectedDriverId]);
 
   const deltas = useMemo(() => {
     if (aggregated.length < 2) {
@@ -1463,11 +1566,24 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
           {/* Primary KPIs */}
           <div className={styles.kpiGrid6}>
             <div className={`${styles.kpiCard} ${styles.kpiCardAlert}`}>
-              <div className={styles.kpiLabel}>Unpaid Settlements</div>
+              <div className={styles.kpiLabel}>
+                <span className={styles.kpiLabelWithTip}>
+                  Unpaid Settlements
+                  <span className={styles.tipIcon}>?</span>
+                  <span className={styles.tipText}>This is excluding adjustments</span>
+                </span>
+              </div>
               <div className={`${styles.kpiValue} ${unpaidTotals.unpaidPayout > 0 ? styles.negative : ''}`}>
                 {formatCurrencyEUR(unpaidTotals.unpaidPayout)}
               </div>
               <div className={styles.kpiMeta}>{unpaidTotals.unpaidCount} settlement{unpaidTotals.unpaidCount !== 1 ? 's' : ''} pending</div>
+            </div>
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiLabel}>Adjustments</div>
+              <div className={`${styles.kpiValue} ${unpaidTotals.totalAdjustmentsNet >= 0 ? styles.positive : styles.negative}`}>
+                {unpaidTotals.totalAdjustmentsNet >= 0 ? '+' : ''}{formatCurrencyEUR(unpaidTotals.totalAdjustmentsNet)}
+              </div>
+              <div className={styles.kpiMeta}>Bonuses, deductions, expenses</div>
             </div>
             <div className={styles.kpiCard}>
               <div className={styles.kpiLabel}>Total Gross</div>
@@ -1648,11 +1764,66 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                       <span>FSS/Tax</span>
                       <span className={styles.mono}>{selectedDriverPeriod ? formatCurrencyEUR(selectedDriverPeriod.total_fss_tax) : '—'}</span>
                     </div>
+                    {perDriverUnpaid.length > 0 ? (
+                      <>
+                        <div className={styles.summaryRow} style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8, marginTop: 4 }}>
+                          <span>Unpaid Settlements</span>
+                          <span className={`${styles.mono} ${styles.negative}`}>{formatCurrencyEUR(perDriverUnpaid[0]?.unpaidPayout || 0)}</span>
+                        </div>
+                        <div className={styles.summaryRow}>
+                          <span>Adjustments</span>
+                          <span className={`${styles.mono} ${(perDriverUnpaid[0]?.adjustmentsNet || 0) >= 0 ? styles.positive : styles.negative}`}>
+                            {(perDriverUnpaid[0]?.adjustmentsNet || 0) >= 0 ? '+' : ''}{formatCurrencyEUR(perDriverUnpaid[0]?.adjustmentsNet || 0)}
+                          </span>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 </>
               )}
             </div>
           </div>
+
+          {/* Per-driver payable breakdown */}
+          {perDriverUnpaid.length > 0 && selectedDriverId === 'all' ? (
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div className={styles.panelTitle}>Per-Driver Overview</div>
+                <div className={styles.panelSubtitle}>Unpaid settlements &amp; adjustments per driver</div>
+              </div>
+              <div className={styles.journalTableWrap}>
+                <table className={styles.journalTable}>
+                  <thead>
+                    <tr>
+                      <th>Driver</th>
+                      <th className={styles.right}>Unpaid Settlements</th>
+                      <th className={styles.right}>Adjustments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perDriverUnpaid.map((r) => (
+                      <tr key={r.driver_id}>
+                        <td>{r.driver_name}</td>
+                        <td className={`${styles.right} ${styles.mono}`}>{formatCurrencyEUR(r.unpaidPayout)}</td>
+                        <td className={`${styles.right} ${styles.mono} ${r.adjustmentsNet >= 0 ? styles.positive : styles.negative}`}>
+                          {r.adjustmentsNet >= 0 ? '+' : ''}{formatCurrencyEUR(r.adjustmentsNet)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border-color)' }}>
+                      <td>Total</td>
+                      <td className={`${styles.right} ${styles.mono}`}>{formatCurrencyEUR(unpaidTotals.unpaidPayout)}</td>
+                      <td className={`${styles.right} ${styles.mono} ${unpaidTotals.totalAdjustmentsNet >= 0 ? styles.positive : styles.negative}`}>
+                        {unpaidTotals.totalAdjustmentsNet >= 0 ? '+' : ''}{formatCurrencyEUR(unpaidTotals.totalAdjustmentsNet)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          ) : null}
 
           {/* Charts (secondary) */}
           <div className={styles.grid2}>
