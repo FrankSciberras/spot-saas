@@ -46,10 +46,13 @@ function compareVersions(current: string, latest: string): boolean {
 
 export async function GET(request: Request) {
   try {
+    console.log('[cron/check-updates] Cron triggered at', new Date().toISOString());
+
     // Verify cron secret (Vercel sends this header for cron jobs)
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      console.log('[cron/check-updates] Unauthorized - CRON_SECRET mismatch');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -62,8 +65,11 @@ export async function GET(request: Request) {
       .single();
 
     if (!setting || setting.value !== true) {
+      console.log('[cron/check-updates] Feature disabled or app_settings query failed. setting:', JSON.stringify(setting));
       return NextResponse.json({ message: 'Package update check is disabled' });
     }
+
+    console.log('[cron/check-updates] Feature is enabled, checking packages...');
 
     // Read package.json
     const packageJsonPath = path.join(process.cwd(), 'package.json');
@@ -110,16 +116,19 @@ export async function GET(request: Request) {
     }
 
     if (outdated.length === 0) {
+      console.log(`[cron/check-updates] All ${allDeps.length} packages are up to date, no email needed`);
       return NextResponse.json({
         message: 'All packages are up to date',
         checked: allDeps.length,
       });
     }
 
+    console.log(`[cron/check-updates] Found ${outdated.length} outdated package(s), preparing email...`);
+
     // Send email via Resend
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-      console.warn('RESEND_API_KEY not configured, skipping email');
+      console.warn('[cron/check-updates] RESEND_API_KEY not configured, skipping email');
       return NextResponse.json({
         message: 'Updates found but email not configured',
         outdated,
@@ -206,19 +215,20 @@ export async function GET(request: Request) {
     });
 
     if (emailError) {
-      console.error('Failed to send update email:', emailError);
+      console.error('[cron/check-updates] Failed to send update email:', emailError);
       return NextResponse.json(
         { message: 'Updates found but email failed', outdated, error: emailError },
         { status: 500 }
       );
     }
 
+    console.log(`[cron/check-updates] Email sent successfully with ${outdated.length} update(s)`);
     return NextResponse.json({
       message: `Email sent with ${outdated.length} package update(s)`,
       outdated,
     });
   } catch (error) {
-    console.error('Cron check-updates error:', error);
+    console.error('[cron/check-updates] Cron error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

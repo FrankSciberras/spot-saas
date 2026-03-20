@@ -21,6 +21,10 @@ export const ZONE_LABELS: Record<DamageZone, string> = {
   rear_window: 'Rear Window',
   left_side: 'Left Side',
   right_side: 'Right Side',
+  front_left_rim: 'Front Left Rim',
+  front_right_rim: 'Front Right Rim',
+  rear_left_rim: 'Rear Left Rim',
+  rear_right_rim: 'Rear Right Rim',
 };
 
 interface ZoneDamageInfo {
@@ -294,11 +298,47 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
             x={132} y={215} width={20} height={85} rx={3}
           />
 
-          {/* Wheels - larger crossover wheels */}
-          <rect x={38} y={100} width={14} height={34} rx={5} fill="var(--text-secondary, #64748b)" opacity={0.35} />
-          <rect x={148} y={100} width={14} height={34} rx={5} fill="var(--text-secondary, #64748b)" opacity={0.35} />
-          <rect x={38} y={295} width={14} height={34} rx={5} fill="var(--text-secondary, #64748b)" opacity={0.35} />
-          <rect x={148} y={295} width={14} height={34} rx={5} fill="var(--text-secondary, #64748b)" opacity={0.35} />
+          {/* Wheels / Rims - clickable zones */}
+          <rect data-zone="front_left_rim" x={38} y={100} width={14} height={34} rx={5}
+            fill={zoneDamages.front_left_rim ? getSeverityColor(zoneDamages.front_left_rim.maxSeverity) : (hoveredZone === 'front_left_rim' ? 'rgba(99,102,241,0.25)' : 'var(--text-secondary, #64748b)')}
+            opacity={zoneDamages.front_left_rim || hoveredZone === 'front_left_rim' || selectedZone === 'front_left_rim' ? 1 : 0.35}
+            stroke={selectedZone === 'front_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.front_left_rim ? getSeverityStroke(zoneDamages.front_left_rim.maxSeverity) : 'none')}
+            strokeWidth={selectedZone === 'front_left_rim' || hoveredZone === 'front_left_rim' ? 2.5 : 1.5}
+            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            onClick={() => onZoneClick('front_left_rim')}
+            onMouseEnter={() => onZoneHover('front_left_rim')}
+            onMouseLeave={() => onZoneHover(null)}
+          />
+          <rect data-zone="front_right_rim" x={148} y={100} width={14} height={34} rx={5}
+            fill={zoneDamages.front_right_rim ? getSeverityColor(zoneDamages.front_right_rim.maxSeverity) : (hoveredZone === 'front_right_rim' ? 'rgba(99,102,241,0.25)' : 'var(--text-secondary, #64748b)')}
+            opacity={zoneDamages.front_right_rim || hoveredZone === 'front_right_rim' || selectedZone === 'front_right_rim' ? 1 : 0.35}
+            stroke={selectedZone === 'front_right_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.front_right_rim ? getSeverityStroke(zoneDamages.front_right_rim.maxSeverity) : 'none')}
+            strokeWidth={selectedZone === 'front_right_rim' || hoveredZone === 'front_right_rim' ? 2.5 : 1.5}
+            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            onClick={() => onZoneClick('front_right_rim')}
+            onMouseEnter={() => onZoneHover('front_right_rim')}
+            onMouseLeave={() => onZoneHover(null)}
+          />
+          <rect data-zone="rear_left_rim" x={38} y={295} width={14} height={34} rx={5}
+            fill={zoneDamages.rear_left_rim ? getSeverityColor(zoneDamages.rear_left_rim.maxSeverity) : (hoveredZone === 'rear_left_rim' ? 'rgba(99,102,241,0.25)' : 'var(--text-secondary, #64748b)')}
+            opacity={zoneDamages.rear_left_rim || hoveredZone === 'rear_left_rim' || selectedZone === 'rear_left_rim' ? 1 : 0.35}
+            stroke={selectedZone === 'rear_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.rear_left_rim ? getSeverityStroke(zoneDamages.rear_left_rim.maxSeverity) : 'none')}
+            strokeWidth={selectedZone === 'rear_left_rim' || hoveredZone === 'rear_left_rim' ? 2.5 : 1.5}
+            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            onClick={() => onZoneClick('rear_left_rim')}
+            onMouseEnter={() => onZoneHover('rear_left_rim')}
+            onMouseLeave={() => onZoneHover(null)}
+          />
+          <rect data-zone="rear_right_rim" x={148} y={295} width={14} height={34} rx={5}
+            fill={zoneDamages.rear_right_rim ? getSeverityColor(zoneDamages.rear_right_rim.maxSeverity) : (hoveredZone === 'rear_right_rim' ? 'rgba(99,102,241,0.25)' : 'var(--text-secondary, #64748b)')}
+            opacity={zoneDamages.rear_right_rim || hoveredZone === 'rear_right_rim' || selectedZone === 'rear_right_rim' ? 1 : 0.35}
+            stroke={selectedZone === 'rear_right_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.rear_right_rim ? getSeverityStroke(zoneDamages.rear_right_rim.maxSeverity) : 'none')}
+            strokeWidth={selectedZone === 'rear_right_rim' || hoveredZone === 'rear_right_rim' ? 2.5 : 1.5}
+            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            onClick={() => onZoneClick('rear_right_rim')}
+            onMouseEnter={() => onZoneHover('rear_right_rim')}
+            onMouseLeave={() => onZoneHover(null)}
+          />
 
           {/* Side mirrors - high-mounted */}
           <ellipse cx={40} cy={120} rx={6} ry={8} fill="var(--text-secondary, #64748b)" opacity={0.2} />
@@ -334,6 +374,10 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
           {zoneDamages.front_right_fender && <DamageIndicator x={152} y={78} count={zoneDamages.front_right_fender.count} severity={zoneDamages.front_right_fender.maxSeverity} />}
           {zoneDamages.rear_left_fender && <DamageIndicator x={48} y={348} count={zoneDamages.rear_left_fender.count} severity={zoneDamages.rear_left_fender.maxSeverity} />}
           {zoneDamages.rear_right_fender && <DamageIndicator x={152} y={348} count={zoneDamages.rear_right_fender.count} severity={zoneDamages.rear_right_fender.maxSeverity} />}
+          {zoneDamages.front_left_rim && <DamageIndicator x={45} y={117} count={zoneDamages.front_left_rim.count} severity={zoneDamages.front_left_rim.maxSeverity} />}
+          {zoneDamages.front_right_rim && <DamageIndicator x={155} y={117} count={zoneDamages.front_right_rim.count} severity={zoneDamages.front_right_rim.maxSeverity} />}
+          {zoneDamages.rear_left_rim && <DamageIndicator x={45} y={312} count={zoneDamages.rear_left_rim.count} severity={zoneDamages.rear_left_rim.maxSeverity} />}
+          {zoneDamages.rear_right_rim && <DamageIndicator x={155} y={312} count={zoneDamages.rear_right_rim.count} severity={zoneDamages.rear_right_rim.maxSeverity} />}
         </svg>
       </div>
 
@@ -478,23 +522,41 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
                L 406,108 L 408,118 L 408,140 L 360,140 L 330,140 Z"
           />
 
-          {/* Wheels - larger crossover alloys */}
-          <circle cx={115} cy={140} r={26} fill="var(--bg-secondary, #f1f5f9)" stroke="var(--text-secondary, #64748b)" strokeWidth="2" />
-          <circle cx={115} cy={140} r={18} fill="var(--bg-card, #fff)" stroke="var(--text-secondary, #64748b)" strokeWidth="1.2" />
+          {/* Wheels / Rims - clickable zones (side view) */}
+          {/* Front left rim */}
+          <circle cx={115} cy={140} r={26}
+            fill={zoneDamages.front_left_rim ? getSeverityColor(zoneDamages.front_left_rim.maxSeverity) : (hoveredZone === 'front_left_rim' ? 'rgba(99,102,241,0.15)' : 'var(--bg-secondary, #f1f5f9)')}
+            stroke={selectedZone === 'front_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.front_left_rim ? getSeverityStroke(zoneDamages.front_left_rim.maxSeverity) : 'var(--text-secondary, #64748b)')}
+            strokeWidth={selectedZone === 'front_left_rim' || hoveredZone === 'front_left_rim' ? 2.5 : 2}
+            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            onClick={() => onZoneClick('front_left_rim')}
+            onMouseEnter={() => onZoneHover('front_left_rim')}
+            onMouseLeave={() => onZoneHover(null)}
+          />
+          <circle cx={115} cy={140} r={18} fill="var(--bg-card, #fff)" stroke="var(--text-secondary, #64748b)" strokeWidth="1.2" style={{ pointerEvents: 'none' }} />
           {/* Alloy spokes */}
-          <line x1={115} y1={124} x2={115} y2={156} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <line x1={99} y1={140} x2={131} y2={140} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <line x1={104} y1={129} x2={126} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <line x1={126} y1={129} x2={104} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <circle cx={115} cy={140} r={4} fill="var(--text-secondary, #64748b)" />
+          <line x1={115} y1={124} x2={115} y2={156} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <line x1={99} y1={140} x2={131} y2={140} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <line x1={104} y1={129} x2={126} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <line x1={126} y1={129} x2={104} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <circle cx={115} cy={140} r={4} fill="var(--text-secondary, #64748b)" style={{ pointerEvents: 'none' }} />
 
-          <circle cx={325} cy={140} r={26} fill="var(--bg-secondary, #f1f5f9)" stroke="var(--text-secondary, #64748b)" strokeWidth="2" />
-          <circle cx={325} cy={140} r={18} fill="var(--bg-card, #fff)" stroke="var(--text-secondary, #64748b)" strokeWidth="1.2" />
-          <line x1={325} y1={124} x2={325} y2={156} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <line x1={309} y1={140} x2={341} y2={140} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <line x1={314} y1={129} x2={336} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <line x1={336} y1={129} x2={314} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} />
-          <circle cx={325} cy={140} r={4} fill="var(--text-secondary, #64748b)" />
+          {/* Rear left rim */}
+          <circle cx={325} cy={140} r={26}
+            fill={zoneDamages.rear_left_rim ? getSeverityColor(zoneDamages.rear_left_rim.maxSeverity) : (hoveredZone === 'rear_left_rim' ? 'rgba(99,102,241,0.15)' : 'var(--bg-secondary, #f1f5f9)')}
+            stroke={selectedZone === 'rear_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.rear_left_rim ? getSeverityStroke(zoneDamages.rear_left_rim.maxSeverity) : 'var(--text-secondary, #64748b)')}
+            strokeWidth={selectedZone === 'rear_left_rim' || hoveredZone === 'rear_left_rim' ? 2.5 : 2}
+            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            onClick={() => onZoneClick('rear_left_rim')}
+            onMouseEnter={() => onZoneHover('rear_left_rim')}
+            onMouseLeave={() => onZoneHover(null)}
+          />
+          <circle cx={325} cy={140} r={18} fill="var(--bg-card, #fff)" stroke="var(--text-secondary, #64748b)" strokeWidth="1.2" style={{ pointerEvents: 'none' }} />
+          <line x1={325} y1={124} x2={325} y2={156} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <line x1={309} y1={140} x2={341} y2={140} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <line x1={314} y1={129} x2={336} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <line x1={336} y1={129} x2={314} y2={151} stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} opacity={0.25} style={{ pointerEvents: 'none' }} />
+          <circle cx={325} cy={140} r={4} fill="var(--text-secondary, #64748b)" style={{ pointerEvents: 'none' }} />
 
           {/* Angular LED headlight */}
           <path d="M 30,104 L 42,98 L 42,112 L 30,116 Z" fill="rgba(253, 224, 71, 0.4)" stroke="var(--text-secondary, #64748b)" strokeWidth={0.8} />
@@ -534,6 +596,8 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
           {zoneDamages.front_left_fender && <DamageIndicator x={140} y={110} count={zoneDamages.front_left_fender.count} severity={zoneDamages.front_left_fender.maxSeverity} />}
           {zoneDamages.rear_left_fender && <DamageIndicator x={375} y={110} count={zoneDamages.rear_left_fender.count} severity={zoneDamages.rear_left_fender.maxSeverity} />}
           {zoneDamages.left_side && <DamageIndicator x={95} y={118} count={zoneDamages.left_side.count} severity={zoneDamages.left_side.maxSeverity} />}
+          {zoneDamages.front_left_rim && <DamageIndicator x={115} y={140} count={zoneDamages.front_left_rim.count} severity={zoneDamages.front_left_rim.maxSeverity} />}
+          {zoneDamages.rear_left_rim && <DamageIndicator x={325} y={140} count={zoneDamages.rear_left_rim.count} severity={zoneDamages.rear_left_rim.maxSeverity} />}
         </svg>
       </div>
 

@@ -603,7 +603,11 @@ export type DamageZone =
   | 'windshield'
   | 'rear_window'
   | 'left_side'
-  | 'right_side';
+  | 'right_side'
+  | 'front_left_rim'
+  | 'front_right_rim'
+  | 'rear_left_rim'
+  | 'rear_right_rim';
 
 export interface VehicleDamage {
   id: string;
