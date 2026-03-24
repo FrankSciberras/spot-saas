@@ -801,7 +801,19 @@ textarea.fieldInput {
   font-size: var(--font-sm);
 }
 
-/* Responsive */
+/* Tablet landscape */
+@media (max-width: 1400px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .shiftRow {
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+/* Tablet portrait */
 @media (max-width: 768px) {
   .header {
     flex-direction: column;

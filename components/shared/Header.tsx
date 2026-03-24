@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/lib/types/database';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import { resetPushPrompt } from './PushNotificationPrompt';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -16,6 +17,7 @@ export default function Header({ user, title }: HeaderProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
+    resetPushPrompt();
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/login');

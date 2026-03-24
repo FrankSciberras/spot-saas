@@ -468,10 +468,18 @@
   gap: var(--spacing-sm);
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
+/* Tablet landscape */
+@media (max-width: 1400px) {
+  .sidebar {
+    width: 220px;
+  }
+
   .inputGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summaryGrid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

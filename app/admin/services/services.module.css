@@ -218,8 +218,8 @@
   margin-bottom: var(--spacing-lg);
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
+/* Tablet landscape */
+@media (max-width: 1400px) {
   .servicesTable {
     overflow-x: auto;
   }

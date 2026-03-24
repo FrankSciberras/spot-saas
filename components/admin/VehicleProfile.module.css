@@ -631,6 +631,18 @@ textarea.fieldInput { resize: vertical; min-height: 72px; }
   font-size: var(--font-sm);
 }
 
+/* Tablet landscape */
+@media (max-width: 1400px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .serviceRow {
+    grid-template-columns: 1fr 1.2fr 0.8fr 0.8fr 0.8fr 0.5fr;
+    gap: 8px;
+  }
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .header {

@@ -30,10 +30,21 @@
   overflow-y: auto;
 }
 
+/* Tablet landscape — sidebar collapses, full width content */
+@media (max-width: 1400px) {
+  .main {
+    margin-left: 0;
+    padding: 12px;
+  }
+
+  .content {
+    padding: 20px 22px 40px;
+  }
+}
+
 /* Tablet & Mobile */
 @media (max-width: 768px) {
   .main {
-    margin-left: 0;
     padding: 0;
     height: 100vh;
     overflow: hidden;

@@ -1,6 +1,7 @@
 import type { SessionUser } from '@/lib/types/database';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import PushNotificationPrompt from './PushNotificationPrompt';
 // TODO: Re-enable onboarding guides in the future
 // import OnboardingGuide from './OnboardingGuide';
 import styles from './DashboardLayout.module.css';
@@ -29,6 +30,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      {user?.role && <PushNotificationPrompt variant={variant} role={user.role} />}
       {/* TODO: Re-enable onboarding guides in the future */}
       {/* {user?.id && <OnboardingGuide userId={user.id} variant={variant} />} */}
     </div>
