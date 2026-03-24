@@ -188,8 +188,8 @@
   z-index: 99;
 }
 
-/* Mobile Styles */
-@media (max-width: 768px) {
+/* Tablet & Mobile — sidebar collapses to hamburger */
+@media (max-width: 1400px) {
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.3s ease;

@@ -275,8 +275,8 @@
   color: var(--color-primary);
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
+/* Tablet landscape */
+@media (max-width: 1400px) {
   .servicesTable {
     overflow-x: auto;
   }

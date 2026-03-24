@@ -61,12 +61,17 @@
   color: var(--text-primary);
 }
 
-/* Tablet */
+/* Tablet landscape */
+@media (max-width: 1400px) {
+  .header { padding: 0 20px; }
+  .greeting { display: none; }
+  .userInfo { padding: 4px 8px 4px 12px; gap: 6px; }
+}
+
+/* Tablet portrait */
 @media (max-width: 768px) {
   .header { padding: 0 16px; height: 56px; min-height: 56px; }
   .title { font-size: var(--font-lg); }
-  .userInfo { padding: 4px 8px 4px 12px; gap: 6px; }
-  .greeting { display: none; }
   .right { gap: 6px; }
 }
 

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import webpush from 'web-push';
 
 // Lazy-initialize web-push VAPID configuration
@@ -45,18 +45,25 @@ export async function sendPushNotification(
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     
-    // Get user's push subscriptions
-    const { data: subscriptions } = await supabase
+    // Get user's push subscriptions (using admin client to bypass RLS)
+    const { data: subscriptions, error: subError } = await supabase
       .from('push_subscriptions')
       .select('*')
       .eq('user_id', userId);
+
+    if (subError) {
+      console.error(`Error fetching push subscriptions for user ${userId}:`, subError);
+      return false;
+    }
 
     if (!subscriptions || subscriptions.length === 0) {
       console.log(`No push subscriptions found for user ${userId}`);
       return false;
     }
+
+    console.log(`Found ${subscriptions.length} push subscription(s) for user ${userId}`);
 
     const notificationPayload = JSON.stringify({
       title: payload.title,
@@ -70,7 +77,7 @@ export async function sendPushNotification(
 
     // Send to all subscriptions for this user
     const results = await Promise.allSettled(
-      subscriptions.map(async (sub) => {
+      subscriptions.map(async (sub: { id: string; endpoint: string; p256dh: string; auth: string }) => {
         const pushSubscription = {
           endpoint: sub.endpoint,
           keys: {
@@ -87,6 +94,7 @@ export async function sendPushNotification(
           if (error && typeof error === 'object' && 'statusCode' in error) {
             const statusCode = (error as { statusCode: number }).statusCode;
             if (statusCode === 404 || statusCode === 410) {
+              console.log(`Removing expired push subscription ${sub.id} (status ${statusCode})`);
               await supabase
                 .from('push_subscriptions')
                 .delete()
@@ -98,7 +106,11 @@ export async function sendPushNotification(
       })
     );
 
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    const successCount = results.filter((r: PromiseSettledResult<boolean>) => r.status === 'fulfilled').length;
+    const failCount = results.length - successCount;
+    if (failCount > 0) {
+      console.warn(`Push notification: ${successCount} sent, ${failCount} failed for user ${userId}`);
+    }
     return successCount > 0;
   } catch (error) {
     console.error('Push notification error:', error);

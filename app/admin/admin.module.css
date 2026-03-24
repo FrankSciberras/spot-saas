@@ -29,7 +29,7 @@
   margin-bottom: 28px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
   }

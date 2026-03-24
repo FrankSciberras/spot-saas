@@ -524,11 +524,7 @@
   color: var(--text-secondary);
 }
 
-@media (max-width: 1100px) {
-  .filtersGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+@media (max-width: 1400px) {
   .kpiGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -537,6 +533,16 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .filtersGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .journalGrid {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
   .grid3 {
     grid-template-columns: 1fr;
   }

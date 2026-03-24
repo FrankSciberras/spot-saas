@@ -680,7 +680,19 @@
   }
 }
 
-/* Responsive */
+/* Tablet landscape */
+@media (max-width: 1400px) {
+  .diagramView {
+    min-width: 200px;
+    max-width: 360px;
+  }
+
+  .statsRow {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+/* Tablet portrait & Mobile */
 @media (max-width: 768px) {
   .diagramContainer {
     flex-direction: column;
