@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle Zone Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16162a;
+    --bg-card: #1e1e36;
+    --bg-input: #252542;
+    --text-primary: #f1f5f9;
+    --text-secondary: #a1a1b5;
+    --text-muted: #64748b;
+    --border-color: #2d2d4a;
+    --border-hover: #4f46e5;
+    --color-primary: #6366f1;
+    --color-primary-hover: #4f46e5;
+    --color-success: #22c55e;
+    --color-success-hover: #16a34a;
+    --color-danger: #ef4444;
+    --color-danger-hover: #dc2626;
+    --color-warning: #f59e0b;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.18);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-secondary); color: var(--text-primary); font-family: 'Figtree', system-ui, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 350px; background: var(--bg-primary); border-right: 1px solid var(--border-color);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.05));
+  }
+  .sidebar-header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .sidebar-header p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ── Model/View bar ── */
+  .model-bar {
+    padding: 12px 16px; border-bottom: 1px solid var(--border-color);
+    display: flex; gap: 8px; background: var(--bg-card);
+  }
+  .model-bar select {
+    flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-input);
+    border: 1px solid var(--border-color); color: var(--text-primary); font-size: 13px;
+    font-family: inherit; cursor: pointer; transition: border-color 0.15s;
+  }
+  .model-bar select:hover { border-color: var(--color-primary); }
+  .model-bar select:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); }
+  .tab {
+    flex: 1; padding: 11px 0; text-align: center; font-size: 13px; font-weight: 600;
+    cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary);
+    transition: all 0.15s; letter-spacing: 0.01em;
+  }
+  .tab:hover { color: var(--text-primary); background: rgba(99,102,241,0.04); }
+  .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; }
+  .tab-content.active { display: flex; flex-direction: column; }
+
+  /* ── Draw controls ── */
+  .draw-controls { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .info-card {
+    padding: 10px 14px; background: var(--bg-card); border-radius: var(--radius-md);
+    border: 1px solid var(--border-color); font-size: 12px; color: var(--text-secondary); line-height: 1.6;
+  }
+  .info-card strong { color: var(--text-primary); }
+  .points-list { flex: 1; overflow-y: auto; padding: 6px 14px; }
+  .point-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    border-radius: var(--radius-sm); color: var(--text-secondary);
+  }
+  .point-item:nth-child(odd) { background: rgba(99,102,241,0.03); }
+  .point-num { color: var(--color-primary); font-weight: 600; width: 28px; }
+
+  /* ── Zone list ── */
+  .zones-list { flex: 1; overflow-y: auto; padding: 10px 12px; }
+  .zone-item {
+    padding: 12px 14px; border-radius: var(--radius-md); margin-bottom: 6px;
+    cursor: pointer; border: 1px solid var(--border-color); transition: all 0.15s;
+    background: var(--bg-card);
+  }
+  .zone-item:hover { border-color: var(--color-primary); transform: translateY(-1px); box-shadow: var(--shadow-card); }
+  .zone-item.has-path { border-color: rgba(34,197,94,0.4); }
+  .zone-item.has-path:hover { border-color: var(--color-success); }
+  .zone-item.selected { border-color: var(--color-primary); background: rgba(99,102,241,0.08); box-shadow: 0 0 0 2px rgba(99,102,241,0.12); }
+  .zone-name { font-size: 13px; font-weight: 600; }
+  .zone-label { font-size: 11px; color: var(--text-muted); margin-top: 1px; font-family: monospace; }
+  .zone-path-preview { font-size: 10px; color: var(--text-muted); margin-top: 5px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
+  .zone-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .zone-badge-done { background: rgba(34,197,94,0.12); color: var(--color-success); }
+  .zone-badge-empty { background: rgba(100,116,139,0.12); color: var(--text-muted); }
+
+  /* ── Export ── */
+  .export-area { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .export-textarea {
+    flex: 1; background: var(--bg-input); border: 1px solid var(--border-color);
+    border-radius: var(--radius-md); color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; padding: 12px; resize: none; line-height: 1.5;
+  }
+  .export-textarea:focus { outline: none; border-color: var(--color-primary); }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 9px 16px; border: none; border-radius: var(--radius-sm); font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex;
+    align-items: center; gap: 6px; justify-content: center; font-family: inherit;
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--color-primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+  .btn-danger { background: var(--color-danger); color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: var(--color-danger-hover); }
+  .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); }
+  .btn-ghost:hover:not(:disabled) { background: var(--bg-card); color: var(--text-primary); border-color: var(--color-primary); }
+  .btn-success { background: var(--color-success); color: #fff; }
+  .btn-success:hover:not(:disabled) { background: var(--color-success-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(34,197,94,0.3); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-xs { padding: 4px 8px; font-size: 11px; border-radius: 4px; }
+  .btn-row { display: flex; gap: 6px; }
+  .btn-row .btn { flex: 1; }
+
+  /* ── Canvas ── */
+  .canvas-area { flex: 1; display: flex; flex-direction: column; }
+  .canvas-toolbar {
+    display: flex; align-items: center; gap: 14px; padding: 10px 20px;
+    background: var(--bg-primary); border-bottom: 1px solid var(--border-color);
+  }
+  .canvas-toolbar .coords {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-primary);
+    min-width: 130px; font-weight: 600; background: var(--bg-card); padding: 5px 12px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border-color);
+  }
+  .canvas-toolbar .status { font-size: 12px; color: var(--text-secondary); flex: 1; }
+  .canvas-container {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: hidden; background: var(--bg-secondary);
+  }
+  .canvas-container svg {
+    max-width: 100%; max-height: 100%; border: 1px solid var(--border-color);
+    border-radius: var(--radius-md); background: #f0f2f5; box-shadow: var(--shadow-lg);
+  }
+
+  kbd {
+    background: var(--bg-input); padding: 2px 7px; border-radius: 4px; font-size: 11px;
+    font-family: monospace; color: var(--text-secondary); border: 1px solid var(--border-color);
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; padding: 14px 22px; border-radius: var(--radius-md);
+    font-size: 13px; font-weight: 600; z-index: 100; animation: toastIn 0.25s ease;
+    box-shadow: var(--shadow-lg); font-family: inherit;
+  }
+  .toast-success { background: var(--color-success); color: #fff; }
+  .toast-error { background: var(--color-danger); color: #fff; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Save bar ── */
+  .save-bar {
+    padding: 14px 16px; border-top: 1px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.03));
+  }
+  .save-bar .btn { width: 100%; padding: 12px; font-size: 14px; }
+  .save-status { font-size: 11px; color: var(--text-secondary); margin-top: 8px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .unsaved-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-warning); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── Select (zone dropdown) ── */
+  .zone-dropdown {
+    padding: 9px 12px; border-radius: var(--radius-sm); background: var(--bg-input);
+    border: 1px solid var(--border-color); color: var(--text-primary); font-size: 13px;
+    font-family: inherit; cursor: pointer; width: 100%; transition: border-color 0.15s;
+  }
+  .zone-dropdown:hover { border-color: var(--color-primary); }
+  .zone-dropdown:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+
+  .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 8px 16px; border-top: 1px solid var(--border-color); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>Vehicle Zone Editor</h1>
+    <p>Trace &amp; assign interactive zones on the car outline</p>
+  </div>
+
+  <div class="model-bar">
+    <select id="model-select">
+      <option value="toyota-yaris-cross">Toyota Yaris Cross</option>
+    </select>
+    <select id="view-select">
+      <option value="side">Side View</option>
+      <option value="top">Top View</option>
+    </select>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="draw">Draw</div>
+    <div class="tab" data-tab="zones">Zones</div>
+    <div class="tab" data-tab="export">Export</div>
+  </div>
+
+  <!-- Draw Tab -->
+  <div class="tab-content active" id="tab-draw">
+    <div class="draw-controls">
+      <div class="info-card">
+        <strong>Instructions</strong><br>
+        1. Click on the car to place corner points<br>
+        2. Trace the zone boundary clockwise<br>
+        3. Assign the polygon to a zone below<br><br>
+        <kbd>Ctrl+Z</kbd> Undo &nbsp; <kbd>Esc</kbd> Clear &nbsp; <kbd>Ctrl+S</kbd> Save
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" onclick="undoPoint()">↩ Undo</button>
+        <button class="btn btn-danger btn-sm" onclick="clearPoints()">✕ Clear All</button>
+      </div>
+
+      <div style="font-size:12px;color:var(--text-secondary);padding:2px 0;">
+        Points placed: <strong id="point-count" style="color:var(--color-primary)">0</strong>
+      </div>
+
+      <select id="zone-select" class="zone-dropdown">
+        <option value="">— Select zone to assign —</option>
+      </select>
+
+      <button class="btn btn-success" onclick="assignToZone()" id="assign-btn" disabled>
+        Assign to Zone
+      </button>
+    </div>
+    <div class="section-label">Placed Points</div>
+    <div class="points-list" id="points-list"></div>
+  </div>
+
+  <!-- Zones Tab -->
+  <div class="tab-content" id="tab-zones">
+    <div style="padding:10px 14px;">
+      <div class="info-card">
+        Click a zone to highlight. <strong>Edit</strong> loads its points back for modification.
+      </div>
+    </div>
+    <div class="zones-list" id="zones-list"></div>
+  </div>
+
+  <!-- Export Tab -->
+  <div class="tab-content" id="tab-export">
+    <div class="export-area">
+      <div class="info-card">
+        <strong>Export</strong> — Copy the zone configuration in your preferred format.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="exportTS()">TypeScript</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportJSON()">JSON</button>
+        <button class="btn btn-ghost btn-sm" onclick="importJSON()">Import</button>
+      </div>
+      <textarea class="export-textarea" id="export-output" readonly placeholder="Click an export button above..."></textarea>
+      <button class="btn btn-ghost btn-sm" onclick="copyExport()">Copy to Clipboard</button>
+    </div>
+  </div>
+
+  <!-- Save bar -->
+  <div class="save-bar">
+    <button class="btn btn-primary" onclick="saveToServer()" id="save-btn">
+      Save Changes Live
+    </button>
+    <div class="save-status" id="save-status"></div>
+  </div>
+</div>
+
+<div class="canvas-area">
+  <div class="canvas-toolbar">
+    <div class="coords" id="coords">X: 0 &nbsp; Y: 0</div>
+    <div class="status" id="status">Click on the car to place points</div>
+    <button class="btn btn-ghost btn-sm" onclick="toggleOverlay()" id="overlay-btn">Hide Zones</button>
+  </div>
+  <div class="canvas-container">
+    <svg id="svg" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid meet">
+      <image id="svg-bg" href="yaris%20cross%20outline.svg" width="1536" height="1024" opacity="0.55" />
+      <g id="zone-overlays"></g>
+      <polygon id="preview-polygon" points="" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.5)" stroke-width="2" style="pointer-events:none;" />
+      <g id="markers"></g>
+      <line id="hline" x1="0" y1="0" x2="1536" y2="0" stroke="rgba(99,102,241,0.2)" stroke-width="1" stroke-dasharray="6" style="pointer-events:none;" />
+      <line id="vline" x1="0" y1="0" x2="0" y2="1024" stroke="rgba(99,102,241,0.2)" stroke-width="1" stroke-dasharray="6" style="pointer-events:none;" />
+    </svg>
+  </div>
+</div>
+
+<script>
+const ZONE_LIST = [
+  { id: 'front_bumper', label: 'Front Bumper' },
+  { id: 'rear_bumper', label: 'Rear Bumper' },
+  { id: 'hood', label: 'Hood' },
+  { id: 'trunk', label: 'Trunk' },
+  { id: 'roof', label: 'Roof' },
+  { id: 'windshield', label: 'Windshield' },
+  { id: 'rear_window', label: 'Rear Window' },
+  { id: 'front_left_door', label: 'Front Left Door' },
+  { id: 'rear_left_door', label: 'Rear Left Door' },
+  { id: 'front_left_fender', label: 'Front Left Fender' },
+  { id: 'rear_left_fender', label: 'Rear Left Fender' },
+  { id: 'left_side', label: 'Left Side (Sill)' },
+  { id: 'front_left_rim', label: 'Front Left Rim' },
+  { id: 'rear_left_rim', label: 'Rear Left Rim' },
+];
+
+const SVG_PATHS = {
+  'toyota-yaris-cross': {
+    side: '/vehicle-diagrams/yaris%20cross%20outline.svg',
+    top: null,
+  },
+};
+
+const ZONE_COLORS = {
+  front_bumper: '#ef4444', rear_bumper: '#f97316', hood: '#eab308', trunk: '#84cc16',
+  roof: '#22c55e', windshield: '#14b8a6', rear_window: '#06b6d4', front_left_door: '#3b82f6',
+  rear_left_door: '#6366f1', front_left_fender: '#8b5cf6', rear_left_fender: '#a855f7',
+  left_side: '#d946ef', front_left_rim: '#ec4899', rear_left_rim: '#f43f5e',
+};
+
+// ── State ──
+let currentPoints = [];
+let savedZones = {};
+let selectedZoneId = null;
+let showOverlays = true;
+let hasUnsavedChanges = false;
+let currentModel = 'toyota-yaris-cross';
+let currentView = 'side';
+
+// ── DOM ──
+const svg = document.getElementById('svg');
+const coordsEl = document.getElementById('coords');
+const statusEl = document.getElementById('status');
+const hline = document.getElementById('hline');
+const vline = document.getElementById('vline');
+const previewPoly = document.getElementById('preview-polygon');
+const markersG = document.getElementById('markers');
+const pointsList = document.getElementById('points-list');
+const zoneSelect = document.getElementById('zone-select');
+const assignBtn = document.getElementById('assign-btn');
+const zoneOverlays = document.getElementById('zone-overlays');
+const modelSelect = document.getElementById('model-select');
+const viewSelect = document.getElementById('view-select');
+
+// ── Init ──
+function init() {
+  ZONE_LIST.forEach(z => {
+    const opt = document.createElement('option');
+    opt.value = z.id; opt.textContent = z.label;
+    zoneSelect.appendChild(opt);
+  });
+  loadFromServer();
+}
+
+// ── SVG helpers ──
+function getSVGPoint(e) {
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function pointsToPath(pts) {
+  if (pts.length < 2) return '';
+  return 'M ' + pts[0].x + ',' + pts[0].y + ' ' + pts.slice(1).map(function(p){return 'L ' + p.x + ',' + p.y}).join(' ') + ' Z';
+}
+
+// ── Mouse ──
+svg.addEventListener('mousemove', function(e) {
+  const p = getSVGPoint(e);
+  coordsEl.textContent = 'X: ' + Math.round(p.x) + '  Y: ' + Math.round(p.y);
+  hline.setAttribute('y1', Math.round(p.y)); hline.setAttribute('y2', Math.round(p.y));
+  vline.setAttribute('x1', Math.round(p.x)); vline.setAttribute('x2', Math.round(p.x));
+});
+svg.addEventListener('click', function(e) {
+  if (e.target.closest('#zone-overlays')) return;
+  const p = getSVGPoint(e);
+  addPoint(Math.round(p.x), Math.round(p.y));
+});
+
+// ── Points ──
+function addPoint(x, y) {
+  currentPoints.push({ x: x, y: y });
+  renderCurrentPoints(); updateAssignBtn();
+  statusEl.textContent = currentPoints.length + ' points placed — assign when done';
+}
+function undoPoint() {
+  if (!currentPoints.length) return;
+  currentPoints.pop(); renderCurrentPoints(); updateAssignBtn();
+  statusEl.textContent = currentPoints.length ? currentPoints.length + ' points' : 'Click to place points';
+}
+function clearPoints() {
+  currentPoints = []; renderCurrentPoints(); updateAssignBtn();
+  statusEl.textContent = 'Cleared';
+}
+function renderCurrentPoints() {
+  markersG.innerHTML = '';
+  currentPoints.forEach(function(pt, i) {
+    var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y); c.setAttribute('r', '6');
+    c.setAttribute('fill', '#ef4444'); c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '2.5');
+    c.style.pointerEvents = 'none'; c.style.filter = 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))';
+    markersG.appendChild(c);
+    var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', pt.x + 10); t.setAttribute('y', pt.y - 6);
+    t.setAttribute('fill', '#fff'); t.setAttribute('font-size', '12'); t.setAttribute('font-weight', '700');
+    t.setAttribute('font-family', 'Figtree, system-ui'); t.style.pointerEvents = 'none';
+    t.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
+    t.textContent = '' + (i + 1); markersG.appendChild(t);
+  });
+  previewPoly.setAttribute('points', currentPoints.map(function(p){return p.x+','+p.y}).join(' '));
+  pointsList.innerHTML = '';
+  currentPoints.forEach(function(pt, i) {
+    var d = document.createElement('div'); d.className = 'point-item';
+    d.innerHTML = '<span class="point-num">#' + (i+1) + '</span><span>(' + pt.x + ', ' + pt.y + ')</span>';
+    pointsList.appendChild(d);
+  });
+  document.getElementById('point-count').textContent = currentPoints.length;
+}
+function updateAssignBtn() { assignBtn.disabled = currentPoints.length < 3 || !zoneSelect.value; }
+zoneSelect.addEventListener('change', updateAssignBtn);
+
+// ── Zone assignment ──
+function assignToZone() {
+  var zoneId = zoneSelect.value;
+  if (!zoneId || currentPoints.length < 3) return;
+  savedZones[zoneId] = { path: pointsToPath(currentPoints), points: currentPoints.slice() };
+  markDirty(); clearPoints(); renderZonesList(); renderOverlays();
+  var label = ZONE_LIST.find(function(z){return z.id===zoneId});
+  statusEl.textContent = 'Assigned: ' + (label ? label.label : zoneId);
+  var next = ZONE_LIST.find(function(z){return !savedZones[z.id]});
+  if (next) zoneSelect.value = next.id;
+  updateAssignBtn();
+}
+
+// ── Zones list ──
+function renderZonesList() {
+  var list = document.getElementById('zones-list'); list.innerHTML = '';
+  ZONE_LIST.forEach(function(z) {
+    var has = !!savedZones[z.id];
+    var div = document.createElement('div');
+    div.className = 'zone-item' + (has ? ' has-path' : '') + (selectedZoneId === z.id ? ' selected' : '');
+    div.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div>' +
+          '<div class="zone-name"><span class="zone-badge ' + (has ? 'zone-badge-done' : 'zone-badge-empty') + '">' + (has ? '✓ Done' : 'Empty') + '</span> ' + z.label + '</div>' +
+          '<div class="zone-label">' + z.id + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:4px;">' +
+          (has ? '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editZone(\'' + z.id + '\')">Edit</button>' : '') +
+          (has ? '<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteZone(\'' + z.id + '\')">✕</button>' : '') +
+        '</div>' +
+      '</div>' +
+      (has ? '<div class="zone-path-preview">' + savedZones[z.id].path + '</div>' : '');
+    div.addEventListener('click', function() { selectedZoneId = selectedZoneId === z.id ? null : z.id; renderZonesList(); renderOverlays(); });
+    list.appendChild(div);
+  });
+}
+function editZone(zoneId) {
+  if (!savedZones[zoneId]) return;
+  currentPoints = savedZones[zoneId].points.slice();
+  zoneSelect.value = zoneId;
+  renderCurrentPoints(); updateAssignBtn();
+  var label = ZONE_LIST.find(function(z){return z.id===zoneId});
+  statusEl.textContent = 'Editing: ' + (label ? label.label : zoneId);
+  switchTab('draw');
+}
+function deleteZone(zoneId) {
+  if (!confirm('Delete zone ' + zoneId + '?')) return;
+  delete savedZones[zoneId]; markDirty(); renderZonesList(); renderOverlays();
+}
+
+// ── Overlays ──
+function renderOverlays() {
+  zoneOverlays.innerHTML = '';
+  if (!showOverlays) return;
+  Object.keys(savedZones).forEach(function(zoneId) {
+    var data = savedZones[zoneId];
+    var color = ZONE_COLORS[zoneId] || '#6366f1';
+    var isSel = selectedZoneId === zoneId;
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', data.path);
+    p.setAttribute('fill', isSel ? color + '33' : color + '15');
+    p.setAttribute('stroke', color);
+    p.setAttribute('stroke-width', isSel ? '3' : '1.5');
+    if (!isSel) p.setAttribute('stroke-dasharray', '8 4');
+    p.style.pointerEvents = 'none';
+    zoneOverlays.appendChild(p);
+    if (data.points && data.points.length > 0) {
+      var cx = data.points.reduce(function(s,pt){return s+pt.x},0) / data.points.length;
+      var cy = data.points.reduce(function(s,pt){return s+pt.y},0) / data.points.length;
+      var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', cx); t.setAttribute('y', cy);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'middle');
+      t.setAttribute('fill', color); t.setAttribute('font-size', isSel ? '18' : '13');
+      t.setAttribute('font-weight', '700'); t.setAttribute('font-family', 'Figtree, system-ui');
+      t.style.pointerEvents = 'none';
+      t.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.4))';
+      var label = ZONE_LIST.find(function(z){return z.id===zoneId});
+      t.textContent = label ? label.label : zoneId;
+      zoneOverlays.appendChild(t);
+    }
+  });
+}
+function toggleOverlay() {
+  showOverlays = !showOverlays;
+  document.getElementById('overlay-btn').textContent = showOverlays ? 'Hide Zones' : 'Show Zones';
+  renderOverlays();
+}
+
+// ── Dirty state ──
+function markDirty() {
+  hasUnsavedChanges = true;
+  document.getElementById('save-status').innerHTML = '<span class="unsaved-dot"></span> Unsaved changes';
+  localStorage.setItem('zone-editor-' + currentModel + '-' + currentView, JSON.stringify(savedZones));
+}
+function markClean() {
+  hasUnsavedChanges = false;
+  document.getElementById('save-status').textContent = 'All changes saved';
+  setTimeout(function() { if (!hasUnsavedChanges) document.getElementById('save-status').textContent = ''; }, 3000);
+}
+
+// ── Server API ──
+async function loadFromServer() {
+  try {
+    statusEl.textContent = 'Loading...';
+    var res = await fetch('/api/vehicle-diagrams?model=' + currentModel + '&view=' + currentView);
+    if (res.ok) {
+      var data = await res.json();
+      if (data && data.zones && Object.keys(data.zones).length > 0) {
+        savedZones = data.zones;
+        statusEl.textContent = 'Loaded ' + Object.keys(savedZones).length + ' zones from database';
+        markClean(); renderZonesList(); renderOverlays(); return;
+      }
+    }
+  } catch(err) { console.error('Load error:', err); }
+  // Fallback to localStorage
+  try {
+    var local = localStorage.getItem('zone-editor-' + currentModel + '-' + currentView);
+    if (local) { savedZones = JSON.parse(local); statusEl.textContent = 'Loaded ' + Object.keys(savedZones).length + ' zones from local cache'; }
+    else { savedZones = {}; statusEl.textContent = 'No saved zones — start tracing!'; }
+  } catch(e) { savedZones = {}; }
+  renderZonesList(); renderOverlays();
+}
+
+async function saveToServer() {
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    var svgPath = (SVG_PATHS[currentModel] && SVG_PATHS[currentModel][currentView]) || null;
+    var res = await fetch('/api/vehicle-diagrams', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model_key: currentModel, view_type: currentView, zones: savedZones, svg_path: svgPath }),
+    });
+    if (!res.ok) { var err = await res.json().catch(function(){return {}}); throw new Error(err.error || 'HTTP ' + res.status); }
+    markClean();
+    showToast('Zones saved! Refresh the damages page to see changes.', 'success');
+    statusEl.textContent = 'Saved to database';
+  } catch(err) {
+    showToast('Save failed: ' + err.message, 'error');
+    statusEl.textContent = 'Save failed: ' + err.message;
+  } finally { btn.disabled = false; btn.textContent = 'Save Changes Live'; }
+}
+
+// ── Toast ──
+function showToast(msg, type) {
+  var el = document.createElement('div');
+  el.className = 'toast toast-' + type; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.remove(); }, 3500);
+}
+
+// ── Model/View switching ──
+modelSelect.addEventListener('change', function() {
+  if (hasUnsavedChanges && !confirm('Unsaved changes will be lost. Continue?')) { modelSelect.value = currentModel; return; }
+  currentModel = modelSelect.value; updateSvgBackground(); loadFromServer();
+});
+viewSelect.addEventListener('change', function() {
+  if (hasUnsavedChanges && !confirm('Unsaved changes will be lost. Continue?')) { viewSelect.value = currentView; return; }
+  currentView = viewSelect.value; updateSvgBackground(); loadFromServer();
+});
+function updateSvgBackground() {
+  var path = SVG_PATHS[currentModel] && SVG_PATHS[currentModel][currentView];
+  var img = document.getElementById('svg-bg');
+  if (path) { img.setAttribute('href', path); img.style.display = ''; }
+  else { img.style.display = 'none'; statusEl.textContent = 'No SVG outline for this model/view yet'; }
+}
+
+// ── Export ──
+function exportTS() {
+  var lines = ['const SIDE_ZONE_PATHS: Record<string, string> = {'];
+  ZONE_LIST.forEach(function(z) { if (savedZones[z.id]) lines.push("  " + z.id + ": '" + savedZones[z.id].path + "',"); });
+  lines.push('};');
+  document.getElementById('export-output').value = lines.join('\n');
+}
+function exportJSON() {
+  var obj = {};
+  ZONE_LIST.forEach(function(z) { if (savedZones[z.id]) obj[z.id] = savedZones[z.id]; });
+  document.getElementById('export-output').value = JSON.stringify(obj, null, 2);
+}
+function importJSON() {
+  var input = prompt('Paste JSON zone config:');
+  if (!input) return;
+  try {
+    var data = JSON.parse(input);
+    Object.keys(data).forEach(function(id) { if (data[id].path && data[id].points) savedZones[id] = data[id]; });
+    markDirty(); renderZonesList(); renderOverlays();
+    statusEl.textContent = 'Imported ' + Object.keys(data).length + ' zones';
+  } catch(e) { alert('Invalid JSON: ' + e.message); }
+}
+function copyExport() {
+  var t = document.getElementById('export-output');
+  t.select(); navigator.clipboard.writeText(t.value);
+  showToast('Copied to clipboard', 'success');
+}
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoPoint(); }
+  if (e.key === 'Escape') clearPoints();
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveToServer(); }
+});
+
+// ── Tabs ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelector('[data-tab="' + name + '"]').classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+document.querySelectorAll('.tab').forEach(function(tab) {
+  tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
+});
+
+window.addEventListener('beforeunload', function(e) { if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
+
+init();
+</script>
+</body>
+</html>

@@ -2,6 +2,26 @@
 
 import type { DamageZone, DamageSeverity } from '@/lib/types/database';
 import styles from './damages.module.css';
+import { svgZonePaths } from './yarisZonePaths';
+
+// Zone hit-area polygons for side view — invisible fills that capture hover/click
+const SIDE_ZONE_PATHS: Record<string, string> = {
+  front_bumper: 'M 40,370 L 180,340 L 180,650 L 40,650 Z',
+  hood: 'M 180,350 L 425,275 L 440,405 L 180,450 Z',
+  windshield: 'M 425,275 L 555,190 L 575,195 L 445,400 Z',
+  roof: 'M 555,182 L 1085,182 L 1090,260 L 555,255 Z',
+  rear_window: 'M 1085,182 L 1125,182 L 1315,385 L 1270,405 Z',
+  trunk: 'M 1265,385 L 1400,405 L 1400,560 L 1265,535 Z',
+  rear_bumper: 'M 1400,395 L 1475,415 L 1475,650 L 1400,650 Z',
+  front_left_fender: 'M 180,450 L 530,350 L 530,600 L 180,630 Z',
+  front_left_door: 'M 530,215 L 830,215 L 830,600 L 530,600 Z',
+  rear_left_door: 'M 830,215 L 1100,225 L 1100,600 L 830,600 Z',
+  rear_left_fender: 'M 1100,290 L 1400,405 L 1400,600 L 1100,600 Z',
+  left_side: 'M 460,600 L 1100,600 L 1100,650 L 460,650 Z',
+};
+
+// Flatten all SVG paths into one array for visual rendering (no events)
+const allSideViewPaths = Object.values(svgZonePaths).flat();
 
 export const ZONE_LABELS: Record<DamageZone, string> = {
   front_bumper: 'Front Bumper',
@@ -38,6 +58,7 @@ interface CarDiagramProps {
   onZoneClick: (zone: DamageZone) => void;
   hoveredZone: DamageZone | null;
   onZoneHover: (zone: DamageZone | null) => void;
+  sideZonePaths?: Record<string, string>;
 }
 
 function getSeverityColor(severity: DamageSeverity): string {
@@ -161,7 +182,12 @@ function DamageIndicator({ x, y, count, severity }: { x: number; y: number; coun
   );
 }
 
-export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hoveredZone, onZoneHover }: CarDiagramProps) {
+export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hoveredZone, onZoneHover, sideZonePaths }: CarDiagramProps) {
+  // Use DB-provided zone paths if available, fall back to hardcoded defaults
+  const activeSideZones = sideZonePaths && Object.keys(sideZonePaths).length > 0
+    ? sideZonePaths
+    : SIDE_ZONE_PATHS;
+
   const zoneProps = (zone: DamageZone) => ({
     zone,
     damageInfo: zoneDamages[zone],
@@ -357,78 +383,73 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
         </svg>
       </div>
 
-      {/* Side view */}
+      {/* Side view — hybrid: filled zone polygons (hit areas) + SVG outline (visual) */}
       <div className={styles.diagramView}>
         <div className={styles.diagramLabel}>Side View</div>
         <svg viewBox="0 0 1536 1024" className={styles.diagramSvg} aria-label="Toyota Yaris Cross side view" preserveAspectRatio="xMidYMid meet">
-          {/* Yaris Cross outline as visual background */}
-          <image href="/vehicle-diagrams/yaris%20cross%20outline.svg" width="1536" height="1024" opacity={0.55} style={{ pointerEvents: 'none' }} />
 
-          {/* === INTERACTIVE ZONES — aligned to outline via coordinate picker === */}
+          {/* Layer 1: Zone hit-area polygons — capture hover/click, show colored fill */}
+          {(Object.keys(activeSideZones) as DamageZone[]).map(zone => {
+            const info = zoneDamages[zone];
+            const hasDamage = info && info.count > 0;
+            const isHov = hoveredZone === zone;
+            const isSel = selectedZone === zone;
+            return (
+              <path
+                key={`hit-${zone}`}
+                data-zone={zone}
+                d={activeSideZones[zone]}
+                fill={hasDamage ? getSeverityColor(info.maxSeverity) : isHov ? 'rgba(99, 102, 241, 0.13)' : 'transparent'}
+                stroke={isSel ? 'var(--color-primary, #6366f1)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}
+                strokeWidth={isSel || isHov ? 2 : 1.5}
+                strokeLinejoin="round"
+                style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onClick={() => onZoneClick(zone)}
+                onMouseEnter={() => onZoneHover(zone)}
+                onMouseLeave={() => onZoneHover(null)}
+              />
+            );
+          })}
+          {/* Wheel hit circles */}
+          {([['front_left_rim', 355, 624] as const, ['rear_left_rim', 1203, 634] as const]).map(([zone, cx, cy]) => {
+            const info = zoneDamages[zone];
+            const hasDamage = info && info.count > 0;
+            const isHov = hoveredZone === zone;
+            const isSel = selectedZone === zone;
+            return (
+              <circle
+                key={`hit-${zone}`}
+                data-zone={zone}
+                cx={cx} cy={cy} r={90}
+                fill={hasDamage ? getSeverityColor(info.maxSeverity) : isHov ? 'rgba(99, 102, 241, 0.13)' : 'transparent'}
+                stroke={isSel ? 'var(--color-primary, #6366f1)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}
+                strokeWidth={isSel || isHov ? 2.5 : 1.5}
+                style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onClick={() => onZoneClick(zone)}
+                onMouseEnter={() => onZoneHover(zone)}
+                onMouseLeave={() => onZoneHover(null)}
+              />
+            );
+          })}
 
-          {/* Body panels (underneath) */}
-          <ZonePath {...zoneProps('front_left_fender')}
-            d="M 190,440 L 530,310 L 530,600 L 190,630 Z"
-          />
-          <ZonePath {...zoneProps('front_left_door')}
-            d="M 530,290 L 830,290 L 830,600 L 530,600 Z"
-          />
-          <ZonePath {...zoneProps('rear_left_door')}
-            d="M 830,290 L 1100,300 L 1100,600 L 830,600 Z"
-          />
-          <ZonePath {...zoneProps('rear_left_fender')}
-            d="M 1100,300 L 1400,410 L 1400,600 L 1100,600 Z"
-          />
+          {/* Layer 2: SVG outline paths — visual only, no events */}
+          {allSideViewPaths.map((p, i) => (
+            <path
+              key={i}
+              d={p.d}
+              transform={`translate(${p.tx},${p.ty})`}
+              fill={p.fill}
+              style={{ pointerEvents: 'none' }}
+            />
+          ))}
 
-          {/* Detail zones (on top) */}
-          <ZonePath {...zoneProps('front_bumper')}
-            d="M 40,370 L 190,340 L 190,650 L 40,650 Z"
-          />
-          <ZonePath {...zoneProps('hood')}
-            d="M 190,340 L 430,280 L 440,400 L 190,440 Z"
-          />
-          <ZonePath {...zoneProps('windshield')}
-            d="M 430,280 L 565,200 L 580,205 L 445,395 Z"
-          />
-          <ZonePath {...zoneProps('roof')}
-            d="M 565,195 L 1090,195 L 1095,270 L 560,265 Z"
-          />
-          <ZonePath {...zoneProps('rear_window')}
-            d="M 1090,195 L 1120,195 L 1280,385 L 1250,400 Z"
-          />
-          <ZonePath {...zoneProps('trunk')}
-            d="M 1255,385 L 1400,410 L 1400,560 L 1255,535 Z"
-          />
-          <ZonePath {...zoneProps('rear_bumper')}
-            d="M 1400,400 L 1475,420 L 1475,650 L 1400,650 Z"
-          />
-          <ZonePath {...zoneProps('left_side')}
-            d="M 460,600 L 1100,600 L 1100,650 L 460,650 Z"
-          />
-
-          {/* Wheel zones — transparent overlays on top of outline wheels */}
-          <circle cx={355} cy={624} r={90}
-            fill={zoneDamages.front_left_rim ? getSeverityColor(zoneDamages.front_left_rim.maxSeverity) : (hoveredZone === 'front_left_rim' ? 'rgba(99,102,241,0.15)' : 'transparent')}
-            stroke={selectedZone === 'front_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.front_left_rim ? getSeverityStroke(zoneDamages.front_left_rim.maxSeverity) : 'transparent')}
-            strokeWidth={selectedZone === 'front_left_rim' || hoveredZone === 'front_left_rim' ? 3 : 2}
-            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-            onClick={() => onZoneClick('front_left_rim')} onMouseEnter={() => onZoneHover('front_left_rim')} onMouseLeave={() => onZoneHover(null)}
-          />
-          <circle cx={1203} cy={634} r={90}
-            fill={zoneDamages.rear_left_rim ? getSeverityColor(zoneDamages.rear_left_rim.maxSeverity) : (hoveredZone === 'rear_left_rim' ? 'rgba(99,102,241,0.15)' : 'transparent')}
-            stroke={selectedZone === 'rear_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.rear_left_rim ? getSeverityStroke(zoneDamages.rear_left_rim.maxSeverity) : 'transparent')}
-            strokeWidth={selectedZone === 'rear_left_rim' || hoveredZone === 'rear_left_rim' ? 3 : 2}
-            style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-            onClick={() => onZoneClick('rear_left_rim')} onMouseEnter={() => onZoneHover('rear_left_rim')} onMouseLeave={() => onZoneHover(null)}
-          />
-
-          {/* Damage indicators */}
+          {/* Layer 3: Damage indicators */}
           {zoneDamages.front_bumper && <DamageIndicator x={115} y={500} count={zoneDamages.front_bumper.count} severity={zoneDamages.front_bumper.maxSeverity} />}
           {zoneDamages.rear_bumper && <DamageIndicator x={1438} y={535} count={zoneDamages.rear_bumper.count} severity={zoneDamages.rear_bumper.maxSeverity} />}
-          {zoneDamages.hood && <DamageIndicator x={310} y={365} count={zoneDamages.hood.count} severity={zoneDamages.hood.maxSeverity} />}
-          {zoneDamages.windshield && <DamageIndicator x={505} y={295} count={zoneDamages.windshield.count} severity={zoneDamages.windshield.maxSeverity} />}
-          {zoneDamages.roof && <DamageIndicator x={828} y={232} count={zoneDamages.roof.count} severity={zoneDamages.roof.maxSeverity} />}
-          {zoneDamages.rear_window && <DamageIndicator x={1135} y={295} count={zoneDamages.rear_window.count} severity={zoneDamages.rear_window.maxSeverity} />}
+          {zoneDamages.hood && <DamageIndicator x={305} y={375} count={zoneDamages.hood.count} severity={zoneDamages.hood.maxSeverity} />}
+          {zoneDamages.windshield && <DamageIndicator x={500} y={300} count={zoneDamages.windshield.count} severity={zoneDamages.windshield.maxSeverity} />}
+          {zoneDamages.roof && <DamageIndicator x={820} y={220} count={zoneDamages.roof.count} severity={zoneDamages.roof.maxSeverity} />}
+          {zoneDamages.rear_window && <DamageIndicator x={1195} y={295} count={zoneDamages.rear_window.count} severity={zoneDamages.rear_window.maxSeverity} />}
           {zoneDamages.trunk && <DamageIndicator x={1328} y={475} count={zoneDamages.trunk.count} severity={zoneDamages.trunk.maxSeverity} />}
           {zoneDamages.front_left_door && <DamageIndicator x={680} y={445} count={zoneDamages.front_left_door.count} severity={zoneDamages.front_left_door.maxSeverity} />}
           {zoneDamages.rear_left_door && <DamageIndicator x={965} y={445} count={zoneDamages.rear_left_door.count} severity={zoneDamages.rear_left_door.maxSeverity} />}
