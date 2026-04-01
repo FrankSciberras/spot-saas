@@ -47,11 +47,16 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
     .eq('view_type', 'side')
     .single();
 
-  // Extract just the path strings for the diagram
-  const sideZonePaths: Record<string, string> = {};
+  // Extract path + hover color config for the diagram
+  const sideZoneConfigMap: Record<string, { path: string; hoverColor?: string }> = {};
   if (sideZoneConfig?.zones) {
-    for (const [zoneId, zoneData] of Object.entries(sideZoneConfig.zones as Record<string, { path: string }>)) {
-      if (zoneData?.path) sideZonePaths[zoneId] = zoneData.path;
+    for (const [zoneId, zoneData] of Object.entries(sideZoneConfig.zones as Record<string, { path: string; hoverColor?: string }>)) {
+      if (zoneData?.path) {
+        sideZoneConfigMap[zoneId] = {
+          path: zoneData.path,
+          hoverColor: zoneData.hoverColor,
+        };
+      }
     }
   }
 
@@ -89,7 +94,7 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
         vehicleId={id}
         initialDamages={damages || []}
         isAdmin={isAdmin}
-        sideZonePaths={Object.keys(sideZonePaths).length > 0 ? sideZonePaths : undefined}
+        sideZoneConfig={Object.keys(sideZoneConfigMap).length > 0 ? sideZoneConfigMap : undefined}
       />
     </DashboardLayout>
   );

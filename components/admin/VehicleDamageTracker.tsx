@@ -16,7 +16,7 @@ interface VehicleDamageTrackerProps {
   vehicleId: string;
   initialDamages: VehicleDamage[];
   isAdmin: boolean;
-  sideZonePaths?: Record<string, string>;
+  sideZoneConfig?: Record<string, { path: string; hoverColor?: string }>;
 }
 
 const ALL_ZONES: DamageZone[] = Object.keys(ZONE_LABELS) as DamageZone[];
@@ -41,7 +41,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmin, sideZonePaths }: VehicleDamageTrackerProps) {
+export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmin, sideZoneConfig }: VehicleDamageTrackerProps) {
   const [damages, setDamages] = useState<VehicleDamage[]>(initialDamages);
   const [selectedZone, setSelectedZone] = useState<DamageZone | null>(null);
   const [hoveredZone, setHoveredZone] = useState<DamageZone | null>(null);
@@ -328,7 +328,7 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
         onZoneClick={handleZoneClick}
         hoveredZone={hoveredZone}
         onZoneHover={setHoveredZone}
-        sideZonePaths={sideZonePaths}
+        sideZoneConfig={sideZoneConfig}
       />
 
       {/* Legend */}

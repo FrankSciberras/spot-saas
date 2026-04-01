@@ -189,6 +189,20 @@
   .zone-dropdown:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
 
   .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 8px 16px; border-top: 1px solid var(--border-color); }
+
+  .color-row { display: flex; gap: 10px; align-items: center; }
+  .color-input {
+    width: 44px; height: 40px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-input); padding: 4px; cursor: pointer;
+  }
+  .color-text {
+    flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background: var(--bg-input);
+    border: 1px solid var(--border-color); color: var(--text-primary); font-size: 13px; font-family: inherit;
+  }
+  .color-preview {
+    width: 12px; height: 12px; border-radius: 999px; display: inline-block; margin-left: 6px; border: 1px solid rgba(255,255,255,0.35);
+  }
+  .helper-text { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -238,6 +252,21 @@
       <select id="zone-select" class="zone-dropdown">
         <option value="">— Select zone to assign —</option>
       </select>
+
+      <div class="color-row">
+        <input id="hover-color-picker" class="color-input" type="color" value="#6366f1" />
+        <input id="hover-color-text" class="color-text" type="text" value="rgba(99, 102, 241, 0.13)" placeholder="rgba(99, 102, 241, 0.13)" />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" onclick="applyColorToExistingZone()" id="apply-color-btn">
+          Update Zone Color Only
+        </button>
+      </div>
+
+      <div class="helper-text">
+        Select an existing zone from the list or dropdown, change the color, then use <strong>Update Zone Color Only</strong>.
+      </div>
 
       <button class="btn btn-success" onclick="assignToZone()" id="assign-btn" disabled>
         Assign to Zone
@@ -355,6 +384,9 @@ const assignBtn = document.getElementById('assign-btn');
 const zoneOverlays = document.getElementById('zone-overlays');
 const modelSelect = document.getElementById('model-select');
 const viewSelect = document.getElementById('view-select');
+const hoverColorPicker = document.getElementById('hover-color-picker');
+const hoverColorText = document.getElementById('hover-color-text');
+const applyColorBtn = document.getElementById('apply-color-btn');
 
 // ── Init ──
 function init() {
@@ -375,6 +407,30 @@ function getSVGPoint(e) {
 function pointsToPath(pts) {
   if (pts.length < 2) return '';
   return 'M ' + pts[0].x + ',' + pts[0].y + ' ' + pts.slice(1).map(function(p){return 'L ' + p.x + ',' + p.y}).join(' ') + ' Z';
+}
+function normalizeHoverColor(value) {
+  var trimmed = (value || '').trim();
+  return trimmed || 'rgba(99, 102, 241, 0.13)';
+}
+function hexToRgba(hex, alpha) {
+  var clean = hex.replace('#', '');
+  if (clean.length !== 6) return 'rgba(99, 102, 241, ' + alpha + ')';
+  var r = parseInt(clean.slice(0, 2), 16);
+  var g = parseInt(clean.slice(2, 4), 16);
+  var b = parseInt(clean.slice(4, 6), 16);
+  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+}
+function colorTextToHex(value) {
+  var trimmed = (value || '').trim();
+  var rgbaMatch = trimmed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (rgbaMatch) {
+    var r = Math.max(0, Math.min(255, parseInt(rgbaMatch[1], 10)));
+    var g = Math.max(0, Math.min(255, parseInt(rgbaMatch[2], 10)));
+    var b = Math.max(0, Math.min(255, parseInt(rgbaMatch[3], 10)));
+    return '#' + [r, g, b].map(function(n){ return n.toString(16).padStart(2, '0'); }).join('');
+  }
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
+  return '#6366f1';
 }
 
 // ── Mouse ──
@@ -432,17 +488,43 @@ function renderCurrentPoints() {
 function updateAssignBtn() { assignBtn.disabled = currentPoints.length < 3 || !zoneSelect.value; }
 zoneSelect.addEventListener('change', updateAssignBtn);
 
+function updateColorEditBtn() {
+  var zoneId = selectedZoneId || zoneSelect.value;
+  applyColorBtn.disabled = !zoneId || !savedZones[zoneId];
+}
+
 // ── Zone assignment ──
 function assignToZone() {
   var zoneId = zoneSelect.value;
   if (!zoneId || currentPoints.length < 3) return;
-  savedZones[zoneId] = { path: pointsToPath(currentPoints), points: currentPoints.slice() };
+  savedZones[zoneId] = {
+    path: pointsToPath(currentPoints),
+    points: currentPoints.slice(),
+    hoverColor: normalizeHoverColor(hoverColorText.value)
+  };
   markDirty(); clearPoints(); renderZonesList(); renderOverlays();
   var label = ZONE_LIST.find(function(z){return z.id===zoneId});
   statusEl.textContent = 'Assigned: ' + (label ? label.label : zoneId);
   var next = ZONE_LIST.find(function(z){return !savedZones[z.id]});
   if (next) zoneSelect.value = next.id;
   updateAssignBtn();
+  updateColorEditBtn();
+}
+
+function applyColorToExistingZone() {
+  var zoneId = selectedZoneId || zoneSelect.value;
+  if (!zoneId || !savedZones[zoneId]) {
+    showToast('Select an existing zone first', 'error');
+    return;
+  }
+
+  savedZones[zoneId].hoverColor = normalizeHoverColor(hoverColorText.value);
+  markDirty();
+  renderZonesList();
+  renderOverlays();
+  statusEl.textContent = 'Updated hover color: ' + zoneId;
+  showToast('Zone color updated', 'success');
+  updateColorEditBtn();
 }
 
 // ── Zones list ──
@@ -456,7 +538,7 @@ function renderZonesList() {
       '<div style="display:flex;justify-content:space-between;align-items:center;">' +
         '<div>' +
           '<div class="zone-name"><span class="zone-badge ' + (has ? 'zone-badge-done' : 'zone-badge-empty') + '">' + (has ? '✓ Done' : 'Empty') + '</span> ' + z.label + '</div>' +
-          '<div class="zone-label">' + z.id + '</div>' +
+          '<div class="zone-label">' + z.id + (has && savedZones[z.id].hoverColor ? '<span class="color-preview" style="background:' + colorTextToHex(savedZones[z.id].hoverColor) + '"></span>' : '') + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:4px;">' +
           (has ? '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editZone(\'' + z.id + '\')">Edit</button>' : '') +
@@ -464,7 +546,15 @@ function renderZonesList() {
         '</div>' +
       '</div>' +
       (has ? '<div class="zone-path-preview">' + savedZones[z.id].path + '</div>' : '');
-    div.addEventListener('click', function() { selectedZoneId = selectedZoneId === z.id ? null : z.id; renderZonesList(); renderOverlays(); });
+    div.addEventListener('click', function() {
+      selectedZoneId = selectedZoneId === z.id ? null : z.id;
+      if (selectedZoneId && savedZones[selectedZoneId]) {
+        zoneSelect.value = selectedZoneId;
+        hoverColorText.value = normalizeHoverColor(savedZones[selectedZoneId].hoverColor);
+        hoverColorPicker.value = colorTextToHex(savedZones[selectedZoneId].hoverColor || '');
+      }
+      renderZonesList(); renderOverlays(); updateColorEditBtn();
+    });
     list.appendChild(div);
   });
 }
@@ -472,14 +562,20 @@ function editZone(zoneId) {
   if (!savedZones[zoneId]) return;
   currentPoints = savedZones[zoneId].points.slice();
   zoneSelect.value = zoneId;
+  selectedZoneId = zoneId;
+  hoverColorText.value = normalizeHoverColor(savedZones[zoneId].hoverColor);
+  hoverColorPicker.value = colorTextToHex(savedZones[zoneId].hoverColor || '');
   renderCurrentPoints(); updateAssignBtn();
   var label = ZONE_LIST.find(function(z){return z.id===zoneId});
   statusEl.textContent = 'Editing: ' + (label ? label.label : zoneId);
+  renderZonesList(); renderOverlays(); updateColorEditBtn();
   switchTab('draw');
 }
 function deleteZone(zoneId) {
   if (!confirm('Delete zone ' + zoneId + '?')) return;
+  if (selectedZoneId === zoneId) selectedZoneId = null;
   delete savedZones[zoneId]; markDirty(); renderZonesList(); renderOverlays();
+  updateColorEditBtn();
 }
 
 // ── Overlays ──
@@ -488,7 +584,7 @@ function renderOverlays() {
   if (!showOverlays) return;
   Object.keys(savedZones).forEach(function(zoneId) {
     var data = savedZones[zoneId];
-    var color = ZONE_COLORS[zoneId] || '#6366f1';
+    var color = colorTextToHex(data.hoverColor || '') || ZONE_COLORS[zoneId] || '#6366f1';
     var isSel = selectedZoneId === zoneId;
     var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     p.setAttribute('d', data.path);
@@ -542,7 +638,7 @@ async function loadFromServer() {
       if (data && data.zones && Object.keys(data.zones).length > 0) {
         savedZones = data.zones;
         statusEl.textContent = 'Loaded ' + Object.keys(savedZones).length + ' zones from database';
-        markClean(); renderZonesList(); renderOverlays(); return;
+        markClean(); renderZonesList(); renderOverlays(); updateColorEditBtn(); return;
       }
     }
   } catch(err) { console.error('Load error:', err); }
@@ -552,7 +648,7 @@ async function loadFromServer() {
     if (local) { savedZones = JSON.parse(local); statusEl.textContent = 'Loaded ' + Object.keys(savedZones).length + ' zones from local cache'; }
     else { savedZones = {}; statusEl.textContent = 'No saved zones — start tracing!'; }
   } catch(e) { savedZones = {}; }
-  renderZonesList(); renderOverlays();
+  renderZonesList(); renderOverlays(); updateColorEditBtn();
 }
 
 async function saveToServer() {
@@ -616,11 +712,35 @@ function importJSON() {
   if (!input) return;
   try {
     var data = JSON.parse(input);
-    Object.keys(data).forEach(function(id) { if (data[id].path && data[id].points) savedZones[id] = data[id]; });
-    markDirty(); renderZonesList(); renderOverlays();
+    Object.keys(data).forEach(function(id) {
+      if (data[id].path && data[id].points) {
+        savedZones[id] = {
+          path: data[id].path,
+          points: data[id].points,
+          hoverColor: data[id].hoverColor || 'rgba(99, 102, 241, 0.13)'
+        };
+      }
+    });
+    markDirty(); renderZonesList(); renderOverlays(); updateColorEditBtn();
     statusEl.textContent = 'Imported ' + Object.keys(data).length + ' zones';
   } catch(e) { alert('Invalid JSON: ' + e.message); }
 }
+
+hoverColorPicker.addEventListener('input', function() {
+  hoverColorText.value = hexToRgba(hoverColorPicker.value, 0.13);
+});
+
+hoverColorText.addEventListener('change', function() {
+  hoverColorPicker.value = colorTextToHex(hoverColorText.value);
+});
+zoneSelect.addEventListener('change', function() {
+  var zoneId = zoneSelect.value;
+  if (zoneId && savedZones[zoneId]) {
+    hoverColorText.value = normalizeHoverColor(savedZones[zoneId].hoverColor);
+    hoverColorPicker.value = colorTextToHex(savedZones[zoneId].hoverColor || '');
+  }
+  updateColorEditBtn();
+});
 function copyExport() {
   var t = document.getElementById('export-output');
   t.select(); navigator.clipboard.writeText(t.value);
