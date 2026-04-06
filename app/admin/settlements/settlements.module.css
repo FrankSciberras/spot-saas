@@ -391,6 +391,14 @@
   gap: var(--spacing-lg);
 }
 
+.weekStatsActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
 .statItem {
   display: flex;
   align-items: center;
@@ -410,7 +418,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
   padding: 8px 14px;
   background: var(--color-primary);
   color: white;
@@ -445,11 +452,15 @@
     flex-wrap: wrap;
     gap: var(--spacing-sm);
   }
+
+  .weekStatsActions {
+    width: 100%;
+    margin-left: 0;
+  }
   
   .exportPdfBtn {
     width: 100%;
     justify-content: center;
-    margin-top: var(--spacing-sm);
   }
 }
 
@@ -481,6 +492,21 @@
 .monthSelect:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.monthInput {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.monthInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.08);
 }
 
 /* Main Workspace */

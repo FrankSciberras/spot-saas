@@ -74,6 +74,12 @@ export default function SettlementsWorkspace({
   const [newPeriodEnd, setNewPeriodEnd] = useState('');
   const [newPeriodName, setNewPeriodName] = useState('');
   const [newPeriodMonth, setNewPeriodMonth] = useState('');
+  const [isEditingPeriod, setIsEditingPeriod] = useState(false);
+  const [editPeriodStart, setEditPeriodStart] = useState('');
+  const [editPeriodEnd, setEditPeriodEnd] = useState('');
+  const [editPeriodName, setEditPeriodName] = useState('');
+  const [editPeriodMonth, setEditPeriodMonth] = useState('');
+  const [periodSaving, setPeriodSaving] = useState(false);
   
   // Driver selection state
   const [showArchived, setShowArchived] = useState(false);
@@ -118,6 +124,14 @@ export default function SettlementsWorkspace({
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  const getMonthStart = useCallback((value: string) => {
+    const isoValue = dateOnly(value);
+    if (!isoValue) return '';
+    const [year, month] = isoValue.split('-');
+    if (!year || !month) return '';
+    return `${year}-${month}-01`;
+  }, []);
 
   // Get available years from settlements
   const availableYears = useMemo(() => {
@@ -355,6 +369,19 @@ export default function SettlementsWorkspace({
     };
   }, [currentPeriod, selectedDriverId]);
 
+  useEffect(() => {
+    if (!isEditingPeriod) return;
+    if (!currentPeriod) {
+      setIsEditingPeriod(false);
+      return;
+    }
+
+    setEditPeriodStart(currentPeriod.startISO);
+    setEditPeriodEnd(currentPeriod.endISO);
+    setEditPeriodName(currentPeriod.periodName || '');
+    setEditPeriodMonth(currentPeriod.settlementMonth || getMonthStart(currentPeriod.startISO));
+  }, [currentPeriod, getMonthStart, isEditingPeriod]);
+
   const handleExportMonthPdf = useCallback(async () => {
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
@@ -467,6 +494,75 @@ export default function SettlementsWorkspace({
     if (!settlement) return 'pending';
     return settlement.status;
   }, [periodSettlements]);
+
+  const startEditingPeriod = useCallback(() => {
+    if (!currentPeriod) return;
+    setError(null);
+    setSuccessMessage(null);
+    setIsCreatingPeriod(false);
+    setIsEditingPeriod(true);
+    setEditPeriodStart(currentPeriod.startISO);
+    setEditPeriodEnd(currentPeriod.endISO);
+    setEditPeriodName(currentPeriod.periodName || '');
+    setEditPeriodMonth(currentPeriod.settlementMonth || getMonthStart(currentPeriod.startISO));
+  }, [currentPeriod, getMonthStart]);
+
+  const cancelPeriodEdit = useCallback(() => {
+    setIsEditingPeriod(false);
+    setError(null);
+  }, []);
+
+  const handlePeriodUpdate = useCallback(async () => {
+    if (!currentPeriod || !isAdmin) return;
+
+    if (!editPeriodStart || !editPeriodEnd) {
+      setError('Start and end dates are required');
+      return;
+    }
+
+    setPeriodSaving(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch('/api/settlements/period', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_week_start: currentPeriod.startISO,
+          week_start: editPeriodStart,
+          week_end: editPeriodEnd,
+          period_name: editPeriodName || null,
+          settlement_month: editPeriodMonth || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update period');
+      }
+
+      const navigationDate = data.settlement_month || editPeriodMonth || getMonthStart(editPeriodStart);
+      if (navigationDate) {
+        const [year, month] = String(navigationDate).split('-');
+        if (year && month) {
+          setSelectedYear(parseInt(year, 10));
+          setSelectedMonth(parseInt(month, 10) - 1);
+        }
+      }
+
+      setSelectedWeekId(data.week_start || editPeriodStart);
+      setPeriodName(data.period_name || editPeriodName || '');
+      setIsEditingPeriod(false);
+      setSuccessMessage('Settlement period updated successfully');
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update period');
+    } finally {
+      setPeriodSaving(false);
+    }
+  }, [currentPeriod, editPeriodEnd, editPeriodMonth, editPeriodName, editPeriodStart, getMonthStart, isAdmin, router]);
 
   // Load existing settlement data when selecting a driver
   const selectDriver = useCallback((driverId: string) => {
@@ -875,6 +971,7 @@ export default function SettlementsWorkspace({
                     className="btn btn-primary btn-sm"
                     onClick={() => {
                       setIsCreatingPeriod(true);
+                      setIsEditingPeriod(false);
                       setSelectedWeekId(null);
                       setSelectedDriverId(null);
                       // Pre-fill month - use string construction to avoid timezone issues
@@ -949,12 +1046,13 @@ export default function SettlementsWorkspace({
                 <button
                   key={week.id}
                   className={`${styles.weekCard} ${selectedWeekId === week.id ? styles.active : ''}`}
-                  onClick={() => {
-                    setSelectedWeekId(week.id);
-                    setIsCreatingPeriod(false);
-                    setSelectedDriverId(null);
-                    setPeriodName(week.periodName || '');
-                  }}
+                    onClick={() => {
+                      setSelectedWeekId(week.id);
+                      setIsCreatingPeriod(false);
+                      setIsEditingPeriod(false);
+                      setSelectedDriverId(null);
+                      setPeriodName(week.periodName || '');
+                    }}
                 >
                   <div className={styles.weekCardHeader}>
                     <span className={styles.weekName}>{week.periodName || week.label}</span>
@@ -977,6 +1075,7 @@ export default function SettlementsWorkspace({
                     className="btn btn-primary"
                     onClick={() => {
                       setIsCreatingPeriod(true);
+                      setIsEditingPeriod(false);
                       // Use string construction to avoid timezone issues
                       const month = String(selectedMonth + 1).padStart(2, '0');
                       setNewPeriodMonth(`${selectedYear}-${month}-01`);
@@ -1009,22 +1108,88 @@ export default function SettlementsWorkspace({
               {activeDrivers.length - periodSettlements.length} Pending
             </span>
           </div>
-          {periodSettlements.length > 0 && (
+          <div className={styles.weekStatsActions}>
+            {isAdmin && periodSettlements.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={startEditingPeriod}
+                disabled={periodSaving}
+              >
+                Edit Week Dates
+              </button>
+            )}
+            {periodSettlements.length > 0 && (
+              <button
+                type="button"
+                className={styles.exportPdfBtn}
+                onClick={handleExportPdf}
+                title="Export all settlements for this week as PDF"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <line x1="9" y1="15" x2="15" y2="15" />
+                </svg>
+                Export PDF
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentPeriod && isEditingPeriod && (
+        <div className={styles.newPeriodForm}>
+          <div className={styles.formRow}>
+            <DatePicker
+              value={editPeriodStart}
+              onChange={setEditPeriodStart}
+              placeholder="Start date"
+              disabled={periodSaving}
+            />
+            <span>to</span>
+            <DatePicker
+              value={editPeriodEnd}
+              onChange={setEditPeriodEnd}
+              placeholder="End date"
+              minDate={editPeriodStart}
+              disabled={periodSaving}
+            />
+          </div>
+          <input
+            type="text"
+            placeholder="Week name (optional)"
+            value={editPeriodName}
+            onChange={(e) => setEditPeriodName(e.target.value)}
+            className={styles.periodNameInput}
+            disabled={periodSaving}
+          />
+          <input
+            type="month"
+            value={editPeriodMonth ? editPeriodMonth.slice(0, 7) : ''}
+            onChange={(e) => setEditPeriodMonth(e.target.value ? `${e.target.value}-01` : '')}
+            className={styles.monthInput}
+            disabled={periodSaving}
+          />
+          <div className={styles.formActions}>
             <button
               type="button"
-              className={styles.exportPdfBtn}
-              onClick={handleExportPdf}
-              title="Export all settlements for this week as PDF"
+              className="btn btn-primary btn-sm"
+              onClick={handlePeriodUpdate}
+              disabled={periodSaving || !editPeriodStart || !editPeriodEnd}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="18" x2="12" y2="12" />
-                <line x1="9" y1="15" x2="15" y2="15" />
-              </svg>
-              Export PDF
+              {periodSaving ? 'Saving...' : 'Save Week Changes'}
             </button>
-          )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={cancelPeriodEdit}
+              disabled={periodSaving}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
