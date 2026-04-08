@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 import type { CreateDamageInput } from '@/lib/types/database';
 
 interface RouteParams {
@@ -51,13 +52,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    const actor = await getAuditActor(user.id);
 
-    if (!profile || !['admin', 'staff'].includes(profile.role)) {
+    if (!hasStaffDashboardAccess(actor)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -93,6 +90,20 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await createAuditLogEntry({
+      actor,
+      action: 'create',
+      entityType: 'vehicle_damage',
+      entityId: damage.id,
+      summary: `Reported vehicle damage on vehicle ${id}`,
+      details: {
+        vehicle_id: id,
+        zone: damage.zone,
+        severity: damage.severity,
+        status: damage.status,
+      },
+    });
 
     return NextResponse.json({ data: damage }, { status: 201 });
   } catch (error) {

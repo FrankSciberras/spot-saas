@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 
@@ -22,13 +23,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const actor = await getAuditActor(user.id);
 
-  if (!profile || !['admin', 'staff'].includes(profile.role)) {
+  if (!hasStaffDashboardAccess(actor)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -294,6 +291,20 @@ export async function POST(request: Request, { params }: RouteParams) {
       });
     }
   }
+
+  await createAuditLogEntry({
+    actor,
+    action: 'update',
+    entityType: 'roster_publish',
+    entityId: roster.id,
+    summary: `${isUpdate ? 'Republished' : 'Published'} roster \"${roster.title || roster.id}\"`,
+    details: {
+      roster_id: roster.id,
+      title: roster.title,
+      republish: isUpdate,
+      notifications: notificationResults,
+    },
+  });
 
   return NextResponse.json({ 
     success: true, 

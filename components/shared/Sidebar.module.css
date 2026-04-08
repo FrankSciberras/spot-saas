@@ -111,6 +111,31 @@
   font-weight: 500;
 }
 
+.switchView {
+  padding: 0 12px;
+  margin-bottom: 4px;
+}
+
+.switchViewLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  background: rgba(var(--color-primary-rgb), 0.06);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.12);
+  transition: all var(--transition-fast);
+}
+
+.switchViewLink:hover {
+  background: rgba(var(--color-primary-rgb), 0.12);
+  border-color: rgba(var(--color-primary-rgb), 0.25);
+}
+
 .userInfo {
   display: flex;
   align-items: center;

@@ -22,7 +22,7 @@ export default async function EditStaffPage({ params }: EditStaffPageProps) {
     .from('users')
     .select('*')
     .eq('id', id)
-    .eq('role', 'staff')
+    .or('role.eq.staff,also_staff.eq.true')
     .single();
 
   if (error || !staff) {

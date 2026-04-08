@@ -72,7 +72,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { full_name, password } = body;
+    const { full_name, password, also_staff } = body;
 
     // Create admin client for password updates
     const supabaseAdmin = createClient(
@@ -102,9 +102,12 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     // Update profile in users table
-    const updateData: Record<string, string> = {};
+    const updateData: Record<string, unknown> = {};
     if (full_name !== undefined) {
       updateData.full_name = full_name;
+    }
+    if (also_staff !== undefined) {
+      updateData.also_staff = !!also_staff;
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -176,12 +179,29 @@ export async function DELETE(request: Request, context: RouteContext) {
     // Check if user exists and is a staff member
     const { data: targetUser } = await supabaseAdmin
       .from('users')
-      .select('role')
+      .select('role, also_staff')
       .eq('id', id)
       .single();
 
     if (!targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (targetUser.role === 'driver' && targetUser.also_staff) {
+      const { error: revokeError } = await supabaseAdmin
+        .from('users')
+        .update({ also_staff: false })
+        .eq('id', id);
+
+      if (revokeError) {
+        return NextResponse.json({ error: revokeError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, action: 'revoked_staff_access' });
+    }
+
+    if (targetUser.role !== 'staff') {
+      return NextResponse.json({ error: 'User is not a staff account' }, { status: 400 });
     }
 
     // Delete from users table first

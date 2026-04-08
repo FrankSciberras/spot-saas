@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 
 /**
  * DELETE /api/rosters/bulk
@@ -13,14 +14,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Check if admin/staff
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const actor = await getAuditActor(user.id);
 
-  if (!profile || !['admin', 'staff'].includes(profile.role)) {
+  if (!hasStaffDashboardAccess(actor)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -30,6 +26,11 @@ export async function DELETE(request: Request) {
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'No roster IDs provided' }, { status: 400 });
   }
+
+  const { data: existingRosters } = await supabase
+    .from('rosters')
+    .select('id, title')
+    .in('id', ids);
 
   // Delete roster entries first (if they exist)
   await supabase
@@ -46,6 +47,19 @@ export async function DELETE(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await createAuditLogEntry({
+    actor,
+    action: 'delete',
+    entityType: 'roster_bulk',
+    entityId: null,
+    summary: `Deleted ${ids.length} roster${ids.length === 1 ? '' : 's'}`,
+    details: {
+      ids,
+      titles: (existingRosters || []).map((roster) => roster.title),
+      count: ids.length,
+    },
+  });
 
   return NextResponse.json({ 
     success: true, 

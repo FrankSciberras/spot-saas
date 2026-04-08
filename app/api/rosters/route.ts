@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 
 /**
  * GET /api/rosters
@@ -52,14 +53,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Check if admin/staff
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const actor = await getAuditActor(user.id);
 
-  if (!profile || !['admin', 'staff'].includes(profile.role)) {
+  if (!hasStaffDashboardAccess(actor)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -94,6 +90,19 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await createAuditLogEntry({
+    actor,
+    action: 'create',
+    entityType: 'roster',
+    entityId: roster.id,
+    summary: `Created roster \"${roster.title}\"`,
+    details: {
+      week_start: roster.week_start,
+      week_end: roster.week_end,
+      status: roster.status,
+    },
+  });
 
   return NextResponse.json({ data: roster }, { status: 201 });
 }

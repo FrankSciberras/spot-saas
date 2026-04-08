@@ -14,7 +14,7 @@ export async function GET() {
     // Fetch user details from users table
     const { data: userData, error } = await supabase
       .from('users')
-      .select('id, email, role, full_name')
+      .select('id, email, role, full_name, also_staff')
       .eq('id', user.id)
       .single();
 

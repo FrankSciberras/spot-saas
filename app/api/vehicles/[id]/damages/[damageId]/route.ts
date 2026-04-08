@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 import type { UpdateDamageInput } from '@/lib/types/database';
 
 interface RouteParams {
@@ -52,17 +53,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    const actor = await getAuditActor(user.id);
 
-    if (!profile || !['admin', 'staff'].includes(profile.role)) {
+    if (!hasStaffDashboardAccess(actor)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body: UpdateDamageInput = await request.json();
+
+    const { data: existingDamage } = await supabase
+      .from('vehicle_damages')
+      .select('id, zone, severity, status')
+      .eq('id', damageId)
+      .eq('vehicle_id', id)
+      .single();
 
     const updateData: Record<string, unknown> = {};
     if (body.zone !== undefined) updateData.zone = body.zone;
@@ -90,6 +94,22 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await createAuditLogEntry({
+      actor,
+      action: 'update',
+      entityType: 'vehicle_damage',
+      entityId: damageId,
+      summary: `Updated vehicle damage on vehicle ${id}`,
+      details: {
+        vehicle_id: id,
+        previous_zone: existingDamage?.zone || null,
+        zone: damage.zone,
+        previous_status: existingDamage?.status || null,
+        status: damage.status,
+        changed_fields: Object.keys(body),
+      },
+    });
 
     return NextResponse.json({ data: damage });
   } catch (error) {

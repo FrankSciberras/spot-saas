@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 
 /**
  * GET /api/services
@@ -51,13 +52,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const actor = await getAuditActor(user.id);
 
-  if (!profile || !['admin', 'staff'].includes(profile.role)) {
+  if (!hasStaffDashboardAccess(actor)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -134,6 +131,21 @@ export async function POST(request: Request) {
       .eq('action_url', `/admin/vehicles/${vehicle_id}`)
       .ilike('title', '%Service%');
   }
+
+  await createAuditLogEntry({
+    actor,
+    action: 'create',
+    entityType: 'vehicle_service',
+    entityId: service.id,
+    summary: `Created service record for ${service.vehicles?.registration_number || vehicle_id}`,
+    details: {
+      vehicle_id,
+      registration_number: service.vehicles?.registration_number || null,
+      service_type: service.service_type,
+      service_date: service.service_date,
+      mileage_at_service: service.mileage_at_service,
+    },
+  });
 
   return NextResponse.json({ data: service }, { status: 201 });
 }

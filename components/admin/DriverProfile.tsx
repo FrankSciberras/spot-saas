@@ -58,6 +58,7 @@ interface DriverProfileProps {
   documents: FileRecord[];
   recentShifts: ShiftRecord[];
   isAdmin: boolean;
+  alsoStaff?: boolean;
 }
 
 /* ─── SVG Icons ─── */
@@ -288,10 +289,12 @@ function DocCard({ title, subtitle, slots, files, driverId, onUpload, onDelete, 
 /* ═══════════════════════════════════════════════════════════════════════════
    Main Component
    ═══════════════════════════════════════════════════════════════════════════ */
-export default function DriverProfile({ driver: initialDriver, vehicles, documents: initialDocuments, recentShifts, isAdmin }: DriverProfileProps) {
+export default function DriverProfile({ driver: initialDriver, vehicles, documents: initialDocuments, recentShifts, isAdmin, alsoStaff: initialAlsoStaff }: DriverProfileProps) {
   const router = useRouter();
   const [driver, setDriver] = useState(initialDriver);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [alsoStaff, setAlsoStaff] = useState(initialAlsoStaff ?? false);
+  const [togglingStaff, setTogglingStaff] = useState(false);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -443,6 +446,26 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       showMessage('error', err instanceof Error ? err.message : 'Failed');
     } finally {
       setResettingPassword(false);
+    }
+  };
+
+  /* ── Toggle Staff Access ── */
+  const handleToggleStaff = async () => {
+    if (!driver.user_id) return;
+    setTogglingStaff(true);
+    try {
+      const res = await fetch(`/api/users/${driver.user_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ also_staff: !alsoStaff }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      setAlsoStaff(!alsoStaff);
+      showMessage('success', !alsoStaff ? 'Staff access granted — this driver can now access the admin dashboard' : 'Staff access revoked');
+    } catch (err) {
+      showMessage('error', err instanceof Error ? err.message : 'Failed to update');
+    } finally {
+      setTogglingStaff(false);
     }
   };
 
@@ -739,6 +762,37 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
           />
         </div>
       </div>
+
+      {/* ── Staff Access ── */}
+      {isAdmin && driver.user_id && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><ShieldIcon /></div>
+            <h3 className={styles.sectionTitle}>Staff Access</h3>
+          </div>
+          <div className={styles.sectionBody}>
+            <p className={styles.passwordHint}>
+              {alsoStaff
+                ? 'This driver currently has staff access and can use the admin dashboard with staff-level permissions.'
+                : 'Grant this driver staff access so they can also use the admin dashboard (e.g. a driver who is also a manager).'}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={handleToggleStaff}
+                disabled={togglingStaff}
+                className={alsoStaff ? 'btn btn-secondary' : 'btn btn-primary'}
+                style={{ fontSize: 13, padding: '8px 20px' }}
+              >
+                {togglingStaff ? 'Updating...' : alsoStaff ? 'Revoke Staff Access' : 'Grant Staff Access'}
+              </button>
+              {alsoStaff && (
+                <span className="badge badge-success" style={{ fontSize: 11 }}>Staff access active</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Account Security ── */}
       {isAdmin && driver.user_id && (

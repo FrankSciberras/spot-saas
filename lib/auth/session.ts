@@ -18,7 +18,7 @@ export async function getSession(): Promise<SessionUser | null> {
   // Get user profile with role
   const { data: profile } = await supabase
     .from('users')
-    .select('id, email, role, full_name')
+    .select('id, email, role, full_name, also_staff')
     .eq('id', user.id)
     .single();
 
@@ -26,7 +26,7 @@ export async function getSession(): Promise<SessionUser | null> {
     return null;
   }
 
-  // If user is a driver, get their driver_id
+  // If user is a driver (or has also_staff), get their driver_id
   let driver_id: string | undefined;
   if (profile.role === 'driver') {
     const { data: driver } = await supabase
@@ -41,6 +41,7 @@ export async function getSession(): Promise<SessionUser | null> {
     id: profile.id,
     email: profile.email,
     role: profile.role as UserRole,
+    also_staff: profile.also_staff ?? false,
     full_name: profile.full_name,
     driver_id,
   };
@@ -66,8 +67,16 @@ export async function requireRole(
   allowedRoles: UserRole[]
 ): Promise<SessionUser> {
   const session = await requireAuth();
-  
-  if (!allowedRoles.includes(session.role)) {
+
+  // Build the effective roles for this user
+  const effectiveRoles: UserRole[] = [session.role];
+  if (session.role === 'driver' && session.also_staff) {
+    effectiveRoles.push('staff');
+  }
+
+  const hasAccess = effectiveRoles.some(r => allowedRoles.includes(r));
+
+  if (!hasAccess) {
     // Redirect based on user's actual role
     if (session.role === 'driver') {
       redirect('/driver');
@@ -92,7 +101,7 @@ export function isAdmin(user: SessionUser): boolean {
  * Checks if user has admin or staff role.
  */
 export function isAdminOrStaff(user: SessionUser): boolean {
-  return user.role === 'admin' || user.role === 'staff';
+  return user.role === 'admin' || user.role === 'staff' || (user.role === 'driver' && user.also_staff);
 }
 
 /**

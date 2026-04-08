@@ -28,6 +28,7 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
+  also_staff: boolean;
   full_name: string | null;
   avatar_url: string | null;
   created_at: string;
@@ -656,6 +657,75 @@ export interface UpdateDamageInput {
 }
 
 // =============================================================================
+// Reminder / To-Do Types
+// =============================================================================
+
+export type ReminderPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type ReminderStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type ReminderRecurring = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface Reminder {
+  id: string;
+  created_by: string;
+  assigned_to: string | null;
+  title: string;
+  description: string | null;
+  priority: ReminderPriority;
+  status: ReminderStatus;
+  due_date: string | null;
+  remind_at: string | null;
+  reminder_sent: boolean;
+  recurring: ReminderRecurring | null;
+  recurring_end_date: string | null;
+  parent_id: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  creator?: { full_name: string | null; email: string };
+  assignee?: { full_name: string | null; email: string };
+}
+
+export interface CreateReminderInput {
+  title: string;
+  description?: string;
+  priority?: ReminderPriority;
+  assigned_to?: string | null;
+  due_date?: string | null;
+  remind_at?: string | null;
+  recurring?: ReminderRecurring | null;
+  recurring_end_date?: string | null;
+}
+
+export interface UpdateReminderInput {
+  title?: string;
+  description?: string | null;
+  priority?: ReminderPriority;
+  status?: ReminderStatus;
+  assigned_to?: string | null;
+  due_date?: string | null;
+  remind_at?: string | null;
+  recurring?: ReminderRecurring | null;
+  recurring_end_date?: string | null;
+}
+
+export type AuditLogAction = 'create' | 'update' | 'delete';
+
+export interface AuditLogEntry {
+  id: string;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  actor_role: string;
+  action: AuditLogAction;
+  entity_type: string;
+  entity_id: string | null;
+  summary: string;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
+// =============================================================================
 // Session & Auth Types
 // =============================================================================
 
@@ -663,6 +733,7 @@ export interface SessionUser {
   id: string;
   email: string;
   role: UserRole;
+  also_staff: boolean;
   full_name: string | null;
   driver_id?: string;
 }

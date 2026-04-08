@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -66,18 +67,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const actor = await getAuditActor(user.id);
 
-  if (!profile || !['admin', 'staff'].includes(profile.role)) {
+  if (!hasStaffDashboardAccess(actor)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const body = await request.json();
   const { title, notes, status, assignments } = body;
+
+  const { data: existingRoster } = await supabase
+    .from('rosters')
+    .select('id, title, status')
+    .eq('id', id)
+    .single();
 
   // Update roster metadata
   if (title !== undefined || notes !== undefined || status !== undefined) {
@@ -143,6 +146,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .eq('id', id)
     .single();
 
+  await createAuditLogEntry({
+    actor,
+    action: 'update',
+    entityType: 'roster',
+    entityId: id,
+    summary: `Updated roster \"${roster?.title || existingRoster?.title || id}\"`,
+    details: {
+      previous_status: existingRoster?.status || null,
+      status: roster?.status || status || null,
+      updated_fields: Object.keys(body),
+      assignments_count: Array.isArray(assignments) ? assignments.length : undefined,
+    },
+  });
+
   return NextResponse.json({ data: roster });
 }
 
@@ -159,6 +176,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const actor = await getAuditActor(user.id);
+
   const { data: profile } = await supabase
     .from('users')
     .select('role')
@@ -169,6 +188,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const { data: existingRoster } = await supabase
+    .from('rosters')
+    .select('id, title, week_start, week_end, status')
+    .eq('id', id)
+    .single();
+
   const { error } = await supabase
     .from('rosters')
     .delete()
@@ -177,6 +202,20 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await createAuditLogEntry({
+    actor,
+    action: 'delete',
+    entityType: 'roster',
+    entityId: id,
+    summary: `Deleted roster \"${existingRoster?.title || id}\"`,
+    details: {
+      title: existingRoster?.title || null,
+      week_start: existingRoster?.week_start || null,
+      week_end: existingRoster?.week_end || null,
+      status: existingRoster?.status || null,
+    },
+  });
 
   return NextResponse.json({ success: true });
 }

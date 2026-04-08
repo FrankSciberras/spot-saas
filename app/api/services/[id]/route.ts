@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -47,17 +48,19 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const actor = await getAuditActor(user.id);
 
-  if (!profile || !['admin', 'staff'].includes(profile.role)) {
+  if (!hasStaffDashboardAccess(actor)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const body = await request.json();
+
+  const { data: existingService } = await supabase
+    .from('vehicle_services')
+    .select('id, vehicle_id, service_type, service_date, mileage_at_service')
+    .eq('id', id)
+    .single();
 
   const { data: service, error } = await supabase
     .from('vehicle_services')
@@ -85,6 +88,21 @@ export async function PUT(request: Request, { params }: RouteParams) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await createAuditLogEntry({
+    actor,
+    action: 'update',
+    entityType: 'vehicle_service',
+    entityId: id,
+    summary: `Updated service record for ${service.vehicles?.registration_number || service.vehicle_id}`,
+    details: {
+      vehicle_id: service.vehicle_id,
+      registration_number: service.vehicles?.registration_number || null,
+      previous_service_type: existingService?.service_type || null,
+      service_type: service.service_type,
+      changed_fields: Object.keys(body),
+    },
+  });
 
   return NextResponse.json({ data: service });
 }

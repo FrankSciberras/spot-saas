@@ -256,6 +256,22 @@ const SettlementIcon = () => (
   </svg>
 );
 
+const ChecklistIcon = () => (
+  <svg
+    className={styles.navIcon}
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 11l3 3L22 4" />
+    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+  </svg>
+);
+
 const SettingsIcon = () => (
   <svg
     className={styles.navIcon}
@@ -308,6 +324,8 @@ const adminNavItems: NavItem[] = [
   { label: 'Settlements', href: '/admin/settlements', section: 'Financial', icon: <SettlementIcon />, roles: ['admin'] },
   { label: 'Adjustments', href: '/admin/adjustments', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
   // Admin
+  { label: 'Reminders', href: '/admin/reminders', section: 'Admin', icon: <ChecklistIcon /> },
+  { label: 'Audit Log', href: '/admin/audit-log', section: 'Admin', icon: <ListIcon />, roles: ['admin'] },
   { label: 'Events', href: '/admin/events', section: 'Admin', icon: <CalendarIcon /> },
   { label: 'Notify', href: '/admin/notifications', section: 'Admin', icon: <BellIcon />, roles: ['admin'] },
   { label: 'Permissions', href: '/admin/permissions', section: 'Admin', icon: <ShieldIcon />, roles: ['admin'] },
@@ -342,6 +360,8 @@ export default function Sidebar({ user, variant }: SidebarProps) {
   const filteredNavItems = navItems.filter(item => {
     if (!item.roles) return true;
     if (!user?.role) return false;
+    // also_staff drivers should see staff-accessible items in the admin sidebar
+    if (user.role === 'driver' && user.also_staff && item.roles.includes('staff')) return true;
     return item.roles.includes(user.role);
   });
 
@@ -438,6 +458,21 @@ export default function Sidebar({ user, variant }: SidebarProps) {
         ))}
       </nav>
 
+      {/* Switch view link for also_staff drivers */}
+      {user?.also_staff && user.role === 'driver' && (
+        <div className={styles.switchView}>
+          <Link
+            href={variant === 'admin' ? '/driver' : '/admin'}
+            className={styles.switchViewLink}
+          >
+            <svg className={styles.navIcon} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3M3 16v3a2 2 0 002 2h3m8 0h3a2 2 0 002-2v-3" />
+            </svg>
+            <span>{variant === 'admin' ? 'Switch to Driver View' : 'Switch to Admin View'}</span>
+          </Link>
+        </div>
+      )}
+
       {user && (
         <div className={styles.userInfo}>
           <div className={styles.userAvatar}>
@@ -445,7 +480,11 @@ export default function Sidebar({ user, variant }: SidebarProps) {
           </div>
           <div className={styles.userDetails}>
             <span className={styles.userName}>{user.full_name || user.email || 'User'}</span>
-            <span className={styles.userRole}>{user.role || 'Loading...'}</span>
+            <span className={styles.userRole}>
+              {user.also_staff && user.role === 'driver'
+                ? (variant === 'admin' ? 'Staff' : 'Driver')
+                : user.role || 'Loading...'}
+            </span>
           </div>
         </div>
       )}

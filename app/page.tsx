@@ -11,8 +11,8 @@ export default async function HomePage() {
     redirect('/login');
   }
 
-  // Redirect based on role
-  if (session.role === 'driver') {
+  // Redirect based on role — also_staff drivers go to admin by default
+  if (session.role === 'driver' && !session.also_staff) {
     redirect('/driver');
   } else {
     redirect('/admin');

@@ -22,12 +22,14 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
     .from('users')
     .select('*')
     .eq('id', id)
-    .eq('role', 'staff')
+    .or('role.eq.staff,also_staff.eq.true')
     .single();
 
   if (error || !staff) {
     notFound();
   }
+
+  const isDualRoleStaff = staff.role === 'driver' && staff.also_staff;
 
   return (
     <DashboardLayout user={user} variant="admin" title="Staff Details">
@@ -41,7 +43,11 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
             <Link href={`/admin/staff/${staff.id}/edit`} className="btn btn-primary">
               Edit
             </Link>
-            <DeleteStaffButton staffId={staff.id} staffName={staff.full_name || staff.email} />
+            <DeleteStaffButton
+              staffId={staff.id}
+              staffName={staff.full_name || staff.email}
+              isDualRole={isDualRoleStaff}
+            />
           </div>
         </div>
 
@@ -60,7 +66,7 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
             <div className={styles.detailItem}>
               <div className={styles.detailLabel}>Role</div>
               <div className={styles.detailValue}>
-                <span className="badge badge-info">{staff.role}</span>
+                <span className="badge badge-info">{isDualRoleStaff ? 'driver + staff' : staff.role}</span>
               </div>
             </div>
 

@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 interface DeleteStaffButtonProps {
   staffId: string;
   staffName: string;
+  isDualRole?: boolean;
 }
 
-export default function DeleteStaffButton({ staffId, staffName }: DeleteStaffButtonProps) {
+export default function DeleteStaffButton({ staffId, staffName, isDualRole = false }: DeleteStaffButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -38,7 +39,9 @@ export default function DeleteStaffButton({ staffId, staffName }: DeleteStaffBut
   if (showConfirm) {
     return (
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span style={{ fontSize: '14px', color: 'var(--danger)' }}>Delete {staffName}?</span>
+        <span style={{ fontSize: '14px', color: 'var(--danger)' }}>
+          {isDualRole ? `Remove staff access for ${staffName}?` : `Delete ${staffName}?`}
+        </span>
         <button
           className="btn btn-sm btn-danger"
           onClick={handleDelete}
@@ -62,7 +65,7 @@ export default function DeleteStaffButton({ staffId, staffName }: DeleteStaffBut
       className="btn btn-danger"
       onClick={() => setShowConfirm(true)}
     >
-      Delete
+      {isDualRole ? 'Remove Staff Access' : 'Delete'}
     </button>
   );
 }

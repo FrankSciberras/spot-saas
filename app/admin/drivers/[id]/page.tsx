@@ -21,7 +21,7 @@ export default async function DriverDetailPage({ params }: PageProps) {
     .from('drivers')
     .select(`
       *,
-      users:user_id (id, email, full_name),
+      users:user_id (id, email, full_name, also_staff),
       vehicles:assigned_vehicle_id (id, registration_number, make, model)
     `)
     .eq('id', id)
@@ -30,6 +30,8 @@ export default async function DriverDetailPage({ params }: PageProps) {
   if (error || !driver) {
     notFound();
   }
+
+  const alsoStaff = (driver.users as { also_staff?: boolean } | null)?.also_staff ?? false;
 
   // Fetch documents
   const { data: documents } = await supabase
@@ -61,6 +63,7 @@ export default async function DriverDetailPage({ params }: PageProps) {
         documents={documents || []}
         recentShifts={recentShifts || []}
         isAdmin={isAdmin}
+        alsoStaff={alsoStaff}
       />
     </DashboardLayout>
   );

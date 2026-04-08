@@ -15,7 +15,7 @@ export default async function StaffPage() {
   const { data: staffMembers, error } = await supabase
     .from('users')
     .select('*')
-    .eq('role', 'staff')
+    .or('role.eq.staff,also_staff.eq.true')
     .order('full_name');
 
   return (
@@ -56,7 +56,7 @@ export default async function StaffPage() {
                       <td>{staff.email}</td>
                       <td>
                         <span className="badge badge-info">
-                          {staff.role}
+                          {staff.role === 'driver' && staff.also_staff ? 'driver + staff' : staff.role}
                         </span>
                       </td>
                       <td>

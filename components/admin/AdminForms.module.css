@@ -147,6 +147,10 @@
   .detailGrid {
     grid-template-columns: 1fr;
   }
+
+  .optionGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .detailItem {
@@ -263,6 +267,66 @@
   height: 8px;
   border-radius: 50%;
   background: currentColor;
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.optionCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.optionCard:hover:not(:disabled) {
+  border-color: var(--border-color-dark);
+  box-shadow: var(--shadow-xs);
+}
+
+.optionCard:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.optionCardActive {
+  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.04);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.08);
+}
+
+.optionTitle {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.optionDescription {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.readOnlyCard {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-sm);
+  padding: 16px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-xs);
 }
 
 /* Expiry Status Colors */
