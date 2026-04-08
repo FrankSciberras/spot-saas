@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
+import { getSession } from '@/lib/auth/session';
+import { getResourcePermissionsForUser } from '@/lib/permissions';
 
 /**
  * GET /api/reminders — list reminders (admin sees all, staff sees own)
@@ -8,9 +10,15 @@ import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const permissions = await getResourcePermissionsForUser(session, 'reminders');
+    if (!permissions.can_view) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -26,6 +34,10 @@ export async function GET(request: NextRequest) {
       `)
       .order('due_date', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false });
+
+    if (session.role !== 'admin') {
+      query = query.or(`created_by.eq.${session.id},assigned_to.eq.${session.id}`);
+    }
 
     if (status && status !== 'all') {
       if (status === 'active') {
@@ -52,10 +64,16 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const actor = await getAuditActor(user.id);
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const permissions = await getResourcePermissionsForUser(session, 'reminders');
+    if (!permissions.can_create) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
+    const actor = await getAuditActor(session.id);
 
     const body = await request.json();
     const { title, description, priority, assigned_to, due_date, remind_at, recurring, recurring_end_date } = body;
@@ -67,7 +85,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('reminders')
       .insert({
-        created_by: user.id,
+        created_by: session.id,
         title: title.trim(),
         description: description?.trim() || null,
         priority: priority || 'medium',

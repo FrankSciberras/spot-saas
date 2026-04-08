@@ -18,6 +18,12 @@ const RESOURCE_INFO: Record<string, { label: string; icon: string; description: 
   settings: { label: 'Settings', icon: '⚙️', description: 'System settings and configuration' },
 };
 
+RESOURCE_INFO.reminders = {
+  label: 'Reminders',
+  icon: '✓',
+  description: 'View and manage reminders and to-dos',
+};
+
 const ROLE_INFO: Record<string, { label: string; color: string; description: string }> = {
   staff: { 
     label: 'Staff', 

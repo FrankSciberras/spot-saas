@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  ALL_PERMISSION_RESOURCES,
+  ALL_PERMISSION_ROLES,
+  getDefaultResourcePermissions,
+} from '@/lib/permissions-config';
 
 // All resources that should have permission rows — add new ones here
-const ALL_RESOURCES = [
-  'dashboard', 'drivers', 'vehicles', 'shifts', 'rosters',
-  'services', 'damages', 'notifications', 'reports', 'settings',
-];
-const ALL_ROLES = ['staff', 'driver'];
 
 // GET - Fetch all permissions (auto-creates missing resource rows)
 export async function GET() {
@@ -44,16 +44,17 @@ export async function GET() {
     );
 
     const missing: { role: string; resource: string; can_view: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }[] = [];
-    for (const role of ALL_ROLES) {
-      for (const resource of ALL_RESOURCES) {
+    for (const role of ALL_PERMISSION_ROLES) {
+      for (const resource of ALL_PERMISSION_RESOURCES) {
         if (!existingKeys.has(`${role}:${resource}`)) {
+          const defaults = getDefaultResourcePermissions(role, resource);
           missing.push({
             role,
             resource,
-            can_view: false,
-            can_create: false,
-            can_edit: false,
-            can_delete: false,
+            can_view: defaults.can_view,
+            can_create: defaults.can_create,
+            can_edit: defaults.can_edit,
+            can_delete: defaults.can_delete,
           });
         }
       }

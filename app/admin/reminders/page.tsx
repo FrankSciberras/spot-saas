@@ -1,14 +1,22 @@
 import { requireRole } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import RemindersManager from '@/components/admin/RemindersManager';
+import { getResourcePermissionsForUser } from '@/lib/permissions';
+import { redirect } from 'next/navigation';
 
 export default async function RemindersPage() {
   const user = await requireRole(['admin', 'staff']);
-  const supabase = await createClient();
+  const permissions = await getResourcePermissionsForUser(user, 'reminders');
+
+  if (!permissions.can_view) {
+    redirect('/admin');
+  }
+
+  const supabase = createAdminClient();
   const isAdmin = user.role === 'admin';
 
-  const { data: reminders } = await supabase
+  let remindersQuery = supabase
     .from('reminders')
     .select(`
       *,
@@ -18,20 +26,28 @@ export default async function RemindersPage() {
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
 
-  // Get users for assignment dropdown (admin + staff, including dual-role driver staff)
-  const { data: users } = await supabase
-    .from('users')
-    .select('id, full_name, email, role, also_staff')
-    .or('role.eq.admin,role.eq.staff,also_staff.eq.true')
-    .order('full_name');
+  if (!isAdmin) {
+    remindersQuery = remindersQuery.or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`);
+  }
+
+  const { data: reminders } = await remindersQuery;
+
+  const shouldLoadAssignableUsers = permissions.can_create || permissions.can_edit;
+  const { data: users } = shouldLoadAssignableUsers
+    ? await supabase
+        .from('users')
+        .select('id, full_name, email, role, also_staff')
+        .or('role.eq.admin,role.eq.staff,also_staff.eq.true')
+        .order('full_name')
+    : { data: [] };
 
   return (
     <DashboardLayout user={user} variant="admin" title="Reminders">
       <RemindersManager
         initialReminders={reminders || []}
         users={users || []}
-        currentUserId={user.id}
         isAdmin={isAdmin}
+        permissions={permissions}
       />
     </DashboardLayout>
   );

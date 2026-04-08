@@ -14,21 +14,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const isAdmin = profile && ['admin', 'staff'].includes(profile.role);
+  const actor = await getAuditActor(user.id);
+  const hasStaffAccess = hasStaffDashboardAccess(actor);
 
   let query = supabase
     .from('rosters')
     .select('*')
     .order('week_start', { ascending: false });
 
-  // Non-admins only see published rosters
-  if (!isAdmin) {
+  // Non-staff users only see published rosters
+  if (!hasStaffAccess) {
     query = query.eq('status', 'published');
   }
 

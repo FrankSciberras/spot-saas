@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
+import { getSession } from '@/lib/auth/session';
+import { getResourcePermissionsForUser } from '@/lib/permissions';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,10 +14,34 @@ interface RouteParams {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const actor = await getAuditActor(user.id);
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const permissions = await getResourcePermissionsForUser(session, 'reminders');
+    if (!permissions.can_edit) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
+    const actor = await getAuditActor(session.id);
+
+    const { data: existingReminder } = await supabase
+      .from('reminders')
+      .select('id, created_by, assigned_to')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existingReminder) {
+      return NextResponse.json({ error: 'Reminder not found' }, { status: 404 });
+    }
+
+    if (
+      session.role !== 'admin' &&
+      existingReminder.created_by !== session.id &&
+      existingReminder.assigned_to !== session.id
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -77,26 +103,34 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const actor = await getAuditActor(user.id);
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Check admin
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (userData?.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    const permissions = await getResourcePermissionsForUser(session, 'reminders');
+    if (!permissions.can_delete) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    const supabase = createAdminClient();
+    const actor = await getAuditActor(session.id);
 
     const { data: existingReminder } = await supabase
       .from('reminders')
-      .select('id, title, assigned_to, status')
+      .select('id, title, created_by, assigned_to, status')
       .eq('id', id)
-      .single();
+      .maybeSingle();
+
+    if (!existingReminder) {
+      return NextResponse.json({ error: 'Reminder not found' }, { status: 404 });
+    }
+
+    if (
+      session.role !== 'admin' &&
+      existingReminder.created_by !== session.id &&
+      existingReminder.assigned_to !== session.id
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { error } = await supabase
       .from('reminders')

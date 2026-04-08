@@ -229,6 +229,7 @@ export type PermissionResource =
   | 'damages'
   | 'notifications'
   | 'reports'
+  | 'reminders'
   | 'settings';
 
 export interface RolePermission {

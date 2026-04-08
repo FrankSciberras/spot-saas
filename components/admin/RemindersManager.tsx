@@ -8,13 +8,14 @@ import type {
   ReminderRecurring,
   User,
 } from '@/lib/types/database';
+import type { ResourcePermissions } from '@/lib/permissions-config';
 import styles from './reminders.module.css';
 
 interface RemindersManagerProps {
   initialReminders: Reminder[];
   users: Pick<User, 'id' | 'full_name' | 'email' | 'role'>[];
-  currentUserId: string;
   isAdmin: boolean;
+  permissions: ResourcePermissions;
 }
 
 const PRIORITY_OPTIONS: { value: ReminderPriority; label: string }[] = [
@@ -64,7 +65,12 @@ function toLocalDateInput(iso: string | null) {
   return iso.slice(0, 10);
 }
 
-export default function RemindersManager({ initialReminders, users, currentUserId, isAdmin }: RemindersManagerProps) {
+export default function RemindersManager({
+  initialReminders,
+  users,
+  isAdmin,
+  permissions,
+}: RemindersManagerProps) {
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [filterStatus, setFilterStatus] = useState<string>('active');
   const [filterPriority, setFilterPriority] = useState<string>('');
@@ -88,15 +94,24 @@ export default function RemindersManager({ initialReminders, users, currentUserI
   const [fRecurringEnd, setFRecurringEnd] = useState('');
   const [fStatus, setFStatus] = useState<ReminderStatus>('pending');
 
+  const canCreate = permissions.can_create;
+  const canEdit = permissions.can_edit;
+  const canDelete = permissions.can_delete;
+
   const resetForm = useCallback(() => {
     setFTitle(''); setFDesc(''); setFPriority('medium'); setFAssigned('');
     setFDueDate(''); setFRemindAt(''); setFRecurring(''); setFRecurringEnd('');
     setFStatus('pending'); setEditing(null); setError(null);
   }, []);
 
-  const openAdd = () => { resetForm(); setShowModal(true); };
+  const openAdd = () => {
+    if (!canCreate) return;
+    resetForm();
+    setShowModal(true);
+  };
 
   const openEdit = (r: Reminder) => {
+    if (!canEdit) return;
     setEditing(r);
     setFTitle(r.title);
     setFDesc(r.description || '');
@@ -112,6 +127,11 @@ export default function RemindersManager({ initialReminders, users, currentUserI
   };
 
   const handleSave = async () => {
+    if ((editing && !canEdit) || (!editing && !canCreate)) {
+      setError('You do not have permission to save reminders.');
+      return;
+    }
+
     if (!fTitle.trim()) { setError('Title is required'); return; }
     setSaving(true); setError(null);
 
@@ -156,6 +176,7 @@ export default function RemindersManager({ initialReminders, users, currentUserI
   };
 
   const toggleComplete = async (r: Reminder) => {
+    if (!canEdit) return;
     const newStatus = r.status === 'completed' ? 'pending' : 'completed';
     try {
       const res = await fetch(`/api/reminders/${r.id}`, {
@@ -170,6 +191,7 @@ export default function RemindersManager({ initialReminders, users, currentUserI
   };
 
   const handleDelete = async (id: string) => {
+    if (!canDelete) return;
     try {
       const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -221,7 +243,9 @@ export default function RemindersManager({ initialReminders, users, currentUserI
           </p>
         </div>
         <div>
-          <button className="btn btn-primary" onClick={openAdd}>+ Add Reminder</button>
+          {canCreate && (
+            <button className="btn btn-primary" onClick={openAdd}>+ Add Reminder</button>
+          )}
         </div>
       </div>
 
@@ -269,7 +293,11 @@ export default function RemindersManager({ initialReminders, users, currentUserI
         {filtered.length === 0 ? (
           <div className={styles.emptyState}>
             <h3>No reminders</h3>
-            <p>Click &ldquo;Add Reminder&rdquo; to create your first one.</p>
+            <p>
+              {canCreate
+                ? 'Click "Add Reminder" to create your first one.'
+                : 'There are no reminders to show right now.'}
+            </p>
           </div>
         ) : (
           filtered.map(r => (
@@ -279,6 +307,7 @@ export default function RemindersManager({ initialReminders, users, currentUserI
                 className={`${styles.reminderCheck} ${r.status === 'completed' ? styles.checked : ''}`}
                 onClick={() => toggleComplete(r)}
                 title={r.status === 'completed' ? 'Mark as pending' : 'Mark as done'}
+                disabled={!canEdit}
               >
                 {r.status === 'completed' && (
                   <svg className={styles.checkIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -321,19 +350,23 @@ export default function RemindersManager({ initialReminders, users, currentUserI
               </div>
 
               {/* Actions */}
-              <div className={styles.reminderActions}>
-                <button className={styles.actionBtn} onClick={() => openEdit(r)}>Edit</button>
-                {isAdmin && (
-                  deletingId === r.id ? (
-                    <>
-                      <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => handleDelete(r.id)}>Confirm</button>
-                      <button className={styles.actionBtn} onClick={() => setDeletingId(null)}>Cancel</button>
-                    </>
-                  ) : (
-                    <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => setDeletingId(r.id)}>Delete</button>
-                  )
-                )}
-              </div>
+              {(canEdit || canDelete) && (
+                <div className={styles.reminderActions}>
+                  {canEdit && (
+                    <button className={styles.actionBtn} onClick={() => openEdit(r)}>Edit</button>
+                  )}
+                  {canDelete && (
+                    deletingId === r.id ? (
+                      <>
+                        <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => handleDelete(r.id)}>Confirm</button>
+                        <button className={styles.actionBtn} onClick={() => setDeletingId(null)}>Cancel</button>
+                      </>
+                    ) : (
+                      <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => setDeletingId(r.id)}>Delete</button>
+                    )
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
