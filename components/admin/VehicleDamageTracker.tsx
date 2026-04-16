@@ -149,7 +149,9 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
   // Image upload
   const handleImageUpload = async (files: FileList) => {
     setUploading(true);
+    setError(null);
     const newUrls: string[] = [];
+    const uploadErrors: string[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -164,13 +166,27 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
         if (res.ok) {
           const { data } = await res.json();
           newUrls.push(data.file_url);
+        } else {
+          const data = await res.json().catch(() => null);
+          uploadErrors.push(data?.error || `Failed to upload ${file.name}`);
         }
       } catch {
-        // Skip failed uploads
+        uploadErrors.push(`Failed to upload ${file.name}`);
       }
     }
 
-    setFormImages((prev) => [...prev, ...newUrls]);
+    if (newUrls.length > 0) {
+      setFormImages((prev) => [...prev, ...newUrls]);
+    }
+
+    if (uploadErrors.length > 0) {
+      setError(uploadErrors[0]);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
     setUploading(false);
   };
 

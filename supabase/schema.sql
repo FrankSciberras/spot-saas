@@ -406,6 +406,16 @@ CREATE POLICY "Drivers can insert own files"
     owner_type = 'driver' AND owner_id = get_driver_id(auth.uid())
   );
 
+-- Admins and staff can create/update file records
+CREATE POLICY "Admins/Staff can insert files"
+  ON files FOR INSERT
+  WITH CHECK (is_admin_or_staff(auth.uid()));
+
+CREATE POLICY "Admins/Staff can update files"
+  ON files FOR UPDATE
+  USING (is_admin_or_staff(auth.uid()))
+  WITH CHECK (is_admin_or_staff(auth.uid()));
+
 -- Admins can manage all files
 CREATE POLICY "Admins can manage files"
   ON files FOR ALL
