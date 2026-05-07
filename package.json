@@ -9,26 +9,26 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.47.0",
-    "@supabase/ssr": "^0.10.0",
-    "@supabase/supabase-js": "^2.101.1",
+    "@sentry/nextjs": "^10.52.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
-    "next": "^16.2.2",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "recharts": "^3.8.1",
-    "resend": "^6.10.0",
+    "resend": "^6.12.3",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.6.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "eslint": "^10.1.0",
-    "eslint-config-next": "^16.2.2",
+    "eslint": "^10.3.0",
+    "eslint-config-next": "^16.2.6",
     "sharp": "^0.34.5",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "@types/react": "19.2.14",
