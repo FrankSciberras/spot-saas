@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     // Get the vehicle details
     const { data: vehicle, error: vehicleError } = await adminClient
       .from('vehicles')
-      .select('id, registration_number, make, model')
+      .select('id, organization_id, registration_number, make, model')
       .eq('id', vehicle_id)
       .single();
 
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
     // Check if service is due soon (within threshold)
     if (kmRemaining <= thresholdKm && kmRemaining > -1000) {
-      const actionUrl = `/admin/vehicles/${vehicle_id}`;
+      const actionUrl = `/fleet/vehicles/${vehicle_id}`;
 
       // Check if we already sent a notification for this vehicle recently (within 24 hours)
       const oneDayAgo = new Date();
@@ -218,6 +218,7 @@ export async function POST(request: Request) {
         const { data: insertedNotif, error } = await adminClient
           .from('notifications')
           .insert({
+            organization_id: vehicle.organization_id,
             driver_id: null,
             title: finalTitle,
             body: finalBody,
@@ -236,6 +237,7 @@ export async function POST(request: Request) {
           const { data: insertedNotif, error } = await adminClient
             .from('notifications')
             .insert({
+              organization_id: vehicle.organization_id,
               driver_id: currentDriver.id,
               title: finalTitle,
               body: finalBody,
@@ -256,6 +258,7 @@ export async function POST(request: Request) {
         const { data: insertedAdminNotif, error: adminError } = await adminClient
           .from('notifications')
           .insert({
+            organization_id: vehicle.organization_id,
             driver_id: null,
             title: finalTitle,
             body: finalBody,
@@ -275,6 +278,7 @@ export async function POST(request: Request) {
           const { data: insertedDriverNotif, error: driverError } = await adminClient
             .from('notifications')
             .insert({
+              organization_id: vehicle.organization_id,
               driver_id: currentDriver.id,
               title: finalTitle,
               body: finalBody,
@@ -416,6 +420,7 @@ export async function POST(request: Request) {
         await adminClient
           .from('notification_log')
           .insert({
+            organization_id: vehicle.organization_id,
             rule_id: serviceRule.id,
             channel: effectiveChannel,
             title: finalTitle,

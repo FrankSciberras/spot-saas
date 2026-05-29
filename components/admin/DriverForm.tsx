@@ -64,7 +64,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [vehicleToAddId, setVehicleToAddId] = useState('');
   const [createNewUser, setCreateNewUser] = useState(mode === 'create' && users.length === 0);
-  const [newUserData, setNewUserData] = useState({ email: '', password: '', confirmPassword: '' });
+  const [newUserData, setNewUserData] = useState({ email: '' });
   const [creatingUser, setCreatingUser] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, FileRecord[]>>(() => {
     // Group existing documents by type
@@ -191,23 +191,16 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
 
       // If creating a new user, do that first
       if (mode === 'create' && createNewUser) {
-        if (!newUserData.email || !newUserData.password) {
-          throw new Error('Email and password are required');
-        }
-        if (newUserData.password !== newUserData.confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        if (newUserData.password.length < 6) {
-          throw new Error('Password must be at least 6 characters');
+        if (!newUserData.email) {
+          throw new Error('Email is required to invite a driver');
         }
 
         setCreatingUser(true);
-        const userRes = await fetch('/api/users/create', {
+        const userRes = await fetch('/api/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: newUserData.email,
-            password: newUserData.password,
             full_name: formData.full_name,
             role: 'driver',
           }),
@@ -217,10 +210,10 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
         setCreatingUser(false);
 
         if (!userRes.ok) {
-          throw new Error(userData.error || 'Failed to create user account');
+          throw new Error(userData.error || 'Failed to invite driver');
         }
 
-        userId = userData.data.id;
+        userId = userData.data.userId;
       }
 
       if (!userId) {
@@ -256,7 +249,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
 
       setSuccess('Driver created successfully!');
       setTimeout(() => {
-        router.push('/admin/drivers');
+        router.push('/fleet/drivers');
         router.refresh();
       }, 1000);
     } catch (err) {
@@ -310,7 +303,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
                 className={`${styles.toggleBtn} ${createNewUser ? styles.active : ''}`}
                 onClick={() => setCreateNewUser(true)}
               >
-                Create New Account
+                Invite New Driver
               </button>
             </div>
           )}
@@ -328,32 +321,9 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
                     placeholder="driver@example.com"
                     required
                   />
-                  <span className={styles.helpText}>The driver will use this email to log in</span>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label htmlFor="new_password">Password *</label>
-                  <input
-                    type="password"
-                    id="new_password"
-                    value={newUserData.password}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Minimum 6 characters"
-                    minLength={6}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label htmlFor="confirm_password">Confirm Password *</label>
-                  <input
-                    type="password"
-                    id="confirm_password"
-                    value={newUserData.confirmPassword}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    placeholder="Confirm password"
-                    required
-                  />
+                  <span className={styles.helpText}>
+                    We&apos;ll email this driver an invite to set their own password and join your fleet.
+                  </span>
                 </div>
               </>
             ) : (

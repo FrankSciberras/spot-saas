@@ -1,0 +1,277 @@
+/* =============================================================================
+   Spot Fleet — Standalone dark/light design system.
+
+   .fleetTheme  — wraps the whole /fleet subtree. Defines design tokens + a few
+                  helpers only. It deliberately does NOT set background / font /
+                  layout, so pages not yet migrated to the new design are left
+                  visually untouched.
+   .fleetCanvas — opt-in wrapper (used by FleetShell) that turns on the full
+                  dark/light canvas: background, Geist font, flex shell.
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+/* ─── Tokens: static ─── */
+.fleetTheme {
+  --sidebar-w: 232px;
+  --topbar-h: 60px;
+  --bottom-nav-h: 60px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --accent: #5b8dff;
+}
+
+/* ─── Tokens: dark (default) ─── */
+.fleetTheme,
+.fleetTheme[data-fleet-theme='dark'] {
+  --bg-0: #0a0c11;
+  --bg-1: #11141b;
+  --bg-2: #161a23;
+  --bg-3: #1c2230;
+  --bg-hover: #1a1f2a;
+  --line-1: rgba(255, 255, 255, 0.05);
+  --line-2: rgba(255, 255, 255, 0.09);
+  --line-3: rgba(255, 255, 255, 0.14);
+  --text-1: #f1f3f8;
+  --text-2: #9aa3b6;
+  --text-3: #5f6878;
+  --text-4: #404959;
+  --accent-soft: rgba(91, 141, 255, 0.14);
+  --accent-line: rgba(91, 141, 255, 0.32);
+  --pos: #3ecf8e;
+  --pos-soft: rgba(62, 207, 142, 0.14);
+  --neg: #f06464;
+  --neg-soft: rgba(240, 100, 100, 0.14);
+  --warn: #f5b54a;
+  --warn-soft: rgba(245, 181, 74, 0.14);
+  --ambient-1: rgba(91, 141, 255, 0.05);
+  --ambient-2: rgba(62, 207, 142, 0.03);
+  --topbar-bg: rgba(10, 12, 17, 0.85);
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-cursor: rgba(255, 255, 255, 0.18);
+}
+
+/* ─── Tokens: light ─── */
+.fleetTheme[data-fleet-theme='light'] {
+  --bg-0: #f7f8fa;
+  --bg-1: #ffffff;
+  --bg-2: #f1f3f7;
+  --bg-3: #e6e9ee;
+  --bg-hover: #f1f3f7;
+  --line-1: rgba(15, 18, 26, 0.07);
+  --line-2: rgba(15, 18, 26, 0.11);
+  --line-3: rgba(15, 18, 26, 0.16);
+  --text-1: #0e1116;
+  --text-2: #4a5260;
+  --text-3: #7a8290;
+  --text-4: #aab2bf;
+  --accent-soft: rgba(91, 141, 255, 0.10);
+  --accent-line: rgba(91, 141, 255, 0.28);
+  --pos: #0a8c4f;
+  --pos-soft: rgba(10, 140, 79, 0.10);
+  --neg: #c92a2a;
+  --neg-soft: rgba(201, 42, 42, 0.09);
+  --warn: #a06400;
+  --warn-soft: rgba(160, 100, 0, 0.10);
+  --ambient-1: rgba(91, 141, 255, 0.04);
+  --ambient-2: rgba(10, 140, 79, 0.025);
+  --topbar-bg: rgba(247, 248, 250, 0.85);
+  --chart-grid: rgba(15, 18, 26, 0.06);
+  --chart-cursor: rgba(15, 18, 26, 0.22);
+}
+
+/* ─── Canvas (opt-in, applied by FleetShell) ─── */
+.fleetCanvas {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.fleetCanvas::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(1200px 600px at 80% -20%, var(--ambient-1), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, var(--ambient-2), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Helpers (scoped, harmless to unmigrated pages) ─── */
+.fleetCanvas * { box-sizing: border-box; }
+.fleetCanvas button { font-family: inherit; cursor: pointer; }
+.fleetCanvas ::selection { background: var(--accent-soft); color: var(--text-1); }
+
+.fleetTheme .mono { font-family: 'Geist Mono', ui-monospace, monospace; font-feature-settings: 'tnum'; }
+.fleetTheme .tnum { font-variant-numeric: tabular-nums; }
+
+.fleetCanvas ::-webkit-scrollbar { width: 10px; height: 10px; }
+.fleetCanvas ::-webkit-scrollbar-track { background: transparent; }
+.fleetCanvas ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; border: 2px solid var(--bg-0); }
+.fleetCanvas ::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
+
+.fleetCanvas button.fleetHover:hover { filter: brightness(1.1); }
+.fleetCanvas button.fleetHover:active { transform: translateY(0.5px); }
+.fleetCanvas a.fleetHover:hover { filter: brightness(1.1); }
+
+/* ─── Sidebar nav-item hover animation ─── */
+.fleetCanvas .fleetNavItem:hover {
+  background: var(--bg-hover);
+  transform: translateX(3px);
+}
+.fleetCanvas .fleetNavItem:hover :is(span) { color: var(--text-1); }
+.fleetCanvas .fleetNavItemActive:hover { transform: translateX(2px); }
+
+@keyframes fleetPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ─── Responsive overrides ─── */
+@media (max-width: 720px) {
+  .fleetCanvas { font-size: 13.5px; }
+  .fleetCanvas .grid-4 { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .fleetCanvas .grid-3 { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .fleetCanvas .grid-2 { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .fleetCanvas .split-main-side { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .fleetCanvas .split-detail { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .fleetCanvas .donut-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .fleetCanvas .stack-mobile { flex-direction: column !important; align-items: stretch !important; }
+  .fleetCanvas .hide-mobile { display: none !important; }
+  .fleetCanvas .full-mobile { width: 100% !important; min-width: 0 !important; }
+  .fleetCanvas .pad-mobile { padding: 0 14px 100px !important; }
+  .fleetCanvas .hero-h1-mobile { font-size: 19px !important; }
+  .fleetCanvas .topbar-mobile { padding: 0 14px !important; height: 54px !important; }
+  .fleetCanvas .topbar-mobile h1 { font-size: 16px !important; }
+  .fleetCanvas .header-mobile-row { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+  .fleetCanvas .stats-row-mobile { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .fleetCanvas .chips-scroll { overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .fleetCanvas .chips-scroll::-webkit-scrollbar { display: none; }
+}
+@media (min-width: 721px) {
+  .fleetCanvas .show-mobile-only { display: none !important; }
+}
+@media (max-width: 480px) {
+  .fleetCanvas .grid-4 { grid-template-columns: 1fr !important; }
+  .fleetCanvas .stats-row-mobile { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* =============================================================================
+   Legacy-token remap.
+
+   Pages that still use the old globals.css markup (.card / .btn / table /
+   .badge / .form-*) are wrapped by FleetShell in .fleetCanvas. Re-pointing the
+   legacy design tokens at the new fleet tokens here makes all that markup adopt
+   the new palette AND follow the fleet light/dark toggle, without touching each
+   page's JSX. The fleet tokens themselves flip via .fleetTheme[data-fleet-theme].
+   ============================================================================= */
+.fleetCanvas {
+  /* surfaces */
+  --bg-primary: var(--bg-1);
+  --bg-secondary: var(--bg-2);
+  --bg-tertiary: var(--bg-3);
+  --bg-dark: var(--bg-0);
+  --bg-card: var(--bg-1);
+  --bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* text */
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
+
+  /* borders */
+  --border-color: var(--line-2);
+  --border-color-dark: var(--line-3);
+  --border-subtle: var(--line-1);
+
+  /* brand + status */
+  --color-primary: var(--accent);
+  --color-primary-dark: var(--accent);
+  --color-primary-light: var(--accent);
+  --color-primary-rgb: 91, 141, 255;
+  --color-secondary: var(--text-2);
+  --color-success: var(--pos);
+  --color-success-rgb: 62, 207, 142;
+  --color-warning: var(--warn);
+  --color-warning-rgb: 245, 181, 74;
+  --color-danger: var(--neg);
+  --color-danger-rgb: 240, 100, 100;
+  --color-info: var(--accent);
+
+  /* shadows — flatten to suit the new bordered surfaces */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --shadow-xl: 0 20px 44px rgba(0, 0, 0, 0.34);
+  --shadow-card: none;
+  --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.32);
+
+  /* badges */
+  --badge-success-bg: var(--pos-soft);
+  --badge-success-text: var(--pos);
+  --badge-warning-bg: var(--warn-soft);
+  --badge-warning-text: var(--warn);
+  --badge-danger-bg: var(--neg-soft);
+  --badge-danger-text: var(--neg);
+  --badge-info-bg: var(--accent-soft);
+  --badge-info-text: var(--accent);
+  --badge-primary-bg: var(--accent-soft);
+  --badge-primary-text: var(--accent);
+
+  /* alerts */
+  --alert-success-bg: var(--pos-soft);
+  --alert-success-border: var(--accent-line);
+  --alert-success-text: var(--pos);
+  --alert-warning-bg: var(--warn-soft);
+  --alert-warning-border: var(--warn);
+  --alert-warning-text: var(--warn);
+  --alert-danger-bg: var(--neg-soft);
+  --alert-danger-border: var(--neg);
+  --alert-danger-text: var(--neg);
+  --alert-info-bg: var(--accent-soft);
+  --alert-info-border: var(--accent-line);
+  --alert-info-text: var(--accent);
+
+  /* stat icon backgrounds */
+  --stat-blue-bg: var(--accent-soft);
+  --stat-green-bg: var(--pos-soft);
+  --stat-purple-bg: var(--accent-soft);
+  --stat-orange-bg: var(--warn-soft);
+
+  --sidebar-bg: var(--bg-0);
+}
+
+/* Card surfaces: tighter radius + 1px line to match fleet cards. */
+.fleetCanvas .card { border-radius: var(--radius-lg); border-color: var(--line-1); }
+
+/* Inputs inherit Geist and pick up the accent focus ring. */
+.fleetCanvas input,
+.fleetCanvas select,
+.fleetCanvas textarea { font-family: inherit; }
+.fleetCanvas .form-input:focus,
+.fleetCanvas .form-select:focus,
+.fleetCanvas .form-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Primary buttons: flat accent fill instead of the old gradient + glow. */
+.fleetCanvas .btn-primary {
+  background: var(--accent);
+  box-shadow: none;
+}
+.fleetCanvas .btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: none;
+  transform: none;
+}

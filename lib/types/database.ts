@@ -737,4 +737,30 @@ export interface SessionUser {
   also_staff: boolean;
   full_name: string | null;
   driver_id?: string;
+  /** The organization the user is currently acting within (the active fleet). */
+  organization_id: string;
+  /** Display name of the active organization. */
+  organization_name: string;
+  /** All organizations the user belongs to (for the org switcher). */
+  memberships: MembershipInfo[];
+}
+
+/** A user's membership in one organization, with their role there. */
+export interface MembershipInfo {
+  organization_id: string;
+  organization_name: string;
+  organization_slug: string;
+  role: UserRole;
+  also_staff: boolean;
+}
+
+/** A tenant (fleet). */
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  status: 'active' | 'suspended' | 'cancelled';
+  stripe_customer_id: string | null;
+  created_at: string;
+  updated_at: string;
 }

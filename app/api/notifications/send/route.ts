@@ -210,7 +210,7 @@ export async function POST(request: Request) {
             const sent = await sendPushNotification(u.id, {
               title,
               body: message,
-              url: action_url || '/admin/notifications',
+              url: action_url || '/fleet/notifications',
             });
             if (sent) results.push.sent++;
             else results.push.failed++;

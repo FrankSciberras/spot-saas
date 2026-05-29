@@ -226,7 +226,7 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
         }
 
         setSuccess(publish ? 'Roster published and drivers notified!' : 'Roster saved as draft!');
-        setTimeout(() => router.push(`/admin/rosters/${newRoster.id}`), 1500);
+        setTimeout(() => router.push(`/fleet/rosters/${newRoster.id}`), 1500);
       } else {
         // Update existing roster
         const updateRes = await fetch(`/api/rosters/${roster!.id}`, {
@@ -256,7 +256,7 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
         }
 
         setTimeout(() => {
-          router.push(`/admin/rosters/${roster!.id}`);
+          router.push(`/fleet/rosters/${roster!.id}`);
           router.refresh();
         }, 1500);
       }

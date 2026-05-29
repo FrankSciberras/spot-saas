@@ -26,7 +26,7 @@ export default async function DriverSettlementsPage() {
 
   if (driverError || !driver) {
     if (user.role !== 'driver') {
-      redirect('/admin');
+      redirect('/fleet');
     }
     return (
       <DashboardLayout user={user} variant="driver" title="My Settlements">

@@ -485,7 +485,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/admin/drivers" className={styles.backBtn} aria-label="Back to drivers">←</Link>
+        <Link href="/fleet/drivers" className={styles.backBtn} aria-label="Back to drivers">←</Link>
         <div className={styles.heroCard}>
           <div className={styles.avatar}>{getInitials(driver.full_name)}</div>
           <div className={styles.heroInfo}>
@@ -499,7 +499,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
           </div>
           {isAdmin && (
             <div className={styles.heroActions}>
-              <Link href={`/admin/drivers/${driver.id}/edit`} className="btn btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>
+              <Link href={`/fleet/drivers/${driver.id}/edit`} className="btn btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>
                 Legacy Edit
               </Link>
             </div>
@@ -674,7 +674,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
               {assignedVehicleIds.map(vid => (
                 <div key={vid} className={styles.vehicleRow}>
                   <div className={styles.vehicleInfo}>
-                    <Link href={`/admin/vehicles/${vid}`} className={styles.vehicleReg}>
+                    <Link href={`/fleet/vehicles/${vid}`} className={styles.vehicleReg}>
                       {vehicleLabelById.get(vid) || vid}
                     </Link>
                   </div>

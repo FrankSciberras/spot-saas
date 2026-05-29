@@ -121,7 +121,7 @@ export default function ServiceForm({ service, vehicles, mode }: ServiceFormProp
         throw new Error(data.error || 'Something went wrong');
       }
 
-      router.push('/admin/services');
+      router.push('/fleet/services');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

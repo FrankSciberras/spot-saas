@@ -189,7 +189,7 @@ export default function ServicesList({ services, serviceTypeLabels }: ServicesLi
                 <td>{formatDate(service.service_date)}</td>
                 <td>
                   {service.vehicles ? (
-                    <Link href={`/admin/vehicles/${service.vehicles.id}`} className={styles.vehicleLink}>
+                    <Link href={`/fleet/vehicles/${service.vehicles.id}`} className={styles.vehicleLink}>
                       <span className={styles.vehicleReg}>{service.vehicles.registration_number}</span>
                       <span className={styles.vehicleModel}>
                         {service.vehicles.make} {service.vehicles.model}
@@ -225,7 +225,7 @@ export default function ServicesList({ services, serviceTypeLabels }: ServicesLi
                   {service.service_provider || <span className={styles.noValue}>-</span>}
                 </td>
                 <td>
-                  <Link href={`/admin/services/${service.id}`} className={styles.viewBtn}>
+                  <Link href={`/fleet/services/${service.id}`} className={styles.viewBtn}>
                     View
                   </Link>
                 </td>

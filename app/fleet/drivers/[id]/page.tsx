@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import DriverProfile from '@/components/admin/DriverProfile';
 
 interface PageProps {
@@ -56,7 +56,7 @@ export default async function DriverDetailPage({ params }: PageProps) {
     .order('registration_number');
 
   return (
-    <DashboardLayout user={user} variant="admin" title={driver.full_name}>
+    <FleetShell user={user} title={driver.full_name}>
       <DriverProfile
         driver={driver}
         vehicles={vehicles || []}
@@ -65,6 +65,6 @@ export default async function DriverDetailPage({ params }: PageProps) {
         isAdmin={isAdmin}
         alsoStaff={alsoStaff}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

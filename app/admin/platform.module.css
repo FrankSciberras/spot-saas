@@ -1,0 +1,467 @@
+/* =============================================================================
+   PLATFORM ADMIN DASHBOARD (Tier 1 — the SaaS operator)
+   Self-contained dark shell so it reads as a distinct surface from the
+   per-fleet (/fleet) and driver (/driver) dashboards.
+   ============================================================================= */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: #0b1220;
+  color: #e6edf7;
+  font-family: var(--font-geist, ui-sans-serif, system-ui, sans-serif);
+}
+
+/* ------- Sidebar ------- */
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  width: 248px;
+  height: 100vh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 22px 16px;
+  background: #0f172a;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 18px;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.brandDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5b8dff;
+  margin-left: 1px;
+}
+
+.brandTag {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5b8dff;
+  background: rgba(91, 141, 255, 0.12);
+  padding: 2px 7px;
+  border-radius: 6px;
+  margin-left: auto;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: #9fb0c9;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e6edf7;
+}
+
+.navItemActive {
+  background: rgba(91, 141, 255, 0.16);
+  color: #fff;
+}
+
+.navIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.sidebarFoot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.adminEmail {
+  font-size: 12px;
+  color: #6b7a93;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footLink {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #9fb0c9;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.footLink:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e6edf7;
+}
+
+/* ------- Main content ------- */
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 34px 40px 60px;
+  max-width: 1180px;
+}
+
+.pageHead {
+  margin-bottom: 28px;
+}
+
+.pageHead h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+
+.pageHead p {
+  margin: 0;
+  color: #8a99b3;
+  font-size: 14px;
+}
+
+/* ------- Stat cards ------- */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.statCard {
+  background: #131c2e;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.statLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7c8aa3;
+  font-weight: 600;
+}
+
+.statValue {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 6px;
+}
+
+/* ------- Panels / tables ------- */
+.panel {
+  background: #131c2e;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.panelHead {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.table th {
+  text-align: left;
+  padding: 11px 20px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7c8aa3;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table td {
+  padding: 13px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cdd8ea;
+}
+
+.table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.muted {
+  color: #6b7a93;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badgeActive {
+  background: rgba(46, 204, 113, 0.15);
+  color: #4ade80;
+}
+
+.badgeSuspended {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.badgeCancelled {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.badgeRole {
+  background: rgba(91, 141, 255, 0.15);
+  color: #93b4ff;
+  margin-right: 5px;
+  text-transform: capitalize;
+}
+
+.emptyRow {
+  padding: 28px 20px;
+  text-align: center;
+  color: #6b7a93;
+}
+
+/* ------- Plans ------- */
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.planCard {
+  background: #131c2e;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 22px;
+}
+
+.planCard.featured {
+  border-color: rgba(91, 141, 255, 0.5);
+}
+
+.planName {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.planPrice {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 10px 0 2px;
+}
+
+.planPrice span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #7c8aa3;
+}
+
+.planList {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13px;
+  color: #cdd8ea;
+}
+
+.planList li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.planList svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #5b8dff;
+  margin-top: 1px;
+}
+
+.notice {
+  background: rgba(91, 141, 255, 0.08);
+  border: 1px solid rgba(91, 141, 255, 0.25);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 13.5px;
+  color: #b9c8e4;
+  margin-bottom: 26px;
+}
+
+@media (max-width: 880px) {
+  .shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .sidebarFoot {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+    flex-direction: row;
+  }
+  .main {
+    padding: 24px 18px 48px;
+  }
+}
+
+/* ------- Fleet plan control (per-row Manage) ------- */
+.manage {
+  position: relative;
+}
+
+.manageToggle {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #93b4ff;
+  padding: 4px 10px;
+  border: 1px solid rgba(91, 141, 255, 0.35);
+  border-radius: 8px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.manageToggle::-webkit-details-marker {
+  display: none;
+}
+
+.manage[open] .manageToggle {
+  background: rgba(91, 141, 255, 0.12);
+}
+
+.managePanel {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  margin-top: 8px;
+  width: 280px;
+  background: #131c2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manageError {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.manageRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.manageLabel {
+  font-size: 12px;
+  color: #6b7a93;
+  font-weight: 600;
+}
+
+.manageBtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.miniBtn {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: #cdd7e6;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+
+.miniBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.miniBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.miniBtnActive {
+  background: rgba(91, 141, 255, 0.18);
+  border-color: rgba(91, 141, 255, 0.5);
+  color: #93b4ff;
+}
+
+.miniBtnDanger {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #f87171;
+}
+
+.miniBtnDanger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1);
+}

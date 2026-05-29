@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import RemindersManager from '@/components/admin/RemindersManager';
 import { getResourcePermissionsForUser } from '@/lib/permissions';
 import { redirect } from 'next/navigation';
@@ -10,7 +10,7 @@ export default async function RemindersPage() {
   const permissions = await getResourcePermissionsForUser(user, 'reminders');
 
   if (!permissions.can_view) {
-    redirect('/admin');
+    redirect('/fleet');
   }
 
   const supabase = createAdminClient();
@@ -42,13 +42,13 @@ export default async function RemindersPage() {
     : { data: [] };
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Reminders">
+    <FleetShell user={user} title="Reminders">
       <RemindersManager
         initialReminders={reminders || []}
         users={users || []}
         isAdmin={isAdmin}
         permissions={permissions}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

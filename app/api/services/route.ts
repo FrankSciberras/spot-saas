@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     await supabase
       .from('notifications')
       .delete()
-      .eq('action_url', `/admin/vehicles/${vehicle_id}`)
+      .eq('action_url', `/fleet/vehicles/${vehicle_id}`)
       .ilike('title', '%Service%');
   }
 

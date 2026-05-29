@@ -161,7 +161,7 @@ export default function RostersList({ rosters }: RostersListProps) {
                 onChange={() => {}}
               />
             </div>
-            <Link href={`/admin/rosters/${roster.id}`} className={styles.cardContent}>
+            <Link href={`/fleet/rosters/${roster.id}`} className={styles.cardContent}>
               <div className={styles.rosterHeader}>
                 <h3 className={styles.rosterTitle}>{roster.title}</h3>
                 <span className={`${styles.statusBadge} ${styles[roster.status]}`}>

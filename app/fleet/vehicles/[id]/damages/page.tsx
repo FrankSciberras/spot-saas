@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import VehicleDamageTracker from '@/components/admin/VehicleDamageTracker';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -61,14 +61,13 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
   }
 
   return (
-    <DashboardLayout
+    <FleetShell
       user={user}
-      variant="admin"
       title={`Damages - ${vehicle.registration_number}`}
     >
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href={`/admin/vehicles/${id}`} className={styles.backButton} aria-label="Back to vehicle">
+          <Link href={`/fleet/vehicles/${id}`} className={styles.backButton} aria-label="Back to vehicle">
             <span>←</span>
           </Link>
           <div className={styles.pageTitleMain}>
@@ -84,7 +83,7 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
               Edit Car Zones
             </Link>
           )}
-          <Link href={`/admin/vehicles/${id}`} className="btn btn-secondary">
+          <Link href={`/fleet/vehicles/${id}`} className="btn btn-secondary">
             ← Back to Vehicle
           </Link>
         </div>
@@ -96,6 +95,6 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
         isAdmin={isAdmin}
         sideZoneConfig={Object.keys(sideZoneConfigMap).length > 0 ? sideZoneConfigMap : undefined}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

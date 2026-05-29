@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import ClickableImage from '@/components/shared/ClickableImage';
 import styles from '@/components/admin/AdminForms.module.css';
 import shiftStyles from '../shifts.module.css';
@@ -90,10 +90,10 @@ export default async function ShiftDetailPage({ params }: PageProps) {
                     shiftData.right_image_url || shiftData.back_image_url;
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Shift Details">
+    <FleetShell user={user} title="Shift Details">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href="/admin/shifts" className={styles.backButton} aria-label="Back to shifts">
+          <Link href="/fleet/shifts" className={styles.backButton} aria-label="Back to shifts">
             <span>←</span>
           </Link>
           <div className={styles.pageTitleMain}>
@@ -109,7 +109,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
           </div>
         </div>
         <div className={styles.pageActions}>
-          <Link href={`/admin/shifts/${shiftData.id}/edit`} className="btn btn-primary">
+          <Link href={`/fleet/shifts/${shiftData.id}/edit`} className="btn btn-primary">
             Edit Shift
           </Link>
         </div>
@@ -158,7 +158,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
             <span className={styles.detailLabel}>Driver</span>
             <span className={styles.detailValue}>
               {shiftData.drivers ? (
-                <Link href={`/admin/drivers/${shiftData.drivers.id}`} className={styles.detailLink}>
+                <Link href={`/fleet/drivers/${shiftData.drivers.id}`} className={styles.detailLink}>
                   {shiftData.drivers.full_name}
                 </Link>
               ) : (
@@ -193,7 +193,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
             <span className={styles.detailLabel}>Registration Number</span>
             <span className={styles.detailValue}>
               {shiftData.vehicles ? (
-                <Link href={`/admin/vehicles/${shiftData.vehicles.id}`} className={styles.detailLink}>
+                <Link href={`/fleet/vehicles/${shiftData.vehicles.id}`} className={styles.detailLink}>
                   {shiftData.vehicles.registration_number}
                 </Link>
               ) : (
@@ -317,6 +317,6 @@ export default async function ShiftDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

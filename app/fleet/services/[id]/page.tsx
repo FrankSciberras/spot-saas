@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import styles from '@/components/admin/AdminForms.module.css';
 
 interface PageProps {
@@ -64,7 +64,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
     : null;
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Service Details">
+    <FleetShell user={user} title="Service Details">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>{SERVICE_TYPE_LABELS[service.service_type] || service.service_type}</h2>
@@ -73,11 +73,11 @@ export default async function ServiceDetailPage({ params }: PageProps) {
           </span>
         </div>
         <div className={styles.pageActions}>
-          <Link href="/admin/services" className="btn btn-secondary">
+          <Link href="/fleet/services" className="btn btn-secondary">
             ← Back to Services
           </Link>
           {isAdmin && (
-            <Link href={`/admin/services/${id}/edit`} className="btn btn-primary">
+            <Link href={`/fleet/services/${id}/edit`} className="btn btn-primary">
               Edit Service
             </Link>
           )}
@@ -122,7 +122,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
             <div className={styles.detailItem}>
               <span className={styles.detailLabel}>Registration</span>
               <span className={styles.detailValue}>
-                <Link href={`/admin/vehicles/${service.vehicles.id}`} className={styles.detailLink}>
+                <Link href={`/fleet/vehicles/${service.vehicles.id}`} className={styles.detailLink}>
                   {service.vehicles.registration_number}
                 </Link>
               </span>
@@ -215,6 +215,6 @@ export default async function ServiceDetailPage({ params }: PageProps) {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

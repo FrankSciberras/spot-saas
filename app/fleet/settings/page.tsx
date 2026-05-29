@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import { SessionUser } from '@/lib/types/database';
+import BrandingSettings from './BrandingSettings';
 import styles from './settings.module.css';
 
 interface AppSetting {
@@ -82,14 +83,14 @@ export default function SettingsPage() {
 
   if (loading || !user) {
     return (
-      <DashboardLayout user={user as SessionUser} variant="admin" title="Settings">
+      <FleetShell user={user as SessionUser} title="Settings">
         <div className={styles.loading}>Loading settings...</div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Settings">
+    <FleetShell user={user} title="Settings">
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.headerContent}>
@@ -103,6 +104,8 @@ export default function SettingsPage() {
             {message.text}
           </div>
         )}
+
+        {user.role === 'admin' && <BrandingSettings />}
 
         <div className={styles.settingsGrid}>
           {settings.map((setting) => {
@@ -170,6 +173,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

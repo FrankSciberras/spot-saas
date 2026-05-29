@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import type { AuditLogEntry } from '@/lib/types/database';
 import styles from './audit-log.module.css';
 
@@ -82,7 +82,7 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
   };
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Audit Log">
+    <FleetShell user={user} title="Audit Log">
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
@@ -129,7 +129,7 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
 
           <div className={styles.filterActions}>
             <button type="submit" className="btn btn-primary">Apply Filters</button>
-            <a href="/admin/audit-log" className="btn btn-secondary">Clear</a>
+            <a href="/fleet/audit-log" className="btn btn-secondary">Clear</a>
           </div>
         </form>
 
@@ -204,6 +204,6 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

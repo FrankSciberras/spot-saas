@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import FinancialsDashboard from '@/components/admin/FinancialsDashboard';
 
 export default async function FinancialsPage() {
@@ -27,8 +27,8 @@ export default async function FinancialsPage() {
     .order('week_start', { ascending: true });
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Financials">
+    <FleetShell user={user} title="Financials">
       <FinancialsDashboard entries={entries || []} drivers={drivers || []} settlements={settlements || []} />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

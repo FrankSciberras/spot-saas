@@ -1,10 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import styles from './SplashScreen.module.css';
 
 interface SplashScreenProps {
   children: React.ReactNode;
+}
+
+/** Public marketing / auth routes that must render instantly, with no app splash. */
+function isPublicRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname === '/' || pathname === '/login' || pathname.startsWith('/login/');
 }
 
 type LoadingStatus = 'initializing' | 'service-worker' | 'backend' | 'ready' | 'error';
@@ -23,6 +30,8 @@ const BACKEND_TIMEOUT = 8000;
 const MIN_SPLASH_TIME = 800; // Minimum time to show splash for smooth UX
 
 export default function SplashScreen({ children }: SplashScreenProps) {
+  const pathname = usePathname();
+  const publicRoute = isPublicRoute(pathname);
   const [isReady, setIsReady] = useState(false);
   const [status, setStatus] = useState<LoadingStatus>('initializing');
   const [retryCount, setRetryCount] = useState(0);
@@ -133,6 +142,11 @@ export default function SplashScreen({ children }: SplashScreenProps) {
 
   // Start initialization on mount
   useEffect(() => {
+    // Public marketing / auth pages never show the app splash.
+    if (publicRoute) {
+      return;
+    }
+
     // Check if we've already loaded successfully in this session
     const hasLoaded = sessionStorage.getItem('app_loaded');
     if (hasLoaded) {
@@ -141,7 +155,7 @@ export default function SplashScreen({ children }: SplashScreenProps) {
     }
 
     initialize();
-  }, [initialize]);
+  }, [initialize, publicRoute]);
 
   // Mark as loaded when ready
   useEffect(() => {
@@ -161,7 +175,7 @@ export default function SplashScreen({ children }: SplashScreenProps) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  if (isReady) {
+  if (publicRoute || isReady) {
     return <>{children}</>;
   }
 

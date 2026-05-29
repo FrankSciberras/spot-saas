@@ -1,7 +1,7 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import RosterEditor from '@/components/admin/RosterEditor';
 
 interface PageProps {
@@ -68,13 +68,13 @@ export default async function RosterDetailPage({ params }: PageProps) {
   };
 
   return (
-    <DashboardLayout user={user} variant="admin" title={roster.title || 'Edit Roster'}>
+    <FleetShell user={user} title={roster.title || 'Edit Roster'}>
       <RosterEditor 
         roster={rosterWithAssignments}
         vehicles={vehicles || []} 
         drivers={drivers || []} 
         mode="edit"
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

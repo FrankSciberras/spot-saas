@@ -1,141 +1,56 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
-import styles from '@/components/admin/damages.module.css';
+import FleetShell from '@/components/fleet/FleetShell';
+import DamagesWorkspace, { type DamageVehicle } from '@/components/fleet/damages/DamagesWorkspace';
 
-/**
- * Fleet-wide Damages Overview Page
- */
+const PLATE_COLORS = ['#1e293b', '#0f172a', '#0c4a6e', '#7f1d1d', '#854d0e', '#14532d', '#1e3a8a', '#334155'];
+
 export default async function FleetDamagesPage() {
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
+  const isAdmin = user.role === 'admin';
 
-  // Fetch all vehicles
-  const { data: vehicles } = await supabase
-    .from('vehicles')
-    .select('id, registration_number, make, model, year, status')
-    .order('registration_number');
+  const [vehiclesResult, damagesResult] = await Promise.all([
+    supabase
+      .from('vehicles')
+      .select('id, registration_number, make, model, year')
+      .order('registration_number'),
+    supabase
+      .from('vehicle_damages')
+      .select('vehicle_id, severity, status'),
+  ]);
 
-  // Fetch all non-repaired damages grouped by vehicle
-  const { data: damages } = await supabase
-    .from('vehicle_damages')
-    .select('id, vehicle_id, zone, severity, status')
-    .order('reported_at', { ascending: false });
+  const vehicleRows = (vehiclesResult.data || []) as any[];
+  const damageRows = (damagesResult.data || []) as any[];
 
-  // Build damage counts per vehicle
-  const vehicleDamageMap = new Map<string, { open: number; monitoring: number; severe: number; total: number }>();
-  (damages || []).forEach((d) => {
-    if (!vehicleDamageMap.has(d.vehicle_id)) {
-      vehicleDamageMap.set(d.vehicle_id, { open: 0, monitoring: 0, severe: 0, total: 0 });
-    }
-    const entry = vehicleDamageMap.get(d.vehicle_id)!;
-    entry.total++;
-    if (d.status === 'open') entry.open++;
-    if (d.status === 'monitoring') entry.monitoring++;
-    if (d.severity === 'severe' && d.status !== 'repaired') entry.severe++;
-  });
+  const byVehicle = new Map<string, { severe: number; open: number; total: number }>();
+  for (const d of damageRows) {
+    if (!d.vehicle_id) continue;
+    const agg = byVehicle.get(d.vehicle_id) || { severe: 0, open: 0, total: 0 };
+    agg.total += 1;
+    if (d.status === 'open') agg.open += 1;
+    if (d.severity === 'severe' && d.status !== 'repaired') agg.severe += 1;
+    byVehicle.set(d.vehicle_id, agg);
+  }
 
-  // Total stats
-  const totalDamages = damages?.length || 0;
-  const totalOpen = damages?.filter((d) => d.status === 'open').length || 0;
-  const totalSevere = damages?.filter((d) => d.severity === 'severe' && d.status !== 'repaired').length || 0;
-  const vehiclesWithDamage = vehicleDamageMap.size;
-
-  // Sort vehicles: those with damages first (by open count desc), then rest
-  const sortedVehicles = [...(vehicles || [])].sort((a, b) => {
-    const aInfo = vehicleDamageMap.get(a.id);
-    const bInfo = vehicleDamageMap.get(b.id);
-    if (aInfo && !bInfo) return -1;
-    if (!aInfo && bInfo) return 1;
-    if (aInfo && bInfo) return bInfo.open - aInfo.open;
-    return 0;
-  });
+  const vehicles: DamageVehicle[] = vehicleRows
+    .map((v, i) => ({
+      id: v.id,
+      plate: v.registration_number,
+      model: `${v.make} ${v.model}`.trim(),
+      year: v.year,
+      color: PLATE_COLORS[i % PLATE_COLORS.length],
+      damages: byVehicle.get(v.id) || { severe: 0, open: 0, total: 0 },
+    }))
+    .sort((a, b) => {
+      if (a.damages.total > 0 && b.damages.total === 0) return -1;
+      if (a.damages.total === 0 && b.damages.total > 0) return 1;
+      return b.damages.open - a.damages.open;
+    });
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Fleet Damages">
-      <div className={styles.fleetContainer}>
-        <div className={styles.fleetHeader}>
-          <h2>Fleet Damages Overview</h2>
-        </div>
-
-        {/* Stats */}
-        <div className={styles.statsRow}>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>{totalDamages}</div>
-            <div className={styles.statLabel}>Total Records</div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statValue} ${styles.statValueDanger}`}>{totalOpen}</div>
-            <div className={styles.statLabel}>Open Damages</div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statValue} ${styles.statValueWarning}`}>{totalSevere}</div>
-            <div className={styles.statLabel}>Severe (Active)</div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>{vehiclesWithDamage}</div>
-            <div className={styles.statLabel}>Vehicles Affected</div>
-          </div>
-        </div>
-
-        {/* Vehicle List */}
-        {sortedVehicles.map((vehicle) => {
-          const info = vehicleDamageMap.get(vehicle.id);
-          return (
-            <Link
-              key={vehicle.id}
-              href={`/admin/vehicles/${vehicle.id}/damages`}
-              className={styles.vehicleDamageRow}
-            >
-              <div className={styles.vehicleInfo}>
-                <div className={styles.vehicleReg}>{vehicle.registration_number}</div>
-                <div className={styles.vehicleMake}>
-                  {vehicle.make} {vehicle.model} {vehicle.year && `(${vehicle.year})`}
-                </div>
-              </div>
-
-              <div className={styles.vehicleDamageCount}>
-                {info ? (
-                  <>
-                    {info.severe > 0 && (
-                      <span className={styles.countBadge} style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626' }}>
-                        {info.severe} severe
-                      </span>
-                    )}
-                    {info.open > 0 && (
-                      <span className={styles.countBadge} style={{ background: 'rgba(245,158,11,0.1)', color: '#b45309' }}>
-                        {info.open} open
-                      </span>
-                    )}
-                    {info.monitoring > 0 && (
-                      <span className={styles.countBadge} style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
-                        {info.monitoring} monitoring
-                      </span>
-                    )}
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {info.total} total
-                    </span>
-                  </>
-                ) : (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No damages</span>
-                )}
-              </div>
-
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </Link>
-          );
-        })}
-
-        {(!vehicles || vehicles.length === 0) && (
-          <div className={styles.emptyState}>
-            <div className={styles.emptyTitle}>No vehicles found</div>
-            <div className={styles.emptyText}>Add vehicles to your fleet to start tracking damages.</div>
-          </div>
-        )}
-      </div>
-    </DashboardLayout>
+    <FleetShell user={user} title="Fleet Damages">
+      <DamagesWorkspace vehicles={vehicles} canManage={isAdmin} />
+    </FleetShell>
   );
 }

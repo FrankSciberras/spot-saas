@@ -27,6 +27,18 @@
   filter: var(--logo-filter);
 }
 
+/* Custom (uploaded) fleet logo: never invert it for dark mode, and cap its
+   height so tall/wide logos stay tidy in the sidebar header. */
+.logoCustom {
+  max-width: 150px;
+  max-height: 40px;
+  width: auto;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  filter: none;
+}
+
 .logoIcon {
   width: 32px;
   height: 32px;

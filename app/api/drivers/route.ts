@@ -1,33 +1,25 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 import type { CreateDriverInput } from '@/lib/types/database';
 
 /**
- * GET /api/drivers - List all drivers
- * Requires admin or staff role
+ * GET /api/drivers - List all drivers in the active fleet
+ * Requires admin or staff role in the active org.
  */
 export async function GET() {
   try {
-    const supabase = await createClient();
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Check role
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || !['admin', 'staff'].includes(profile.role)) {
+    if (!['admin', 'staff'].includes(session.role) && !session.also_staff) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch drivers
+    const supabase = await createClient();
+
+    // RLS scopes this to the caller's org; the explicit filter is belt-and-braces.
     const { data: drivers, error } = await supabase
       .from('drivers')
       .select(`
@@ -35,6 +27,7 @@ export async function GET() {
         users:user_id (email),
         vehicles:assigned_vehicle_id (id, registration_number, make, model)
       `)
+      .eq('organization_id', session.organization_id)
       .order('full_name');
 
     if (error) {
@@ -51,28 +44,24 @@ export async function GET() {
 }
 
 /**
- * POST /api/drivers - Create a new driver
- * Requires admin role
+ * POST /api/drivers - Create a new driver in the active fleet
+ * Requires admin role in the active org.
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check role - only admin can create drivers
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    // Only an admin of the active fleet can create drivers.
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const orgId = session.organization_id;
+    if (!orgId) {
+      return NextResponse.json({ error: 'No active fleet' }, { status: 400 });
     }
 
     // Parse request body
@@ -86,10 +75,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create driver
+    const supabase = await createClient();
+
+    // Create driver — explicitly stamp organization_id so the insert satisfies
+    // RLS WITH CHECK even for admins who belong to more than one fleet (where the
+    // auto-stamp trigger intentionally leaves it NULL).
     const { data: driver, error } = await supabase
       .from('drivers')
       .insert({
+        organization_id: orgId,
         user_id: body.user_id,
         full_name: body.full_name,
         phone: body.phone,
@@ -114,6 +108,7 @@ export async function POST(request: Request) {
     const vehicleIds = body.assigned_vehicle_ids;
     if (vehicleIds && vehicleIds.length > 0) {
       const records = vehicleIds.map((vehicleId) => ({
+        organization_id: orgId,
         driver_id: driver.id,
         vehicle_id: vehicleId,
       }));

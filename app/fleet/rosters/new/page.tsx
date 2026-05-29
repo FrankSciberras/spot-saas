@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import RosterEditor from '@/components/admin/RosterEditor';
 
 export default async function NewRosterPage() {
@@ -42,12 +42,12 @@ export default async function NewRosterPage() {
   }
 
   return (
-    <DashboardLayout user={user} variant="admin" title="New Roster">
+    <FleetShell user={user} title="New Roster">
       <RosterEditor 
         vehicles={vehicles || []} 
         drivers={drivers || []} 
         mode="create"
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

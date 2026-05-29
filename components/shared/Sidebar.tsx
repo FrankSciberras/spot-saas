@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
+import OrgSwitcher from './OrgSwitcher';
+import { useBranding } from './BrandingProvider';
 import styles from './Sidebar.module.css';
 
 interface NavItem {
@@ -308,30 +310,30 @@ const StaffIcon = () => (
 
 const adminNavItems: NavItem[] = [
   // Overview
-  { label: 'Dashboard', href: '/admin', section: 'Overview', icon: <DashboardIcon /> },
+  { label: 'Dashboard', href: '/fleet', section: 'Overview', icon: <DashboardIcon /> },
   // Operations
-  { label: 'Staff', href: '/admin/staff', section: 'Operations', icon: <StaffIcon />, roles: ['admin'] },
-  { label: 'Drivers', href: '/admin/drivers', section: 'Operations', icon: <UserIcon /> },
-  { label: 'Vehicles', href: '/admin/vehicles', section: 'Operations', icon: <VehicleIcon /> },
-  { label: 'Rosters', href: '/admin/rosters', section: 'Operations', icon: <RosterIcon /> },
-  { label: 'Shifts', href: '/admin/shifts', section: 'Operations', icon: <ListIcon /> },
+  { label: 'Staff', href: '/fleet/staff', section: 'Operations', icon: <StaffIcon />, roles: ['admin'] },
+  { label: 'Drivers', href: '/fleet/drivers', section: 'Operations', icon: <UserIcon /> },
+  { label: 'Vehicles', href: '/fleet/vehicles', section: 'Operations', icon: <VehicleIcon /> },
+  { label: 'Rosters', href: '/fleet/rosters', section: 'Operations', icon: <RosterIcon /> },
+  { label: 'Shifts', href: '/fleet/shifts', section: 'Operations', icon: <ListIcon /> },
   // Maintenance
-  { label: 'Services', href: '/admin/services', section: 'Maintenance', icon: <ServiceIcon /> },
-  { label: 'Damages', href: '/admin/damages', section: 'Maintenance', icon: <DamagesIcon /> },
+  { label: 'Services', href: '/fleet/services', section: 'Maintenance', icon: <ServiceIcon /> },
+  { label: 'Damages', href: '/fleet/damages', section: 'Maintenance', icon: <DamagesIcon /> },
   // Financial
-  { label: 'Bookkeeping', href: '/admin/earnings', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
-  { label: 'Financials', href: '/admin/financials', section: 'Financial', icon: <StatsIcon />, roles: ['admin'] },
-  { label: 'Settlements', href: '/admin/settlements', section: 'Financial', icon: <SettlementIcon />, roles: ['admin'] },
-  { label: 'Adjustments', href: '/admin/adjustments', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
+  { label: 'Bookkeeping', href: '/fleet/earnings', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
+  { label: 'Financials', href: '/fleet/financials', section: 'Financial', icon: <StatsIcon />, roles: ['admin'] },
+  { label: 'Settlements', href: '/fleet/settlements', section: 'Financial', icon: <SettlementIcon />, roles: ['admin'] },
+  { label: 'Adjustments', href: '/fleet/adjustments', section: 'Financial', icon: <MoneyIcon />, roles: ['admin'] },
   // Admin
-  { label: 'Reminders', href: '/admin/reminders', section: 'Admin', icon: <ChecklistIcon /> },
-  { label: 'Audit Log', href: '/admin/audit-log', section: 'Admin', icon: <ListIcon />, roles: ['admin'] },
-  { label: 'Events', href: '/admin/events', section: 'Admin', icon: <CalendarIcon /> },
-  { label: 'Notify', href: '/admin/notifications', section: 'Admin', icon: <BellIcon />, roles: ['admin'] },
-  { label: 'Permissions', href: '/admin/permissions', section: 'Admin', icon: <ShieldIcon />, roles: ['admin'] },
-  { label: 'Settings', href: '/admin/settings', section: 'Admin', icon: <SettingsIcon />, roles: ['admin'] },
+  { label: 'Reminders', href: '/fleet/reminders', section: 'Admin', icon: <ChecklistIcon /> },
+  { label: 'Audit Log', href: '/fleet/audit-log', section: 'Admin', icon: <ListIcon />, roles: ['admin'] },
+  { label: 'Events', href: '/fleet/events', section: 'Admin', icon: <CalendarIcon /> },
+  { label: 'Notify', href: '/fleet/notifications', section: 'Admin', icon: <BellIcon />, roles: ['admin'] },
+  { label: 'Permissions', href: '/fleet/permissions', section: 'Admin', icon: <ShieldIcon />, roles: ['admin'] },
+  { label: 'Settings', href: '/fleet/settings', section: 'Admin', icon: <SettingsIcon />, roles: ['admin'] },
   // Profile
-  { label: 'My Profile', href: '/admin/profile', section: 'Profile', icon: <UserIcon />, roles: ['admin'] },
+  { label: 'My Profile', href: '/fleet/profile', section: 'Profile', icon: <UserIcon />, roles: ['admin'] },
   { label: 'My Profile', href: '/staff/profile', section: 'Profile', icon: <UserIcon />, roles: ['staff'] },
 ];
 
@@ -355,6 +357,7 @@ interface SidebarProps {
 export default function Sidebar({ user, variant }: SidebarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { logoUrl } = useBranding();
   const navItems = variant === 'admin' ? adminNavItems : driverNavItems;
 
   const filteredNavItems = navItems.filter(item => {
@@ -423,15 +426,26 @@ export default function Sidebar({ user, variant }: SidebarProps) {
 
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`} data-tour="sidebar">
       <div className={styles.logo}>
-        <Image
-          src="/Black Logo.svg"
-          alt="Spot dashboard logo"
-          className={styles.logoImage}
-          width={98}
-          height={28}
-          style={{ width: 'auto', height: 'auto' }}
-          priority
-        />
+        {logoUrl ? (
+          // Custom fleet logo. A plain <img> avoids next/image's need for known
+          // dimensions on an arbitrary uploaded asset; CSS caps its size.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={`${user.organization_name} logo`}
+            className={styles.logoCustom}
+          />
+        ) : (
+          <Image
+            src="/Black Logo.svg"
+            alt="Spot dashboard logo"
+            className={styles.logoImage}
+            width={98}
+            height={28}
+            style={{ width: 'auto', height: 'auto' }}
+            priority
+          />
+        )}
       </div>
 
       <nav className={styles.nav}>
@@ -440,7 +454,7 @@ export default function Sidebar({ user, variant }: SidebarProps) {
             <div className={styles.navSectionTitle}>{section.title}</div>
             {section.items.map((item) => {
               const isActive = pathname === item.href ||
-                (item.href !== '/admin' && item.href !== '/driver' && pathname.startsWith(item.href));
+                (item.href !== '/fleet' && item.href !== '/driver' && pathname.startsWith(item.href));
 
               return (
                 <Link
@@ -462,7 +476,7 @@ export default function Sidebar({ user, variant }: SidebarProps) {
       {user?.also_staff && user.role === 'driver' && (
         <div className={styles.switchView}>
           <Link
-            href={variant === 'admin' ? '/driver' : '/admin'}
+            href={variant === 'admin' ? '/driver' : '/fleet'}
             className={styles.switchViewLink}
           >
             <svg className={styles.navIcon} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -471,6 +485,10 @@ export default function Sidebar({ user, variant }: SidebarProps) {
             <span>{variant === 'admin' ? 'Switch to Driver View' : 'Switch to Admin View'}</span>
           </Link>
         </div>
+      )}
+
+      {user?.memberships && user.memberships.length > 1 && (
+        <OrgSwitcher memberships={user.memberships} activeOrgId={user.organization_id} />
       )}
 
       {user && (

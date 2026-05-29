@@ -241,7 +241,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         throw new Error(data.error || 'Something went wrong');
       }
 
-      router.push('/admin/vehicles');
+      router.push('/fleet/vehicles');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { type CSSProperties, useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WeeklyBookkeeping } from '@/lib/types/database';
-import styles from './earnings.module.css';
+import FleetIcon from '@/components/fleet/FleetIcon';
 
 interface SettlementPeriod {
   week_start: string;
@@ -17,86 +17,106 @@ interface EarningsWorkspaceProps {
   settlementPeriods: SettlementPeriod[];
 }
 
-function formatCurrency(value: number): string {
+type IncomeKey = 'uber_earnings' | 'bolt_earnings' | 'ecabs_earnings' | 'other_earnings';
+type ExpenseKey = 'employees' | 'repairs' | 'insurance' | 'investments' | 'vat' | 'rent' | 'employee_tax' | 'other_expenses';
+
+const INCOME_FIELDS: { key: IncomeKey; label: string; color: string }[] = [
+  { key: 'uber_earnings', label: 'Uber', color: '#a78bfa' },
+  { key: 'bolt_earnings', label: 'Bolt', color: '#34d399' },
+  { key: 'ecabs_earnings', label: 'eCabs', color: '#f5b54a' },
+  { key: 'other_earnings', label: 'Other', color: '#5b8dff' },
+];
+
+const EXPENSE_FIELDS: { key: ExpenseKey; label: string; icon: string }[] = [
+  { key: 'employees', label: 'Employees', icon: 'staff' },
+  { key: 'repairs', label: 'Repairs', icon: 'wrench' },
+  { key: 'insurance', label: 'Insurance', icon: 'doc' },
+  { key: 'investments', label: 'Investments', icon: 'chart' },
+  { key: 'vat', label: 'VAT', icon: 'book' },
+  { key: 'rent', label: 'Rent', icon: 'vehicle' },
+  { key: 'employee_tax', label: 'Employee tax', icon: 'settle' },
+  { key: 'other_expenses', label: 'Other', icon: 'dots' },
+];
+
+function fmtEUR(value: number): string {
   return `€${value.toFixed(2)}`;
 }
 
 function formatDateDisplay(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
 function formatDateInput(dateStr: string): string {
   return dateStr.split('T')[0];
 }
 
+function FinField({ label, value, onChange, icon, accent, neg }: { label: string; value: string; onChange: (v: string) => void; icon?: string; accent?: string; neg?: boolean }) {
+  const has = Number(value) > 0;
+  const borderColor = has ? (neg ? 'rgba(240,100,100,0.3)' : 'var(--accent-line)') : 'var(--line-2)';
+  return (
+    <div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }}>
+        {icon && <FleetIcon name={icon} size={12} />}
+        {accent && <span style={{ width: 8, height: 8, borderRadius: 2, background: accent }} />}
+        {label}
+      </label>
+      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-2)', border: `1px solid ${borderColor}`, borderRadius: 7, padding: '8px 10px', gap: 6, transition: 'border-color 120ms' }}>
+        <span style={{ color: 'var(--text-3)', fontSize: 13 }}>€</span>
+        <input type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0"
+          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: has ? 'var(--text-1)' : 'var(--text-3)', fontFamily: 'Geist Mono, monospace', fontSize: 14, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }} />
+      </div>
+    </div>
+  );
+}
+
+function BkStat({ label, value, color, icon }: { label: string; value: string; color: string; icon: string }) {
+  return (
+    <div style={{ padding: '14px 16px', background: 'var(--bg-1)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+        <FleetIcon name={icon} size={11} /> {label}
+      </div>
+      <div className="mono tnum" style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', color }}>{value}</div>
+    </div>
+  );
+}
+
 export default function EarningsWorkspace({ entries, settlementPeriods }: EarningsWorkspaceProps) {
   const router = useRouter();
-  
-  // Selected period
+
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(
     entries.length > 0 ? `${entries[0].week_start}_${entries[0].week_end}` : null
   );
-  
-  // New period form state
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newWeekStart, setNewWeekStart] = useState('');
   const [newWeekEnd, setNewWeekEnd] = useState('');
   const [newWeekLabel, setNewWeekLabel] = useState('');
   const [newPeriodName, setNewPeriodName] = useState('');
-  
-  // Form state
   const [formData, setFormData] = useState({
-    uber_earnings: '',
-    bolt_earnings: '',
-    ecabs_earnings: '',
-    other_earnings: '',
-    employees: '',
-    repairs: '',
-    insurance: '',
-    investments: '',
-    vat: '',
-    rent: '',
-    employee_tax: '',
-    other_expenses: '',
+    uber_earnings: '', bolt_earnings: '', ecabs_earnings: '', other_earnings: '',
+    employees: '', repairs: '', insurance: '', investments: '', vat: '', rent: '', employee_tax: '', other_expenses: '',
     notes: '',
   });
-  
-  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Map entries by period key
   const entriesMap = useMemo(() => {
     const map = new Map<string, WeeklyBookkeeping>();
-    entries.forEach(e => {
-      map.set(`${e.week_start}_${e.week_end}`, e);
-    });
+    entries.forEach((e) => map.set(`${e.week_start}_${e.week_end}`, e));
     return map;
   }, [entries]);
 
-  // Current entry
-  const currentEntry = useMemo(() => {
-    if (!selectedPeriodId) return null;
-    return entriesMap.get(selectedPeriodId) || null;
-  }, [entriesMap, selectedPeriodId]);
+  const currentEntry = useMemo(() => (selectedPeriodId ? entriesMap.get(selectedPeriodId) || null : null), [entriesMap, selectedPeriodId]);
 
-  // Settlement periods that don't have bookkeeping entries yet
-  const availableSettlementPeriods = useMemo(() => {
-    return settlementPeriods.filter(sp => {
-      const key = `${sp.week_start}_${sp.week_end}`;
-      return !entriesMap.has(key);
-    });
-  }, [settlementPeriods, entriesMap]);
+  const availableSettlementPeriods = useMemo(() =>
+    settlementPeriods.filter((sp) => !entriesMap.has(`${sp.week_start}_${sp.week_end}`)),
+  [settlementPeriods, entriesMap]);
 
-  // Load form data when period changes
   useEffect(() => {
     setError(null);
     setSuccess(null);
     setShowDeleteConfirm(false);
-    
     if (currentEntry) {
       setFormData({
         uber_earnings: currentEntry.uber_earnings.toString(),
@@ -114,74 +134,33 @@ export default function EarningsWorkspace({ entries, settlementPeriods }: Earnin
         notes: currentEntry.notes || '',
       });
     } else {
-      setFormData({
-        uber_earnings: '',
-        bolt_earnings: '',
-        ecabs_earnings: '',
-        other_earnings: '',
-        employees: '',
-        repairs: '',
-        insurance: '',
-        investments: '',
-        vat: '',
-        rent: '',
-        employee_tax: '',
-        other_expenses: '',
-        notes: '',
-      });
+      setFormData({ uber_earnings: '', bolt_earnings: '', ecabs_earnings: '', other_earnings: '', employees: '', repairs: '', insurance: '', investments: '', vat: '', rent: '', employee_tax: '', other_expenses: '', notes: '' });
     }
   }, [currentEntry, selectedPeriodId]);
 
-  // Calculate totals
-  const calculations = useMemo(() => {
-    const uberEarnings = parseFloat(formData.uber_earnings) || 0;
-    const boltEarnings = parseFloat(formData.bolt_earnings) || 0;
-    const ecabsEarnings = parseFloat(formData.ecabs_earnings) || 0;
-    const otherEarnings = parseFloat(formData.other_earnings) || 0;
-    
-    const employees = parseFloat(formData.employees) || 0;
-    const repairs = parseFloat(formData.repairs) || 0;
-    const insurance = parseFloat(formData.insurance) || 0;
-    const investments = parseFloat(formData.investments) || 0;
-    const vat = parseFloat(formData.vat) || 0;
-    const rent = parseFloat(formData.rent) || 0;
-    const employeeTax = parseFloat(formData.employee_tax) || 0;
-    const otherExpenses = parseFloat(formData.other_expenses) || 0;
-    
-    const totalIncome = uberEarnings + boltEarnings + ecabsEarnings + otherEarnings;
-    const totalExpenses = employees + repairs + insurance + investments + vat + rent + employeeTax + otherExpenses;
+  const calc = useMemo(() => {
+    const num = (v: string) => parseFloat(v) || 0;
+    const totalIncome = INCOME_FIELDS.reduce((s, f) => s + num(formData[f.key]), 0);
+    const totalExpenses = EXPENSE_FIELDS.reduce((s, f) => s + num(formData[f.key]), 0);
     const netProfit = totalIncome - totalExpenses;
-    
-    return { totalIncome, totalExpenses, netProfit };
+    const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+    return { totalIncome, totalExpenses, netProfit, margin };
   }, [formData]);
 
-  // Handle input change
   const handleChange = useCallback((field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  // Get current period info for display
   const currentPeriodInfo = useMemo(() => {
     if (isCreatingNew && newWeekStart && newWeekEnd) {
-      return {
-        week_start: newWeekStart,
-        week_end: newWeekEnd,
-        week_label: newWeekLabel || `${formatDateDisplay(newWeekStart)} - ${formatDateDisplay(newWeekEnd)}`,
-        period_name: newPeriodName || null,
-      };
+      return { week_start: newWeekStart, week_end: newWeekEnd, week_label: newWeekLabel || `${formatDateDisplay(newWeekStart)} - ${formatDateDisplay(newWeekEnd)}`, period_name: newPeriodName || null };
     }
     if (currentEntry) {
-      return {
-        week_start: currentEntry.week_start,
-        week_end: currentEntry.week_end,
-        week_label: currentEntry.week_label,
-        period_name: currentEntry.period_name,
-      };
+      return { week_start: currentEntry.week_start, week_end: currentEntry.week_end, week_label: currentEntry.week_label, period_name: currentEntry.period_name };
     }
     return null;
   }, [isCreatingNew, newWeekStart, newWeekEnd, newWeekLabel, newPeriodName, currentEntry]);
 
-  // Select from settlement period
   const selectSettlementPeriod = (period: SettlementPeriod) => {
     setIsCreatingNew(true);
     setNewWeekStart(formatDateInput(period.week_start));
@@ -191,85 +170,53 @@ export default function EarningsWorkspace({ entries, settlementPeriods }: Earnin
     setSelectedPeriodId(null);
   };
 
-  // Start new custom period
   const startNewPeriod = () => {
     setIsCreatingNew(true);
-    setNewWeekStart('');
-    setNewWeekEnd('');
-    setNewWeekLabel('');
-    setNewPeriodName('');
+    setNewWeekStart(''); setNewWeekEnd(''); setNewWeekLabel(''); setNewPeriodName('');
     setSelectedPeriodId(null);
   };
 
-  // Cancel new period
   const cancelNewPeriod = () => {
     setIsCreatingNew(false);
-    setNewWeekStart('');
-    setNewWeekEnd('');
-    setNewWeekLabel('');
-    setNewPeriodName('');
-    if (entries.length > 0) {
-      setSelectedPeriodId(`${entries[0].week_start}_${entries[0].week_end}`);
-    }
+    setNewWeekStart(''); setNewWeekEnd(''); setNewWeekLabel(''); setNewPeriodName('');
+    if (entries.length > 0) setSelectedPeriodId(`${entries[0].week_start}_${entries[0].week_end}`);
   };
 
-  // Save handler
   const handleSave = async () => {
     if (!currentPeriodInfo) return;
-    
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
+    setLoading(true); setError(null); setSuccess(null);
     try {
-      const weekLabel = currentPeriodInfo.week_label || 
-        `${formatDateDisplay(currentPeriodInfo.week_start)} - ${formatDateDisplay(currentPeriodInfo.week_end)}`;
-      
+      const weekLabel = currentPeriodInfo.week_label || `${formatDateDisplay(currentPeriodInfo.week_start)} - ${formatDateDisplay(currentPeriodInfo.week_end)}`;
+      const num = (v: string) => parseFloat(v) || 0;
       const payload = {
         week_start: currentPeriodInfo.week_start,
         week_end: currentPeriodInfo.week_end,
         week_label: weekLabel,
         period_name: currentPeriodInfo.period_name || null,
-        uber_earnings: parseFloat(formData.uber_earnings) || 0,
-        bolt_earnings: parseFloat(formData.bolt_earnings) || 0,
-        ecabs_earnings: parseFloat(formData.ecabs_earnings) || 0,
-        other_earnings: parseFloat(formData.other_earnings) || 0,
-        employees: parseFloat(formData.employees) || 0,
-        repairs: parseFloat(formData.repairs) || 0,
-        insurance: parseFloat(formData.insurance) || 0,
-        investments: parseFloat(formData.investments) || 0,
-        vat: parseFloat(formData.vat) || 0,
-        rent: parseFloat(formData.rent) || 0,
-        employee_tax: parseFloat(formData.employee_tax) || 0,
-        other_expenses: parseFloat(formData.other_expenses) || 0,
+        uber_earnings: num(formData.uber_earnings),
+        bolt_earnings: num(formData.bolt_earnings),
+        ecabs_earnings: num(formData.ecabs_earnings),
+        other_earnings: num(formData.other_earnings),
+        employees: num(formData.employees),
+        repairs: num(formData.repairs),
+        insurance: num(formData.insurance),
+        investments: num(formData.investments),
+        vat: num(formData.vat),
+        rent: num(formData.rent),
+        employee_tax: num(formData.employee_tax),
+        other_expenses: num(formData.other_expenses),
         notes: formData.notes || null,
       };
-
-      const url = currentEntry 
-        ? `/api/bookkeeping/${currentEntry.id}` 
-        : '/api/bookkeeping';
+      const url = currentEntry ? `/api/bookkeeping/${currentEntry.id}` : '/api/bookkeeping';
       const method = currentEntry ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Something went wrong');
-      }
-
+      if (!res.ok) throw new Error(data.error || 'Something went wrong');
       setSuccess(`Entry ${currentEntry ? 'updated' : 'saved'} successfully!`);
-      
-      // If was creating new, switch to the new entry
       if (isCreatingNew) {
         setIsCreatingNew(false);
         setSelectedPeriodId(`${currentPeriodInfo.week_start}_${currentPeriodInfo.week_end}`);
       }
-      
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -278,23 +225,15 @@ export default function EarningsWorkspace({ entries, settlementPeriods }: Earnin
     }
   };
 
-  // Delete handler
   const handleDelete = async () => {
     if (!currentEntry) return;
-    
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/bookkeeping/${currentEntry.id}`, {
-        method: 'DELETE',
-      });
-
+      const res = await fetch(`/api/bookkeeping/${currentEntry.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Failed to delete');
       }
-
       setSuccess('Entry deleted');
       setShowDeleteConfirm(false);
       setSelectedPeriodId(null);
@@ -306,405 +245,198 @@ export default function EarningsWorkspace({ entries, settlementPeriods }: Earnin
     }
   };
 
+  const showEditor = !!currentPeriodInfo || isCreatingNew;
+  const income = calc.totalIncome;
+
   return (
-    <div className={styles.workspace}>
-      {/* Navigation Header */}
-      <div className={styles.navHeader}>
-        {/* Period Selection */}
-        <div className={styles.weekNav}>
-          <div className={styles.weekNavButtons}>
-            <button 
-              className={`${styles.navBtn} ${styles.primary}`} 
-              onClick={startNewPeriod}
-            >
-              + New Period
-            </button>
-            
-            {availableSettlementPeriods.length > 0 && (
-              <select 
-                className={styles.navBtn}
-                onChange={(e) => {
-                  const period = availableSettlementPeriods.find(
-                    p => `${p.week_start}_${p.week_end}` === e.target.value
-                  );
-                  if (period) selectSettlementPeriod(period);
-                }}
-                value=""
-                style={{ minWidth: '200px' }}
-              >
-                <option value="">Import from Settlements...</option>
-                {availableSettlementPeriods.map((period) => (
-                  <option 
-                    key={`${period.week_start}_${period.week_end}`} 
-                    value={`${period.week_start}_${period.week_end}`}
-                  >
-                    {period.week_label} ({formatDateDisplay(period.week_start)} - {formatDateDisplay(period.week_end)})
+    <>
+      <div style={st.header} className="header-mobile-row">
+        <div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Financial / Bookkeeping</div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Weekly bookkeeping</h1>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>Manual income &amp; expense tracking by period</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {availableSettlementPeriods.length > 0 && (
+            <div style={st.selectWrap}>
+              <FleetIcon name="settle" size={14} />
+              <select value="" onChange={(e) => { const p = availableSettlementPeriods.find((x) => `${x.week_start}_${x.week_end}` === e.target.value); if (p) selectSettlementPeriod(p); }} style={st.select}>
+                <option value="">Import settlements…</option>
+                {availableSettlementPeriods.map((p) => (
+                  <option key={`${p.week_start}_${p.week_end}`} value={`${p.week_start}_${p.week_end}`}>
+                    {p.week_label} ({formatDateDisplay(p.week_start)} - {formatDateDisplay(p.week_end)})
                   </option>
                 ))}
               </select>
-            )}
-          </div>
-          
-          {currentPeriodInfo && (
-            <div className={styles.weekInfo}>
-              <div className={styles.weekNumber}>
-                {currentPeriodInfo.period_name || currentPeriodInfo.week_label}
-              </div>
-              <div className={styles.weekDates}>
-                {formatDateDisplay(currentPeriodInfo.week_start)} - {formatDateDisplay(currentPeriodInfo.week_end)}
-              </div>
             </div>
           )}
-          
-          <div className={styles.weekNavButtons}>
-            {isCreatingNew && (
-              <button className={styles.navBtn} onClick={cancelNewPeriod}>
-                Cancel
-              </button>
-            )}
-          </div>
+          <button style={st.primaryBtn} className="fleetHover" onClick={startNewPeriod}>
+            <FleetIcon name="plus" size={14} stroke={2.2} /> New period
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className={styles.mainContent}>
-        {/* Sidebar - Recent Entries */}
-        <div className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>
-            <h3>Recent Entries</h3>
+      <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16, alignItems: 'start' }}>
+        {/* LEFT: period list */}
+        <div style={st.card}>
+          <div style={st.cardHeader}>
+            <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>Recent entries</div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>{entries.length} periods</div>
           </div>
-          <div className={styles.weeksList}>
-            {entries.length === 0 ? (
-              <div className={styles.emptyWeeks}>No entries yet</div>
-            ) : (
-              entries.slice(0, 20).map((entry) => (
-                <button
-                  key={entry.id}
-                  className={`${styles.weekCard} ${selectedPeriodId === `${entry.week_start}_${entry.week_end}` && !isCreatingNew ? styles.active : ''}`}
-                  onClick={() => {
-                    setIsCreatingNew(false);
-                    setSelectedPeriodId(`${entry.week_start}_${entry.week_end}`);
-                  }}
-                >
-                  <div className={styles.weekCardInfo}>
-                    <span className={styles.weekCardLabel}>
-                      {entry.period_name || entry.week_label}
-                    </span>
-                    <span className={styles.weekCardDates}>
-                      {formatDateDisplay(entry.week_start)} - {formatDateDisplay(entry.week_end)}
-                    </span>
+          <div style={{ borderTop: '1px solid var(--line-1)', maxHeight: 720, overflowY: 'auto' }}>
+            {entries.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12.5 }}>No entries yet</div>}
+            {entries.slice(0, 30).map((p) => {
+              const isActive = selectedPeriodId === `${p.week_start}_${p.week_end}` && !isCreatingNew;
+              return (
+                <button key={p.id} onClick={() => { setIsCreatingNew(false); setSelectedPeriodId(`${p.week_start}_${p.week_end}`); }}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: isActive ? 'var(--bg-2)' : 'transparent', border: 'none', borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`, borderBottom: '1px solid var(--line-1)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{p.period_name || p.week_label}</div>
+                    <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{formatDateDisplay(p.week_start)} - {formatDateDisplay(p.week_end)}</div>
                   </div>
-                  <span className={`${styles.weekCardProfit} ${entry.net_profit >= 0 ? styles.positive : styles.negative}`}>
-                    {formatCurrency(entry.net_profit)}
-                  </span>
+                  <span className="mono tnum" style={{ fontSize: 13, fontWeight: 500, color: p.net_profit >= 0 ? 'var(--pos)' : 'var(--neg)' }}>{p.net_profit >= 0 ? '€' : '€-'}{Math.abs(p.net_profit).toFixed(2)}</span>
                 </button>
-              ))
-            )}
+              );
+            })}
           </div>
         </div>
 
-        {/* Form Panel */}
-        <div className={styles.formPanel}>
-          {!currentPeriodInfo && !isCreatingNew ? (
-            <div className={styles.formBody} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                <p>Select an entry from the sidebar or create a new period</p>
+        {/* RIGHT: editor */}
+        {!showEditor ? (
+          <div style={{ ...st.card, padding: 48, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+            Select an entry from the list or create a new period.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {error && <div style={{ ...st.alert, color: 'var(--neg)', background: 'var(--neg-soft)', border: '1px solid rgba(240,100,100,0.25)' }}>{error}</div>}
+            {success && <div style={{ ...st.alert, color: 'var(--pos)', background: 'var(--pos-soft)', border: '1px solid rgba(62,207,142,0.25)' }}>{success}</div>}
+
+            <div style={st.card}>
+              <div style={st.periodHead}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-1)' }}>{isCreatingNew ? 'New entry' : (currentPeriodInfo?.period_name || currentPeriodInfo?.week_label)}</div>
+                  {currentPeriodInfo && <div className="mono" style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{formatDateDisplay(currentPeriodInfo.week_start)} - {formatDateDisplay(currentPeriodInfo.week_end)}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {isCreatingNew && <button style={st.miniBtn} onClick={cancelNewPeriod}>Cancel</button>}
+                  {currentEntry && <button style={{ ...st.miniBtn, color: 'var(--neg)', borderColor: 'rgba(240,100,100,0.25)' }} onClick={() => setShowDeleteConfirm(true)} disabled={loading}>Delete</button>}
+                  <button style={st.savePrimary} className="fleetHover" onClick={handleSave} disabled={loading || (isCreatingNew && (!newWeekStart || !newWeekEnd))}>{loading ? 'Saving…' : currentEntry ? 'Update' : 'Save'}</button>
+                </div>
+              </div>
+
+              {showDeleteConfirm && (
+                <div style={{ padding: '12px 18px', borderTop: '1px solid var(--line-1)', background: 'var(--neg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)' }}>Delete this entry?</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button style={{ ...st.miniBtn, color: 'var(--neg)', borderColor: 'rgba(240,100,100,0.4)' }} onClick={handleDelete} disabled={loading}>Yes, delete</button>
+                    <button style={st.miniBtn} onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 1, background: 'var(--line-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }} className="stats-row-mobile">
+                <BkStat label="Total income" value={fmtEUR(calc.totalIncome)} color="var(--pos)" icon="arrow-up" />
+                <BkStat label="Total expenses" value={fmtEUR(calc.totalExpenses)} color="var(--neg)" icon="arrow-down" />
+                <BkStat label="Net profit" value={fmtEUR(calc.netProfit)} color={calc.netProfit >= 0 ? 'var(--pos)' : 'var(--neg)'} icon="settle" />
+                <BkStat label="Margin" value={`${calc.margin.toFixed(1)}%`} color="var(--accent)" icon="chart" />
               </div>
             </div>
-          ) : (
-            <>
-              <div className={styles.formHeader}>
-                <h3>
-                  {isCreatingNew ? 'New Entry' : (currentPeriodInfo?.period_name || currentPeriodInfo?.week_label)}
-                </h3>
-                <div className={styles.headerActions}>
-                  {currentEntry && (
-                    <button 
-                      className="btn btn-danger-outline"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={loading}
-                    >
-                      Delete
-                    </button>
-                  )}
+
+            {isCreatingNew && (
+              <div style={st.card}>
+                <div style={st.cardHeader}>
+                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>Period dates</div>
+                </div>
+                <div style={{ padding: 16, borderTop: '1px solid var(--line-1)', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }} className="grid-4">
+                  <div><label style={st.fieldLabel}>Start date</label><input type="date" value={newWeekStart} onChange={(e) => setNewWeekStart(e.target.value)} style={st.textInput} /></div>
+                  <div><label style={st.fieldLabel}>End date</label><input type="date" value={newWeekEnd} onChange={(e) => setNewWeekEnd(e.target.value)} style={st.textInput} /></div>
+                  <div><label style={st.fieldLabel}>Label</label><input type="text" value={newWeekLabel} onChange={(e) => setNewWeekLabel(e.target.value)} placeholder="Week 1" style={st.textInput} /></div>
+                  <div><label style={st.fieldLabel}>Period name</label><input type="text" value={newPeriodName} onChange={(e) => setNewPeriodName(e.target.value)} placeholder="January Week 1" style={st.textInput} /></div>
                 </div>
               </div>
+            )}
 
-              <div className={styles.formBody}>
-                {error && <div className={`${styles.alert} ${styles.error}`}>{error}</div>}
-                {success && <div className={`${styles.alert} ${styles.success}`}>{success}</div>}
-                
-                {showDeleteConfirm && (
-                  <div className={styles.deleteConfirm}>
-                    <p>Are you sure you want to delete this entry?</p>
-                    <div className={styles.actions}>
-                      <button className="btn btn-danger" onClick={handleDelete} disabled={loading}>
-                        Yes, Delete
-                      </button>
-                      <button className="btn btn-secondary" onClick={() => setShowDeleteConfirm(false)}>
-                        Cancel
-                      </button>
+            <div style={st.card}>
+              <div style={st.cardHeader}>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>Income — platform earnings</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>{fmtEUR(calc.totalIncome)} total</div>
+                </div>
+              </div>
+              <div style={{ padding: 16, borderTop: '1px solid var(--line-1)' }}>
+                <div style={st.fieldGrid} className="grid-4">
+                  {INCOME_FIELDS.map((f) => (
+                    <FinField key={f.key} label={f.label} value={formData[f.key]} onChange={(v) => handleChange(f.key, v)} accent={f.color} />
+                  ))}
+                </div>
+                {income > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ height: 8, display: 'flex', borderRadius: 4, overflow: 'hidden', background: 'var(--bg-2)' }}>
+                      {INCOME_FIELDS.map((f) => {
+                        const v = parseFloat(formData[f.key]) || 0;
+                        if (!v) return null;
+                        return <div key={f.key} title={`${f.label}: ${fmtEUR(v)}`} style={{ width: `${(v / income) * 100}%`, background: f.color }} />;
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 8, fontSize: 11.5, color: 'var(--text-3)' }}>
+                      {INCOME_FIELDS.filter((f) => (parseFloat(formData[f.key]) || 0) > 0).map((f) => (
+                        <span key={f.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 2, background: f.color }} />
+                          {f.label} <span className="mono tnum" style={{ color: 'var(--text-1)' }}>{Math.round(((parseFloat(formData[f.key]) || 0) / income) * 100)}%</span>
+                        </span>
+                      ))}
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
 
-                {/* Period Dates (editable for new entries) */}
-                {isCreatingNew && (
-                  <div className={styles.section}>
-                    <h4 className={styles.sectionTitle}>Period Dates</h4>
-                    <div className={styles.inputGrid}>
-                      <div className={styles.inputGroup}>
-                        <label>Start Date</label>
-                        <input
-                          type="date"
-                          value={newWeekStart}
-                          onChange={(e) => setNewWeekStart(e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.inputGroup}>
-                        <label>End Date</label>
-                        <input
-                          type="date"
-                          value={newWeekEnd}
-                          onChange={(e) => setNewWeekEnd(e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.inputGroup}>
-                        <label>Label (e.g., Week 1)</label>
-                        <input
-                          type="text"
-                          value={newWeekLabel}
-                          onChange={(e) => setNewWeekLabel(e.target.value)}
-                          placeholder="Week 1"
-                        />
-                      </div>
-                      <div className={styles.inputGroup}>
-                        <label>Period Name (optional)</label>
-                        <input
-                          type="text"
-                          value={newPeriodName}
-                          onChange={(e) => setNewPeriodName(e.target.value)}
-                          placeholder="January Week 1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Summary at top */}
-                <div className={styles.section}>
-                  <div className={styles.summaryGrid}>
-                    <div className={`${styles.summaryCard} ${styles.income}`}>
-                      <div className={styles.summaryLabel}>Total Income</div>
-                      <div className={styles.summaryValue}>{formatCurrency(calculations.totalIncome)}</div>
-                    </div>
-                    <div className={`${styles.summaryCard} ${styles.expenses}`}>
-                      <div className={styles.summaryLabel}>Total Expenses</div>
-                      <div className={styles.summaryValue}>{formatCurrency(calculations.totalExpenses)}</div>
-                    </div>
-                    <div className={`${styles.summaryCard} ${styles.profit} ${calculations.netProfit < 0 ? styles.negative : ''}`}>
-                      <div className={styles.summaryLabel}>Net Profit</div>
-                      <div className={styles.summaryValue}>{formatCurrency(calculations.netProfit)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Income Section */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Income (Platform Earnings)</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Uber</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.uber_earnings}
-                          onChange={(e) => handleChange('uber_earnings', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Bolt</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.bolt_earnings}
-                          onChange={(e) => handleChange('bolt_earnings', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>eCabs</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.ecabs_earnings}
-                          onChange={(e) => handleChange('ecabs_earnings', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Other</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.other_earnings}
-                          onChange={(e) => handleChange('other_earnings', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expenses Section */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Expenses</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={styles.inputGroup}>
-                      <label>Employees</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.employees}
-                          onChange={(e) => handleChange('employees', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Repairs</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.repairs}
-                          onChange={(e) => handleChange('repairs', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Insurance</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.insurance}
-                          onChange={(e) => handleChange('insurance', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Investments</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.investments}
-                          onChange={(e) => handleChange('investments', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>VAT</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.vat}
-                          onChange={(e) => handleChange('vat', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Rent</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.rent}
-                          onChange={(e) => handleChange('rent', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Employee Tax</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.employee_tax}
-                          onChange={(e) => handleChange('employee_tax', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Other</label>
-                      <div className={styles.currencyInput}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.other_expenses}
-                          onChange={(e) => handleChange('other_expenses', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div className={styles.section}>
-                  <h4 className={styles.sectionTitle}>Notes</h4>
-                  <div className={styles.inputGrid}>
-                    <div className={`${styles.inputGroup} ${styles.fullWidth}`}>
-                      <textarea
-                        value={formData.notes}
-                        onChange={(e) => handleChange('notes', e.target.value)}
-                        placeholder="Any notes for this period..."
-                      />
-                    </div>
-                  </div>
+            <div style={st.card}>
+              <div style={st.cardHeader}>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>Expenses</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>{fmtEUR(calc.totalExpenses)} total</div>
                 </div>
               </div>
-
-              {/* Form Footer */}
-              <div className={styles.formFooter}>
-                <div className={styles.footerLeft}>
-                  {currentEntry && (
-                    <span style={{ fontSize: 'var(--font-sm)', color: 'var(--text-muted)' }}>
-                      Last updated: {new Date(currentEntry.updated_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-                <div className={styles.footerRight}>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={handleSave}
-                    disabled={loading || (isCreatingNew && (!newWeekStart || !newWeekEnd))}
-                  >
-                    {loading ? 'Saving...' : currentEntry ? 'Update' : 'Save'}
-                  </button>
+              <div style={{ padding: 16, borderTop: '1px solid var(--line-1)' }}>
+                <div style={st.fieldGrid} className="grid-4">
+                  {EXPENSE_FIELDS.map((f) => (
+                    <FinField key={f.key} label={f.label} icon={f.icon} value={formData[f.key]} onChange={(v) => handleChange(f.key, v)} neg />
+                  ))}
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+
+            <div style={st.card}>
+              <div style={st.cardHeader}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>Notes</div>
+              </div>
+              <div style={{ padding: 16, borderTop: '1px solid var(--line-1)' }}>
+                <textarea value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} placeholder="e.g. Quarterly insurance renewal, vehicle repair details, etc…"
+                  style={{ width: '100%', minHeight: 80, padding: 12, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            {currentEntry && <div style={{ fontSize: 11.5, color: 'var(--text-3)', textAlign: 'right' }}>Last updated: {new Date(currentEntry.updated_at).toLocaleDateString('en-GB')}</div>}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
+
+const st: Record<string, CSSProperties> = {
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px', gap: 12 },
+  primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit' },
+  savePrimary: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },
+  miniBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' },
+  selectWrap: { display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--text-3)' },
+  select: { background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer' },
+  card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
+  cardHeader: { padding: '14px 18px' },
+  periodHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', gap: 12, flexWrap: 'wrap' },
+  fieldGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 },
+  fieldLabel: { display: 'block', fontSize: 10.5, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 },
+  textInput: { width: '100%', boxSizing: 'border-box', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, padding: '8px 10px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, outline: 'none' },
+  alert: { padding: '10px 14px', borderRadius: 8, fontSize: 13 },
+};

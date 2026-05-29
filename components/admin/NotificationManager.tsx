@@ -67,10 +67,10 @@ const ACTION_PAGES = [
   { value: '/driver/profile', label: 'Driver Profile' },
   { value: '/driver/notifications', label: 'Driver Notifications' },
   { value: '/driver/go-online', label: 'Go Online' },
-  { value: '/admin/rosters', label: 'Admin Rosters' },
-  { value: '/admin/drivers', label: 'Admin Drivers' },
-  { value: '/admin/vehicles', label: 'Admin Vehicles' },
-  { value: '/admin/services', label: 'Admin Services' },
+  { value: '/fleet/rosters', label: 'Admin Rosters' },
+  { value: '/fleet/drivers', label: 'Admin Drivers' },
+  { value: '/fleet/vehicles', label: 'Admin Vehicles' },
+  { value: '/fleet/services', label: 'Admin Services' },
 ];
 
 export default function NotificationManager({ 
@@ -412,7 +412,7 @@ export default function NotificationManager({
                 type="text"
                 value={sendForm.action_url}
                 onChange={e => setSendForm({ ...sendForm, action_url: e.target.value })}
-                placeholder="e.g., /driver/roster or /admin/vehicles"
+                placeholder="e.g., /driver/roster or /fleet/vehicles"
               />
               <span className={styles.helpText}>
                 When clicked, the notification will navigate to this page

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import VehicleProfile from '@/components/admin/VehicleProfile';
 
 interface PageProps {
@@ -84,7 +84,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
     .order('uploaded_at', { ascending: false });
 
   return (
-    <DashboardLayout user={user} variant="admin" title={vehicle.registration_number}>
+    <FleetShell user={user} title={vehicle.registration_number}>
       <VehicleProfile
         vehicle={vehicle}
         documents={documents || []}
@@ -94,6 +94,6 @@ export default async function VehicleDetailPage({ params }: PageProps) {
         nextServiceDue={latestServiceWithDue?.[0] || null}
         isAdmin={isAdmin}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

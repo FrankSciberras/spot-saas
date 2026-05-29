@@ -1,79 +1,104 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
-import AdminDashboardInsights from '@/components/admin/AdminDashboardInsights';
-import styles from './admin.module.css';
+import FleetShell from '@/components/fleet/FleetShell';
+import FleetDashboard, {
+  type ExpiringDoc,
+  type RecentShift,
+} from '@/components/fleet/FleetDashboard';
 
 /**
- * Admin Dashboard - Overview page
- * Shows summary of drivers, vehicles, and recent shifts
+ * Fleet Dashboard — overview of drivers, vehicles, shifts, finances and
+ * expiring documents, rendered in the standalone Spot Fleet design.
  */
-export default async function AdminDashboardPage() {
+export default async function FleetDashboardPage() {
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
+  const isAdmin = user.role === 'admin';
 
-  // Fetch summary data
   const [driversResult, vehiclesResult, shiftsResult] = await Promise.all([
-    supabase.from('drivers').select('id, status').eq('status', 'active'),
+    supabase.from('drivers').select('id, status'),
     supabase.from('vehicles').select('id, status'),
-    supabase.from('driver_shifts').select('id, start_time, driver_id').order('start_time', { ascending: false }).limit(5),
+    supabase
+      .from('driver_shifts')
+      .select('id, start_time, driver_id, drivers(full_name), vehicles(registration_number)')
+      .order('start_time', { ascending: false })
+      .limit(6),
   ]);
 
-  const activeDrivers = driversResult.data?.length || 0;
-  const totalVehicles = vehiclesResult.data?.length || 0;
-  const activeVehicles = vehiclesResult.data?.filter(v => v.status === 'active').length || 0;
-  const recentShifts = shiftsResult.data || [];
+  const drivers = driversResult.data || [];
+  const vehicles = vehiclesResult.data || [];
+  const activeDrivers = drivers.filter((d) => d.status === 'active').length;
+  const totalDrivers = drivers.length;
+  const totalVehicles = vehicles.length;
+  const activeVehicles = vehicles.filter((v) => v.status === 'active').length;
+  const idleVehicles = vehicles.filter((v) => v.status === 'idle').length;
+  const serviceVehicles = vehicles.filter((v) => v.status === 'service').length;
 
-  // Get drivers & vehicles with documents that are expired or expiring within 30 days
+  const recentShifts: RecentShift[] = (shiftsResult.data || []).map((s: any) => {
+    const start = s.start_time ? new Date(s.start_time) : null;
+    return {
+      id: String(s.id),
+      name: s.drivers?.full_name || 'Unknown driver',
+      vehicle: s.vehicles?.registration_number ?? null,
+      clockIn: start ? start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—',
+      date: start ? start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '',
+    };
+  });
+
+  // Expiring / expired documents within 30 days
   const now = new Date();
   const thirtyDaysFromNow = new Date();
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   const expiryDate = thirtyDaysFromNow.toISOString().split('T')[0];
 
-  const { data: expiringDrivers } = await supabase
-    .from('drivers')
-    .select('id, full_name, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date')
-    .or(`id_card_expiry_date.lte.${expiryDate},police_conduct_expiry_date.lte.${expiryDate},driving_license_expiry_date.lte.${expiryDate}`)
-    .limit(5);
+  const [{ data: expiringDriverRows }, { data: expiringVehicleRows }] = await Promise.all([
+    supabase
+      .from('drivers')
+      .select('id, full_name, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date')
+      .or(`id_card_expiry_date.lte.${expiryDate},police_conduct_expiry_date.lte.${expiryDate},driving_license_expiry_date.lte.${expiryDate}`)
+      .limit(20),
+    supabase
+      .from('vehicles')
+      .select('id, registration_number, make, model, insurance_expiry_date, road_license_expiry_date')
+      .or(`insurance_expiry_date.lte.${expiryDate},road_license_expiry_date.lte.${expiryDate}`)
+      .limit(20),
+  ]);
 
-  const { data: expiringVehicles } = await supabase
-    .from('vehicles')
-    .select('id, registration_number, make, model, insurance_expiry_date, road_license_expiry_date')
-    .or(`insurance_expiry_date.lte.${expiryDate},road_license_expiry_date.lte.${expiryDate}`)
-    .limit(5);
+  const daysUntil = (dateStr: string) => Math.ceil((new Date(dateStr).getTime() - now.getTime()) / 86_400_000);
 
-  const renderExpiryBadge = (label: string, dateStr: string | null) => {
-    if (!dateStr) return null;
-
-    const date = new Date(dateStr);
-
-    if (date < now) {
-      return (
-        <span className="badge badge-danger">
-          {label}: {dateStr} (Expired - needs renewal)
-        </span>
-      );
+  const expiringDocs: ExpiringDoc[] = [];
+  for (const d of expiringDriverRows || []) {
+    const items: [string, string | null][] = [
+      ['ID Card', d.id_card_expiry_date],
+      ['Police Conduct', d.police_conduct_expiry_date],
+      ['Driving License', d.driving_license_expiry_date],
+    ];
+    for (const [doc, date] of items) {
+      if (date && new Date(date) <= thirtyDaysFromNow) {
+        expiringDocs.push({ kind: 'driver', subject: d.full_name, doc, expires: date, daysLeft: daysUntil(date), href: `/fleet/drivers/${d.id}/edit` });
+      }
     }
-
-    if (date <= thirtyDaysFromNow) {
-      return (
-        <span className="badge badge-warning">
-          {label}: {dateStr} (Expiring soon)
-        </span>
-      );
+  }
+  for (const v of expiringVehicleRows || []) {
+    const subject = v.make && v.model ? `${v.registration_number} · ${v.make} ${v.model}` : v.registration_number;
+    const items: [string, string | null][] = [
+      ['Insurance', v.insurance_expiry_date],
+      ['Road License', v.road_license_expiry_date],
+    ];
+    for (const [doc, date] of items) {
+      if (date && new Date(date) <= thirtyDaysFromNow) {
+        expiringDocs.push({ kind: 'vehicle', subject, doc, expires: date, daysLeft: daysUntil(date), href: `/fleet/vehicles/${v.id}/edit` });
+      }
     }
+  }
+  expiringDocs.sort((a, b) => a.daysLeft - b.daysLeft);
+  const topExpiringDocs = expiringDocs.slice(0, 8);
 
-    return null;
-  };
-
-  const hasDriverDocs = !!expiringDrivers && expiringDrivers.length > 0;
-  const hasVehicleDocs = !!expiringVehicles && expiringVehicles.length > 0;
-  const bookkeepingEntriesResult = user.role === 'admin'
+  // Financials (admin only)
+  const bookkeepingEntriesResult = isAdmin
     ? await supabase
         .from('weekly_bookkeeping')
-        .select(
-          'week_start, week_label, total_income, total_expenses, net_profit, uber_earnings, bolt_earnings, ecabs_earnings, other_earnings, employees, repairs, insurance, investments, vat, rent, employee_tax, other_expenses'
-        )
+        .select('week_start, week_label, total_income, total_expenses, net_profit, employees, repairs, insurance, investments, vat, rent, employee_tax, other_expenses')
         .order('week_start', { ascending: true })
     : { data: [] as any[] };
   const bookkeepingEntries = bookkeepingEntriesResult.data || [];
@@ -85,225 +110,68 @@ export default async function AdminDashboardPage() {
     profit: Number(b.net_profit) || 0,
   }));
 
-  const aggregates = bookkeepingEntries.reduce(
-    (
-      acc: {
-        totals: { income: number; expenses: number; profit: number };
-        income: { bolt: number; uber: number; ecabs: number; other: number };
-        expenses: {
-          employees: number;
-          repairs: number;
-          insurance: number;
-          investments: number;
-          vat: number;
-          rent: number;
-          employee_tax: number;
-          other_expenses: number;
-        };
-      },
-      b: any
-    ) => {
-      acc.totals.income += Number(b.total_income) || 0;
-      acc.totals.expenses += Number(b.total_expenses) || 0;
-      acc.totals.profit += Number(b.net_profit) || 0;
-
-      acc.income.bolt += Number(b.bolt_earnings) || 0;
-      acc.income.uber += Number(b.uber_earnings) || 0;
-      acc.income.ecabs += Number(b.ecabs_earnings) || 0;
-      acc.income.other += Number(b.other_earnings) || 0;
-
-      acc.expenses.employees += Number(b.employees) || 0;
-      acc.expenses.repairs += Number(b.repairs) || 0;
-      acc.expenses.insurance += Number(b.insurance) || 0;
-      acc.expenses.investments += Number(b.investments) || 0;
-      acc.expenses.vat += Number(b.vat) || 0;
-      acc.expenses.rent += Number(b.rent) || 0;
-      acc.expenses.employee_tax += Number(b.employee_tax) || 0;
-      acc.expenses.other_expenses += Number(b.other_expenses) || 0;
-
+  const totals = bookkeepingEntries.reduce(
+    (acc, b: any) => {
+      acc.income += Number(b.total_income) || 0;
+      acc.expenses += Number(b.total_expenses) || 0;
+      acc.profit += Number(b.net_profit) || 0;
       return acc;
     },
-    {
-      totals: { income: 0, expenses: 0, profit: 0 },
-      income: { bolt: 0, uber: 0, ecabs: 0, other: 0 },
-      expenses: {
-        employees: 0,
-        repairs: 0,
-        insurance: 0,
-        investments: 0,
-        vat: 0,
-        rent: 0,
-        employee_tax: 0,
-        other_expenses: 0,
-      },
-    }
+    { income: 0, expenses: 0, profit: 0 }
   );
 
-  const totals = aggregates.totals;
+  const expenseTotals = bookkeepingEntries.reduce(
+    (acc, b: any) => {
+      acc.employees += Number(b.employees) || 0;
+      acc.repairs += Number(b.repairs) || 0;
+      acc.insurance += Number(b.insurance) || 0;
+      acc.investments += Number(b.investments) || 0;
+      acc.vat += Number(b.vat) || 0;
+      acc.rent += Number(b.rent) || 0;
+      acc.employee_tax += Number(b.employee_tax) || 0;
+      acc.other += Number(b.other_expenses) || 0;
+      return acc;
+    },
+    { employees: 0, repairs: 0, insurance: 0, investments: 0, vat: 0, rent: 0, employee_tax: 0, other: 0 }
+  );
 
-  const incomeBreakdown = [
-    { name: 'Bolt', value: aggregates.income.bolt, color: '#34D186' },
-    { name: 'Uber', value: aggregates.income.uber, color: '#111827' },
-    { name: 'Ecabs', value: aggregates.income.ecabs, color: '#FFB800' },
-    { name: 'Other', value: aggregates.income.other, color: 'var(--color-secondary)' },
-  ].filter((p) => p.value > 0);
-
+  const expensePalette = ['#f06464', '#f5b54a', '#5b8dff', '#a78bfa', '#22d3ee', '#3ecf8e', '#ec4899', '#94a3b8'];
   const expenseBreakdown = [
-    { name: 'Employees', value: aggregates.expenses.employees, color: 'var(--color-danger)' },
-    { name: 'Repairs', value: aggregates.expenses.repairs, color: 'var(--color-danger)' },
-    { name: 'Insurance', value: aggregates.expenses.insurance, color: 'var(--color-danger)' },
-    { name: 'Investments', value: aggregates.expenses.investments, color: 'var(--color-danger)' },
-    { name: 'VAT', value: aggregates.expenses.vat, color: 'var(--color-danger)' },
-    { name: 'Rent', value: aggregates.expenses.rent, color: 'var(--color-danger)' },
-    { name: 'Employee tax', value: aggregates.expenses.employee_tax, color: 'var(--color-danger)' },
-    { name: 'Other', value: aggregates.expenses.other_expenses, color: 'var(--color-danger)' },
-  ].filter((p) => p.value > 0);
+    { label: 'Employees', amount: expenseTotals.employees },
+    { label: 'Repairs', amount: expenseTotals.repairs },
+    { label: 'Insurance', amount: expenseTotals.insurance },
+    { label: 'Investments', amount: expenseTotals.investments },
+    { label: 'VAT', amount: expenseTotals.vat },
+    { label: 'Rent', amount: expenseTotals.rent },
+    { label: 'Employee tax', amount: expenseTotals.employee_tax },
+    { label: 'Other', amount: expenseTotals.other },
+  ]
+    .filter((e) => e.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .map((e, i) => ({ ...e, color: expensePalette[i % expensePalette.length] }));
+
+  const userName = user.full_name?.split(' ')[0] || 'there';
 
   return (
-    <DashboardLayout user={user} variant="admin" title="">
-      <div className={styles.dashboard}>
-        {/* Welcome Section */}
-        <div className={styles.welcomeSection}>
-          <h1 className={styles.welcomeTitle}>Welcome back 👋</h1>
-          <p className={styles.welcomeSubtitle}>Here&apos;s what&apos;s happening with your fleet today.</p>
-        </div>
-
-        <AdminDashboardInsights
-          financialSeries={financialSeries}
-          totals={totals}
-          incomeBreakdown={incomeBreakdown}
-          expenseBreakdown={expenseBreakdown}
-        />
-
-        {/* Stats Cards */}
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconBlue}`}>👤</div>
-            <div className={styles.statContent}>
-              <span className={styles.statValue}>{activeDrivers}</span>
-              <span className={styles.statLabel}>Active Drivers</span>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconGreen}`}>🚗</div>
-            <div className={styles.statContent}>
-              <span className={styles.statValue}>{activeVehicles}</span>
-              <span className={styles.statLabel}>Active Vehicles</span>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconPurple}`}>🚙</div>
-            <div className={styles.statContent}>
-              <span className={styles.statValue}>{totalVehicles}</span>
-              <span className={styles.statLabel}>Total Fleet</span>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconOrange}`}>📋</div>
-            <div className={styles.statContent}>
-              <span className={styles.statValue}>{recentShifts.length}</span>
-              <span className={styles.statLabel}>Recent Shifts</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Grid */}
-        <div className={styles.contentGrid}>
-          {/* Expiring Documents Alert */}
-          <div className="card">
-            <div className="card-header">
-              <h3>⚠️ Expiring Documents</h3>
-            </div>
-            <div className="card-body">
-              {hasDriverDocs || hasVehicleDocs ? (
-                <>
-                  {hasDriverDocs && (
-                    <>
-                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Drivers</h4>
-                      <ul className={styles.alertList}>
-                        {expiringDrivers!.map((driver) => (
-                          <li key={driver.id} className={styles.alertItem}>
-                            <strong>{driver.full_name}</strong>
-                            <div className={styles.expiryDetails}>
-                              {renderExpiryBadge('ID Card', driver.id_card_expiry_date)}
-                              {renderExpiryBadge('Police', driver.police_conduct_expiry_date)}
-                              {renderExpiryBadge('License', driver.driving_license_expiry_date)}
-                            </div>
-                            <div className={styles.expiryActions}>
-                              <a
-                                href={`/admin/drivers/${driver.id}/edit`}
-                                className={styles.renewLink}
-                              >
-                                Renew
-                              </a>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-
-                  {hasVehicleDocs && (
-                    <>
-                      <h4 style={{ marginTop: hasDriverDocs ? '0.75rem' : 0, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Vehicles</h4>
-                      <ul className={styles.alertList}>
-                        {expiringVehicles!.map((vehicle) => (
-                          <li key={vehicle.id} className={styles.alertItem}>
-                            <strong>
-                              {vehicle.registration_number} 
-                              {vehicle.make && vehicle.model && ` - ${vehicle.make} ${vehicle.model}`}
-                            </strong>
-                            <div className={styles.expiryDetails}>
-                              {renderExpiryBadge('Insurance', vehicle.insurance_expiry_date)}
-                              {renderExpiryBadge('Road License', vehicle.road_license_expiry_date)}
-                            </div>
-                            <div className={styles.expiryActions}>
-                              <a
-                                href={`/admin/vehicles/${vehicle.id}/edit`}
-                                className={styles.renewLink}
-                              >
-                                Renew
-                              </a>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </>
-              ) : (
-                <p className="text-muted">No driver or vehicle documents expired or expiring soon. All good! </p>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="card">
-            <div className="card-header">
-              <h3>🚀 Quick Actions</h3>
-            </div>
-            <div className="card-body">
-              <div className={styles.quickActions}>
-                <a href="/admin/drivers/new" className="btn btn-primary">
-                  + Add New Driver
-                </a>
-                <a href="/admin/vehicles/new" className="btn btn-secondary">
-                  + Add New Vehicle
-                </a>
-                <a href="/admin/rosters" className="btn btn-secondary">
-                  📅 Manage Rosters
-                </a>
-                <a href="/admin/shifts" className="btn btn-outline">
-                  View All Shifts →
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
+    <FleetShell user={user} title="Dashboard">
+      <FleetDashboard
+        userName={userName}
+        isAdmin={isAdmin}
+        stats={{
+          activeDrivers,
+          totalDrivers,
+          activeVehicles,
+          idleVehicles,
+          serviceVehicles,
+          totalVehicles,
+          recentShiftsCount: recentShifts.length,
+        }}
+        financialSeries={financialSeries}
+        totals={totals}
+        expenseBreakdown={expenseBreakdown}
+        expiringDocs={topExpiringDocs}
+        recentShifts={recentShifts}
+      />
+    </FleetShell>
   );
 }

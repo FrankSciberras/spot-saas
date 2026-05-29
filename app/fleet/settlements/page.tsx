@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import SettlementsWorkspace from './SettlementsWorkspace';
 
 /**
@@ -32,13 +32,13 @@ export default async function SettlementsPage() {
     .order('week_start', { ascending: false });
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Driver Settlements">
+    <FleetShell user={user} title="Driver Settlements">
       <SettlementsWorkspace 
         activeDrivers={activeDrivers}
         archivedDrivers={archivedDrivers}
         settlements={settlements || []}
         isAdmin={isAdmin}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

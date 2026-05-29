@@ -389,7 +389,7 @@ export default function VehicleProfile({
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/admin/vehicles" className={styles.backBtn} aria-label="Back to vehicles">←</Link>
+        <Link href="/fleet/vehicles" className={styles.backBtn} aria-label="Back to vehicles">←</Link>
         <div className={styles.heroCard}>
           <div className={styles.avatar}><CarIcon /></div>
           <div className={styles.heroInfo}>
@@ -401,7 +401,7 @@ export default function VehicleProfile({
             </div>
           </div>
           <div className={styles.heroActions}>
-            <Link href={`/admin/vehicles/${vehicle.id}/damages`} className="btn btn-secondary" style={{ fontSize: 13, padding: '8px 14px' }}>
+            <Link href={`/fleet/vehicles/${vehicle.id}/damages`} className="btn btn-secondary" style={{ fontSize: 13, padding: '8px 14px' }}>
               Damages
             </Link>
             {isAdmin && <DeleteVehicleButton vehicleId={vehicle.id} vehicleReg={vehicle.registration_number} />}
@@ -488,7 +488,7 @@ export default function VehicleProfile({
           <div className={`${styles.sectionIcon} ${styles.sectionIconOrange}`}><WrenchIcon /></div>
           <h3 className={styles.sectionTitle}>Service &amp; Maintenance</h3>
           <div className={styles.sectionHeaderActions}>
-            <Link href={`/admin/services/new?vehicle=${vehicle.id}`} className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}>
+            <Link href={`/fleet/services/new?vehicle=${vehicle.id}`} className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}>
               + Add Service
             </Link>
           </div>
@@ -526,11 +526,11 @@ export default function VehicleProfile({
                   <span className={styles.listText}>{s.mileage_at_service.toLocaleString()} km</span>
                   <span className={styles.listText}>{s.next_service_mileage ? `${s.next_service_mileage.toLocaleString()} km` : '—'}</span>
                   <span className={styles.listText}>{s.cost ? `${s.currency} ${s.cost.toFixed(2)}` : '—'}</span>
-                  <Link href={`/admin/services/${s.id}`} className={styles.listLink}>View</Link>
+                  <Link href={`/fleet/services/${s.id}`} className={styles.listLink}>View</Link>
                 </div>
               ))}
               <div style={{ textAlign: 'center', paddingTop: 12 }}>
-                <Link href={`/admin/services?vehicle_id=${vehicle.id}`} className={styles.listLink}>View All Services →</Link>
+                <Link href={`/fleet/services?vehicle_id=${vehicle.id}`} className={styles.listLink}>View All Services →</Link>
               </div>
             </div>
           ) : (
@@ -551,7 +551,7 @@ export default function VehicleProfile({
               {assignedDrivers.map(d => (
                 <div key={d.id} className={styles.driverRow}>
                   <div className={styles.driverInfo}>
-                    <Link href={`/admin/drivers/${d.id}`} className={styles.driverName}>{d.full_name}</Link>
+                    <Link href={`/fleet/drivers/${d.id}`} className={styles.driverName}>{d.full_name}</Link>
                     {d.phone && <div className={styles.driverPhone}>{d.phone}</div>}
                   </div>
                 </div>
@@ -561,7 +561,7 @@ export default function VehicleProfile({
             <div className={styles.driverList}>
               <div className={styles.driverRow}>
                 <div className={styles.driverInfo}>
-                  <Link href={`/admin/drivers/${vehicle.drivers.id}`} className={styles.driverName}>{vehicle.drivers.full_name}</Link>
+                  <Link href={`/fleet/drivers/${vehicle.drivers.id}`} className={styles.driverName}>{vehicle.drivers.full_name}</Link>
                   {vehicle.drivers.phone && <div className={styles.driverPhone}>{vehicle.drivers.phone}</div>}
                 </div>
               </div>

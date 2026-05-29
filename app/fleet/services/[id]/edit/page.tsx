@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import ServiceForm from '@/components/admin/ServiceForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -33,7 +33,7 @@ export default async function EditServicePage({ params }: PageProps) {
     .order('registration_number');
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Edit Service">
+    <FleetShell user={user} title="Edit Service">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>Edit Service</h2>
@@ -42,7 +42,7 @@ export default async function EditServicePage({ params }: PageProps) {
           </span>
         </div>
         <div className={styles.pageActions}>
-          <Link href={`/admin/services/${id}`} className="btn btn-secondary">
+          <Link href={`/fleet/services/${id}`} className="btn btn-secondary">
             ← Back to Service
           </Link>
         </div>
@@ -53,6 +53,6 @@ export default async function EditServicePage({ params }: PageProps) {
         vehicles={vehicles || []} 
         mode="edit" 
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

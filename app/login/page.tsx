@@ -1,21 +1,24 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import styles from './login.module.css';
+import { spotFontVars } from '@/lib/spotFonts';
+import SpotThemeToggle from '@/components/marketing/SpotThemeToggle';
+
+type Mode = 'login' | 'forgot' | 'signup';
 
 function LoginPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/';
+  const initialMode: Mode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [successMessage, setSuccessMessage] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -25,18 +28,17 @@ function LoginPageContent() {
 
     try {
       const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (signInError) {
         setError(signInError.message);
         return;
       }
 
-      router.push(redirectTo);
-      router.refresh();
+      // Hard navigation so the server re-runs with the new session cookie
+      // and routes to the correct dashboard (avoids the cached public page).
+      window.location.assign(redirectTo);
+      return;
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -70,156 +72,183 @@ function LoginPageContent() {
     }
   };
 
-  const switchMode = (newMode: 'login' | 'forgot') => {
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      if (!data.session) {
+        setSuccessMessage('Account created! Check your email to confirm, then sign in.');
+        setMode('login');
+        return;
+      }
+
+      window.location.assign('/onboarding');
+      return;
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchMode = (newMode: Mode) => {
     setMode(newMode);
     setError('');
     setSuccessMessage('');
   };
 
+  const heading =
+    mode === 'login' ? 'Welcome back' : mode === 'signup' ? 'Start your free trial' : 'Reset your password';
+  const subheading =
+    mode === 'login'
+      ? 'Sign in to your Spot fleet dashboard.'
+      : mode === 'signup'
+        ? 'Create your account and get your fleet on Spot.'
+        : 'We’ll email you a link to set a new password.';
+
   return (
-    <div className={styles.container}>
-      <div className={styles.loginCard}>
-        <div className={styles.header}>
-          <div className={styles.logo}>
-            <Image
-              src="/Black Logo.svg"
-              alt="Spot Dashboard logo"
-              className={styles.logoImage}
-              width={160}
-              height={44}
-              priority
-            />
+    <div className={`spot-site ${spotFontVars}`} data-theme="light">
+      <Link className="auth-back" href="/">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Back to home
+      </Link>
+      <div className="auth-toggle">
+        <SpotThemeToggle />
+      </div>
+
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-logo">
+            <span className="logo">Spot<span className="dot" /></span>
           </div>
-          <p className={styles.subtitle}>
-            {mode === 'login' ? 'Sign in to your account' : 'Reset your password'}
-          </p>
+
+          <div className="auth-head">
+            <h1>{heading}</h1>
+            <p>{subheading}</p>
+          </div>
+
+          {error && <div className="auth-alert err">{error}</div>}
+          {successMessage && <div className="auth-alert ok">{successMessage}</div>}
+
+          {mode === 'signup' && (
+            <form onSubmit={handleSignup}>
+              <div className="field">
+                <label htmlFor="signup-email">Email address</label>
+                <input
+                  id="signup-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@yourfleet.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="signup-password">Password</label>
+                <input
+                  id="signup-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Choose a password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={loading || !email || !password}>
+                {loading ? 'Creating account…' : 'Create account'}
+              </button>
+              <p className="auth-foot">
+                Already have an account?{' '}
+                <a role="button" tabIndex={0} onClick={() => switchMode('login')}>Sign in</a>
+              </p>
+            </form>
+          )}
+
+          {mode === 'login' && (
+            <form onSubmit={handleLogin}>
+              <div className="field">
+                <label htmlFor="email">Email address</label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@yourfleet.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="auth-row">
+                <span />
+                <a role="button" tabIndex={0} onClick={() => switchMode('forgot')}>Forgot password?</a>
+              </div>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+                {loading ? 'Signing in…' : 'Sign in'}
+              </button>
+              <p className="auth-foot">
+                New here?{' '}
+                <a role="button" tabIndex={0} onClick={() => switchMode('signup')}>Create a fleet account</a>
+              </p>
+            </form>
+          )}
+
+          {mode === 'forgot' && (
+            <form onSubmit={handleForgotPassword}>
+              <div className="field">
+                <label htmlFor="reset-email">Email address</label>
+                <input
+                  id="reset-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@yourfleet.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={loading || !email}>
+                {loading ? 'Sending…' : 'Send reset link'}
+              </button>
+              <p className="auth-foot">
+                <a role="button" tabIndex={0} onClick={() => switchMode('login')}>← Back to sign in</a>
+              </p>
+            </form>
+          )}
         </div>
-
-        {mode === 'login' ? (
-          <form onSubmit={handleLogin} className={styles.form}>
-            {error && (
-              <div className={styles.error}>
-                {error}
-              </div>
-            )}
-
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                className="form-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                className="form-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className={`btn btn-primary btn-full btn-lg ${styles.submitBtn}`}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-
-            <button
-              type="button"
-              className={styles.forgotLink}
-              onClick={() => switchMode('forgot')}
-            >
-              Forgot your password?
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleForgotPassword} className={styles.form}>
-            {error && (
-              <div className={styles.error}>
-                {error}
-              </div>
-            )}
-
-            {successMessage && (
-              <div className={styles.success}>
-                {successMessage}
-              </div>
-            )}
-
-            <p className={styles.forgotDescription}>
-              Enter your email address and we&apos;ll send you a link to reset your password.
-            </p>
-
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                className="form-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className={`btn btn-primary btn-full btn-lg ${styles.submitBtn}`}
-              disabled={loading || !email}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Sending...
-                </>
-              ) : (
-                'Send Reset Link'
-              )}
-            </button>
-
-            <button
-              type="button"
-              className={styles.backLink}
-              onClick={() => switchMode('login')}
-            >
-              ← Back to sign in
-            </button>
-          </form>
-        )}
-
-        <p className={styles.footer}>
-          Contact your administrator if you need access.
-        </p>
       </div>
     </div>
   );

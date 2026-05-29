@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import { SessionUser, RolePermission } from '@/lib/types/database';
 import styles from './permissions.module.css';
 
@@ -151,14 +151,14 @@ export default function PermissionsPage() {
 
   if (loading || !user) {
     return (
-      <DashboardLayout user={user as SessionUser} variant="admin" title="Permissions">
+      <FleetShell user={user as SessionUser} title="Permissions">
         <div className={styles.loading}>Loading permissions...</div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Role Permissions">
+    <FleetShell user={user} title="Role Permissions">
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -336,6 +336,6 @@ export default function PermissionsPage() {
           These permissions only apply to Staff and Driver roles.
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

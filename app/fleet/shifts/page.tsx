@@ -1,121 +1,84 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
-import styles from './shifts.module.css';
+import FleetShell from '@/components/fleet/FleetShell';
+import ShiftsWorkspace, { type ShiftItem } from '@/components/fleet/shifts/ShiftsWorkspace';
 
-/**
- * Admin Shifts List Page - View all driver shifts (Go Online records)
- */
+const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
+
+function initialsOf(name: string): string {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export default async function ShiftsPage() {
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
-
   const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 
-  const { data: shifts, error } = await supabase
-    .from('driver_shifts')
-    .select(`
-      *,
-      drivers:driver_id (id, full_name),
-      vehicles:vehicle_id (id, registration_number, make, model)
-    `)
-    .order('start_time', { ascending: false })
-    .limit(100);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 14);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-GB', {
-      timeZone,
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const { data } = await supabase
+    .from('driver_shifts')
+    .select('id, start_time, end_time, starting_mileage, dashcam_checked, car_internal_checked, drivers:driver_id (full_name), vehicles:vehicle_id (registration_number)')
+    .gte('start_time', cutoff.toISOString())
+    .order('start_time', { ascending: false })
+    .limit(200);
+
+  const rows = (data || []) as any[];
+  const now = new Date();
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone });
+
+  const colorByDriver = new Map<string, string>();
+  let colorIdx = 0;
+
+  const fmtTime = (d: Date) => d.toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' });
+  const minutesOf = (d: Date) => {
+    const parts = d.toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false });
+    const [h, m] = parts.split(':').map(Number);
+    return h * 60 + m;
   };
+  const dayKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone });
+
+  const shifts: ShiftItem[] = rows.map((r) => {
+    const driver = (Array.isArray(r.drivers) ? r.drivers[0] : r.drivers)?.full_name || 'Unknown';
+    const vehicle = (Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles)?.registration_number || '—';
+    if (!colorByDriver.has(driver)) colorByDriver.set(driver, PALETTE[colorIdx++ % PALETTE.length]);
+    const start = new Date(r.start_time);
+    const end = r.end_time ? new Date(r.end_time) : null;
+    const status: 'live' | 'completed' = end ? 'completed' : 'live';
+    const endRef = end || now;
+    const hours = Math.max(0, (endRef.getTime() - start.getTime()) / 3600000);
+    const dateKey = dayKey(start);
+    const dayOffset = Math.floor((new Date(todayStr).getTime() - new Date(dateKey).getTime()) / 86400000);
+    return {
+      id: r.id,
+      driver,
+      driverInitials: initialsOf(driver),
+      driverColor: colorByDriver.get(driver)!,
+      vehicle,
+      start: fmtTime(start),
+      end: end ? fmtTime(end) : 'now',
+      startMin: minutesOf(start),
+      endMin: minutesOf(endRef),
+      hours,
+      date: dateKey,
+      dayLabel: start.toLocaleDateString('en-GB', { timeZone, weekday: 'long', day: 'numeric', month: 'short' }),
+      dayOffset: Math.max(0, dayOffset),
+      status,
+      mileage: r.starting_mileage || 0,
+      dashcam: !!r.dashcam_checked,
+      internal: !!r.car_internal_checked,
+    };
+  });
+
+  const driverNames = Array.from(new Set(shifts.map((s) => s.driver))).sort();
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Driver Shifts">
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <h2>All Shifts (Go Online Records)</h2>
-        </div>
-
-        {error && (
-          <div className="alert alert-danger">
-            Error loading shifts: {error.message}
-          </div>
-        )}
-
-        <div className="card">
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Start Time</th>
-                  <th>Driver</th>
-                  <th>Vehicle</th>
-                  <th>Name on Shift</th>
-                  <th>Starting Mileage</th>
-                  <th>Checks</th>
-                  <th>Images</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shifts && shifts.length > 0 ? (
-                  shifts.map((shift: Record<string, unknown>) => (
-                    <tr key={shift.id as string}>
-                      <td>{formatDate(shift.start_time as string)}</td>
-                      <td>
-                        {(shift.drivers as { full_name: string } | null)?.full_name ?? 'Unknown'}
-                      </td>
-                      <td>
-                        {(shift.vehicles as Record<string, unknown>) ? (
-                          <span>
-                            {(shift.vehicles as Record<string, unknown>).registration_number as string} - {(shift.vehicles as Record<string, unknown>).make as string} {(shift.vehicles as Record<string, unknown>).model as string}
-                          </span>
-                        ) : 'Unknown'}
-                      </td>
-                      <td>{shift.name as string}</td>
-                      <td>{(shift.starting_mileage as number)?.toLocaleString()} km</td>
-                      <td>
-                        <div className={styles.checks}>
-                          <span className={`badge ${shift.dashcam_checked ? 'badge-success' : 'badge-secondary'}`}>
-                            Dashcam: {shift.dashcam_checked ? '✓' : '✗'}
-                          </span>
-                          <span className={`badge ${shift.car_internal_checked ? 'badge-success' : 'badge-secondary'}`}>
-                            Internal: {shift.car_internal_checked ? '✓' : '✗'}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className={styles.imageIndicators}>
-                          {/* {shift.front_image_url && <span title="Front">🚗</span>}
-                          {shift.left_image_url && <span title="Left">◀️</span>}
-                          {shift.right_image_url && <span title="Right">▶️</span>}
-                          {shift.back_image_url && <span title="Back">🔙</span>} */}
-                        </div>
-                      </td>
-                      <td>
-                        <Link href={`/admin/shifts/${shift.id as string}`} className="btn btn-sm btn-outline">
-                          View Details
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="text-center text-muted">
-                      No shifts found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
+    <FleetShell user={user} title="Driver Shifts">
+      <ShiftsWorkspace shifts={shifts} driverNames={driverNames} />
+    </FleetShell>
   );
 }

@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import EarningsWorkspace from './EarningsWorkspace';
 
 /**
@@ -37,8 +37,8 @@ export default async function EarningsPage() {
   }, [] as Array<{ week_start: string; week_end: string; week_label: string; period_name: string | null }>) || [];
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Weekly Bookkeeping">
+    <FleetShell user={user} title="Weekly Bookkeeping">
       <EarningsWorkspace entries={entries || []} settlementPeriods={settlementPeriods} />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

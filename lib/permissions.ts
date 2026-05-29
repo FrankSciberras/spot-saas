@@ -24,7 +24,7 @@ export function getEffectivePermissionRole(
 }
 
 export async function getResourcePermissionsForUser(
-  user: Pick<SessionUser, 'id' | 'role' | 'also_staff'>,
+  user: Pick<SessionUser, 'id' | 'role' | 'also_staff' | 'organization_id'>,
   resource: PermissionResource
 ): Promise<ResourcePermissions> {
   if (user.role === 'admin') {
@@ -37,10 +37,17 @@ export async function getResourcePermissionsForUser(
   }
 
   const fallback = getDefaultResourcePermissions(permissionRole, resource);
+
+  // Without an org we cannot resolve a per-fleet matrix — fall back to defaults.
+  if (!user.organization_id) {
+    return fallback;
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('role_permissions')
     .select('can_view, can_create, can_edit, can_delete')
+    .eq('organization_id', user.organization_id)
     .eq('role', permissionRole)
     .eq('resource', resource)
     .maybeSingle();

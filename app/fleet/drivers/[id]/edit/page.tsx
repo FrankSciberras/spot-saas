@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import DriverInlineEdit from '@/components/admin/DriverInlineEdit';
 import DeleteDriverButton from '@/components/admin/DeleteDriverButton';
 import styles from '@/components/admin/AdminForms.module.css';
@@ -57,10 +57,10 @@ export default async function EditDriverPage({ params }: PageProps) {
     .limit(5);
 
   return (
-    <DashboardLayout user={user} variant="admin" title={`Edit: ${driver.full_name}`}>
+    <FleetShell user={user} title={`Edit: ${driver.full_name}`}>
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href={`/admin/drivers/${id}`} className={styles.backButton} aria-label="Back to driver">
+          <Link href={`/fleet/drivers/${id}`} className={styles.backButton} aria-label="Back to driver">
             <span>←</span>
           </Link>
           <div className={styles.pageTitleMain}>
@@ -71,7 +71,7 @@ export default async function EditDriverPage({ params }: PageProps) {
           </div>
         </div>
         <div className={styles.pageActions}>
-          <Link href={`/admin/drivers/${id}`} className="btn btn-secondary">
+          <Link href={`/fleet/drivers/${id}`} className="btn btn-secondary">
             Done Editing
           </Link>
           <DeleteDriverButton driverId={id} driverName={driver.full_name} />
@@ -84,6 +84,6 @@ export default async function EditDriverPage({ params }: PageProps) {
         documents={documents || []}
         recentShifts={recentShifts || []}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

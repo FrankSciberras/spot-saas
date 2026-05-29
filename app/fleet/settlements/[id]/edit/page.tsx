@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import styles from '../../settlements.module.css';
 
 interface PageProps {
@@ -42,7 +42,7 @@ export default async function EditSettlementPage({ params }: PageProps) {
   const driverName = (settlement.drivers as { full_name: string } | null)?.full_name || 'Unknown';
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Edit Settlement">
+    <FleetShell user={user} title="Edit Settlement">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>Edit Settlement</h2>
@@ -51,7 +51,7 @@ export default async function EditSettlementPage({ params }: PageProps) {
           </p>
         </div>
         <div className={styles.pageActions}>
-          <Link href="/admin/settlements" className="btn btn-secondary">
+          <Link href="/fleet/settlements" className="btn btn-secondary">
             ← Back to Settlements
           </Link>
         </div>
@@ -62,6 +62,6 @@ export default async function EditSettlementPage({ params }: PageProps) {
         settlement={settlement}
         mode="edit" 
       /> */}
-    </DashboardLayout>
+    </FleetShell>
   );
 }

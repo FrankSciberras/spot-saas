@@ -16,7 +16,7 @@ export async function GET() {
     // ── 1. Fire timed reminder notifications ──
     const { data: dueReminders } = await supabase
       .from('reminders')
-      .select('id, title, description, created_by, assigned_to, due_date, priority')
+      .select('id, organization_id, title, description, created_by, assigned_to, due_date, priority')
       .lte('remind_at', now)
       .eq('reminder_sent', false)
       .in('status', ['pending', 'in_progress']);
@@ -27,12 +27,13 @@ export async function GET() {
         const titlePrefix = priorityLabel ? `${priorityLabel}: ` : '';
 
         await supabase.from('notifications').insert({
+          organization_id: r.organization_id,
           title: `${titlePrefix}Reminder: ${r.title}`,
           body: r.description || `You have a reminder due${r.due_date ? ' on ' + new Date(r.due_date).toLocaleDateString('en-GB') : ''}.`,
           type: 'reminder',
           driver_id: null,
           target_role: 'admin',
-          action_url: '/admin/reminders',
+          action_url: '/fleet/reminders',
           sent_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         });
@@ -99,6 +100,7 @@ export async function GET() {
 
         // Create next occurrence
         await supabase.from('reminders').insert({
+          organization_id: r.organization_id,
           created_by: r.created_by,
           assigned_to: r.assigned_to,
           title: r.title,

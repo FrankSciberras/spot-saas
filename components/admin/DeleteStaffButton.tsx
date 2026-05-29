@@ -26,7 +26,7 @@ export default function DeleteStaffButton({ staffId, staffName, isDualRole = fal
         throw new Error(data.error || 'Failed to delete staff member');
       }
 
-      router.push('/admin/staff');
+      router.push('/fleet/staff');
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete staff member');

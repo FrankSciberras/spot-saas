@@ -71,7 +71,7 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
 
           setSuccess('Staff access granted successfully!');
           setTimeout(() => {
-            router.push('/admin/staff');
+            router.push('/fleet/staff');
             router.refresh();
           }, 1000);
 
@@ -79,23 +79,16 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
         }
 
         // Validate for create mode
-        if (!formData.email || !formData.password) {
-          throw new Error('Email and password are required');
-        }
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        if (formData.password.length < 6) {
-          throw new Error('Password must be at least 6 characters');
+        if (!formData.email) {
+          throw new Error('Email is required to invite staff');
         }
 
-        // Create user with staff role
-        const res = await fetch('/api/users/create', {
+        // Invite staff member into the active fleet (they set their own password)
+        const res = await fetch('/api/members/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: formData.email,
-            password: formData.password,
             full_name: formData.full_name,
             role: 'staff',
           }),
@@ -104,12 +97,12 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || 'Failed to create staff account');
+          throw new Error(data.error || 'Failed to invite staff member');
         }
 
-        setSuccess('Staff member created successfully!');
+        setSuccess('Staff invitation sent!');
         setTimeout(() => {
-          router.push('/admin/staff');
+          router.push('/fleet/staff');
           router.refresh();
         }, 1000);
       } else {
@@ -143,7 +136,7 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
 
         setSuccess('Staff member updated successfully!');
         setTimeout(() => {
-          router.push('/admin/staff');
+          router.push('/fleet/staff');
           router.refresh();
         }, 1000);
       }
@@ -179,8 +172,8 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
               className={`${styles.optionCard} ${createMethod === 'new' ? styles.optionCardActive : ''}`}
               onClick={() => setCreateMethod('new')}
             >
-              <span className={styles.optionTitle}>Create new staff account</span>
-              <span className={styles.optionDescription}>Set up a brand new login with email and password.</span>
+              <span className={styles.optionTitle}>Invite new staff member</span>
+              <span className={styles.optionDescription}>Email an invite; they set their own password and join your fleet.</span>
             </button>
 
             <button
@@ -270,39 +263,42 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
                 />
               </div>
 
-              <div className={styles.formGroup}>
-                <label htmlFor="password">
-                  {mode === 'create' ? 'Password *' : 'New Password'}
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder={mode === 'create' ? 'Minimum 6 characters' : 'Leave blank to keep current'}
-                  minLength={6}
-                  required={mode === 'create'}
-                />
-                {mode === 'edit' && (
-                  <span className={styles.helpText}>Leave blank to keep current password</span>
-                )}
-              </div>
+              {mode === 'create' ? (
+                <div className={styles.formGroup}>
+                  <span className={styles.helpText}>
+                    We&apos;ll email this person an invite to set their own password and join your fleet as staff.
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="password">New Password</label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Leave blank to keep current"
+                      minLength={6}
+                    />
+                    <span className={styles.helpText}>Leave blank to keep current password</span>
+                  </div>
 
-              <div className={styles.formGroup}>
-                <label htmlFor="confirmPassword">
-                  {mode === 'create' ? 'Confirm Password *' : 'Confirm New Password'}
-                </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm password"
-                  required={mode === 'create' || formData.password.length > 0}
-                />
-              </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="confirmPassword">Confirm New Password</label>
+                    <input
+                      type="password"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Confirm password"
+                      required={formData.password.length > 0}
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

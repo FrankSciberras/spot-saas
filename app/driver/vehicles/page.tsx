@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import type { Vehicle } from '@/lib/types/database';
-import styles from '@/app/admin/vehicles/vehicles.module.css';
+import styles from '@/app/fleet/vehicles/vehicles.module.css';
 
 /**
  * Driver Vehicles List Page

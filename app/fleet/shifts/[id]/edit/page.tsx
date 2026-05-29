@@ -142,7 +142,7 @@ export default function EditShiftPage({ params }: PageProps) {
 
       setSuccess('Shift updated successfully');
       setTimeout(() => {
-        router.push(`/admin/shifts/${shiftId}`);
+        router.push(`/fleet/shifts/${shiftId}`);
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update shift');
@@ -163,7 +163,7 @@ export default function EditShiftPage({ params }: PageProps) {
     return (
       <div className={styles.form} style={{ padding: '40px', textAlign: 'center' }}>
         <p>Shift not found</p>
-        <Link href="/admin/shifts" className="btn btn-primary" style={{ marginTop: '16px' }}>
+        <Link href="/fleet/shifts" className="btn btn-primary" style={{ marginTop: '16px' }}>
           Back to Shifts
         </Link>
       </div>
@@ -174,7 +174,7 @@ export default function EditShiftPage({ params }: PageProps) {
     <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href={`/admin/shifts/${shiftId}`} className={styles.backButton} aria-label="Back">
+          <Link href={`/fleet/shifts/${shiftId}`} className={styles.backButton} aria-label="Back">
             <span>←</span>
           </Link>
           <div className={styles.pageTitleMain}>
@@ -289,7 +289,7 @@ export default function EditShiftPage({ params }: PageProps) {
         </div>
 
         <div className={styles.formActions}>
-          <Link href={`/admin/shifts/${shiftId}`} className="btn btn-secondary">
+          <Link href={`/fleet/shifts/${shiftId}`} className="btn btn-secondary">
             Cancel
           </Link>
           <button type="submit" className="btn btn-primary" disabled={saving}>

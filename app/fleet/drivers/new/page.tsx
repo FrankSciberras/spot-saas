@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import DriverForm from '@/components/admin/DriverForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -34,14 +34,14 @@ export default async function NewDriverPage() {
     .order('registration_number');
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Add New Driver">
+    <FleetShell user={user} title="Add New Driver">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>Add New Driver</h2>
           <span className={styles.subtitle}>Create a new driver profile and link to a user account</span>
         </div>
         <div className={styles.pageActions}>
-          <Link href="/admin/drivers" className="btn btn-secondary">
+          <Link href="/fleet/drivers" className="btn btn-secondary">
             ← Back to Drivers
           </Link>
         </div>
@@ -52,6 +52,6 @@ export default async function NewDriverPage() {
         users={availableUsers}
         mode="create" 
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

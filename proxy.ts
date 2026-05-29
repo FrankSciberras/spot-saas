@@ -2,10 +2,10 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 // Routes that don't require authentication
-const publicRoutes = ['/login', '/auth/callback', '/offline'];
+const publicRoutes = ['/', '/login', '/auth/callback', '/offline'];
 
 // Route patterns for role-based access
-const adminRoutes = /^\/admin/;
+const adminRoutes = /^\/fleet/;
 const driverRoutes = /^\/driver/;
 const apiRoutes = /^\/api/;
 

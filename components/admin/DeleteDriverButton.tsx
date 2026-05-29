@@ -30,7 +30,7 @@ export default function DeleteDriverButton({ driverId, driverName }: DeleteDrive
         throw new Error(data.error || 'Failed to delete driver');
       }
 
-      router.push('/admin/drivers');
+      router.push('/fleet/drivers');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

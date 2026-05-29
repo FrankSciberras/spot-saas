@@ -2,6 +2,7 @@ import type { SessionUser } from '@/lib/types/database';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import PushNotificationPrompt from './PushNotificationPrompt';
+import FleetTrialBanner from './FleetTrialBanner';
 // TODO: Re-enable onboarding guides in the future
 // import OnboardingGuide from './OnboardingGuide';
 import styles from './DashboardLayout.module.css';
@@ -24,6 +25,7 @@ export default function DashboardLayout({
       <Sidebar user={user} variant={variant} />
       <div className={styles.main}>
         <div className={styles.shell}>
+          {variant === 'admin' && <FleetTrialBanner />}
           <Header user={user} title={title} />
           <main className={styles.content}>
             {children}

@@ -1,184 +1,135 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
-import type { Driver, Vehicle } from '@/lib/types/database';
-import styles from './drivers.module.css';
+import FleetShell from '@/components/fleet/FleetShell';
+import DriversWorkspace, { type DriverItem, type DocState } from '@/components/fleet/drivers/DriversWorkspace';
 
-interface DriverWithVehicle extends Driver {
-  vehicles: Vehicle | null;
+const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/**
- * Admin Drivers List Page
- */
+function docState(date: string | null, now: Date, soon: Date): DocState {
+  if (!date) return 'missing';
+  const d = new Date(date);
+  if (d < now) return 'expired';
+  if (d <= soon) return 'warn';
+  return 'ok';
+}
+
+function relativeTime(date: Date | null, now: Date): string {
+  if (!date) return '—';
+  const diffMs = now.getTime() - date.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 60) return mins <= 1 ? 'Just now' : `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+}
+
 export default async function DriversPage() {
   const user = await requireRole(['admin', 'staff']);
   const supabase = await createClient();
-
-  const { data: drivers, error } = await supabase
-    .from('drivers')
-    .select(`
-      *,
-      vehicles:assigned_vehicle_id (
-        id,
-        registration_number,
-        make,
-        model
-      )
-    `)
-    .order('full_name');
-
-  const { data: assignmentRows } = await supabase
-    .from('driver_vehicle_assignments')
-    .select(`
-      driver_id,
-      vehicles:vehicle_id (id, registration_number)
-    `);
-
-  const assignmentsByDriver = new Map<string, Array<{ id: string; registration_number: string }>>();
-  (assignmentRows || []).forEach((row: unknown) => {
-    const r = row as { driver_id?: string | null; vehicles?: unknown };
-    if (!r.driver_id) return;
-    const v = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
-    if (!v) return;
-    const vehicle = v as { id: string; registration_number: string };
-    if (!assignmentsByDriver.has(r.driver_id)) assignmentsByDriver.set(r.driver_id, []);
-    assignmentsByDriver.get(r.driver_id)!.push(vehicle);
-  });
-
   const isAdmin = user.role === 'admin';
 
-  // Helper function to check if date is expiring soon (within 30 days)
-  const isExpiringSoon = (dateStr: string | null): boolean => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const thirtyDays = new Date();
-    thirtyDays.setDate(now.getDate() + 30);
-    return date <= thirtyDays;
-  };
+  const now = new Date();
+  const soon = new Date();
+  soon.setDate(soon.getDate() + 30);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 7);
 
-  const isExpired = (dateStr: string | null): boolean => {
-    if (!dateStr) return false;
-    return new Date(dateStr) < new Date();
-  };
+  const [driversResult, assignmentsResult, shiftsResult, earningsResult] = await Promise.all([
+    supabase
+      .from('drivers')
+      .select('id, full_name, phone, status, assigned_vehicle_id, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date, vehicles:assigned_vehicle_id (registration_number)')
+      .order('full_name'),
+    supabase
+      .from('driver_vehicle_assignments')
+      .select('driver_id, vehicles:vehicle_id (registration_number)'),
+    supabase
+      .from('driver_shifts')
+      .select('driver_id, start_time, end_time')
+      .gte('start_time', weekStart.toISOString())
+      .order('start_time', { ascending: false }),
+    supabase
+      .from('earnings')
+      .select('driver_id, amount, period_start')
+      .gte('period_start', weekStart.toISOString().split('T')[0]),
+  ]);
+
+  const driverRows = (driversResult.data || []) as any[];
+  const assignmentRows = (assignmentsResult.data || []) as any[];
+  const shiftRows = (shiftsResult.data || []) as any[];
+  const earningRows = (earningsResult.data || []) as any[];
+
+  // Plates per driver from assignments (+ assigned_vehicle_id fallback)
+  const platesByDriver = new Map<string, Set<string>>();
+  for (const row of assignmentRows) {
+    if (!row.driver_id) continue;
+    const v = Array.isArray(row.vehicles) ? row.vehicles[0] : row.vehicles;
+    if (!v?.registration_number) continue;
+    if (!platesByDriver.has(row.driver_id)) platesByDriver.set(row.driver_id, new Set());
+    platesByDriver.get(row.driver_id)!.add(v.registration_number);
+  }
+
+  // Shift aggregation: on-shift (open shift), clock-in, last shift, hours this week
+  const onShift = new Map<string, Date>();
+  const lastShiftEnd = new Map<string, Date>();
+  const weekHours = new Map<string, number>();
+  for (const s of shiftRows) {
+    if (!s.driver_id || !s.start_time) continue;
+    const start = new Date(s.start_time);
+    const end = s.end_time ? new Date(s.end_time) : null;
+    if (!end) {
+      if (!onShift.has(s.driver_id)) onShift.set(s.driver_id, start);
+    } else {
+      if (!lastShiftEnd.has(s.driver_id) || end > lastShiftEnd.get(s.driver_id)!) {
+        lastShiftEnd.set(s.driver_id, end);
+      }
+      const hrs = (end.getTime() - start.getTime()) / 3600000;
+      weekHours.set(s.driver_id, (weekHours.get(s.driver_id) || 0) + Math.max(0, hrs));
+    }
+  }
+
+  const weekEarnings = new Map<string, number>();
+  for (const e of earningRows) {
+    if (!e.driver_id) continue;
+    weekEarnings.set(e.driver_id, (weekEarnings.get(e.driver_id) || 0) + (e.amount || 0));
+  }
+
+  const drivers: DriverItem[] = driverRows.map((d, i) => {
+    const plates = platesByDriver.get(d.id) || new Set<string>();
+    const assigned = Array.isArray(d.vehicles) ? d.vehicles[0] : d.vehicles;
+    if (assigned?.registration_number) plates.add(assigned.registration_number);
+    const openStart = onShift.get(d.id);
+    return {
+      id: d.id,
+      name: d.full_name || 'Unknown',
+      initials: initialsOf(d.full_name || '?'),
+      color: PALETTE[i % PALETTE.length],
+      status: openStart ? 'on' : 'off',
+      clockIn: openStart ? openStart.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—',
+      lastShift: relativeTime(lastShiftEnd.get(d.id) || null, now),
+      phone: d.phone || '—',
+      vehicles: Array.from(plates),
+      weekEarnings: weekEarnings.get(d.id) || 0,
+      weekHours: weekHours.get(d.id) || 0,
+      docs: {
+        id: docState(d.id_card_expiry_date, now, soon),
+        police: docState(d.police_conduct_expiry_date, now, soon),
+        license: docState(d.driving_license_expiry_date, now, soon),
+      },
+    };
+  });
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Drivers">
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <h2>All Drivers</h2>
-          {isAdmin && (
-            <Link href="/admin/drivers/new" className="btn btn-primary">
-              + Add Driver
-            </Link>
-          )}
-        </div>
-
-        {error && (
-          <div className="alert alert-danger">
-            Error loading drivers: {error.message}
-          </div>
-        )}
-
-        <div className="card">
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Status</th>
-                  <th>Assigned Vehicle</th>
-                  <th>ID Card</th>
-                  <th>Police Conduct</th>
-                  <th>License</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {drivers && drivers.length > 0 ? (
-                  drivers.map((driver: DriverWithVehicle) => {
-                    const assignedVehicles = assignmentsByDriver.get(driver.id) || [];
-                    const display = assignedVehicles.length > 0
-                      ? assignedVehicles.map((v) => v.registration_number).join(', ')
-                      : (driver.vehicles ? driver.vehicles.registration_number : null);
-                    return (
-                    <tr key={driver.id}>
-                      <td>
-                        <strong>{driver.full_name}</strong>
-                      </td>
-                      <td>{driver.phone || '-'}</td>
-                      <td>
-                        <span className={`badge ${driver.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
-                          {driver.status}
-                        </span>
-                      </td>
-                      <td>
-                        {display ? (
-                          <span>{display}</span>
-                        ) : (
-                          <span className="text-muted">Not assigned</span>
-                        )}
-                      </td>
-                      <td>
-                        {driver.id_card_expiry_date ? (
-                          <span className={
-                            isExpired(driver.id_card_expiry_date) ? 'text-danger' :
-                            isExpiringSoon(driver.id_card_expiry_date) ? 'text-warning' : ''
-                          }>
-                            {driver.id_card_expiry_date}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td>
-                        {driver.police_conduct_expiry_date ? (
-                          <span className={
-                            isExpired(driver.police_conduct_expiry_date) ? 'text-danger' :
-                            isExpiringSoon(driver.police_conduct_expiry_date) ? 'text-warning' : ''
-                          }>
-                            {driver.police_conduct_expiry_date}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td>
-                        {driver.driving_license_expiry_date ? (
-                          <span className={
-                            isExpired(driver.driving_license_expiry_date) ? 'text-danger' :
-                            isExpiringSoon(driver.driving_license_expiry_date) ? 'text-warning' : ''
-                          }>
-                            {driver.driving_license_expiry_date}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td>
-                        <div className={styles.actions}>
-                          <Link href={`/admin/drivers/${driver.id}`} className="btn btn-sm btn-outline">
-                            View
-                          </Link>
-                          {isAdmin && (
-                            <Link href={`/admin/drivers/${driver.id}/edit`} className="btn btn-sm btn-secondary">
-                              Edit
-                            </Link>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="text-center text-muted">
-                      No drivers found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
+    <FleetShell user={user} title="Drivers">
+      <DriversWorkspace drivers={drivers} canAdd={isAdmin} />
+    </FleetShell>
   );
 }

@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import NotificationManager from '@/components/admin/NotificationManager';
 import styles from './notifications.module.css';
 
@@ -55,7 +55,7 @@ export default async function NotificationsPage() {
     .order('full_name');
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Notifications">
+    <FleetShell user={user} title="Notifications">
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
@@ -72,6 +72,6 @@ export default async function NotificationsPage() {
           drivers={drivers || []}
         />
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

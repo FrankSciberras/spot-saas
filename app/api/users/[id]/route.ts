@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
+import { removeMemberFromOrg } from '@/lib/members/removeMember';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -137,32 +140,34 @@ export async function PUT(request: Request, context: RouteContext) {
 
 /**
  * DELETE /api/users/[id]
- * Delete a user (admin only)
+ * Removes a member from the CALLER'S ACTIVE FLEET (admin only).
+ *
+ * Two paths:
+ *   - Dual-role driver+staff: only revoke the staff side (soft) so they keep
+ *     their driver account in the fleet.
+ *   - Everyone else: full removal from this org. Their driver row + membership
+ *     are deleted, and if they belong to no other fleet their account (profile
+ *     + auth identity) is hard-deleted — so getting them back requires a fresh
+ *     invite, never a silent re-activation.
  */
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Only admins can delete users' }, { status: 403 });
+    if (session.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can remove members' }, { status: 403 });
     }
 
-    // Prevent deleting yourself
-    if (id === user.id) {
-      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 });
+    // Prevent removing yourself
+    if (id === session.id) {
+      return NextResponse.json({ error: 'You cannot remove your own account' }, { status: 400 });
     }
+
+    const orgId = session.organization_id;
 
     // Create admin client
     const supabaseAdmin = createClient(
@@ -176,55 +181,63 @@ export async function DELETE(request: Request, context: RouteContext) {
       }
     );
 
-    // Check if user exists and is a staff member
-    const { data: targetUser } = await supabaseAdmin
-      .from('users')
-      .select('role, also_staff')
-      .eq('id', id)
-      .single();
+    // Resolve the target's role IN THIS FLEET (the source of truth post-SaaS).
+    const { data: membership } = await supabaseAdmin
+      .from('memberships')
+      .select('role')
+      .eq('organization_id', orgId)
+      .eq('user_id', id)
+      .maybeSingle();
 
-    if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!membership) {
+      return NextResponse.json({ error: 'Member not found in this fleet' }, { status: 404 });
     }
 
-    if (targetUser.role === 'driver' && targetUser.also_staff) {
-      const { error: revokeError } = await supabaseAdmin
+    // Dual-role driver+staff → only revoke staff access (keep them as a driver).
+    if (membership.role === 'driver') {
+      const { data: targetProfile } = await supabaseAdmin
         .from('users')
-        .update({ also_staff: false })
-        .eq('id', id);
+        .select('also_staff')
+        .eq('id', id)
+        .maybeSingle();
 
-      if (revokeError) {
-        return NextResponse.json({ error: revokeError.message }, { status: 500 });
+      if (targetProfile?.also_staff) {
+        const { error: revokeError } = await supabaseAdmin
+          .from('users')
+          .update({ also_staff: false })
+          .eq('id', id);
+
+        if (revokeError) {
+          return NextResponse.json({ error: revokeError.message }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, action: 'revoked_staff_access' });
       }
-
-      return NextResponse.json({ success: true, action: 'revoked_staff_access' });
     }
 
-    if (targetUser.role !== 'staff') {
-      return NextResponse.json({ error: 'User is not a staff account' }, { status: 400 });
+    // Full removal from this fleet (hard-deletes the account if it's their last).
+    const result = await removeMemberFromOrg({ targetUserId: id, organizationId: orgId });
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
     }
 
-    // Delete from users table first
-    const { error: deleteProfileError } = await supabaseAdmin
-      .from('users')
-      .delete()
-      .eq('id', id);
+    const actor = await getAuditActor(session.id);
+    await createAuditLogEntry({
+      actor,
+      organizationId: orgId,
+      action: 'delete',
+      entityType: 'membership',
+      entityId: id,
+      summary: result.fullyDeleted
+        ? 'Removed member and deleted their account'
+        : 'Removed member from fleet',
+      details: { fullyDeleted: result.fullyDeleted, role: membership.role },
+    });
 
-    if (deleteProfileError) {
-      return NextResponse.json({ error: deleteProfileError.message }, { status: 500 });
-    }
-
-    // Delete from auth
-    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(id);
-
-    if (deleteAuthError) {
-      console.error('Error deleting auth user:', deleteAuthError);
-      // Profile already deleted, log but don't fail
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, fullyDeleted: result.fullyDeleted });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error('Error removing member:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

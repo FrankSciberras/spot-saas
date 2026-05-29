@@ -1,7 +1,7 @@
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: 16px;
 }
 
 .headerRow {
@@ -10,10 +10,9 @@
 
 .filtersCard {
   width: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-card);
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
   overflow: visible;
 }
 
@@ -21,10 +20,10 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--spacing-lg);
-  padding: 18px 20px;
-  background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.08) 0%, rgba(var(--color-primary-rgb), 0.02) 100%);
-  border-bottom: 1px solid var(--border-subtle);
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line-1);
+  flex-wrap: wrap;
 }
 
 .titleBlock {
@@ -34,132 +33,131 @@
 }
 
 .title {
-  font-size: var(--font-xl);
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 500;
   letter-spacing: -0.02em;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .subtitle {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 .actions {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
- .modeToggle {
-  display: flex;
+.modeToggle {
+  display: inline-flex;
   align-items: center;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  padding: 4px;
-  box-shadow: var(--shadow-xs);
- }
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 2px;
+}
 
- .toggleBtn {
+.toggleBtn {
   border: none;
   background: transparent;
-  color: var(--text-secondary);
-  padding: 8px 12px;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-sm);
-  font-weight: 700;
+  color: var(--text-2);
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 400;
+  font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-fast);
- }
+  transition: all 120ms ease;
+}
 
- .toggleBtn:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
- }
+.toggleBtn:hover {
+  color: var(--text-1);
+}
 
- .toggleBtnActive {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: var(--text-light);
-  box-shadow: 0 1px 2px rgba(var(--color-primary-rgb), 0.25);
- }
+.toggleBtnActive {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
 
 .actionBtn,
 .actionBtnSecondary {
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 120ms ease;
 }
 
 .actionBtn {
   border: none;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: var(--text-light);
-  box-shadow: 0 1px 2px rgba(var(--color-primary-rgb), 0.25), 0 8px 24px rgba(var(--color-primary-rgb), 0.2);
+  background: var(--accent);
+  color: #fff;
 }
 
 .actionBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.25), 0 12px 28px rgba(var(--color-primary-rgb), 0.25);
+  filter: brightness(1.06);
 }
 
 .actionBtnSecondary {
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--text-1);
 }
 
 .actionBtnSecondary:hover:not(:disabled) {
-  background: var(--bg-tertiary);
+  background: var(--bg-2);
 }
 
 .actionBtn:disabled,
 .actionBtnSecondary:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
-  transform: none;
 }
 
 .filtersGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--spacing-md);
-  padding: 16px 20px;
-  background: var(--bg-card);
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-1);
 }
 
 .filterGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .filterLabel {
-  font-size: var(--font-xs);
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  color: var(--text-primary);
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-1);
 }
 
 .select:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--accent-line);
 }
 
 .resetLink {
@@ -168,64 +166,50 @@
   padding: 0;
   border: none;
   background: none;
-  font-size: var(--font-xs);
-  font-weight: 600;
-  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
-  opacity: 0.8;
-  transition: opacity var(--transition-fast);
+  transition: opacity 120ms ease;
 }
 
 .resetLink:hover {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--spacing-lg);
+  gap: 12px;
 }
 
 .kpiGrid6 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--spacing-lg);
+  gap: 12px;
 }
 
 .kpiCard {
-  background: var(--bg-card);
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-card);
-  padding: 18px 18px;
+  background: var(--bg-1);
+  border-radius: 12px;
+  border: 1px solid var(--line-1);
+  padding: 16px 18px;
   position: relative;
   overflow: hidden;
 }
 
-.kpiCard::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 20% 20%, rgba(var(--color-primary-rgb), 0.12), transparent 55%);
-  pointer-events: none;
-}
-
-.kpiCardAlert::before {
-  background: radial-gradient(circle at 20% 20%, rgba(var(--color-danger-rgb), 0.14), transparent 55%);
-}
-
 .kpiCardAlert {
-  border-color: rgba(var(--color-danger-rgb), 0.25);
+  border-color: var(--neg-soft, rgba(240, 100, 100, 0.3));
 }
 
 .kpiLabel {
-  font-size: var(--font-xs);
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .kpiLabelWithTip {
@@ -242,10 +226,10 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--border-color);
-  color: var(--text-muted);
+  background: var(--bg-2);
+  color: var(--text-3);
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: help;
   flex-shrink: 0;
 }
@@ -262,13 +246,12 @@
   top: 100%;
   margin-top: 6px;
   padding: 6px 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  font-size: var(--font-xs);
-  font-weight: 500;
-  color: var(--text-secondary);
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-2);
   text-transform: none;
   letter-spacing: 0;
   white-space: nowrap;
@@ -280,131 +263,133 @@
 }
 
 .kpiValue {
-  font-size: 1.6rem;
-  font-weight: 800;
+  font-family: 'Geist Mono', monospace;
+  font-size: 26px;
+  font-weight: 500;
   letter-spacing: -0.02em;
-  margin-top: 8px;
-  color: var(--text-primary);
+  margin-top: 10px;
+  color: var(--text-1);
 }
 
 .kpiMeta {
-  margin-top: 8px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-3);
 }
 
 .positive {
-  color: var(--color-success);
+  color: var(--pos);
 }
 
 .negative {
-  color: var(--color-danger);
+  color: var(--neg);
 }
 
 .grid2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-lg);
+  gap: 16px;
 }
 
 .grid3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--spacing-lg);
+  gap: 16px;
 }
 
 .panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-card);
-  padding: 18px 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .panelHeader {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 12px;
+  padding: 16px 18px;
 }
 
 .panelHeaderRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
-  margin-bottom: 12px;
+  gap: 12px;
+  padding: 16px 18px;
 }
 
 .panelTitle {
-  font-size: var(--font-lg);
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
 }
 
 .panelSubtitle {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
 .chartWrap {
   width: 100%;
-  background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.03), transparent 45%);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  padding: 12px;
+  border-top: 1px solid var(--line-1);
+  padding: 16px 12px 4px;
 }
 
 .highlights {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--spacing-md);
+  gap: 12px;
+  padding: 0 18px;
 }
 
 .highlightCard {
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-primary);
-  border-radius: var(--radius-xl);
-  padding: 14px 14px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-2);
+  border-radius: 10px;
+  padding: 14px;
 }
 
 .highlightLabel {
-  font-size: var(--font-xs);
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .highlightValue {
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-family: 'Geist Mono', monospace;
+  font-size: 20px;
+  font-weight: 500;
   margin-top: 8px;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .highlightMeta {
   margin-top: 4px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--text-3);
 }
 
 .summaryBox {
-  margin-top: var(--spacing-md);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  padding: 12px 12px;
-  background: var(--bg-primary);
+  margin: 12px 18px 18px;
+  border: 1px solid var(--line-1);
+  border-radius: 10px;
+  padding: 4px 12px;
+  background: var(--bg-2);
 }
 
 .summaryRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 6px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--line-1);
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
 .summaryRow:last-child {
@@ -412,28 +397,30 @@
 }
 
 .summaryBoxSecondary {
-  margin-top: var(--spacing-sm);
-  background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.04) 0%, var(--bg-primary) 100%);
-  border-color: rgba(var(--color-primary-rgb), 0.15);
+  background: var(--bg-2);
+  border-color: var(--accent-line);
 }
 
 .mono {
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  color: var(--text-primary);
+  font-family: 'Geist Mono', monospace;
+  color: var(--text-1);
 }
 
 .journalGrid {
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);
-  gap: var(--spacing-lg);
+  gap: 16px;
   align-items: start;
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--line-1);
+  padding-top: 16px;
 }
 
 .journalMeta {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  padding: 14px 14px;
-  background: var(--bg-primary);
+  border: 1px solid var(--line-1);
+  border-radius: 10px;
+  padding: 6px 14px;
+  background: var(--bg-2);
 }
 
 .metaRow {
@@ -441,7 +428,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line-1);
 }
 
 .metaRow:last-child {
@@ -449,25 +436,25 @@
 }
 
 .metaLabel {
-  font-size: var(--font-xs);
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .metaValue {
-  font-size: var(--font-sm);
-  color: var(--text-primary);
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 12.5px;
+  color: var(--text-1);
+  font-family: 'Geist Mono', monospace;
   text-align: right;
 }
 
 .journalTableWrap {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  border: 1px solid var(--line-1);
+  border-radius: 10px;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: var(--bg-1);
 }
 
 .journalTable {
@@ -477,22 +464,23 @@
 
 .journalTable th,
 .journalTable td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--font-sm);
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line-1);
+  font-size: 12.5px;
+  color: var(--text-2);
 }
 
 .journalTable th {
-  font-size: var(--font-xs);
-  font-weight: 800;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: var(--bg-secondary);
+  letter-spacing: 0.06em;
+  background: var(--bg-2);
 }
 
 .journalTable tbody tr:hover td {
-  background: rgba(var(--color-primary-rgb), 0.03);
+  background: var(--bg-2);
 }
 
 .journalTable tr:last-child td {
@@ -501,27 +489,27 @@
 
 .right {
   text-align: right;
+  font-family: 'Geist Mono', monospace;
 }
 
 .emptyState {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-2xl);
-  padding: var(--spacing-2xl);
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
+  padding: 40px 20px;
   text-align: center;
-  box-shadow: var(--shadow-card);
 }
 
 .emptyTitle {
-  font-size: var(--font-lg);
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
 }
 
 .emptyHint {
   margin-top: 6px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
 @media (max-width: 1400px) {

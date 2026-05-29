@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Figtree } from 'next/font/google';
 import './globals.css';
+import './spot-site.css';
 import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistration';
 import ErrorRecovery from '@/components/shared/ErrorRecovery';
 import SplashScreen from '@/components/shared/SplashScreen';

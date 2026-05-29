@@ -30,7 +30,7 @@ export default function DeleteVehicleButton({ vehicleId, vehicleReg }: DeleteVeh
         throw new Error(data.error || 'Failed to delete vehicle');
       }
 
-      router.push('/admin/vehicles');
+      router.push('/fleet/vehicles');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

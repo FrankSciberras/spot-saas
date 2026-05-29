@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import AdjustmentsWorkspace from './AdjustmentsWorkspace';
 
 /**
@@ -28,12 +28,12 @@ export default async function AdjustmentsPage() {
     .order('date', { ascending: false });
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Driver Adjustments">
+    <FleetShell user={user} title="Driver Adjustments">
       <AdjustmentsWorkspace 
         drivers={drivers || []}
         adjustments={adjustments || []}
         isAdmin={isAdmin}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import PushNotificationToggle from '@/components/shared/PushNotificationToggle';
 import ChangePasswordForm from '@/components/shared/ChangePasswordForm';
 import styles from './profile.module.css';
@@ -20,7 +20,7 @@ export default async function AdminProfilePage() {
     .single();
 
   return (
-    <DashboardLayout user={user} variant="admin" title="My Profile">
+    <FleetShell user={user} title="My Profile">
       <div className={styles.container}>
         {/* Profile Header */}
         <div className={styles.profileHeader}>
@@ -106,6 +106,6 @@ export default async function AdminProfilePage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('reminders')
       .insert({
+        organization_id: session.organization_id,
         created_by: session.id,
         title: title.trim(),
         description: description?.trim() || null,
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
 
     await createAuditLogEntry({
       actor,
+      organizationId: session.organization_id,
       action: 'create',
       entityType: 'reminder',
       entityId: data.id,

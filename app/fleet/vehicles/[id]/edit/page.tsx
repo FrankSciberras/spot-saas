@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import VehicleForm from '@/components/admin/VehicleForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -45,7 +45,7 @@ export default async function EditVehiclePage({ params }: PageProps) {
     .order('uploaded_at', { ascending: false });
 
   return (
-    <DashboardLayout user={user} variant="admin" title={`Edit: ${vehicle.registration_number}`}>
+    <FleetShell user={user} title={`Edit: ${vehicle.registration_number}`}>
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>Edit Vehicle</h2>
@@ -54,7 +54,7 @@ export default async function EditVehiclePage({ params }: PageProps) {
           </span>
         </div>
         <div className={styles.pageActions}>
-          <Link href={`/admin/vehicles/${id}`} className="btn btn-secondary">
+          <Link href={`/fleet/vehicles/${id}`} className="btn btn-secondary">
             ← Back to Vehicle
           </Link>
         </div>
@@ -66,6 +66,6 @@ export default async function EditVehiclePage({ params }: PageProps) {
         documents={documents || []}
         mode="edit" 
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

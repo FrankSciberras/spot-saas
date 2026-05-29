@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import DeleteStaffButton from '@/components/admin/DeleteStaffButton';
 import styles from '../staff.module.css';
 
@@ -32,15 +32,15 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
   const isDualRoleStaff = staff.role === 'driver' && staff.also_staff;
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Staff Details">
+    <FleetShell user={user} title="Staff Details">
       <div className={styles.container}>
         <div className={styles.header}>
           <h2>{staff.full_name || staff.email}</h2>
           <div className={styles.actions}>
-            <Link href="/admin/staff" className="btn btn-secondary">
+            <Link href="/fleet/staff" className="btn btn-secondary">
               ← Back
             </Link>
-            <Link href={`/admin/staff/${staff.id}/edit`} className="btn btn-primary">
+            <Link href={`/fleet/staff/${staff.id}/edit`} className="btn btn-primary">
               Edit
             </Link>
             <DeleteStaffButton
@@ -86,6 +86,6 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

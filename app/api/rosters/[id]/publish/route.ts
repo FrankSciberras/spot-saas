@@ -157,6 +157,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (shouldSendApp) {
       if (includeDrivers) {
         const appNotifications = drivers.map(driver => ({
+          organization_id: roster.organization_id,
           driver_id: driver.id,
           title: notificationTitle,
           body: notificationBody,
@@ -182,6 +183,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         const { error: adminBroadcastError } = await adminClient
           .from('notifications')
           .insert({
+            organization_id: roster.organization_id,
             driver_id: null,
             title: notificationTitle,
             body: notificationBody,
@@ -224,7 +226,7 @@ export async function POST(request: Request, { params }: RouteParams) {
             await sendPushNotification(u.id, {
               title: notificationTitle,
               body: notificationBody,
-              url: '/admin/rosters',
+              url: '/fleet/rosters',
             });
             notificationResults.push++;
           } catch (err) {
@@ -264,7 +266,7 @@ export async function POST(request: Request, { params }: RouteParams) {
               subject: notificationTitle,
               body: notificationBody,
               driverName: u.full_name || undefined,
-              actionUrl: `${appUrl}/admin/rosters`,
+              actionUrl: `${appUrl}/fleet/rosters`,
             });
             notificationResults.email++;
           } catch (err) {
@@ -276,6 +278,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     if (rule) {
       await adminClient.from('notification_log').insert({
+        organization_id: roster.organization_id,
         rule_id: rule.id,
         channel: effectiveChannel,
         title: notificationTitle,
@@ -294,6 +297,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   await createAuditLogEntry({
     actor,
+    organizationId: roster.organization_id,
     action: 'update',
     entityType: 'roster_publish',
     entityId: roster.id,

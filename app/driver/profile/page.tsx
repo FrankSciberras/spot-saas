@@ -44,7 +44,7 @@ export default async function DriverProfilePage() {
   if (error || !driver) {
     // If admin/staff viewing without driver profile, redirect
     if (user.role !== 'driver') {
-      redirect('/admin');
+      redirect('/fleet');
     }
     return (
       <DashboardLayout user={user} variant="driver" title="My Profile">

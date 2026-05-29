@@ -71,7 +71,7 @@ export default function PushNotificationPrompt({ variant, role }: PushNotificati
     ? '/driver/profile'
     : role === 'staff'
       ? '/staff/profile'
-      : '/admin/profile';
+      : '/fleet/profile';
 
   const handleGoToSettings = () => {
     setShow(false);

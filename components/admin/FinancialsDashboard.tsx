@@ -1295,9 +1295,9 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                       formatter={(value: unknown) => formatCurrencyEUR(Number(value))}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="total_income" name="Income" stroke="var(--color-primary)" strokeWidth={2.4} dot={false} />
-                    <Line type="monotone" dataKey="total_expenses" name="Expenses" stroke="var(--color-warning)" strokeWidth={2.4} dot={false} />
-                    <Line type="monotone" dataKey="net_profit" name="Profit" stroke="var(--color-success)" strokeWidth={2.4} dot={false} />
+                    <Line type="monotone" dataKey="total_income" name="Income" stroke="var(--pos)" strokeWidth={2.4} dot={false} />
+                    <Line type="monotone" dataKey="total_expenses" name="Expenses" stroke="var(--neg)" strokeWidth={2.4} dot={false} />
+                    <Line type="monotone" dataKey="net_profit" name="Profit" stroke="var(--accent)" strokeWidth={2.4} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

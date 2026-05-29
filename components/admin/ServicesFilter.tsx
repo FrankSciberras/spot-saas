@@ -37,11 +37,11 @@ export default function ServicesFilter({
       params.delete(key);
     }
     
-    router.push(`/admin/services?${params.toString()}`);
+    router.push(`/fleet/services?${params.toString()}`);
   };
 
   const clearFilters = () => {
-    router.push('/admin/services');
+    router.push('/fleet/services');
   };
 
   const hasFilters = currentVehicleId || currentServiceType || currentSort;

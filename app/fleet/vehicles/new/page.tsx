@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import VehicleForm from '@/components/admin/VehicleForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -20,14 +20,14 @@ export default async function NewVehiclePage() {
     .order('full_name');
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Add New Vehicle">
+    <FleetShell user={user} title="Add New Vehicle">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>Add New Vehicle</h2>
           <span className={styles.subtitle}>Register a new vehicle to your fleet</span>
         </div>
         <div className={styles.pageActions}>
-          <Link href="/admin/vehicles" className="btn btn-secondary">
+          <Link href="/fleet/vehicles" className="btn btn-secondary">
             ← Back to Vehicles
           </Link>
         </div>
@@ -37,6 +37,6 @@ export default async function NewVehiclePage() {
         drivers={drivers || []} 
         mode="create" 
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

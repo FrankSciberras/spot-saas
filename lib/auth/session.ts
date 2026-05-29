@@ -1,49 +1,64 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { loadMemberships, pickActiveMembership } from '@/lib/auth/org-context';
 import type { SessionUser, UserRole } from '@/lib/types/database';
 
 /**
- * Gets the current authenticated user with their role and driver info.
- * Returns null if not authenticated.
+ * Gets the current authenticated user, scoped to their ACTIVE organization.
+ *
+ * The role + also_staff flag are resolved from the user's membership in the
+ * active org (the source of truth post-SaaS migration), NOT from the global
+ * users.role column (deprecated). Returns null if not authenticated OR if the
+ * user has no memberships yet (in which case they need onboarding — handled by
+ * requireAuth redirecting to /onboarding).
  */
 export async function getSession(): Promise<SessionUser | null> {
   const supabase = await createClient();
-  
+
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user) {
     return null;
   }
 
-  // Get user profile with role
-  const { data: profile } = await supabase
-    .from('users')
-    .select('id, email, role, full_name, also_staff')
-    .eq('id', user.id)
-    .single();
+  // Resolve which fleet the user is currently acting within + their role there.
+  const memberships = await loadMemberships(supabase, user.id);
+  const active = await pickActiveMembership(memberships);
 
-  if (!profile) {
+  if (!active) {
+    // Authenticated but belongs to no organization — needs onboarding.
     return null;
   }
 
-  // If user is a driver (or has also_staff), get their driver_id
+  // Identity/profile fields (org-independent).
+  const { data: profile } = await supabase
+    .from('users')
+    .select('id, email, full_name')
+    .eq('id', user.id)
+    .single();
+
+  // If the user is a driver in the active org, resolve their driver_id there.
   let driver_id: string | undefined;
-  if (profile.role === 'driver') {
+  if (active.role === 'driver') {
     const { data: driver } = await supabase
       .from('drivers')
       .select('id')
       .eq('user_id', user.id)
+      .eq('organization_id', active.organization_id)
       .single();
     driver_id = driver?.id;
   }
 
   return {
-    id: profile.id,
-    email: profile.email,
-    role: profile.role as UserRole,
-    also_staff: profile.also_staff ?? false,
-    full_name: profile.full_name,
+    id: user.id,
+    email: profile?.email ?? user.email ?? '',
+    role: active.role as UserRole,
+    also_staff: active.also_staff,
+    full_name: profile?.full_name ?? null,
     driver_id,
+    organization_id: active.organization_id,
+    organization_name: active.organization_name,
+    memberships,
   };
 }
 
@@ -52,11 +67,18 @@ export async function getSession(): Promise<SessionUser | null> {
  */
 export async function requireAuth(): Promise<SessionUser> {
   const session = await getSession();
-  
+
   if (!session) {
+    // Distinguish "not authenticated" from "authenticated but no fleet yet".
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // Logged in but belongs to no organization — send to onboarding.
+      redirect('/onboarding');
+    }
     redirect('/login');
   }
-  
+
   return session;
 }
 
@@ -81,7 +103,7 @@ export async function requireRole(
     if (session.role === 'driver') {
       redirect('/driver');
     } else if (session.role === 'staff' || session.role === 'admin') {
-      redirect('/admin');
+      redirect('/fleet');
     } else {
       redirect('/');
     }

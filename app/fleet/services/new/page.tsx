@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import ServiceForm from '@/components/admin/ServiceForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -31,7 +31,7 @@ export default async function NewServicePage({ searchParams }: PageProps) {
   } : undefined;
 
   return (
-    <DashboardLayout user={user} variant="admin" title="Add Service">
+    <FleetShell user={user} title="Add Service">
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h2>Add Service Record</h2>
@@ -43,7 +43,7 @@ export default async function NewServicePage({ searchParams }: PageProps) {
           </span>
         </div>
         <div className={styles.pageActions}>
-          <Link href={preselectedVehicleId ? `/admin/vehicles/${preselectedVehicleId}` : '/admin/services'} className="btn btn-secondary">
+          <Link href={preselectedVehicleId ? `/fleet/vehicles/${preselectedVehicleId}` : '/fleet/services'} className="btn btn-secondary">
             ← Back
           </Link>
         </div>
@@ -54,6 +54,6 @@ export default async function NewServicePage({ searchParams }: PageProps) {
         mode="create" 
         service={initialService as any}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }
