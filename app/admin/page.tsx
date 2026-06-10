@@ -1,13 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
+import { getAllPlans } from '@/lib/billing/plans-data';
 import AdminConsole from './console/AdminConsole';
 import {
-  PLAN_PRICE,
-  PLAN_META,
   type AdminData,
   type Operator,
   type OpStatus,
   type RealPlan,
+  type PlanMeta,
   type PlanMixEntry,
   type TrendPoint,
   type ActivityItem,
@@ -17,7 +17,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f0a35e', '#7c9cff', '#f06464'];
+const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f0a35e', '#7c9cff', '#f06464'];
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -77,12 +77,21 @@ function mapStatus(rawStatus: string, plan: RealPlan, trialExpired: boolean): Op
   return 'active';
 }
 
+/** Soft background token/colour for a plan's pill, derived from its accent. */
+function softBg(color: string | null): string {
+  if (!color) return 'var(--bg-3)';
+  if (color.startsWith('#')) return color + '22';
+  if (color.includes('accent')) return 'var(--accent-soft)';
+  return 'var(--bg-3)';
+}
+
 export default async function PlatformOverviewPage() {
   const adminUser = await requirePlatformAdmin();
   const admin = createAdminClient();
 
-  const [{ data: orgs }, { data: members }, { data: drivers }, { data: vehicles }, { data: users }] =
+  const [planRows, { data: orgs }, { data: members }, { data: drivers }, { data: vehicles }, { data: users }] =
     await Promise.all([
+      getAllPlans(),
       admin
         .from('organizations')
         .select('id, name, slug, status, plan, trial_ends_at, plan_activated_at, created_at')
@@ -92,6 +101,20 @@ export default async function PlatformOverviewPage() {
       admin.from('vehicles').select('organization_id'),
       admin.from('users').select('id, email'),
     ]);
+
+  // Catalogue-derived lookups (replace the old hardcoded PLAN_PRICE / PLAN_META).
+  const priceByKey: Record<string, number> = {};
+  const planMeta: Record<string, PlanMeta> = {
+    trial: { label: 'Trial', color: 'var(--text-3)', bg: 'var(--bg-3)' },
+  };
+  for (const p of planRows) {
+    priceByKey[p.key] = Number(p.price_amount) || 0;
+    planMeta[p.key] = { label: p.name, color: p.color || 'var(--text-2)', bg: softBg(p.color) };
+  }
+  const priceOf = (plan: string) => priceByKey[plan] ?? 0;
+  const labelOf = (plan: string) => planMeta[plan]?.label ?? plan;
+  const paidKeys = planRows.map((p) => p.key);
+  const assignablePlans = ['trial', ...paidKeys];
 
   const emailById = new Map<string, string>(
     ((users as { id: string; email: string }[]) ?? []).map((u) => [u.id, u.email])
@@ -131,7 +154,7 @@ export default async function PlatformOverviewPage() {
       vehicles: vehicleCount.get(o.id) ?? 0,
       drivers: driverCount.get(o.id) ?? 0,
       members: memberCount.get(o.id) ?? 0,
-      mrr: paying ? PLAN_PRICE[plan] : 0,
+      mrr: paying ? priceOf(plan) : 0,
       since: o.created_at,
       renews:
         status === 'trial'
@@ -158,16 +181,16 @@ export default async function PlatformOverviewPage() {
     vehicles: paying.reduce((s, o) => s + o.vehicles, 0),
     arpa: paying.length ? mrr / paying.length : 0,
     payingCount: paying.length,
-    pastDueMrr: operators.filter((o) => o.status === 'past_due').reduce((s, o) => s + PLAN_PRICE[o.plan], 0),
+    pastDueMrr: operators.filter((o) => o.status === 'past_due').reduce((s, o) => s + priceOf(o.plan), 0),
   };
 
-  // Plan mix across paying accounts.
-  const planMix: PlanMixEntry[] = (['starter', 'growth', 'scale'] as RealPlan[]).map((id) => {
+  // Plan mix across paying accounts — one row per package in the catalogue.
+  const planMix: PlanMixEntry[] = paidKeys.map((id) => {
     const accts = paying.filter((o) => o.plan === id);
     return {
       id,
-      name: PLAN_META[id].label,
-      color: id === 'scale' ? '#a78bfa' : id === 'growth' ? 'var(--accent)' : 'var(--text-2)',
+      name: labelOf(id),
+      color: planMeta[id]?.color ?? 'var(--text-2)',
       accounts: accts.length,
       vehicles: accts.reduce((s, o) => s + o.vehicles, 0),
       mrr: accts.reduce((s, o) => s + o.mrr, 0),
@@ -188,7 +211,7 @@ export default async function PlatformOverviewPage() {
       const plan = (o.plan ?? 'trial') as RealPlan;
       if (plan === 'trial' || o.status === 'cancelled') continue;
       const activated = new Date(o.plan_activated_at ?? o.created_at);
-      if (activated < end) v += PLAN_PRICE[plan];
+      if (activated < end) v += priceOf(plan);
     }
     trend.push({ label, v });
   }
@@ -203,7 +226,7 @@ export default async function PlatformOverviewPage() {
       events.push({
         who: o.name,
         what: 'cancelled subscription',
-        meta: `−${PLAN_PRICE[o.plan] ? '€' + PLAN_PRICE[o.plan] : '€0'} MRR · ${PLAN_META[o.plan].label}`,
+        meta: `−${priceOf(o.plan) ? '€' + priceOf(o.plan) : '€0'} MRR · ${labelOf(o.plan)}`,
         t: relTime(o.since),
         kind: 'churn',
         ts: new Date(o.since).getTime(),
@@ -221,7 +244,7 @@ export default async function PlatformOverviewPage() {
       const at = orgRows.find((r) => r.id === o.id)?.plan_activated_at ?? o.since;
       events.push({
         who: o.name,
-        what: `subscribed to ${PLAN_META[o.plan].label}`,
+        what: `subscribed to ${labelOf(o.plan)}`,
         meta: `+€${o.mrr} MRR · ${o.vehicles} vehicles`,
         t: relTime(at),
         kind: o.status === 'past_due' ? 'failed' : 'payment',
@@ -248,46 +271,16 @@ export default async function PlatformOverviewPage() {
     due: o.renews ?? now.toISOString(),
   }));
 
-  const packages: PackageDef[] = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      rate: PLAN_PRICE.starter,
-      blurb: 'Owner-operators getting off spreadsheets.',
-      cap: 'Up to 10 drivers & vehicles',
-      features: ['Dashboard, drivers & vehicles', 'Shifts & rosters', 'Free driver app', 'Email support'],
-      color: 'var(--text-2)',
-    },
-    {
-      id: 'growth',
-      name: 'Growth',
-      rate: PLAN_PRICE.growth,
-      popular: true,
-      blurb: 'Growing fleets that pay drivers weekly.',
-      cap: 'Up to 50 drivers & vehicles',
-      features: [
-        'Everything in Starter',
-        'Financials & settlements',
-        'Maintenance & damages',
-        'Priority support',
-      ],
-      color: 'var(--accent)',
-    },
-    {
-      id: 'scale',
-      name: 'Scale',
-      rate: PLAN_PRICE.scale,
-      blurb: 'Larger operators with custom needs.',
-      cap: 'Unlimited · annual',
-      features: [
-        'Everything in Growth',
-        'Dedicated subdomain',
-        'Guided onboarding & import',
-        'SLA & dedicated account manager',
-      ],
-      color: '#a78bfa',
-    },
-  ];
+  const packages: PackageDef[] = planRows.map((p) => ({
+    id: p.key,
+    name: p.name,
+    rate: Number(p.price_amount) || 0,
+    blurb: p.blurb ?? '',
+    cap: p.cap_label ?? '',
+    features: p.features ?? [],
+    color: p.color ?? 'var(--text-2)',
+    popular: p.is_popular,
+  }));
 
   const data: AdminData = {
     operators,
@@ -305,6 +298,8 @@ export default async function PlatformOverviewPage() {
     },
     momGrowth,
     adminEmail: adminUser.email,
+    planMeta,
+    assignablePlans,
   };
 
   return <AdminConsole data={data} />;

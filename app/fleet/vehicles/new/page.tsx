@@ -21,8 +21,9 @@ export default async function NewVehiclePage() {
 
   return (
     <FleetShell user={user} title="Add New Vehicle">
-      <div className={styles.pageHeader}>
+      <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitle}>
+          <div className={styles.breadcrumb}>Operations / Vehicles / New</div>
           <h2>Add New Vehicle</h2>
           <span className={styles.subtitle}>Register a new vehicle to your fleet</span>
         </div>

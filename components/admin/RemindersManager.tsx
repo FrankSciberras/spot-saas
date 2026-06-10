@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { type CSSProperties, type ReactNode, useState, useEffect, useCallback, useMemo } from 'react';
 import type {
   Reminder,
   ReminderPriority,
@@ -9,7 +9,7 @@ import type {
   User,
 } from '@/lib/types/database';
 import type { ResourcePermissions } from '@/lib/permissions-config';
-import styles from './reminders.module.css';
+import FleetIcon from '@/components/fleet/FleetIcon';
 
 interface RemindersManagerProps {
   initialReminders: Reminder[];
@@ -40,6 +40,13 @@ const RECURRING_OPTIONS: { value: '' | ReminderRecurring; label: string }[] = [
   { value: 'yearly', label: 'Yearly' },
 ];
 
+const PRIORITY_STYLE: Record<ReminderPriority, { color: string; bg: string }> = {
+  low: { color: 'var(--text-2)', bg: 'var(--bg-2)' },
+  medium: { color: 'var(--accent)', bg: 'var(--accent-soft)' },
+  high: { color: 'var(--warn)', bg: 'var(--warn-soft)' },
+  urgent: { color: 'var(--neg)', bg: 'var(--neg-soft)' },
+};
+
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
@@ -63,6 +70,20 @@ function toLocalDatetimeInput(iso: string | null) {
 function toLocalDateInput(iso: string | null) {
   if (!iso) return '';
   return iso.slice(0, 10);
+}
+
+function Stat({ label, value, icon, accent }: { label: string; value: ReactNode; icon: string; accent: string }) {
+  return (
+    <div style={st.stat}>
+      <div style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--bg-2)', color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <FleetIcon name={icon} size={15} />
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <span className="mono tnum" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.02em', color: accent }}>{value}</span>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{label}</div>
+    </div>
+  );
 }
 
 export default function RemindersManager({
@@ -209,13 +230,13 @@ export default function RemindersManager({
   }, []);
 
   // Filter
-  const filtered = reminders.filter(r => {
+  const filtered = useMemo(() => reminders.filter(r => {
     if (filterStatus === 'active' && (r.status === 'completed' || r.status === 'cancelled')) return false;
     if (filterStatus && filterStatus !== 'all' && filterStatus !== 'active' && r.status !== filterStatus) return false;
     if (filterPriority && r.priority !== filterPriority) return false;
     if (filterAssigned && r.assigned_to !== filterAssigned) return false;
     return true;
-  });
+  }), [reminders, filterStatus, filterPriority, filterAssigned]);
 
   // Stats
   const total = reminders.length;
@@ -223,196 +244,191 @@ export default function RemindersManager({
   const overdue = reminders.filter(r => isOverdue(r.due_date, r.status)).length;
   const completed = reminders.filter(r => r.status === 'completed').length;
 
-  const priorityClass = (p: ReminderPriority) => {
-    switch (p) {
-      case 'low': return styles.badgeLow;
-      case 'medium': return styles.badgeMedium;
-      case 'high': return styles.badgeHigh;
-      case 'urgent': return styles.badgeUrgent;
-    }
-  };
+  const STATUS_TABS: { k: string; label: string; dot?: string }[] = [
+    { k: 'active', label: 'Active', dot: 'var(--accent)' },
+    { k: 'all', label: 'All' },
+    { k: 'pending', label: 'Pending', dot: 'var(--text-3)' },
+    { k: 'in_progress', label: 'In progress', dot: 'var(--warn)' },
+    { k: 'completed', label: 'Completed', dot: 'var(--pos)' },
+    { k: 'cancelled', label: 'Cancelled', dot: 'var(--neg)' },
+  ];
 
   return (
-    <div className={styles.container}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h2>Reminders &amp; To-Do</h2>
-          <p className={styles.subtitle}>
-            Track tasks, set reminders, and manage recurring to-dos
-          </p>
-        </div>
+    <>
+      <div style={st.header} className="header-mobile-row">
         <div>
-          {canCreate && (
-            <button className="btn btn-primary" onClick={openAdd}>+ Add Reminder</button>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Tasks / Reminders</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Reminders &amp; To-Do</h1>
+            <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{total}</span>
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>Track tasks, set reminders, and manage recurring to-dos</div>
+        </div>
+        {canCreate && (
+          <button style={st.primaryBtn} className="fleetHover" onClick={openAdd}>
+            <FleetIcon name="plus" size={14} stroke={2.2} /> Add reminder
+          </button>
+        )}
+      </div>
+
+      <div style={st.statsRow} className="stats-row-mobile">
+        <Stat label="Total" value={total} icon="doc" accent="var(--text-1)" />
+        <Stat label="Active" value={pending} icon="bell" accent="var(--accent)" />
+        <Stat label="Overdue" value={overdue} icon="warning" accent="var(--neg)" />
+        <Stat label="Done" value={completed} icon="check" accent="var(--pos)" />
+      </div>
+
+      <div style={st.filterBar} className="header-mobile-row">
+        <div style={st.tabs} className="chips-scroll full-mobile">
+          {STATUS_TABS.map((t) => (
+            <button key={t.k} onClick={() => setFilterStatus(t.k)} style={{ ...st.tab, ...(filterStatus === t.k ? st.tabActive : {}) }}>
+              {t.dot && <span style={{ width: 6, height: 6, borderRadius: 99, background: t.dot }} />}
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }} className="full-mobile">
+          <select className="fleetSelect" style={st.select} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+            <option value="">All priorities</option>
+            {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {isAdmin && (
+            <select className="fleetSelect" style={st.select} value={filterAssigned} onChange={e => setFilterAssigned(e.target.value)}>
+              <option value="">All assignees</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
+            </select>
           )}
         </div>
       </div>
 
-      {/* Stats */}
-      <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <div className={styles.statValue}>{total}</div>
-          <div className={styles.statLabel}>Total</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statValue} ${styles.statValuePrimary}`}>{pending}</div>
-          <div className={styles.statLabel}>Active</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statValue} ${styles.statValueDanger}`}>{overdue}</div>
-          <div className={styles.statLabel}>Overdue</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statValue} ${styles.statValueSuccess}`}>{completed}</div>
-          <div className={styles.statLabel}>Done</div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className={styles.filters}>
-        <select className={styles.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="active">Active</option>
-          <option value="all">All</option>
-          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className={styles.filterSelect} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
-          <option value="">All Priorities</option>
-          {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        {isAdmin && (
-          <select className={styles.filterSelect} value={filterAssigned} onChange={e => setFilterAssigned(e.target.value)}>
-            <option value="">All Assignees</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-          </select>
-        )}
-      </div>
-
-      {/* List */}
-      <div className={styles.reminderList}>
+      <div style={st.card}>
         {filtered.length === 0 ? (
-          <div className={styles.emptyState}>
-            <h3>No reminders</h3>
-            <p>
-              {canCreate
-                ? 'Click "Add Reminder" to create your first one.'
-                : 'There are no reminders to show right now.'}
-            </p>
+          <div style={{ padding: '56px 20px', textAlign: 'center' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 11, background: 'var(--bg-2)', color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <FleetIcon name="bell" size={20} />
+            </div>
+            <div style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--text-1)' }}>No reminders</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>
+              {canCreate ? 'Click “Add reminder” to create your first one.' : 'There are no reminders to show right now.'}
+            </div>
           </div>
         ) : (
-          filtered.map(r => (
-            <div key={r.id} className={`${styles.reminderCard} ${r.status === 'completed' ? styles.completed : ''} ${r.status === 'cancelled' ? styles.cancelled : ''}`}>
-              {/* Check circle */}
-              <button
-                className={`${styles.reminderCheck} ${r.status === 'completed' ? styles.checked : ''}`}
-                onClick={() => toggleComplete(r)}
-                title={r.status === 'completed' ? 'Mark as pending' : 'Mark as done'}
-                disabled={!canEdit}
+          filtered.map((r, i) => {
+            const done = r.status === 'completed';
+            const cancelled = r.status === 'cancelled';
+            const overdueRow = isOverdue(r.due_date, r.status);
+            const pri = PRIORITY_STYLE[r.priority];
+            return (
+              <div
+                key={r.id}
+                style={{
+                  ...st.row,
+                  borderBottom: i < filtered.length - 1 ? '1px solid var(--line-1)' : 'none',
+                  opacity: cancelled ? 0.55 : 1,
+                }}
               >
-                {r.status === 'completed' && (
-                  <svg className={styles.checkIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                <button
+                  onClick={() => toggleComplete(r)}
+                  title={done ? 'Mark as pending' : 'Mark as done'}
+                  disabled={!canEdit}
+                  style={{
+                    ...st.check,
+                    background: done ? 'var(--pos)' : 'transparent',
+                    borderColor: done ? 'var(--pos)' : 'var(--line-2)',
+                    color: done ? '#fff' : 'transparent',
+                    cursor: canEdit ? 'pointer' : 'default',
+                  }}
+                >
+                  <FleetIcon name="check" size={13} stroke={3} />
+                </button>
+
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)', textDecoration: done ? 'line-through' : 'none' }}>{r.title}</span>
+                    <span style={{ ...st.pill, color: pri.color, background: pri.bg }}>{r.priority}</span>
+                    {r.recurring && <span style={{ ...st.pill, color: 'var(--text-2)', background: 'var(--bg-2)' }}>↻ {r.recurring}</span>}
+                  </div>
+                  {r.description && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.45 }}>{r.description}</div>}
+                  <div style={st.metaRow}>
+                    {r.due_date && (
+                      <span style={{ ...st.meta, color: overdueRow ? 'var(--neg)' : 'var(--text-3)' }}>
+                        <FleetIcon name="roster" size={12} />
+                        {overdueRow ? 'Overdue: ' : 'Due: '}{formatDate(r.due_date)}
+                      </span>
+                    )}
+                    {r.remind_at && !r.reminder_sent && (
+                      <span style={st.meta}><FleetIcon name="bell" size={12} /> Remind: {formatDateTime(r.remind_at)}</span>
+                    )}
+                    {r.assignee && (
+                      <span style={st.meta}><FleetIcon name="staff" size={12} /> {r.assignee.full_name || r.assignee.email}</span>
+                    )}
+                    <span style={st.meta}>{formatDate(r.created_at)}</span>
+                  </div>
+                </div>
+
+                {(canEdit || canDelete) && (
+                  <div style={st.actions}>
+                    {canEdit && (
+                      <button style={st.actionBtn} className="fleetHover" onClick={() => openEdit(r)}>Edit</button>
+                    )}
+                    {canDelete && (
+                      deletingId === r.id ? (
+                        <>
+                          <button style={{ ...st.actionBtn, color: 'var(--neg)', borderColor: 'var(--neg)' }} onClick={() => handleDelete(r.id)}>Confirm</button>
+                          <button style={st.actionBtn} className="fleetHover" onClick={() => setDeletingId(null)}>Cancel</button>
+                        </>
+                      ) : (
+                        <button style={{ ...st.actionBtn, color: 'var(--neg)' }} className="fleetHover" onClick={() => setDeletingId(r.id)}>Delete</button>
+                      )
+                    )}
+                  </div>
                 )}
-              </button>
-
-              {/* Body */}
-              <div className={styles.reminderBody}>
-                <div className={styles.reminderTitle}>
-                  <span>{r.title}</span>
-                  <span className={`${styles.badge} ${priorityClass(r.priority)}`}>{r.priority}</span>
-                  {r.recurring && <span className={`${styles.badge} ${styles.badgeRecurring}`}>↻ {r.recurring}</span>}
-                </div>
-                {r.description && <div className={styles.reminderDesc}>{r.description}</div>}
-                <div className={styles.reminderMeta}>
-                  {r.due_date && (
-                    <span className={`${styles.metaItem} ${isOverdue(r.due_date, r.status) ? styles.overdue : ''}`}>
-                      <svg className={styles.metaIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
-                      {isOverdue(r.due_date, r.status) ? 'Overdue: ' : 'Due: '}{formatDate(r.due_date)}
-                    </span>
-                  )}
-                  {r.remind_at && !r.reminder_sent && (
-                    <span className={styles.metaItem}>
-                      <svg className={styles.metaIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 10a6 6 0 0112 0c0 3 1.2 4.5 1.8 5.2A1 1 0 0119 17H5a1 1 0 01-.8-1.8C4.8 14.5 6 13 6 10z" /><path d="M10 19a2 2 0 004 0" /></svg>
-                      Remind: {formatDateTime(r.remind_at)}
-                    </span>
-                  )}
-                  {r.assignee && (
-                    <span className={styles.metaItem}>
-                      <svg className={styles.metaIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M5 20c1.4-3 4-5 7-5s5.6 2 7 5" /></svg>
-                      {r.assignee.full_name || r.assignee.email}
-                    </span>
-                  )}
-                  <span className={styles.metaItem}>
-                    {formatDate(r.created_at)}
-                  </span>
-                </div>
               </div>
-
-              {/* Actions */}
-              {(canEdit || canDelete) && (
-                <div className={styles.reminderActions}>
-                  {canEdit && (
-                    <button className={styles.actionBtn} onClick={() => openEdit(r)}>Edit</button>
-                  )}
-                  {canDelete && (
-                    deletingId === r.id ? (
-                      <>
-                        <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => handleDelete(r.id)}>Confirm</button>
-                        <button className={styles.actionBtn} onClick={() => setDeletingId(null)}>Cancel</button>
-                      </>
-                    ) : (
-                      <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => setDeletingId(r.id)}>Delete</button>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3>{editing ? 'Edit Reminder' : 'New Reminder'}</h3>
-              <button className={styles.modalClose} onClick={() => setShowModal(false)}>×</button>
+        <div style={st.overlay} onClick={() => setShowModal(false)}>
+          <div style={st.modal} onClick={e => e.stopPropagation()}>
+            <div style={st.modalHeader}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-1)' }}>{editing ? 'Edit reminder' : 'New reminder'}</div>
+              <button style={st.modalClose} className="fleetHover" onClick={() => setShowModal(false)}><FleetIcon name="close" size={15} /></button>
             </div>
 
-            <div className={styles.modalBody}>
-              {error && <div className={styles.error}>{error}</div>}
+            <div style={st.modalBody}>
+              {error && <div style={st.error}>{error}</div>}
 
-              <div className={styles.formGroup}>
-                <label>Title *</label>
-                <input type="text" value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="What needs to be done?" autoFocus />
+              <div style={st.field}>
+                <label style={st.label}>Title *</label>
+                <input style={st.input} type="text" value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="What needs to be done?" autoFocus />
               </div>
 
-              <div className={styles.formGroup}>
-                <label>Description</label>
-                <textarea value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Optional details..." />
+              <div style={st.field}>
+                <label style={st.label}>Description</label>
+                <textarea style={{ ...st.input, minHeight: 72, resize: 'vertical' }} value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Optional details…" />
               </div>
 
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Priority</label>
-                  <select value={fPriority} onChange={e => setFPriority(e.target.value as ReminderPriority)}>
+              <div style={st.fieldRow}>
+                <div style={st.field}>
+                  <label style={st.label}>Priority</label>
+                  <select style={st.input} value={fPriority} onChange={e => setFPriority(e.target.value as ReminderPriority)}>
                     {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                {editing && (
-                  <div className={styles.formGroup}>
-                    <label>Status</label>
-                    <select value={fStatus} onChange={e => setFStatus(e.target.value as ReminderStatus)}>
+                {editing ? (
+                  <div style={st.field}>
+                    <label style={st.label}>Status</label>
+                    <select style={st.input} value={fStatus} onChange={e => setFStatus(e.target.value as ReminderStatus)}>
                       {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
-                )}
-                {!editing && (
-                  <div className={styles.formGroup}>
-                    <label>Assign To</label>
-                    <select value={fAssigned} onChange={e => setFAssigned(e.target.value)}>
+                ) : (
+                  <div style={st.field}>
+                    <label style={st.label}>Assign to</label>
+                    <select style={st.input} value={fAssigned} onChange={e => setFAssigned(e.target.value)}>
                       <option value="">Myself</option>
                       {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
                     </select>
@@ -421,51 +437,84 @@ export default function RemindersManager({
               </div>
 
               {editing && (
-                <div className={styles.formGroup}>
-                  <label>Assign To</label>
-                  <select value={fAssigned} onChange={e => setFAssigned(e.target.value)}>
+                <div style={st.field}>
+                  <label style={st.label}>Assign to</label>
+                  <select style={st.input} value={fAssigned} onChange={e => setFAssigned(e.target.value)}>
                     <option value="">Unassigned (creator)</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
                   </select>
                 </div>
               )}
 
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Due Date</label>
-                  <input type="datetime-local" value={fDueDate} onChange={e => setFDueDate(e.target.value)} />
+              <div style={st.fieldRow}>
+                <div style={st.field}>
+                  <label style={st.label}>Due date</label>
+                  <input style={st.input} type="datetime-local" value={fDueDate} onChange={e => setFDueDate(e.target.value)} />
                 </div>
-                <div className={styles.formGroup}>
-                  <label>Remind Me At</label>
-                  <input type="datetime-local" value={fRemindAt} onChange={e => setFRemindAt(e.target.value)} />
+                <div style={st.field}>
+                  <label style={st.label}>Remind me at</label>
+                  <input style={st.input} type="datetime-local" value={fRemindAt} onChange={e => setFRemindAt(e.target.value)} />
                 </div>
               </div>
 
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Recurring</label>
-                  <select value={fRecurring} onChange={e => setFRecurring(e.target.value as '' | ReminderRecurring)}>
+              <div style={st.fieldRow}>
+                <div style={st.field}>
+                  <label style={st.label}>Recurring</label>
+                  <select style={st.input} value={fRecurring} onChange={e => setFRecurring(e.target.value as '' | ReminderRecurring)}>
                     {RECURRING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 {fRecurring && (
-                  <div className={styles.formGroup}>
-                    <label>Recurring Until</label>
-                    <input type="date" value={fRecurringEnd} onChange={e => setFRecurringEnd(e.target.value)} />
+                  <div style={st.field}>
+                    <label style={st.label}>Recurring until</label>
+                    <input style={st.input} type="date" value={fRecurringEnd} onChange={e => setFRecurringEnd(e.target.value)} />
                   </div>
                 )}
               </div>
             </div>
 
-            <div className={styles.modalFooter}>
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
+            <div style={st.modalFooter}>
+              <button style={st.secondaryBtn} className="fleetHover" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
+              <button style={st.primaryBtn} className="fleetHover" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : editing ? 'Update' : 'Create'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
+
+const st: Record<string, CSSProperties> = {
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 18px' },
+  primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' },
+  secondaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-1)', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' },
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },
+  stat: { padding: '14px 16px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 10 },
+  filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 },
+  tabs: { display: 'inline-flex', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 8, padding: 3, gap: 1 },
+  tab: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 12.5, fontFamily: 'inherit', borderRadius: 5, whiteSpace: 'nowrap', cursor: 'pointer' },
+  tabActive: { background: 'var(--bg-3)', color: 'var(--text-1)', boxShadow: 'inset 0 0 0 1px var(--line-2)' },
+  select: { padding: '7px 10px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 7, color: 'var(--text-1)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' },
+  card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
+  row: { display: 'flex', alignItems: 'flex-start', gap: 13, padding: '14px 18px' },
+  check: { width: 22, height: 22, flexShrink: 0, marginTop: 1, borderRadius: 7, border: '1.5px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease' },
+  pill: { display: 'inline-flex', alignItems: 'center', fontSize: 10.5, fontFamily: 'Geist Mono, monospace', padding: '2px 7px', borderRadius: 5, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' },
+  metaRow: { display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 7 },
+  meta: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--text-3)' },
+  actions: { display: 'flex', gap: 6, flexShrink: 0 },
+  actionBtn: { padding: '5px 11px', background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' },
+  // Modal
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' },
+  modal: { width: '100%', maxWidth: 560, background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: 'var(--radius-lg)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)', overflow: 'hidden' },
+  modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid var(--line-1)' },
+  modalClose: { width: 28, height: 28, borderRadius: 7, background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  modalBody: { padding: 18, display: 'flex', flexDirection: 'column', gap: 14 },
+  modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 18px', borderTop: '1px solid var(--line-1)' },
+  field: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 },
+  fieldRow: { display: 'flex', gap: 12 },
+  label: { fontSize: 12, color: 'var(--text-2)', fontWeight: 500 },
+  input: { width: '100%', padding: '9px 11px', background: 'var(--bg-0)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--text-1)', fontSize: 13, fontFamily: 'inherit', outline: 'none' },
+  error: { padding: '9px 12px', background: 'var(--neg-soft)', border: '1px solid var(--neg)', color: 'var(--neg)', borderRadius: 7, fontSize: 12.5 },
+};

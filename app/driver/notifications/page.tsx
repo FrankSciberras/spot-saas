@@ -11,9 +11,17 @@ interface Notification {
   title: string;
   body: string;
   action_url?: string;
+  source?: string;
+  sender_label?: string | null;
   is_read: boolean;
   created_at: string;
 }
+
+const platformBadgeStyle: React.CSSProperties = {
+  fontSize: 9.5, fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase',
+  padding: '1px 6px', borderRadius: 100, marginLeft: 6, verticalAlign: 'middle',
+  color: 'var(--accent, #2bbd7e)', background: 'var(--accent-soft, rgba(43, 189, 126,0.14))',
+};
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -276,6 +284,9 @@ export default function NotificationsPage() {
                     <h4 className={styles.notificationTitle}>
                       {!notification.is_read && <span className={styles.unreadDot} />}
                       {notification.title}
+                      {notification.source === 'platform' && (
+                        <span style={platformBadgeStyle}>{notification.sender_label || 'Rovora HQ'}</span>
+                      )}
                     </h4>
                     <span className={styles.notificationTime}>{formatDate(notification.created_at)}</span>
                   </div>

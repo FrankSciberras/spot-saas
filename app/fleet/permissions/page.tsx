@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { SessionUser, RolePermission } from '@/lib/types/database';
 import styles from './permissions.module.css';
 
@@ -32,7 +33,7 @@ const ROLE_INFO: Record<string, { label: string; color: string; description: str
   },
   driver: { 
     label: 'Driver', 
-    color: '#3b82f6',
+    color: '#1a8f5a',
     description: 'Drivers who use the mobile app'
   },
 };
@@ -152,7 +153,7 @@ export default function PermissionsPage() {
   if (loading || !user) {
     return (
       <FleetShell user={user as SessionUser} title="Permissions">
-        <div className={styles.loading}>Loading permissions...</div>
+        <FleetPageSkeleton variant="list" stats={0} />
       </FleetShell>
     );
   }
@@ -161,18 +162,21 @@ export default function PermissionsPage() {
     <FleetShell user={user} title="Role Permissions">
       <div className={styles.container}>
         {/* Header */}
-        <div className={styles.header}>
-          <div className={styles.headerContent}>
-            <h1>Role Permissions</h1>
-            <p>Configure what each role can see and do in the system</p>
+        <div className={`${styles.header} header-mobile-row`}>
+          <div>
+            <div className={styles.breadcrumb}>Admin / Permissions</div>
+            <div className={styles.titleRow}>
+              <h1 className={styles.title}>Role Permissions</h1>
+            </div>
+            <p className={styles.subtitle}>Configure what each role can see and do in the system</p>
           </div>
           {hasChanges && (
-            <button 
+            <button
               className="btn btn-primary"
               onClick={savePermissions}
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Saving…' : 'Save Changes'}
             </button>
           )}
         </div>

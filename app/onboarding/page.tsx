@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { loadMemberships } from '@/lib/auth/org-context';
-import { PLANS } from '@/lib/billing/plans';
+import { getPlans } from '@/lib/billing/plans-data';
 import OnboardingWizard from './OnboardingWizard';
 
 export const dynamic = 'force-dynamic';
@@ -24,5 +24,6 @@ export default async function OnboardingPage() {
     redirect('/');
   }
 
-  return <OnboardingWizard plans={PLANS} />;
+  const plans = await getPlans();
+  return <OnboardingWizard plans={plans} />;
 }

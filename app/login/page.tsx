@@ -4,14 +4,17 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { spotFontVars } from '@/lib/spotFonts';
-import SpotThemeToggle from '@/components/marketing/SpotThemeToggle';
+import { requestPasswordResetAction } from '@/lib/actions/auth-email';
+import { rovoraFontVars } from '@/lib/rovoraFonts';
+import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 
 type Mode = 'login' | 'forgot' | 'signup';
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') || '/';
+  // Default to the dashboard resolver so signing in lands on the right dashboard,
+  // not the marketing home page (which stays freely browsable while logged in).
+  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
   const initialMode: Mode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
 
   const [email, setEmail] = useState('');
@@ -53,17 +56,16 @@ function LoginPageContent() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
-      });
+      // Send the reset link via Resend (Supabase's mailer is bypassed — see
+      // lib/actions/auth-email). Enumeration-safe: always reports success.
+      const { ok, error: resetError } = await requestPasswordResetAction(email);
 
-      if (resetError) {
-        setError(resetError.message);
+      if (!ok) {
+        setError(resetError || 'Could not send the reset link. Please try again.');
         return;
       }
 
-      setSuccessMessage('Password reset link sent! Check your email inbox.');
+      setSuccessMessage('If an account exists for that email, a reset link is on its way. Check your inbox.');
       setEmail('');
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -118,13 +120,13 @@ function LoginPageContent() {
     mode === 'login' ? 'Welcome back' : mode === 'signup' ? 'Start your free trial' : 'Reset your password';
   const subheading =
     mode === 'login'
-      ? 'Sign in to your Spot fleet dashboard.'
+      ? 'Sign in to your Rovora fleet dashboard.'
       : mode === 'signup'
-        ? 'Create your account and get your fleet on Spot.'
+        ? 'Create your account and get your fleet on Rovora.'
         : 'We’ll email you a link to set a new password.';
 
   return (
-    <div className={`spot-site ${spotFontVars}`} data-theme="light">
+    <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
       <Link className="auth-back" href="/">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -132,13 +134,13 @@ function LoginPageContent() {
         Back to home
       </Link>
       <div className="auth-toggle">
-        <SpotThemeToggle />
+        <RovoraThemeToggle />
       </div>
 
       <div className="auth-wrap">
         <div className="auth-card">
           <div className="auth-logo">
-            <span className="logo">Spot<span className="dot" /></span>
+            <span className="logo"><img src="/rovora logo trimmed.png" alt="Rovora" /></span>
           </div>
 
           <div className="auth-head">

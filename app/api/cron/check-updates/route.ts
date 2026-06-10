@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { Resend } from 'resend';
+import { sendEmail, isEmailConfigured, appName as getAppName } from '@/lib/email';
 import fs from 'fs';
 import path from 'path';
 
@@ -125,9 +125,8 @@ export async function GET(request: Request) {
 
     console.log(`[cron/check-updates] Found ${outdated.length} outdated package(s), preparing email...`);
 
-    // Send email via Resend
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
+    // Send email via the unified Resend mailer (lib/email).
+    if (!isEmailConfigured()) {
       console.warn('[cron/check-updates] RESEND_API_KEY not configured, skipping email');
       return NextResponse.json({
         message: 'Updates found but email not configured',
@@ -135,9 +134,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const resend = new Resend(apiKey);
-    const fromEmail = process.env.EMAIL_FROM || 'SPOT Dashboard <onboarding@resend.dev>';
-    const appName = process.env.NEXT_PUBLIC_APP_NAME || 'SPOT Dashboard';
+    const appName = getAppName();
 
     const depsRows = outdated
       .filter((p) => p.type === 'dependencies')
@@ -169,7 +166,7 @@ export async function GET(request: Request) {
     .container { max-width: 650px; margin: 0 auto; padding: 20px; }
     .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .header { text-align: center; margin-bottom: 24px; }
-    .logo { font-size: 24px; font-weight: 700; color: #6366f1; }
+    .logo { font-size: 24px; font-weight: 700; color: #1a8f5a; }
     h1 { font-size: 20px; margin: 0 0 8px; color: #111; }
     h2 { font-size: 16px; margin: 24px 0 8px; color: #334155; }
     p { margin: 0 0 16px; color: #555; }
@@ -207,17 +204,16 @@ export async function GET(request: Request) {
 </body>
 </html>`;
 
-    const { error: emailError } = await resend.emails.send({
-      from: fromEmail,
-      to: ['franksciberras@gmail.com'],
+    const sent = await sendEmail({
+      to: 'franksciberras@gmail.com',
       subject: `${appName} - ${outdated.length} Package Update${outdated.length > 1 ? 's' : ''} Available`,
       html: htmlContent,
     });
 
-    if (emailError) {
-      console.error('[cron/check-updates] Failed to send update email:', emailError);
+    if (!sent) {
+      console.error('[cron/check-updates] Failed to send update email');
       return NextResponse.json(
-        { message: 'Updates found but email failed', outdated, error: emailError },
+        { message: 'Updates found but email failed', outdated },
         { status: 500 }
       );
     }

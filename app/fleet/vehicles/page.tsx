@@ -1,7 +1,11 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import VehiclesWorkspace, { type VehicleItem, type VehStatus } from '@/components/fleet/vehicles/VehiclesWorkspace';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 const PLATE_COLORS = ['#1e293b', '#0f172a', '#0c4a6e', '#7f1d1d', '#854d0e', '#14532d', '#1e3a8a', '#334155'];
 
@@ -13,6 +17,16 @@ function mapStatus(status: string): VehStatus {
 
 export default async function VehiclesPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Vehicles">
+      <Suspense fallback={<FleetPageSkeleton variant="grid" />}>
+        <VehiclesContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function VehiclesContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -92,9 +106,5 @@ export default async function VehiclesPage() {
     };
   });
 
-  return (
-    <FleetShell user={user} title="Vehicles">
-      <VehiclesWorkspace vehicles={vehicles} canAdd={isAdmin} />
-    </FleetShell>
-  );
+  return <VehiclesWorkspace vehicles={vehicles} canAdd={isAdmin} />;
 }

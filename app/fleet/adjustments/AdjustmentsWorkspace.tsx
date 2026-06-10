@@ -31,7 +31,7 @@ const TYPE_META: Record<AdjustmentType, { label: string; icon: string; sign: -1 
 
 const TYPE_ORDER: AdjustmentType[] = ['expense', 'bonus', 'deduction', 'reimbursement', 'other'];
 
-const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
+const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
 
 function initialsOf(name: string): string {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);

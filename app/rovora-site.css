@@ -1,0 +1,686 @@
+/* ──────────────────────────────────────────────────────────────
+   Rovora marketing + auth design system
+   Scoped under .rovora-site so it never leaks into the dashboard.
+   Ported from the Rovora standalone mockup (Geist, accent #2bbd7e).
+   ────────────────────────────────────────────────────────────── */
+
+.rovora-site {
+  /* light theme (default) */
+  --bg-0: #f6f7f9;
+  --bg-1: #ffffff;
+  --bg-2: #f1f3f7;
+  --bg-3: #e7eaef;
+  --line-1: rgba(15, 18, 26, 0.06);
+  --line-2: rgba(15, 18, 26, 0.10);
+  --line-3: rgba(15, 18, 26, 0.16);
+  --text-1: #0e1116;
+  --text-2: #4a5260;
+  --text-3: #7a8290;
+  --text-4: #aab2bf;
+  --accent: #1a8f5a;
+  --accent-soft: rgba(26, 143, 90, 0.10);
+  --accent-line: rgba(26, 143, 90, 0.28);
+  --pos: #0a8c4f;
+  --pos-soft: rgba(10, 140, 79, 0.10);
+  --warn: #a06400;
+  --warn-soft: rgba(160, 100, 0, 0.10);
+  --topbar-bg: rgba(246, 247, 249, 0.75);
+  --shot-shadow: 0 40px 100px -36px rgba(20, 30, 60, 0.34), 0 0 0 1px rgba(15, 18, 26, 0.08);
+  --ambient-1: rgba(26, 143, 90, 0.06);
+  --ambient-2: rgba(10, 140, 79, 0.03);
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+  line-height: 1.5;
+  /* `clip` contains horizontal overflow WITHOUT establishing a scroll
+     container — `hidden` would, which breaks `position: sticky` on the nav. */
+  overflow-x: clip;
+}
+
+.rovora-site[data-theme='dark'] {
+  --bg-0: #0a0c11;
+  --bg-1: #11141b;
+  --bg-2: #161a23;
+  --bg-3: #1c2230;
+  --line-1: rgba(255, 255, 255, 0.05);
+  --line-2: rgba(255, 255, 255, 0.09);
+  --line-3: rgba(255, 255, 255, 0.14);
+  --text-1: #f1f3f8;
+  --text-2: #9aa3b6;
+  --text-3: #5f6878;
+  --text-4: #404959;
+  --accent: #2bbd7e;
+  --accent-soft: rgba(43, 189, 126, 0.14);
+  --accent-line: rgba(43, 189, 126, 0.32);
+  --pos: #3ecf8e;
+  --pos-soft: rgba(62, 207, 142, 0.14);
+  --warn: #f5b54a;
+  --warn-soft: rgba(245, 181, 74, 0.14);
+  --topbar-bg: rgba(10, 12, 17, 0.72);
+  --shot-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --ambient-1: rgba(43, 189, 126, 0.10);
+  --ambient-2: rgba(62, 207, 142, 0.05);
+}
+
+.rovora-site * { box-sizing: border-box; }
+
+/* Smooth-scroll anchor jumps; offset so sticky nav (64px) never covers the target. */
+.rovora-site { scroll-behavior: smooth; }
+.rovora-site [id] { scroll-margin-top: 84px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site { scroll-behavior: auto; }
+}
+
+.rovora-site ::selection { background: var(--accent-soft); color: var(--text-1); }
+.rovora-site a { color: inherit; text-decoration: none; }
+.rovora-site .mono { font-family: var(--font-geist-mono), ui-monospace, monospace; }
+.rovora-site .accent { color: var(--accent); }
+.rovora-site .pos { color: var(--pos); }
+
+/* ambient wash */
+.rovora-site::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 620px at 78% -8%, var(--ambient-1), transparent 60%),
+    radial-gradient(900px 520px at -8% 8%, var(--ambient-2), transparent 60%);
+}
+.rovora-site .wrap { position: relative; z-index: 1; }
+.rovora-site .container { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+
+/* ─── Nav ─── */
+.rovora-site header.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--topbar-bg);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  border-bottom: 1px solid var(--line-1);
+}
+.rovora-site .nav-inner { height: 72px; display: flex; align-items: center; gap: 32px; }
+.rovora-site .logo { display: flex; align-items: center; gap: 2px; font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+.rovora-site .logo .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; margin-left: 1px; transform: translateY(-1px); }
+.rovora-site .logo img { display: block; height: 52px; width: auto; }
+.rovora-site .foot-brand .logo img { height: 64px; }
+.rovora-site[data-theme='dark'] .logo img { filter: brightness(0) invert(1); }
+.rovora-site .nav-links { display: flex; align-items: center; gap: 30px; margin-left: 8px; }
+.rovora-site .nav-links a { color: var(--text-2); font-size: 14.5px; font-weight: 500; transition: color .15s; }
+.rovora-site .nav-links a:hover { color: var(--text-1); }
+
+/* ── Features megamenu ── */
+.rovora-site .mm { position: relative; }
+.rovora-site .mm-trigger {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 14.5px; font-weight: 500; color: var(--text-2);
+  background: none; border: none; padding: 0; cursor: pointer; transition: color .15s;
+}
+.rovora-site .mm-trigger:hover, .rovora-site .mm-trigger.open { color: var(--text-1); }
+.rovora-site .mm-caret { width: 15px; height: 15px; transition: transform .18s; }
+.rovora-site .mm-trigger.open .mm-caret { transform: rotate(180deg); }
+
+.rovora-site .mm-panel {
+  position: absolute; top: calc(100% + 14px); left: -16px; z-index: 60;
+  width: 600px; max-width: 90vw;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 16px;
+  box-shadow: 0 24px 60px -22px rgba(20, 30, 60, 0.42), 0 0 0 1px var(--line-1);
+  padding: 16px; animation: mm-pop .16s cubic-bezier(.22,.61,.36,1);
+}
+.rovora-site .mm-panel::before {
+  /* hover bridge so the gap between trigger and panel doesn't drop the hover */
+  content: ''; position: absolute; top: -14px; left: 0; right: 0; height: 14px;
+}
+@keyframes mm-pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+.rovora-site .mm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.rovora-site .mm-heading { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 500; padding: 6px 10px 8px; }
+.rovora-site .mm-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px; border-radius: 11px; transition: background .14s; }
+.rovora-site .mm-item:hover { background: var(--bg-2); }
+.rovora-site .mm-ico {
+  flex: none; width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent);
+}
+.rovora-site .mm-ico svg { width: 18px; height: 18px; }
+.rovora-site .mm-text { display: flex; flex-direction: column; gap: 2px; }
+.rovora-site .mm-title { font-size: 14px; font-weight: 500; color: var(--text-1); letter-spacing: -0.01em; }
+.rovora-site .mm-blurb { font-size: 12.5px; color: var(--text-3); line-height: 1.4; }
+.rovora-site .mm-foot {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 12px; padding: 12px; border-top: 1px solid var(--line-1);
+  font-size: 13.5px; font-weight: 500; color: var(--accent) !important;
+}
+.rovora-site .mm-foot svg { width: 15px; height: 15px; transition: transform .15s; }
+.rovora-site .mm-foot:hover svg { transform: translateX(3px); }
+.rovora-site .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.rovora-site .nav-actions .signin { color: var(--text-2); font-size: 14.5px; font-weight: 500; }
+.rovora-site .nav-actions .signin:hover { color: var(--text-1); }
+/* Signed-in avatar that replaces the sign-in / trial buttons in the nav. */
+.rovora-site .nav-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-line);
+  font-size: 13.5px; font-weight: 600; letter-spacing: 0.02em;
+  text-decoration: none; user-select: none;
+  transition: transform .2s cubic-bezier(.22, .61, .36, 1), box-shadow .2s, filter .15s;
+}
+.rovora-site .nav-avatar:hover {
+  filter: brightness(1.04);
+  box-shadow: 0 8px 22px -10px var(--accent);
+  transform: translateY(-1px);
+}
+
+.rovora-site .theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.rovora-site .theme-toggle:hover { color: var(--text-1); border-color: var(--line-3); background: var(--bg-2); }
+.rovora-site .theme-toggle svg { width: 17px; height: 17px; }
+
+.rovora-site .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-weight: 500; font-size: 14.5px; border-radius: 9px; padding: 10px 16px; cursor: pointer; border: 1px solid transparent; transition: transform .2s cubic-bezier(.22, .61, .36, 1), box-shadow .2s, background .15s, border-color .15s, filter .15s; white-space: nowrap; }
+.rovora-site .btn:hover { transform: translateY(-1px); }
+.rovora-site .btn:active { transform: translateY(1px); transition-duration: .05s; }
+.rovora-site .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 8px 24px -10px var(--accent); }
+.rovora-site .btn-primary:hover { filter: brightness(1.06); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 14px 32px -12px var(--accent); }
+.rovora-site .btn-ghost { background: transparent; color: var(--text-1); border-color: var(--line-3); }
+.rovora-site .btn-ghost:hover { background: var(--bg-2); border-color: var(--line-3); }
+.rovora-site .btn-lg { padding: 13px 22px; font-size: 15.5px; border-radius: 11px; }
+
+/* ─── Hero ─── */
+.rovora-site .hero { padding: 84px 0 0; text-align: center; }
+.rovora-site .eyebrow { display: inline-flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--text-2); background: var(--bg-1); border: 1px solid var(--line-2); padding: 6px 13px 6px 9px; border-radius: 100px; }
+.rovora-site .eyebrow .live { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); box-shadow: 0 0 0 3px var(--pos-soft); }
+.rovora-site h1.hero-title { font-size: clamp(38px, 6vw, 68px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 500; margin: 26px auto 0; max-width: 14ch; }
+.rovora-site .hero-sub { margin: 24px auto 0; max-width: 60ch; font-size: clamp(16px, 2vw, 19px); color: var(--text-2); line-height: 1.55; }
+.rovora-site .hero-cta { margin-top: 34px; display: flex; gap: 13px; justify-content: center; flex-wrap: wrap; }
+.rovora-site .hero-micro { margin-top: 18px; font-size: 13px; color: var(--text-3); display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+.rovora-site .hero-micro span { display: inline-flex; align-items: center; gap: 7px; }
+.rovora-site .hero-micro .ck { color: var(--pos); }
+
+/* ─── Browser shot frame ─── */
+.rovora-site .shot { margin: 60px auto 0; max-width: 1240px; border-radius: 16px; overflow: hidden; background: var(--bg-1); border: 1px solid var(--line-2); box-shadow: var(--shot-shadow); }
+.rovora-site .shot-bar { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: var(--bg-2); border-bottom: 1px solid var(--line-1); }
+.rovora-site .shot-bar .dots { display: flex; gap: 8px; flex: none; }
+.rovora-site .shot-bar .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+.rovora-site .shot-bar .dots i:nth-child(1) { background: #ec6a5e; }
+.rovora-site .shot-bar .dots i:nth-child(2) { background: #f4be4f; }
+.rovora-site .shot-bar .dots i:nth-child(3) { background: #61c454; }
+.rovora-site[data-theme='dark'] .shot-bar .dots i { filter: saturate(0.82) brightness(0.92); }
+.rovora-site .shot-url { margin: 0 auto; transform: translateX(-19px); display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); background: var(--bg-1); border: 1px solid var(--line-1); border-radius: 8px; padding: 5px 16px; font-family: var(--font-geist-mono), monospace; max-width: 62%; }
+.rovora-site .shot-url svg { width: 11px; height: 11px; flex: none; color: var(--text-3); }
+.rovora-site .shot-url b { color: var(--text-1); font-weight: 500; }
+.rovora-site .shot.tight { max-width: 100%; box-shadow: 0 28px 70px -34px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--line-2); }
+
+.rovora-site .hero-shot-wrap { position: relative; }
+.rovora-site .hero-shot-wrap .shot { position: relative; z-index: 1; }
+.rovora-site .hero-shot-wrap::before { content: ''; position: absolute; z-index: 0; left: 50%; top: 8%; width: 70%; height: 70%; transform: translateX(-50%); background: radial-gradient(60% 60% at 50% 50%, var(--accent-soft), transparent 70%); filter: blur(50px); pointer-events: none; }
+.rovora-site .hero-shot-wrap::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 150px; background: linear-gradient(to bottom, transparent, var(--bg-0)); pointer-events: none; z-index: 2; }
+
+/* ─── Dashboard mock (replaces screenshot images) ─── */
+.rovora-site .mock { padding: 22px; background: var(--bg-1); }
+.rovora-site .mock-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.rovora-site .mock-title { font-size: 15px; font-weight: 500; }
+.rovora-site .mock-pill { margin-left: auto; font-size: 11.5px; font-weight: 500; color: var(--pos); background: var(--pos-soft); padding: 4px 10px; border-radius: 100px; font-family: var(--font-geist-mono), monospace; }
+.rovora-site .mock-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.rovora-site .mock-card { border: 1px solid var(--line-2); border-radius: 11px; padding: 14px; background: var(--bg-0); }
+.rovora-site .mock-card .k { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.rovora-site .mock-card .v { font-size: 22px; font-weight: 500; margin-top: 6px; letter-spacing: -0.02em; font-family: var(--font-geist-mono), monospace; }
+.rovora-site .mock-card .v.accent { color: var(--accent); }
+.rovora-site .mock-card .v.pos { color: var(--pos); }
+.rovora-site .mock-rows { border: 1px solid var(--line-2); border-radius: 11px; overflow: hidden; }
+.rovora-site .mock-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line-1); font-size: 13.5px; }
+.rovora-site .mock-row:last-child { border-bottom: none; }
+.rovora-site .mock-row .av { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); border: 1px solid var(--accent-line); flex: none; }
+.rovora-site .mock-row .nm { font-weight: 500; }
+.rovora-site .mock-row .meta { color: var(--text-3); }
+.rovora-site .mock-row .amt { margin-left: auto; font-family: var(--font-geist-mono), monospace; font-weight: 500; }
+.rovora-site .mock-row .st { font-size: 11px; font-weight: 500; color: var(--pos); background: var(--pos-soft); padding: 3px 9px; border-radius: 100px; }
+.rovora-site .mock-row .st.idle { color: var(--text-3); background: var(--bg-2); }
+
+/* ─── Section scaffolding ─── */
+.rovora-site section { position: relative; }
+.rovora-site .sec-pad { padding: 96px 0; }
+.rovora-site .sec-head { max-width: 620px; }
+.rovora-site .sec-head.center { margin: 0 auto; text-align: center; }
+.rovora-site .kicker { font-family: var(--font-geist-mono), monospace; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.rovora-site h2.sec-title { font-size: clamp(28px, 3.6vw, 42px); letter-spacing: -0.03em; font-weight: 500; line-height: 1.08; margin: 14px 0 0; }
+.rovora-site .sec-desc { margin: 16px 0 0; font-size: 17px; color: var(--text-2); line-height: 1.55; }
+
+/* ─── Stats band ─── */
+.rovora-site .stats { border-top: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); background: var(--bg-1); }
+.rovora-site .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.rovora-site .stat { padding: 40px 28px; text-align: center; border-left: 1px solid var(--line-1); }
+.rovora-site .stat:first-child { border-left: none; }
+.rovora-site .stat .num { font-size: 40px; font-weight: 500; letter-spacing: -0.03em; }
+.rovora-site .stat .num.mono { font-family: var(--font-geist-mono), monospace; }
+.rovora-site .stat .lbl { margin-top: 8px; font-size: 14px; color: var(--text-2); }
+
+/* ─── Feature rows ─── */
+.rovora-site .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.rovora-site .frow + .frow { margin-top: 110px; }
+.rovora-site .frow.flip .ftext { order: 2; }
+.rovora-site .feat-ico { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent); margin-bottom: 20px; }
+.rovora-site .feat-ico svg { width: 21px; height: 21px; }
+.rovora-site .ftext h3 { font-size: clamp(24px, 2.8vw, 32px); letter-spacing: -0.025em; font-weight: 500; margin: 0; line-height: 1.12; }
+.rovora-site .ftext p { font-size: 16.5px; color: var(--text-2); line-height: 1.6; margin: 16px 0 0; }
+.rovora-site .feat-list { list-style: none; padding: 0; margin: 24px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.rovora-site .feat-list li { display: flex; gap: 11px; align-items: flex-start; font-size: 15px; color: var(--text-1); }
+.rovora-site .feat-list li .tick { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--pos-soft); color: var(--pos); display: grid; place-items: center; margin-top: 1px; }
+.rovora-site .feat-list li .tick svg { width: 11px; height: 11px; }
+.rovora-site .feat-list li span.t2 { color: var(--text-2); }
+
+/* ─── Small feature grid ─── */
+.rovora-site .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 52px; }
+.rovora-site .mini { padding: 24px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-1); transition: border-color .15s, transform .15s; }
+.rovora-site .mini:hover { border-color: var(--line-3); transform: translateY(-2px); }
+.rovora-site .mini .mi { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--bg-2); border: 1px solid var(--line-2); color: var(--text-1); margin-bottom: 15px; }
+.rovora-site .mini .mi svg { width: 18px; height: 18px; }
+.rovora-site .mini h4 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+.rovora-site .mini p { margin: 7px 0 0; font-size: 14px; color: var(--text-2); line-height: 1.5; }
+
+/* ── Overview "modern way" grid (homepage) ── */
+.rovora-site .way-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 36px 24px; margin-top: 8px; }
+.rovora-site .way-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; padding: 8px; border-radius: 14px; transition: transform .15s; }
+.rovora-site .way-item:hover { transform: translateY(-3px); }
+.rovora-site .way-ico {
+  width: 56px; height: 56px; border-radius: 15px; display: grid; place-items: center;
+  background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent);
+  transition: background .15s, border-color .15s;
+}
+.rovora-site .way-item:hover .way-ico { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rovora-site .way-ico svg { width: 24px; height: 24px; }
+.rovora-site .way-label { font-size: 14.5px; font-weight: 500; color: var(--text-1); letter-spacing: -0.01em; max-width: 16ch; }
+.rovora-site .way-cta { display: flex; justify-content: center; margin-top: 52px; }
+.rovora-site .way-more {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14.5px; font-weight: 500; color: var(--accent) !important;
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+  padding: 11px 22px; border-radius: 100px; transition: background .15s, transform .15s;
+}
+.rovora-site .way-more:hover { background: var(--accent); color: #fff !important; border-color: var(--accent); transform: translateY(-1px); }
+.rovora-site .way-more svg { width: 16px; height: 16px; transition: transform .15s; }
+.rovora-site .way-more:hover svg { transform: translateX(3px); }
+
+/* Colourful icon-chip variants — used on the feature pages for a livelier feel. */
+.rovora-site .mi.mi-blue   { background: rgba(26, 143, 90,0.10);  border-color: rgba(26, 143, 90,0.28);  color: #1a8f5a; }
+.rovora-site .mi.mi-green  { background: rgba(10,140,79,0.10);   border-color: rgba(10,140,79,0.28);   color: #0a8c4f; }
+.rovora-site .mi.mi-violet { background: rgba(139,92,246,0.12);  border-color: rgba(139,92,246,0.30);  color: #8b5cf6; }
+.rovora-site .mi.mi-amber  { background: rgba(217,119,6,0.12);   border-color: rgba(217,119,6,0.28);   color: #d97706; }
+.rovora-site .mi.mi-teal   { background: rgba(13,148,136,0.12);  border-color: rgba(13,148,136,0.30);  color: #0d9488; }
+
+/* Integrations */
+.rovora-site .integ-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.rovora-site .integ { position: relative; padding: 26px 24px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-2); transition: border-color .15s, transform .15s; }
+.rovora-site .integ:hover { border-color: var(--line-3); transform: translateY(-2px); }
+.rovora-site .integ-soon { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 500; letter-spacing: 0.01em; padding: 4px 9px; border-radius: 999px; color: var(--warn); background: var(--warn-soft); border: 1px solid var(--warn-soft); }
+.rovora-site .integ-logo { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-size: 24px; font-weight: 600; line-height: 1; margin-bottom: 16px; }
+.rovora-site .integ-name { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-1); }
+.rovora-site .integ-desc { margin: 7px 0 0; font-size: 13.5px; color: var(--text-2); line-height: 1.5; }
+.rovora-site .integ-note { margin: 28px 0 0; text-align: center; font-size: 14px; color: var(--text-3); }
+.rovora-site .integ-note a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.rovora-site .integ-note a:hover { text-decoration: underline; }
+
+/* ─── Pricing ─── */
+.rovora-site .price-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 52px; align-items: stretch; }
+.rovora-site .plan { background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 16px; padding: 30px; display: flex; flex-direction: column; }
+.rovora-site .plan.feat { border-color: var(--accent-line); box-shadow: 0 0 0 1px var(--accent-line), 0 30px 80px -40px var(--accent); position: relative; }
+.rovora-site .plan .pop { position: absolute; top: -11px; left: 30px; font-size: 11.5px; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; background: var(--accent); color: #fff; padding: 4px 11px; border-radius: 100px; }
+.rovora-site .plan .pname { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+.rovora-site .plan .pdesc { margin-top: 6px; font-size: 13.5px; color: var(--text-3); min-height: 38px; }
+.rovora-site .plan .pprice { margin-top: 18px; display: flex; align-items: baseline; gap: 6px; }
+.rovora-site .plan .pprice .amt { font-size: 44px; font-weight: 500; letter-spacing: -0.035em; font-family: var(--font-geist-mono), monospace; }
+.rovora-site .plan .pprice .per { font-size: 14px; color: var(--text-3); }
+.rovora-site .plan .pbill { margin-top: 6px; font-size: 12.5px; color: var(--text-3); }
+.rovora-site .plan .pfeat { list-style: none; padding: 0; margin: 24px 0 28px; display: flex; flex-direction: column; gap: 11px; }
+.rovora-site .plan .pfeat li { display: flex; gap: 10px; font-size: 14px; color: var(--text-1); align-items: flex-start; }
+.rovora-site .plan .pfeat li .tick { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--pos-soft); color: var(--pos); display: grid; place-items: center; margin-top: 2px; }
+.rovora-site .plan .pfeat li .tick svg { width: 10px; height: 10px; }
+.rovora-site .plan .btn { margin-top: auto; width: 100%; }
+.rovora-site .price-note { margin-top: 22px; text-align: center; font-size: 13.5px; color: var(--text-3); }
+
+/* ─── FAQ ─── */
+.rovora-site .faq-grid { max-width: 760px; margin: 48px auto 0; border-top: 1px solid var(--line-2); }
+.rovora-site details.faq { border-bottom: 1px solid var(--line-2); }
+.rovora-site details.faq summary { list-style: none; cursor: pointer; padding: 22px 4px; display: flex; align-items: center; gap: 16px; font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+.rovora-site details.faq summary::-webkit-details-marker { display: none; }
+.rovora-site details.faq summary .q { flex: 1; }
+.rovora-site details.faq summary .pm { flex: none; width: 20px; height: 20px; position: relative; color: var(--text-3); transition: transform .2s; }
+.rovora-site details.faq summary .pm::before, .rovora-site details.faq summary .pm::after { content: ''; position: absolute; background: currentColor; border-radius: 2px; }
+.rovora-site details.faq summary .pm::before { top: 9px; left: 2px; right: 2px; height: 2px; }
+.rovora-site details.faq summary .pm::after { left: 9px; top: 2px; bottom: 2px; width: 2px; transition: opacity .2s; }
+.rovora-site details.faq[open] summary .pm::after { opacity: 0; }
+.rovora-site details.faq[open] summary .pm { color: var(--accent); }
+.rovora-site details.faq .ans { padding: 0 4px 24px; font-size: 15.5px; color: var(--text-2); line-height: 1.6; max-width: 64ch; }
+
+/* ─── Final CTA ─── */
+.rovora-site .cta-band { margin: 0 auto; max-width: 1240px; border-radius: 22px; border: 1px solid var(--line-2); background:
+    radial-gradient(700px 320px at 50% -40%, var(--accent-soft), transparent 70%), var(--bg-1);
+  padding: 72px 40px; text-align: center; }
+.rovora-site .cta-band h2 { font-size: clamp(30px, 4vw, 46px); letter-spacing: -0.03em; font-weight: 500; margin: 0; line-height: 1.05; }
+.rovora-site .cta-band p { margin: 16px auto 0; max-width: 48ch; font-size: 17px; color: var(--text-2); }
+.rovora-site .cta-band .hero-cta { margin-top: 30px; }
+
+/* ─── Footer ─── */
+.rovora-site footer { border-top: 1px solid var(--line-1); margin-top: 110px; padding: 64px 0 36px; }
+
+/* Top: brand column + link columns */
+.rovora-site .foot-top { display: grid; grid-template-columns: minmax(220px, 1.3fr) 3.4fr; gap: 56px; }
+.rovora-site .foot-brand .logo { margin-bottom: 14px; }
+.rovora-site .foot-brand p { font-size: 14px; color: var(--text-3); max-width: 32ch; line-height: 1.55; margin: 0 0 20px; }
+.rovora-site .foot-trust { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text-3); line-height: 1.4; max-width: 26ch; }
+.rovora-site .foot-stars { color: #f5a623; letter-spacing: 1px; font-size: 13px; }
+.rovora-site .foot-badge { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); border: 1px solid var(--line-2); border-radius: 100px; padding: 6px 12px; }
+.rovora-site .foot-badge .live { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); box-shadow: 0 0 0 3px var(--pos-soft); flex: none; }
+
+.rovora-site .foot-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 32px; }
+.rovora-site .foot-col h5 { margin: 0 0 14px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 500; }
+.rovora-site .foot-col a { display: block; font-size: 14px; color: var(--text-2); padding: 5px 0; transition: color .15s; }
+.rovora-site .foot-col a:hover { color: var(--accent); }
+
+/* Newsletter + driver app band */
+.rovora-site .foot-news {
+  margin-top: 52px; padding: 26px 0; border-top: 1px solid var(--line-1);
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+}
+.rovora-site .foot-news-copy { flex: 1 1 280px; }
+.rovora-site .foot-news-copy h4 { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: var(--text-1); letter-spacing: -0.01em; }
+.rovora-site .foot-news-copy p { margin: 0; font-size: 13.5px; color: var(--text-3); }
+.rovora-site .foot-sub {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  background: var(--accent); color: #fff; font-size: 14px; font-weight: 500;
+  padding: 11px 20px; border-radius: 10px; transition: filter .15s, transform .15s;
+}
+.rovora-site .foot-sub:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.rovora-site .foot-sub svg { width: 16px; height: 16px; }
+.rovora-site .foot-app { display: flex; flex-direction: column; gap: 2px; padding-left: 24px; border-left: 1px solid var(--line-2); }
+.rovora-site .foot-app-label { font-size: 13.5px; font-weight: 500; color: var(--text-2); }
+.rovora-site .foot-app-soon { font-size: 12px; color: var(--text-4); }
+
+/* Bottom legal bar */
+.rovora-site .foot-bottom { margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--line-1); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-3); }
+.rovora-site .foot-legal { display: inline-flex; gap: 20px; }
+.rovora-site .foot-legal a { color: var(--text-3); transition: color .15s; }
+.rovora-site .foot-legal a:hover { color: var(--text-1); }
+
+/* ─── Auth (sign in / sign up) ─── */
+.rovora-site .auth-wrap { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+.rovora-site .auth-card { width: 100%; max-width: 420px; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 18px; padding: 36px; box-shadow: var(--shot-shadow); }
+.rovora-site .auth-logo { display: flex; justify-content: center; margin-bottom: 26px; }
+.rovora-site .auth-logo .logo { font-size: 24px; }
+.rovora-site .auth-head { text-align: center; margin-bottom: 26px; }
+.rovora-site .auth-head h1 { font-size: 26px; font-weight: 500; letter-spacing: -0.025em; margin: 0; }
+.rovora-site .auth-head p { margin: 8px 0 0; font-size: 14.5px; color: var(--text-2); }
+.rovora-site .field { margin-bottom: 16px; }
+.rovora-site .field label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 7px; }
+.rovora-site .field input { width: 100%; font-family: inherit; font-size: 15px; color: var(--text-1); background: var(--bg-0); border: 1px solid var(--line-2); border-radius: 10px; padding: 12px 14px; transition: border-color .15s, box-shadow .15s; }
+.rovora-site .field input::placeholder { color: var(--text-4); }
+.rovora-site .field input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rovora-site .auth-card .btn { width: 100%; margin-top: 4px; }
+.rovora-site .auth-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 13.5px; }
+.rovora-site .auth-row a { color: var(--accent); font-weight: 500; }
+.rovora-site .auth-row a:hover { text-decoration: underline; }
+.rovora-site .auth-foot { text-align: center; margin-top: 22px; font-size: 14px; color: var(--text-2); }
+.rovora-site .auth-foot a { color: var(--accent); font-weight: 500; }
+.rovora-site .auth-foot a:hover { text-decoration: underline; }
+.rovora-site .auth-back { position: absolute; top: 24px; left: 24px; z-index: 3; font-size: 14px; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; }
+.rovora-site .auth-back:hover { color: var(--text-1); }
+.rovora-site .auth-toggle { position: absolute; top: 20px; right: 24px; z-index: 3; }
+.rovora-site .auth-alert { border-radius: 10px; padding: 11px 14px; font-size: 14px; margin-bottom: 16px; line-height: 1.45; }
+.rovora-site .auth-alert.err { background: rgba(236, 106, 94, 0.12); border: 1px solid rgba(236, 106, 94, 0.3); color: #d2483b; }
+.rovora-site[data-theme='dark'] .auth-alert.err { color: #f0918a; }
+.rovora-site .auth-alert.ok { background: var(--pos-soft); border: 1px solid var(--accent-line); color: var(--pos); }
+
+/* ─── Entrance animation (first-time reveal on scroll) ─────────────
+   Elements tagged .reveal start lowered + transparent and ease into
+   place once RovoraReveal adds .is-in. --rd staggers grouped children.
+   Honors prefers-reduced-motion by skipping the transform/opacity. */
+.rovora-site .reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity .7s cubic-bezier(.22, .61, .36, 1),
+    transform .7s cubic-bezier(.22, .61, .36, 1);
+  transition-delay: var(--rd, 0ms);
+  will-change: opacity, transform;
+}
+.rovora-site .reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 880px) {
+  .rovora-site .nav-links { display: none; }
+  .rovora-site .stats-grid { grid-template-columns: 1fr 1fr; }
+  .rovora-site .stat:nth-child(3) { border-left: none; }
+  .rovora-site .stat:nth-child(1), .rovora-site .stat:nth-child(2) { border-bottom: 1px solid var(--line-1); }
+  .rovora-site .frow { grid-template-columns: 1fr; gap: 32px; }
+  .rovora-site .frow.flip .ftext { order: 0; }
+  .rovora-site .frow + .frow { margin-top: 72px; }
+  .rovora-site .mini-grid { grid-template-columns: 1fr 1fr; }
+  .rovora-site .way-grid { grid-template-columns: repeat(2, 1fr); gap: 30px 18px; }
+  .rovora-site .integ-grid { grid-template-columns: 1fr 1fr; }
+  .rovora-site .price-grid { grid-template-columns: 1fr; max-width: 420px; margin-left: auto; margin-right: auto; }
+  .rovora-site .foot-top { grid-template-columns: 1fr; gap: 36px; }
+  .rovora-site .foot-cols { grid-template-columns: repeat(2, 1fr); }
+  .rovora-site .sec-pad { padding: 72px 0; }
+  .rovora-site .mock-cards { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 520px) {
+  .rovora-site .container { padding: 0 18px; }
+  .rovora-site .mini-grid { grid-template-columns: 1fr; }
+  .rovora-site .nav-actions .signin { display: none; }
+  .rovora-site .hero { padding: 56px 0 0; }
+  .rovora-site .cta-band { padding: 52px 22px; }
+  .rovora-site .mock-cards { grid-template-columns: 1fr 1fr; }
+  .rovora-site .foot-cols { grid-template-columns: 1fr 1fr; }
+  .rovora-site .foot-news { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .rovora-site .foot-app { padding-left: 0; border-left: none; }
+  .rovora-site .foot-bottom { justify-content: flex-start; }
+  .rovora-site .auth-card { padding: 28px 22px; }
+}
+
+/* ============================================================
+   Support chat widget (placeholder UI — real data wired later)
+   Fixed to the bottom-right; floats above all page content.
+   ============================================================ */
+.rovora-site .rovora-chat {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+  font-family: inherit;
+}
+
+.rovora-site .chat-launch {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 28px -8px var(--accent), 0 2px 6px rgba(15, 18, 26, 0.18);
+  transition: transform .18s cubic-bezier(.22, .61, .36, 1), box-shadow .18s, filter .15s;
+  align-self: flex-end;
+}
+.rovora-site .chat-launch:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.rovora-site .chat-launch:active { transform: translateY(0); }
+.rovora-site .chat-launch svg { width: 24px; height: 24px; }
+
+/* Panel */
+.rovora-site .chat-panel {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  height: 480px;
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 24px 70px -24px rgba(20, 30, 60, 0.45), 0 0 0 1px var(--line-1);
+  transform-origin: bottom right;
+  animation: chat-pop .22s cubic-bezier(.22, .61, .36, 1);
+}
+@keyframes chat-pop {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.rovora-site .chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-2);
+}
+.rovora-site .chat-head-id { display: flex; align-items: center; gap: 11px; }
+.rovora-site .chat-ava {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent-soft);
+  display: inline-flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.rovora-site .chat-ava-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+.rovora-site .chat-head-txt { display: flex; flex-direction: column; gap: 2px; }
+.rovora-site .chat-head-txt strong { font-size: 14.5px; color: var(--text-1); font-weight: 500; }
+.rovora-site .chat-status { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+.rovora-site .chat-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); display: inline-block; }
+.rovora-site .chat-x {
+  flex: none; width: 30px; height: 30px; border-radius: 8px;
+  border: none; background: transparent; color: var(--text-3); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.rovora-site .chat-x:hover { background: var(--bg-3); color: var(--text-1); }
+.rovora-site .chat-x svg { width: 18px; height: 18px; }
+
+/* Body / messages */
+.rovora-site .chat-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-0);
+}
+.rovora-site .chat-msg { display: flex; }
+.rovora-site .chat-msg.bot { justify-content: flex-start; }
+.rovora-site .chat-msg.user { justify-content: flex-end; }
+.rovora-site .chat-bubble {
+  max-width: 80%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.rovora-site .chat-msg.bot .chat-bubble {
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
+  border-bottom-left-radius: 5px;
+}
+.rovora-site .chat-msg.user .chat-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+/* Typing indicator */
+.rovora-site .chat-typing { display: inline-flex; gap: 4px; align-items: center; }
+.rovora-site .chat-typing span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-3);
+  animation: chat-bounce 1.2s infinite ease-in-out;
+}
+.rovora-site .chat-typing span:nth-child(2) { animation-delay: .15s; }
+.rovora-site .chat-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes chat-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: .5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Input */
+.rovora-site .chat-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-1);
+}
+.rovora-site .chat-input input {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-0);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.rovora-site .chat-input input::placeholder { color: var(--text-4); }
+.rovora-site .chat-input input:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.rovora-site .chat-send {
+  flex: none; width: 40px; height: 40px; border-radius: 10px;
+  border: none; cursor: pointer;
+  background: var(--accent); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: filter .15s, opacity .15s;
+}
+.rovora-site .chat-send:hover { filter: brightness(1.06); }
+.rovora-site .chat-send:disabled { opacity: .45; cursor: not-allowed; }
+.rovora-site .chat-send svg { width: 18px; height: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site .chat-panel { animation: none; }
+  .rovora-site .chat-typing span { animation: none; }
+}
+
+@media (max-width: 520px) {
+  .rovora-site .rovora-chat { right: 16px; bottom: 16px; }
+  .rovora-site .chat-panel { height: min(70vh, 480px); }
+}

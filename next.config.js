@@ -26,8 +26,8 @@ module.exports = withSentryConfig(module.exports, {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
-  org: "spot-cabs",
-  project: "spot-dashboard",
+  org: "rovora-cabs",
+  project: "rovora-dashboard",
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,

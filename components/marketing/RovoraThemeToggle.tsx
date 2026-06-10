@@ -3,22 +3,22 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * Light/dark toggle for the Spot marketing + auth surfaces.
- * Flips the `data-theme` attribute on the nearest `.spot-site` ancestor
+ * Light/dark toggle for the Rovora marketing + auth surfaces.
+ * Flips the `data-theme` attribute on the nearest `.rovora-site` ancestor
  * and remembers the choice in localStorage.
  */
-export default function SpotThemeToggle() {
+export default function RovoraThemeToggle() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const apply = (next: 'light' | 'dark') => {
-    const root = btnRef.current?.closest<HTMLElement>('.spot-site');
+    const root = btnRef.current?.closest<HTMLElement>('.rovora-site');
     if (root) root.setAttribute('data-theme', next);
   };
 
   useEffect(() => {
     const stored = (typeof window !== 'undefined'
-      ? window.localStorage.getItem('spot-theme')
+      ? window.localStorage.getItem('rovora-theme')
       : null) as 'light' | 'dark' | null;
     if (stored === 'light' || stored === 'dark') {
       setTheme(stored);
@@ -31,7 +31,7 @@ export default function SpotThemeToggle() {
     setTheme(next);
     apply(next);
     try {
-      window.localStorage.setItem('spot-theme', next);
+      window.localStorage.setItem('rovora-theme', next);
     } catch {
       /* ignore */
     }

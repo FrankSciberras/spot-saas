@@ -24,7 +24,7 @@ const INCOME_FIELDS: { key: IncomeKey; label: string; color: string }[] = [
   { key: 'uber_earnings', label: 'Uber', color: '#a78bfa' },
   { key: 'bolt_earnings', label: 'Bolt', color: '#34d399' },
   { key: 'ecabs_earnings', label: 'eCabs', color: '#f5b54a' },
-  { key: 'other_earnings', label: 'Other', color: '#5b8dff' },
+  { key: 'other_earnings', label: 'Other', color: '#2bbd7e' },
 ];
 
 const EXPENSE_FIELDS: { key: ExpenseKey; label: string; icon: string }[] = [

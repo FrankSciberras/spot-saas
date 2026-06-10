@@ -357,8 +357,8 @@
 }
 
 .summaryCard.income {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
-  border-color: rgba(59, 130, 246, 0.2);
+  background: linear-gradient(135deg, rgba(26, 143, 90, 0.1), rgba(26, 143, 90, 0.05));
+  border-color: rgba(26, 143, 90, 0.2);
 }
 
 .summaryCard.expenses {
@@ -393,7 +393,7 @@
 }
 
 .summaryCard.income .summaryValue {
-  color: #3b82f6;
+  color: #1a8f5a;
 }
 
 .summaryCard.expenses .summaryValue {

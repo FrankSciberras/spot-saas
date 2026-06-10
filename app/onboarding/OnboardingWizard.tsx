@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import Image from 'next/image';
 import { completeOnboardingAction } from '@/lib/actions/org';
-import type { Plan, PaidPlan, PlanDef } from '@/lib/billing/plans';
+import { requiredPlanFor, type Plan, type PaidPlan, type PlanDef } from '@/lib/billing/plans';
+import { rovoraFontVars } from '@/lib/rovoraFonts';
 import styles from './onboarding.module.css';
 
 interface Range {
@@ -21,14 +21,6 @@ const RANGES: Range[] = [
   { id: '50+', label: '50+', max: 100 },
 ];
 
-/** Smallest plan that fits the projected counts (higher of the two wins). */
-function recommend(driverMax: number, vehicleMax: number): PaidPlan {
-  const n = Math.max(driverMax, vehicleMax);
-  if (n > 50) return 'scale';
-  if (n > 10) return 'growth';
-  return 'starter';
-}
-
 const Check = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 6L9 17l-5-5" />
@@ -36,6 +28,8 @@ const Check = () => (
 );
 
 const TOTAL_STEPS = 4;
+
+const TITLES = ['Set up your fleet', 'How many drivers?', 'How many vehicles?', 'Pick a plan'];
 
 export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
   const [step, setStep] = useState(0);
@@ -46,7 +40,9 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
   const [pendingChoice, setPendingChoice] = useState<Plan | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const recommended = drivers && vehicles ? recommend(drivers.max, vehicles.max) : 'starter';
+  const recommended: PaidPlan =
+    drivers && vehicles ? requiredPlanFor(plans, drivers.max, vehicles.max) : plans[0]?.id ?? '';
+  const recommendedName = plans.find((p) => p.id === recommended)?.name;
 
   const next = () => {
     setError('');
@@ -67,28 +63,40 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
     setPendingChoice(plan);
     startTransition(async () => {
       const result = await completeOnboardingAction(name, plan);
-      // On success the action redirects; only an error object returns here.
-      if (result?.error) {
+      if (result && 'url' in result && result.url) {
+        // Paid plan → hand off to Stripe Checkout.
+        window.location.assign(result.url);
+        return;
+      }
+      // On success (trial / stub) the action redirects; only an error returns here.
+      if (result && 'error' in result && result.error) {
         setError(result.error);
         setPendingChoice(null);
       }
     });
   };
 
-  const wide = step === 3;
-
   return (
-    <div className={styles.container}>
-      <div className={`${styles.card} ${wide ? styles.cardWide : ''}`}>
-        <div className={styles.header}>
-          <Image
-            src="/Black Logo.svg"
-            alt="Spot Dashboard logo"
-            className={styles.logo}
-            width={160}
-            height={44}
-            priority
-          />
+    <div className={`${styles.page} ${rovoraFontVars}`}>
+      <div className={styles.inner}>
+        <div className={styles.head}>
+          <div className={styles.brand}>
+            <img src="/rovora logo trimmed.png" alt="Rovora" className={styles.brandLogo} />
+          </div>
+          <h1>{TITLES[step]}</h1>
+          <p>
+            {step === 0 &&
+              "What should we call your fleet? You'll be its admin — with a free 30-day trial, no credit card required."}
+            {step === 1 &&
+              'Roughly how many drivers will you manage? This just helps us suggest the right plan — you can change it any time.'}
+            {step === 2 && 'And how many vehicles are in your fleet?'}
+            {step === 3 && (
+              <>
+                Based on your fleet size we suggest <strong>{recommendedName ?? 'a plan'}</strong>.
+                Start free for 30 days — no card needed — or choose a plan now.
+              </>
+            )}
+          </p>
         </div>
 
         <div className={styles.progress} aria-hidden>
@@ -100,35 +108,55 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
           ))}
         </div>
 
+        {/* Selections so far — same chip component as the billing screen. */}
+        {(name.trim() || drivers || vehicles) && (
+          <div className={styles.statusBar}>
+            {name.trim() && (
+              <span className={styles.chip}>
+                Fleet: <strong>{name.trim()}</strong>
+              </span>
+            )}
+            {drivers && (
+              <span className={styles.chip}>
+                Drivers: <strong>{drivers.label}</strong>
+              </span>
+            )}
+            {vehicles && (
+              <span className={styles.chip}>
+                Vehicles: <strong>{vehicles.label}</strong>
+              </span>
+            )}
+          </div>
+        )}
+
         {error && <div className={styles.error}>{error}</div>}
 
         {/* Step 1 — fleet name */}
         {step === 0 && (
           <div className={styles.step}>
-            <h1 className={styles.title}>Set up your fleet</h1>
-            <p className={styles.subtitle}>
-              What should we call your fleet? You&apos;ll be its admin — with a free
-              30-day trial, no credit card required.
-            </p>
             <form
+              className={styles.formWrap}
               onSubmit={(e) => {
                 e.preventDefault();
                 if (name.trim()) next();
               }}
             >
-              <div className="form-group">
-                <label htmlFor="fleet-name" className="form-label">Fleet name</label>
-                <input
-                  id="fleet-name"
-                  type="text"
-                  className="form-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Acme Cabs"
-                  autoFocus
-                />
-              </div>
-              <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={!name.trim()}>
+              <label htmlFor="fleet-name" className={styles.fieldLabel}>Fleet name</label>
+              <input
+                id="fleet-name"
+                type="text"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Acme Cabs"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnFull} ${styles.btnLg}`}
+                style={{ marginTop: 18 }}
+                disabled={!name.trim()}
+              >
                 Continue
               </button>
             </form>
@@ -138,26 +166,30 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
         {/* Step 2 — driver count */}
         {step === 1 && (
           <div className={styles.step}>
-            <h1 className={styles.title}>How many drivers?</h1>
-            <p className={styles.subtitle}>
-              Roughly how many drivers will you manage? This just helps us suggest the
-              right plan — you can change it any time.
-            </p>
-            <div className={styles.rangeGrid}>
-              {RANGES.map((r) => (
+            <div className={styles.formWrap}>
+              <div className={styles.rangeGrid}>
+                {RANGES.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={`${styles.rangeBtn} ${drivers?.id === r.id ? styles.rangeBtnActive : ''}`}
+                    onClick={() => setDrivers(r)}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.navRow}>
+                <button type="button" className={styles.btn} onClick={back}>Back</button>
                 <button
-                  key={r.id}
                   type="button"
-                  className={`${styles.rangeBtn} ${drivers?.id === r.id ? styles.rangeBtnActive : ''}`}
-                  onClick={() => setDrivers(r)}
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  disabled={!drivers}
+                  onClick={next}
                 >
-                  {r.label}
+                  Continue
                 </button>
-              ))}
-            </div>
-            <div className={styles.navRow}>
-              <button type="button" className="btn btn-secondary" onClick={back}>Back</button>
-              <button type="button" className="btn btn-primary" disabled={!drivers} onClick={next}>Continue</button>
+              </div>
             </div>
           </div>
         )}
@@ -165,25 +197,30 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
         {/* Step 3 — vehicle count */}
         {step === 2 && (
           <div className={styles.step}>
-            <h1 className={styles.title}>How many vehicles?</h1>
-            <p className={styles.subtitle}>
-              And how many vehicles are in your fleet?
-            </p>
-            <div className={styles.rangeGrid}>
-              {RANGES.map((r) => (
+            <div className={styles.formWrap}>
+              <div className={styles.rangeGrid}>
+                {RANGES.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={`${styles.rangeBtn} ${vehicles?.id === r.id ? styles.rangeBtnActive : ''}`}
+                    onClick={() => setVehicles(r)}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.navRow}>
+                <button type="button" className={styles.btn} onClick={back}>Back</button>
                 <button
-                  key={r.id}
                   type="button"
-                  className={`${styles.rangeBtn} ${vehicles?.id === r.id ? styles.rangeBtnActive : ''}`}
-                  onClick={() => setVehicles(r)}
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  disabled={!vehicles}
+                  onClick={next}
                 >
-                  {r.label}
+                  Continue
                 </button>
-              ))}
-            </div>
-            <div className={styles.navRow}>
-              <button type="button" className="btn btn-secondary" onClick={back}>Back</button>
-              <button type="button" className="btn btn-primary" disabled={!vehicles} onClick={next}>Continue</button>
+              </div>
             </div>
           </div>
         )}
@@ -191,32 +228,29 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
         {/* Step 4 — plan recommendation + trial */}
         {step === 3 && (
           <div className={styles.step}>
-            <h1 className={styles.title}>Pick a plan</h1>
-            <p className={styles.subtitle}>
-              Based on your fleet size we suggest <strong>{plans.find((p) => p.id === recommended)?.name}</strong>.
-              Start free for 30 days — no card needed — or choose a plan now.
-            </p>
-
-            <div className={styles.planGrid}>
+            <div className={styles.grid}>
               {plans.map((plan) => {
                 const isRec = plan.id === recommended;
                 const loading = isPending && pendingChoice === plan.id;
                 return (
-                  <div key={plan.id} className={`${styles.planCard} ${isRec ? styles.planRecommended : ''}`}>
-                    {isRec && <span className={styles.planBadge}>Recommended</span>}
+                  <div key={plan.id} className={`${styles.card} ${isRec ? styles.required : ''}`}>
+                    {isRec && <span className={styles.recommend}>Recommended</span>}
                     <div className={styles.planName}>{plan.name}</div>
-                    <div className={styles.planPrice}>
+                    <div className={styles.price}>
                       {plan.priceLabel}
-                      {plan.priceLabel !== 'Custom' && <span> / mo</span>}
+                      {plan.priceUnit && <span> {plan.priceUnit}</span>}
                     </div>
-                    <ul className={styles.planFeatures}>
+                    <ul className={styles.features}>
                       {plan.features.map((f) => (
-                        <li key={f}><Check />{f}</li>
+                        <li key={f}>
+                          <Check />
+                          {f}
+                        </li>
                       ))}
                     </ul>
                     <button
                       type="button"
-                      className={`${styles.planBtn} ${isRec ? styles.planBtnPrimary : ''}`}
+                      className={`${styles.cardBtn} ${isRec ? styles.cardBtnPrimary : ''}`}
                       disabled={isPending}
                       onClick={() => finish(plan.id)}
                     >
@@ -227,24 +261,28 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
               })}
             </div>
 
-            <button
-              type="button"
-              className="btn btn-primary btn-full btn-lg"
-              disabled={isPending}
-              onClick={() => finish('trial')}
-            >
-              {isPending && pendingChoice === 'trial' ? (
-                <>
-                  <span className="spinner"></span>
-                  Creating your fleet…
-                </>
-              ) : (
-                'Start free 30-day trial'
-              )}
-            </button>
+            <div className={styles.orTrial}>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnFull} ${styles.btnLg}`}
+                disabled={isPending}
+                onClick={() => finish('trial')}
+              >
+                {isPending && pendingChoice === 'trial' ? (
+                  <>
+                    <span className={styles.spinner} />
+                    Creating your fleet…
+                  </>
+                ) : (
+                  'Start free 30-day trial'
+                )}
+              </button>
+            </div>
 
-            <div className={styles.navRow} style={{ marginTop: 12 }}>
-              <button type="button" className="btn btn-secondary" disabled={isPending} onClick={back}>Back</button>
+            <div className={styles.navRow}>
+              <button type="button" className={styles.btn} disabled={isPending} onClick={back}>
+                Back
+              </button>
             </div>
           </div>
         )}

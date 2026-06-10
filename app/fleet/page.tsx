@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
@@ -5,15 +6,33 @@ import FleetDashboard, {
   type ExpiringDoc,
   type RecentShift,
 } from '@/components/fleet/FleetDashboard';
+import FleetDashboardSkeleton from '@/components/fleet/FleetDashboardSkeleton';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 /**
  * Fleet Dashboard — overview of drivers, vehicles, shifts, finances and
- * expiring documents, rendered in the standalone Spot Fleet design.
+ * expiring documents, rendered in the standalone Rovora Fleet design.
+ *
+ * The shell (sidebar + topbar) renders immediately; the data-heavy dashboard
+ * body streams in behind a Suspense boundary, showing a skeleton meanwhile.
  */
 export default async function FleetDashboardPage() {
   const user = await requireRole(['admin', 'staff']);
-  const supabase = await createClient();
   const isAdmin = user.role === 'admin';
+
+  return (
+    <FleetShell user={user} title="Dashboard">
+      <Suspense fallback={<FleetDashboardSkeleton isAdmin={isAdmin} />}>
+        <DashboardContent user={user} isAdmin={isAdmin} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+/** Server component that performs every dashboard query, then renders. */
+async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: boolean }) {
+  const supabase = await createClient();
 
   const [driversResult, vehiclesResult, shiftsResult] = await Promise.all([
     supabase.from('drivers').select('id, status'),
@@ -135,7 +154,7 @@ export default async function FleetDashboardPage() {
     { employees: 0, repairs: 0, insurance: 0, investments: 0, vat: 0, rent: 0, employee_tax: 0, other: 0 }
   );
 
-  const expensePalette = ['#f06464', '#f5b54a', '#5b8dff', '#a78bfa', '#22d3ee', '#3ecf8e', '#ec4899', '#94a3b8'];
+  const expensePalette = ['#f06464', '#f5b54a', '#2bbd7e', '#a78bfa', '#22d3ee', '#3ecf8e', '#ec4899', '#94a3b8'];
   const expenseBreakdown = [
     { label: 'Employees', amount: expenseTotals.employees },
     { label: 'Repairs', amount: expenseTotals.repairs },
@@ -153,25 +172,23 @@ export default async function FleetDashboardPage() {
   const userName = user.full_name?.split(' ')[0] || 'there';
 
   return (
-    <FleetShell user={user} title="Dashboard">
-      <FleetDashboard
-        userName={userName}
-        isAdmin={isAdmin}
-        stats={{
-          activeDrivers,
-          totalDrivers,
-          activeVehicles,
-          idleVehicles,
-          serviceVehicles,
-          totalVehicles,
-          recentShiftsCount: recentShifts.length,
-        }}
-        financialSeries={financialSeries}
-        totals={totals}
-        expenseBreakdown={expenseBreakdown}
-        expiringDocs={topExpiringDocs}
-        recentShifts={recentShifts}
-      />
-    </FleetShell>
+    <FleetDashboard
+      userName={userName}
+      isAdmin={isAdmin}
+      stats={{
+        activeDrivers,
+        totalDrivers,
+        activeVehicles,
+        idleVehicles,
+        serviceVehicles,
+        totalVehicles,
+        recentShiftsCount: recentShifts.length,
+      }}
+      financialSeries={financialSeries}
+      totals={totals}
+      expenseBreakdown={expenseBreakdown}
+      expiringDocs={topExpiringDocs}
+      recentShifts={recentShifts}
+    />
   );
 }

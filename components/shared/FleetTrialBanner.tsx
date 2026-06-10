@@ -41,7 +41,7 @@ export default function FleetTrialBanner() {
       <Link
         href="/billing"
         style={{
-          color: '#2f6bff',
+          color: '#1a8f5a',
           fontWeight: 700,
           textDecoration: 'none',
           whiteSpace: 'nowrap',

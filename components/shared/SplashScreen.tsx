@@ -16,14 +16,6 @@ function isPublicRoute(pathname: string | null): boolean {
 
 type LoadingStatus = 'initializing' | 'service-worker' | 'backend' | 'ready' | 'error';
 
-const STATUS_MESSAGES: Record<LoadingStatus, string> = {
-  'initializing': 'Starting up...',
-  'service-worker': 'Initializing offline support...',
-  'backend': 'Connecting to server...',
-  'ready': 'Ready!',
-  'error': 'Connection issue',
-};
-
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 const BACKEND_TIMEOUT = 8000;
@@ -183,30 +175,14 @@ export default function SplashScreen({ children }: SplashScreenProps) {
     <>
       <div className={`${styles.splash} ${fadeOut ? styles.fadeOut : ''}`}>
         <div className={styles.content}>
-          {/* Logo */}
-          <div className={styles.logo}>
-            <img 
-              src="/icons/splash-logo.svg" 
-              alt="Spot" 
-              width={120} 
-              height={120}
-            />
-          </div>
-          
-          {/* Loading indicator */}
+          {/* Loading indicator — glowing conic-gradient ring spinner */}
           {status !== 'error' && (
-            <div className={styles.loader}>
-              <div className={styles.spinner} />
+            <div className={styles.loaderWrap} role="progressbar" aria-label="Loading">
+              <span className={styles.glow} />
+              <span className={styles.ring} />
+              <span className={styles.core} />
             </div>
           )}
-          
-          {/* Status message */}
-          <p className={styles.status}>
-            {STATUS_MESSAGES[status]}
-            {retryCount > 0 && status === 'backend' && (
-              <span className={styles.retryCount}> (Attempt {retryCount + 1}/{MAX_RETRIES})</span>
-            )}
-          </p>
 
           {/* Error state with retry button */}
           {showRetryButton && (

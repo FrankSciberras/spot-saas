@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPOT SaaS multi-tenant migration — COMBINED (Phases 1-5)
+-- Rovora SaaS multi-tenant migration — COMBINED (Phases 1-5)
 -- Idempotent + backfill-safe. Run top-to-bottom in the Supabase SQL Editor.
 -- Wrapped in a single transaction so a failure rolls everything back.
 -- =====================================================================

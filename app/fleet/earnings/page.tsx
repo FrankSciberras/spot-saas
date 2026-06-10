@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import EarningsWorkspace from './EarningsWorkspace';
 
 /**
@@ -8,6 +10,16 @@ import EarningsWorkspace from './EarningsWorkspace';
  */
 export default async function EarningsPage() {
   const user = await requireRole(['admin']);
+  return (
+    <FleetShell user={user} title="Weekly Bookkeeping">
+      <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
+        <EarningsContent />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function EarningsContent() {
   const supabase = await createClient();
 
   // Fetch all weekly bookkeeping entries
@@ -36,9 +48,5 @@ export default async function EarningsPage() {
     return acc;
   }, [] as Array<{ week_start: string; week_end: string; week_label: string; period_name: string | null }>) || [];
 
-  return (
-    <FleetShell user={user} title="Weekly Bookkeeping">
-      <EarningsWorkspace entries={entries || []} settlementPeriods={settlementPeriods} />
-    </FleetShell>
-  );
+  return <EarningsWorkspace entries={entries || []} settlementPeriods={settlementPeriods} />;
 }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vehicle Zone Editor</title>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Questrial&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg-primary: #1a1a2e;
@@ -30,7 +30,7 @@
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.25);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg-secondary); color: var(--text-primary); font-family: 'Figtree', system-ui, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  body { background: var(--bg-secondary); color: var(--text-primary); font-family: 'Questrial', system-ui, sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
   /* ── Sidebar ── */
   .sidebar {
@@ -367,8 +367,11 @@ let savedZones = {};
 let selectedZoneId = null;
 let showOverlays = true;
 let hasUnsavedChanges = false;
-let currentModel = 'toyota-yaris-cross';
-let currentView = 'side';
+// Deep-linked from /admin/vehicle-models with ?model=<model_key>&view=side|top
+const urlParams = new URLSearchParams(location.search);
+let currentModel = urlParams.get('model') || 'toyota-yaris-cross';
+let currentView = urlParams.get('view') === 'top' ? 'top' : 'side';
+let currentImageUrl = null; // background image (uploaded preset image, falls back to SVG outline)
 
 // ── DOM ──
 const svg = document.getElementById('svg');
@@ -395,7 +398,34 @@ function init() {
     opt.value = z.id; opt.textContent = z.label;
     zoneSelect.appendChild(opt);
   });
-  loadFromServer();
+  if (viewSelect) viewSelect.value = currentView;
+  populateModels().finally(loadFromServer);
+}
+
+// Populate the model dropdown from the preset library, then select the current
+// model (adding it if it's an unpublished draft deep-linked from the console).
+async function populateModels() {
+  try {
+    var res = await fetch('/api/vehicle-models');
+    if (res.ok) {
+      var json = await res.json();
+      var list = (json && json.data) || [];
+      if (list.length) {
+        modelSelect.innerHTML = '';
+        list.forEach(function(m) {
+          var opt = document.createElement('option');
+          opt.value = m.model_key; opt.textContent = m.name;
+          modelSelect.appendChild(opt);
+        });
+      }
+    }
+  } catch (e) { console.error('models load error', e); }
+  if (!Array.from(modelSelect.options).some(function(o){ return o.value === currentModel; })) {
+    var opt = document.createElement('option');
+    opt.value = currentModel; opt.textContent = currentModel;
+    modelSelect.appendChild(opt);
+  }
+  modelSelect.value = currentModel;
 }
 
 // ── SVG helpers ──
@@ -472,7 +502,7 @@ function renderCurrentPoints() {
     var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     t.setAttribute('x', pt.x + 10); t.setAttribute('y', pt.y - 6);
     t.setAttribute('fill', '#fff'); t.setAttribute('font-size', '12'); t.setAttribute('font-weight', '700');
-    t.setAttribute('font-family', 'Figtree, system-ui'); t.style.pointerEvents = 'none';
+    t.setAttribute('font-family', 'Questrial, system-ui'); t.style.pointerEvents = 'none';
     t.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
     t.textContent = '' + (i + 1); markersG.appendChild(t);
   });
@@ -601,7 +631,7 @@ function renderOverlays() {
       t.setAttribute('x', cx); t.setAttribute('y', cy);
       t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'middle');
       t.setAttribute('fill', color); t.setAttribute('font-size', isSel ? '18' : '13');
-      t.setAttribute('font-weight', '700'); t.setAttribute('font-family', 'Figtree, system-ui');
+      t.setAttribute('font-weight', '700'); t.setAttribute('font-family', 'Questrial, system-ui');
       t.style.pointerEvents = 'none';
       t.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.4))';
       var label = ZONE_LIST.find(function(z){return z.id===zoneId});
@@ -630,11 +660,16 @@ function markClean() {
 
 // ── Server API ──
 async function loadFromServer() {
+  // Default background to the hardcoded SVG outline (if any) until the DB answers.
+  currentImageUrl = (SVG_PATHS[currentModel] && SVG_PATHS[currentModel][currentView]) || null;
+  updateSvgBackground();
   try {
     statusEl.textContent = 'Loading...';
-    var res = await fetch('/api/vehicle-diagrams?model=' + currentModel + '&view=' + currentView);
+    var res = await fetch('/api/vehicle-diagrams?model=' + encodeURIComponent(currentModel) + '&view=' + encodeURIComponent(currentView));
     if (res.ok) {
       var data = await res.json();
+      // Prefer the preset's uploaded image as the tracing background.
+      if (data && data.image_url) { currentImageUrl = data.image_url; updateSvgBackground(); }
       if (data && data.zones && Object.keys(data.zones).length > 0) {
         savedZones = data.zones;
         statusEl.textContent = 'Loaded ' + Object.keys(savedZones).length + ' zones from database';
@@ -682,17 +717,16 @@ function showToast(msg, type) {
 // ── Model/View switching ──
 modelSelect.addEventListener('change', function() {
   if (hasUnsavedChanges && !confirm('Unsaved changes will be lost. Continue?')) { modelSelect.value = currentModel; return; }
-  currentModel = modelSelect.value; updateSvgBackground(); loadFromServer();
+  currentModel = modelSelect.value; loadFromServer();
 });
 viewSelect.addEventListener('change', function() {
   if (hasUnsavedChanges && !confirm('Unsaved changes will be lost. Continue?')) { viewSelect.value = currentView; return; }
-  currentView = viewSelect.value; updateSvgBackground(); loadFromServer();
+  currentView = viewSelect.value; loadFromServer();
 });
 function updateSvgBackground() {
-  var path = SVG_PATHS[currentModel] && SVG_PATHS[currentModel][currentView];
   var img = document.getElementById('svg-bg');
-  if (path) { img.setAttribute('href', path); img.style.display = ''; }
-  else { img.style.display = 'none'; statusEl.textContent = 'No SVG outline for this model/view yet'; }
+  if (currentImageUrl) { img.setAttribute('href', currentImageUrl); img.style.display = ''; }
+  else { img.style.display = 'none'; }
 }
 
 // ── Export ──

@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import ServicesWorkspace, {
   type SvcRecord,
   type SvcStatus,
@@ -59,6 +61,16 @@ function categoryFor(serviceType: string): SvcRecord['category'] {
 
 export default async function ServicesPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Services">
+      <Suspense fallback={<FleetPageSkeleton variant="list" stats={3} />}>
+        <ServicesContent />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function ServicesContent() {
   const supabase = await createClient();
 
   const { data: services } = await supabase
@@ -148,14 +160,12 @@ export default async function ServicesPage() {
   const dueSoon = dueAll.slice(0, 6);
 
   return (
-    <FleetShell user={user} title="Services">
-      <ServicesWorkspace
-        records={records}
-        spend6mo={spend6mo}
-        dueSoon={dueSoon}
-        overdueCount={overdueCount}
-        spendMonth={spendMonth}
-      />
-    </FleetShell>
+    <ServicesWorkspace
+      records={records}
+      spend6mo={spend6mo}
+      dueSoon={dueSoon}
+      overdueCount={overdueCount}
+      spendMonth={spendMonth}
+    />
   );
 }

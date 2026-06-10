@@ -51,6 +51,11 @@ export interface Driver {
   driving_license_expiry_date: string | null;
   tag_license_expiry_date: string | null;
   notes: string | null;
+  // Per-driver settlement scheme overrides. NULL = inherit the org default.
+  settlement_driver_share_pct: number | null;
+  settlement_tips_driver_pct: number | null;
+  settlement_campaigns_driver_pct: number | null;
+  settlement_fee_driver_pct: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +73,56 @@ export interface Vehicle {
   road_license_expiry_date: string | null;
   color: string | null;
   notes: string | null;
+  vehicle_model_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A platform-admin-managed car model preset. Holds the friendly name + uploaded
+ * top/side diagram images; the clickable damage zones traced over those images
+ * live in the vehicle_diagram_zones table, joined on model_key. Presets are
+ * global (shared across all fleets) — only platform admins can create/edit them,
+ * fleet operators only pick one for a vehicle (vehicles.vehicle_model_id).
+ */
+export interface VehicleModel {
+  id: string;
+  name: string;
+  make: string | null;
+  model: string | null;
+  model_key: string;
+  side_image_url: string | null;
+  top_image_url: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A row in the platform-admin-managed `plans` catalogue (see lib/billing). */
+export interface PlanRow {
+  id: string;
+  key: string;
+  name: string;
+  blurb: string | null;
+  price_label: string;
+  price_unit: string | null;
+  price_amount: number;
+  billing_note: string | null;
+  cap_label: string | null;
+  max_drivers: number | null;
+  max_vehicles: number | null;
+  features: string[];
+  color: string | null;
+  cta_label: string | null;
+  cta_href: string | null;
+  is_custom: boolean;
+  is_popular: boolean;
+  is_published: boolean;
+  sort_order: number;
+  /** Stripe recurring Price this package subscribes to (null = not sellable via Stripe yet). */
+  stripe_price_id: string | null;
+  /** Stripe Product id; checkout resolves its default price when no explicit price is set. */
+  stripe_product_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -153,6 +208,10 @@ export interface Notification {
   body: string;
   type: string;
   action_url: string | null;
+  /** Where it came from: 'fleet' (the org) or 'platform' (Rovora HQ). */
+  source: 'fleet' | 'platform';
+  /** Display label for the sender, e.g. 'Rovora HQ' for platform sends. */
+  sender_label: string | null;
   created_at: string;
   read_at: string | null;
   sent_at: string | null;
@@ -310,6 +369,10 @@ export interface CreateDriverInput {
   driving_license_number?: string;
   driving_license_expiry_date?: string;
   notes?: string;
+  settlement_driver_share_pct?: number | null;
+  settlement_tips_driver_pct?: number | null;
+  settlement_campaigns_driver_pct?: number | null;
+  settlement_fee_driver_pct?: number | null;
 }
 
 export interface UpdateDriverInput {
@@ -327,6 +390,10 @@ export interface UpdateDriverInput {
   driving_license_expiry_date?: string;
   tag_license_expiry_date?: string;
   notes?: string;
+  settlement_driver_share_pct?: number | null;
+  settlement_tips_driver_pct?: number | null;
+  settlement_campaigns_driver_pct?: number | null;
+  settlement_fee_driver_pct?: number | null;
 }
 
 export interface CreateVehicleInput {
@@ -342,6 +409,7 @@ export interface CreateVehicleInput {
   road_license_expiry_date?: string;
   color?: string;
   notes?: string;
+  vehicle_model_id?: string | null;
 }
 
 export interface UpdateVehicleInput {
@@ -357,6 +425,7 @@ export interface UpdateVehicleInput {
   road_license_expiry_date?: string;
   color?: string;
   notes?: string;
+  vehicle_model_id?: string | null;
 }
 
 export interface CreateShiftInput {
@@ -447,6 +516,11 @@ export interface DriverSettlement {
   period_name: string | null;
   settlement_month: string | null;
   fss_tax: number;
+  // Frozen snapshot of the settlement scheme used to price this record.
+  driver_share_pct: number;
+  tips_driver_pct: number;
+  campaigns_driver_pct: number;
+  fee_driver_pct: number;
   total_gross_fare: number;
   total_net: number;
   total_balance_before_tax: number;
@@ -743,6 +817,8 @@ export interface SessionUser {
   organization_name: string;
   /** All organizations the user belongs to (for the org switcher). */
   memberships: MembershipInfo[];
+  /** True once the fleet onboarding tour has been shown (persisted per user). */
+  fleet_tour_completed?: boolean;
 }
 
 /** A user's membership in one organization, with their role there. */
@@ -761,6 +837,19 @@ export interface Organization {
   slug: string;
   status: 'active' | 'suspended' | 'cancelled';
   stripe_customer_id: string | null;
+  /** Live Stripe subscription for this fleet (set by the billing webhook). */
+  stripe_subscription_id: string | null;
+  /** Mirror of the Stripe subscription status, e.g. 'active', 'past_due', 'canceled'. */
+  subscription_status: string | null;
+  /** End of the current paid period (renewal / expiry), from Stripe. */
+  current_period_end: string | null;
+  // Fleet-wide default settlement scheme (percentages, 0–100).
+  settlement_driver_share_pct: number;
+  settlement_tips_driver_pct: number;
+  settlement_campaigns_driver_pct: number;
+  settlement_fee_driver_pct: number;
+  /** When true, drivers without push enabled see the "Stay in the loop" prompt on login. */
+  prompt_drivers_push: boolean;
   created_at: string;
   updated_at: string;
 }

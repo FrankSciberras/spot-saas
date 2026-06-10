@@ -2,12 +2,14 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DatePicker from '@/components/shared/DatePicker';
-import { PLATFORMS, getDefaultFssTax } from '@/lib/config/settlements';
-import { 
-  calculateSettlement, 
-  formatCurrency, 
-  type PlatformEarningsInput 
+import AddDriverModal from '@/components/fleet/AddDriverModal';
+import { PLATFORMS, getDefaultFssTax, DEFAULT_SCHEME } from '@/lib/config/settlements';
+import {
+  calculateSettlement,
+  formatCurrency,
+  type PlatformEarningsInput
 } from '@/lib/utils/settlementCalculations';
 import { exportMonthlySettlementsPdf, exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
 import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment } from '@/lib/types/database';
@@ -29,7 +31,9 @@ function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
 }
 
 interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name' | 'employment_type'> {
-  status: string;}
+  status: string;
+  settlement_driver_share_pct?: number | null;
+}
 
 interface SettlementWithRelations extends DriverSettlement {
   drivers: Pick<Driver, 'id' | 'full_name'> & { status: string } | null;
@@ -52,6 +56,8 @@ interface SettlementsWorkspaceProps {
   archivedDrivers: DriverWithStatus[];
   settlements: SettlementWithRelations[];
   isAdmin: boolean;
+  /** Fleet-wide default driver share %, the fallback when a driver has no override. */
+  orgDriverSharePct: number;
 }
 
 export default function SettlementsWorkspace({
@@ -59,6 +65,7 @@ export default function SettlementsWorkspace({
   archivedDrivers,
   settlements,
   isAdmin,
+  orgDriverSharePct,
 }: SettlementsWorkspaceProps) {
   const router = useRouter();
   
@@ -85,6 +92,7 @@ export default function SettlementsWorkspace({
   const [showArchived, setShowArchived] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddDriver, setShowAddDriver] = useState(false);
   
   // Form state
   const [periodName, setPeriodName] = useState('');
@@ -628,6 +636,23 @@ export default function SettlementsWorkspace({
     });
   }, []);
 
+  // Effective driver share % for the selected driver/period:
+  //   editing an existing settlement → its frozen snapshot,
+  //   otherwise → the driver's override, else the fleet default.
+  const currentSharePct = useMemo(() => {
+    if (existingSettlement) {
+      return existingSettlement.driver_share_pct ?? orgDriverSharePct;
+    }
+    const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === selectedDriverId);
+    return driver?.settlement_driver_share_pct ?? orgDriverSharePct;
+  }, [existingSettlement, selectedDriverId, activeDrivers, archivedDrivers, orgDriverSharePct]);
+
+  // Only the driver-share knob is editable for now; the rest stay at defaults.
+  const scheme = useMemo(
+    () => ({ ...DEFAULT_SCHEME, driverSharePct: currentSharePct }),
+    [currentSharePct]
+  );
+
   // Calculate settlement in real-time
   const calculation = useMemo(() => {
     const inputs: PlatformEarningsInput[] = platformData.map(p => ({
@@ -638,8 +663,8 @@ export default function SettlementsWorkspace({
       tips: parseFloat(p.tips) || 0,
       campaigns: parseFloat(p.campaigns) || 0,
     }));
-    return calculateSettlement(inputs, parseFloat(fssTax) || 0);
-  }, [platformData, fssTax]);
+    return calculateSettlement(inputs, parseFloat(fssTax) || 0, scheme);
+  }, [platformData, fssTax, scheme]);
 
   // Save settlement
   const handleSave = async (status: 'draft' | 'finalized' = 'draft') => {
@@ -904,6 +929,14 @@ export default function SettlementsWorkspace({
 
   return (
     <div className={styles.workspace}>
+      {isAdmin && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Link href="/fleet/settlements/settings" className="btn btn-secondary btn-sm">
+            ⚙ Settlement rules
+          </Link>
+        </div>
+      )}
+
       {/* Navigation Header: Year > Month > Week */}
       <div className={styles.navHeader}>
         {/* Year Selector */}
@@ -1316,6 +1349,16 @@ export default function SettlementsWorkspace({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={styles.searchInput}
               />
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  style={{ width: '100%', marginTop: 8 }}
+                  onClick={() => setShowAddDriver(true)}
+                >
+                  + Add driver
+                </button>
+              )}
             </div>
             
             {/* Select All for bulk delete */}
@@ -1381,7 +1424,17 @@ export default function SettlementsWorkspace({
               })}
               {displayedDrivers.length === 0 && (
                 <div className={styles.noDrivers}>
-                  {searchQuery ? 'No drivers match your search' : 'No drivers found'}
+                  <p style={{ margin: 0 }}>{searchQuery ? 'No drivers match your search' : 'No drivers found'}</p>
+                  {isAdmin && !searchQuery && (
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      style={{ marginTop: 12 }}
+                      onClick={() => setShowAddDriver(true)}
+                    >
+                      + Add your first driver
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1427,7 +1480,7 @@ export default function SettlementsWorkspace({
                     <tr>
                       <th>Platform</th>
                       <th>Gross</th>
-                      <th>50%</th>
+                      <th>Share {currentSharePct}%</th>
                       <th>Fee %</th>
                       <th>Fee</th>
                       <th>Net</th>
@@ -1634,10 +1687,35 @@ export default function SettlementsWorkspace({
               <div className={styles.promptIcon}>👈</div>
               <h3>Select a Driver</h3>
               <p>Choose a driver from the list to enter their settlement for {currentPeriod.periodName || currentPeriod.label}</p>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ marginTop: 16 }}
+                  onClick={() => setShowAddDriver(true)}
+                >
+                  + Add a driver
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Quick-add driver modal */}
+      <AddDriverModal
+        open={showAddDriver}
+        onClose={() => setShowAddDriver(false)}
+        onCreated={(driver) => {
+          setShowArchived(driver.status !== 'active');
+          setSuccessMessage(`Driver "${driver.full_name}" added.`);
+          router.refresh();
+          // Select the new driver once a period is active so settlement entry can begin.
+          if (currentPeriod) {
+            setTimeout(() => selectDriver(driver.id), 350);
+          }
+        }}
+      />
     </div>
   );
 }

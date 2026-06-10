@@ -16,9 +16,7 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
-import { TRIAL_DAYS, type Plan } from '@/lib/billing/plans';
-
-const PLAN_VALUES: Plan[] = ['trial', 'starter', 'growth', 'scale'];
+import { TRIAL_DAYS, TRIAL_PLAN, type Plan } from '@/lib/billing/plans';
 
 /**
  * Set a fleet's plan directly. A paid plan marks it activated + active; choosing
@@ -30,16 +28,26 @@ export async function setFleetPlanAction(
 ): Promise<{ error?: string; ok?: boolean }> {
   await requirePlatformAdmin();
 
-  if (!PLAN_VALUES.includes(plan)) {
-    return { error: 'Unknown plan.' };
+  const admin = createAdminClient();
+
+  // A platform admin may assign trial or any package key in the catalogue
+  // (including custom/draft tiers — unlike the self-serve set_organization_plan).
+  if (plan !== TRIAL_PLAN) {
+    const { data: planRow } = await admin
+      .from('plans')
+      .select('key')
+      .eq('key', plan)
+      .maybeSingle();
+    if (!planRow) {
+      return { error: 'Unknown plan.' };
+    }
   }
 
-  const admin = createAdminClient();
   const now = new Date();
 
   const patch: Record<string, unknown> = { plan, status: 'active' };
 
-  if (plan === 'trial') {
+  if (plan === TRIAL_PLAN) {
     patch.trial_started_at = now.toISOString();
     patch.trial_ends_at = new Date(
       now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000

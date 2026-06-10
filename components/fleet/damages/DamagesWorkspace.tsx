@@ -1,8 +1,9 @@
 'use client';
 
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import AddVehicleModal from '@/components/fleet/AddVehicleModal';
 
 export interface DamageVehicle {
   id: string;
@@ -45,6 +46,7 @@ function DmgStat({ label, value, accent, icon }: { label: string; value: string 
 
 export default function DamagesWorkspace({ vehicles, canManage }: Props) {
   const router = useRouter();
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
 
   const stats = {
     total: vehicles.reduce((s, v) => s + v.damages.total, 0),
@@ -62,6 +64,11 @@ export default function DamagesWorkspace({ vehicles, canManage }: Props) {
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Fleet damages</h1>
           </div>
         </div>
+        {canManage && (
+          <button style={st.primaryBtn} className="fleetHover" onClick={() => setShowAddVehicle(true)}>
+            <FleetIcon name="plus" size={14} stroke={2.2} /> Add vehicle
+          </button>
+        )}
       </div>
 
       <div style={st.statsRow} className="stats-row-mobile">
@@ -102,16 +109,32 @@ export default function DamagesWorkspace({ vehicles, canManage }: Props) {
         ))}
         {vehicles.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12 }}>
-            No vehicles found.
+            <p style={{ margin: 0 }}>No vehicles found.</p>
+            {canManage && (
+              <button
+                style={{ ...st.primaryBtn, margin: '14px auto 0' }}
+                className="fleetHover"
+                onClick={() => setShowAddVehicle(true)}
+              >
+                <FleetIcon name="plus" size={14} stroke={2.2} /> Add your first vehicle
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      <AddVehicleModal
+        open={showAddVehicle}
+        onClose={() => setShowAddVehicle(false)}
+        onCreated={() => router.refresh()}
+      />
     </>
   );
 }
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px' },
+  primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },
   stat: { padding: '14px 16px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 10 },
   vehicleRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', gap: 14, color: 'var(--text-3)' },

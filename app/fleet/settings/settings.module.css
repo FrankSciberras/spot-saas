@@ -1,6 +1,248 @@
+/* =============================================================================
+   Settings — Rovora Fleet flat aesthetic.
+   Uses the fleet design tokens (--bg-1/2/3, --line-1/2/3, --text-1/2/3,
+   --accent, --radius*) so it matches the other /fleet pages and the dark/light
+   toggle. The FleetShell already pads the page, so .container adds no padding.
+   ============================================================================= */
+
 .container {
-  max-width: 900px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header (breadcrumb + title, matches workspace pages) ─── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+}
+
+/* ─── Messages ─── */
+.message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.message.success,
+.success {
+  background: var(--pos-soft);
+  color: var(--pos);
+  border: 1px solid var(--accent-line);
+}
+
+.message.error,
+.error {
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+
+/* ─── Feature-toggle cards ─── */
+.settingsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.settingCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.settingCard:hover {
+  border-color: var(--line-3);
+  transform: translateY(-1px);
+}
+
+.settingIcon {
+  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.settingContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.settingLabel {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+  margin-bottom: 3px;
+}
+
+.settingDescription {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.settingMeta {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.settingAction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.statusLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+/* ─── Toggle switch ─── */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggleSlider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  transition: background 0.15s, border-color 0.15s;
+  border-radius: 24px;
+}
+
+.toggleSlider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--text-3);
+  transition: transform 0.15s, background 0.15s;
+  border-radius: 50%;
+}
+
+input:checked + .toggleSlider {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+input:checked + .toggleSlider:before {
+  transform: translateX(20px);
+  background: #fff;
+}
+
+.toggleDisabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ─── Info / empty states ─── */
+.infoCard {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-lg);
+}
+
+.infoIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.infoCard strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--text-1);
+  margin-bottom: 5px;
+}
+
+.infoCard p {
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.empty {
+  padding: 32px 18px;
+  text-align: center;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+}
+
+.empty p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.emptyHint {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  color: var(--text-3) !important;
 }
 
 .loading {
@@ -8,104 +250,68 @@
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  color: var(--text-muted);
+  color: var(--text-3);
+  font-size: 14px;
 }
 
-/* Header */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.headerContent h1 {
-  font-size: var(--font-2xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-  letter-spacing: -0.02em;
-}
-
-.headerContent p {
-  font-size: var(--font-base);
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-/* Message */
-.message {
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
-  margin-bottom: 20px;
-  font-weight: 500;
-  font-size: var(--font-sm);
-}
-
-.message.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.message.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-/* Branding */
+/* =============================================================================
+   Branding settings (BrandingSettings.tsx shares this module — class names
+   below must match that component exactly).
+   ============================================================================= */
 .brandSection {
   margin-bottom: 28px;
 }
 
 .sectionTitle {
-  font-size: var(--font-lg);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 2px;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: -0.01em;
+  color: var(--text-1);
+  margin: 0 0 3px;
 }
 
 .sectionSub {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-3);
   margin: 0 0 16px;
 }
 
 .brandCard {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
-  padding: 20px 24px;
-  margin-bottom: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 12px;
+  transition: border-color 0.15s;
+}
+
+.brandCard:hover {
+  border-color: var(--line-2);
 }
 
 .brandCardHead {
   margin-bottom: 16px;
 }
 
+/* Logo */
 .logoRow {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
 .logoPreview {
   width: 180px;
   height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
   padding: 8px 14px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .logoPreviewImg {
@@ -115,8 +321,8 @@
 }
 
 .logoPreviewEmpty {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-3);
   text-align: center;
 }
 
@@ -130,6 +336,7 @@
   display: none;
 }
 
+/* Colour */
 .colorRow {
   display: flex;
   align-items: center;
@@ -141,8 +348,8 @@
   width: 48px;
   height: 40px;
   padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
 }
@@ -150,231 +357,39 @@
 .colorHex {
   width: 120px;
   padding: 9px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--font-geist-mono, monospace);
-  font-size: var(--font-sm);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-/* Settings Grid */
-.settingsGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
+.colorHex:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.settingCard {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-fast);
-}
-
-.settingCard:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-color);
-}
-
-.settingIcon {
-  font-size: 1.5rem;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-lg);
-  flex-shrink: 0;
-}
-
-.settingContent {
-  flex: 1;
-  min-width: 0;
-}
-
-.settingLabel {
-  font-weight: 600;
-  font-size: var(--font-base);
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.settingDescription {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: 4px;
-}
-
-.settingMeta {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-}
-
-.settingAction {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.statusLabel {
-  font-size: var(--font-xs);
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-/* Toggle Switch */
-.toggle {
-  position: relative;
-  display: inline-block;
-  width: 52px;
-  height: 28px;
-}
-
-.toggle input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggleSlider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #cbd5e1;
-  border-radius: 28px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.toggleSlider:before {
-  position: absolute;
-  content: "";
-  height: 22px;
-  width: 22px;
-  left: 3px;
-  bottom: 3px;
-  background: white;
-  border-radius: 50%;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.toggle input:checked + .toggleSlider {
-  background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
-}
-
-.toggle input:checked + .toggleSlider:before {
-  transform: translateX(24px);
-}
-
-.toggle:hover .toggleSlider {
-  background: #94a3b8;
-}
-
-.toggle:hover input:checked + .toggleSlider {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-}
-
-.toggleDisabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-/* Empty State */
-.empty {
-  text-align: center;
-  padding: 48px 24px;
-  background: var(--bg-card);
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-xl);
-}
-
-.empty p {
-  color: var(--text-secondary);
-  margin: 0 0 8px;
-}
-
-.emptyHint {
-  font-size: var(--font-sm);
-  color: var(--text-muted);
-}
-
-/* Info Card */
-.infoCard {
-  display: flex;
-  gap: 14px;
-  padding: 18px 22px;
-  background: rgba(var(--color-primary-rgb), 0.06);
-  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
-  border-radius: var(--radius-xl);
-}
-
-.infoIcon {
-  font-size: 1.25rem;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.infoCard strong {
-  display: block;
-  color: var(--text-primary);
-  margin-bottom: 6px;
-  font-size: var(--font-sm);
-}
-
-.infoCard p {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .headerContent h1 {
-    font-size: var(--font-xl);
-  }
-
-  .headerContent p {
-    font-size: var(--font-sm);
-  }
-
+/* ─── Responsive ─── */
+@media (max-width: 640px) {
   .settingCard {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px;
+    text-align: center;
   }
 
   .settingAction {
     flex-direction: row;
-    align-self: stretch;
-    justify-content: space-between;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-subtle);
   }
 
-  .infoCard {
+  .colorRow {
     flex-direction: column;
-    gap: 8px;
+    align-items: flex-start;
   }
-}
 
-@media (max-width: 480px) {
-  .headerContent h1 {
-    font-size: var(--font-lg);
+  .logoRow {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

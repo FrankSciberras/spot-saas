@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
-import { getFleetBilling, TRIAL_DAYS } from '@/lib/billing/plans';
-import { spotFontVars } from '@/lib/spotFonts';
+import { createClient } from '@/lib/supabase/server';
+import { getFleetBilling } from '@/lib/billing/fleet-billing';
+import { getPlans } from '@/lib/billing/plans-data';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { isStripeEnabled } from '@/lib/billing/stripe';
+import { rovoraFontVars } from '@/lib/rovoraFonts';
 import PlanPicker from './PlanPicker';
 import styles from './billing.module.css';
 
@@ -13,10 +17,25 @@ export const dynamic = 'force-dynamic';
  *   - the fleet's trial has expired, or it outgrew its plan (locked), or
  *   - an operator wants to upgrade early during the trial.
  */
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string }>;
+}) {
   const user = await requireRole(['admin', 'staff']);
-  const billing = await getFleetBilling(user.organization_id);
+  const supabase = await createClient();
+  const [plans, billing, { data: org }, { checkout }] = await Promise.all([
+    getPlans(),
+    getFleetBilling(user.organization_id),
+    supabase
+      .from('organizations')
+      .select('stripe_customer_id')
+      .eq('id', user.organization_id)
+      .single(),
+    searchParams,
+  ]);
   const isAdmin = user.role === 'admin';
+  const canManageBilling = isStripeEnabled() && !!org?.stripe_customer_id;
 
   let heading: string;
   let sub: string;
@@ -39,15 +58,26 @@ export default async function BillingPage() {
   }
 
   return (
-    <div className={`${styles.page} ${spotFontVars}`}>
+    <div className={`${styles.page} ${rovoraFontVars}`}>
       <div className={styles.inner}>
         <div className={styles.head}>
           <div className={styles.brand}>
-            Spot<span className={styles.brandDot} />
+            <img src="/rovora logo trimmed.png" alt="Rovora" className={styles.brandLogo} />
           </div>
           <h1>{heading}</h1>
           <p>{sub}</p>
         </div>
+
+        {checkout === 'success' && (
+          <div className={`${styles.notice} ${styles.noticeOk}`}>
+            Payment received — your plan is being activated. This can take a few seconds to reflect.
+          </div>
+        )}
+        {checkout === 'cancelled' && (
+          <div className={`${styles.notice} ${styles.noticeWarn}`}>
+            Checkout cancelled — you haven&apos;t been charged. Pick a plan whenever you&apos;re ready.
+          </div>
+        )}
 
         <div className={styles.statusBar}>
           <span className={styles.chip}>
@@ -67,9 +97,11 @@ export default async function BillingPage() {
         </div>
 
         <PlanPicker
+          plans={plans}
           currentPlan={billing.plan}
           requiredPlan={billing.requiredPlan}
           isAdmin={isAdmin}
+          canManageBilling={canManageBilling}
         />
 
         {!billing.locked && (

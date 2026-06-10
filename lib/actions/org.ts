@@ -16,6 +16,10 @@ import {
   setActiveOrgCookie,
 } from '@/lib/auth/org-context';
 import type { Plan } from '@/lib/billing/plans';
+import { getPlans } from '@/lib/billing/plans-data';
+import { getPlanDef, hasStripeTarget } from '@/lib/billing/plans';
+import { isStripeEnabled } from '@/lib/billing/stripe';
+import { createPlanCheckoutSession } from '@/lib/billing/checkout';
 
 /**
  * Switch the active organization. Validates the caller is actually a member of
@@ -51,7 +55,7 @@ export async function setActiveOrgAction(organizationId: string): Promise<void> 
 export async function completeOnboardingAction(
   name: string,
   plan: Plan = 'trial'
-): Promise<{ error: string } | void> {
+): Promise<{ error: string } | { url: string } | void> {
   const trimmed = name?.trim();
   if (!trimmed) return { error: 'Fleet name is required' };
 
@@ -73,15 +77,36 @@ export async function completeOnboardingAction(
 
   await setActiveOrgCookie(orgId as string);
 
-  // Paid plan chosen during onboarding — activate it now (Stripe stub). If this
-  // fails the fleet simply stays on its trial, so let the user into the app.
+  // Paid plan chosen during onboarding.
   if (plan !== 'trial') {
-    const { error: planError } = await supabase.rpc('set_organization_plan', {
-      p_org: orgId as string,
-      p_plan: plan,
-    });
-    if (planError) {
-      console.error('completeOnboardingAction (plan) failed:', planError);
+    const plans = await getPlans();
+    const planDef = getPlanDef(plans, plan);
+
+    // Stripe configured + the plan has a price → send to Checkout. The fleet
+    // stays on its trial until payment is confirmed by the webhook, so if the
+    // user abandons checkout they still land in the app on the trial.
+    if (planDef && isStripeEnabled() && hasStripeTarget(planDef)) {
+      const result = await createPlanCheckoutSession({
+        orgId: orgId as string,
+        orgName: trimmed,
+        email: user.email ?? null,
+        plan: planDef,
+      });
+      if ('url' in result) {
+        revalidatePath('/', 'layout');
+        return { url: result.url };
+      }
+      // Checkout couldn't start — fall through and let them into the trial.
+      console.error('completeOnboardingAction (checkout) failed:', result.error);
+    } else {
+      // No Stripe yet — keep the old stub so dev still activates the tier.
+      const { error: planError } = await supabase.rpc('set_organization_plan', {
+        p_org: orgId as string,
+        p_plan: plan,
+      });
+      if (planError) {
+        console.error('completeOnboardingAction (plan) failed:', planError);
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { sendPushNotification } from '@/lib/notifications/push';
+import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
 
 /**
  * POST /api/shifts/check-service
@@ -40,13 +41,28 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    // Check if the service_due notification rule is active
+    // Get the vehicle first — its org scopes the rule + recipient lookups.
+    const { data: vehicle, error: vehicleError } = await adminClient
+      .from('vehicles')
+      .select('id, organization_id, registration_number, make, model')
+      .eq('id', vehicle_id)
+      .single();
+
+    if (vehicleError || !vehicle) {
+      return NextResponse.json(
+        { error: 'Vehicle not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if the service_due notification rule is active FOR THIS ORG.
     const { data: serviceRule, error: ruleError } = await adminClient
       .from('notification_rules')
       .select('*')
+      .eq('organization_id', vehicle.organization_id)
       .eq('trigger_type', 'service_due')
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     // Default threshold if no rule found - still create notifications
     let thresholdKm = 2000; // Default 2000km threshold
@@ -59,20 +75,6 @@ export async function POST(request: Request) {
     } else {
       // Get threshold from rule config
       thresholdKm = (serviceRule.trigger_config as { km_threshold?: number })?.km_threshold || 2000;
-    }
-
-    // Get the vehicle details
-    const { data: vehicle, error: vehicleError } = await adminClient
-      .from('vehicles')
-      .select('id, organization_id, registration_number, make, model')
-      .eq('id', vehicle_id)
-      .single();
-
-    if (vehicleError || !vehicle) {
-      return NextResponse.json(
-        { error: 'Vehicle not found' },
-        { status: 404 }
-      );
     }
 
     // Get all services with next_service_mileage for this vehicle
@@ -322,16 +324,11 @@ export async function POST(request: Request) {
       let driverRecipientCount = 0;
 
       if (target === 'admin' || target === 'all') {
-        const { data: adminUsers, error: adminUsersError } = await adminClient
-          .from('users')
-          .select('id, email, full_name, role')
-          .in('role', ['admin', 'staff']);
+        // Org-scoped: only THIS fleet's admins/staff (avoid the cross-tenant leak
+        // a global users query causes under the service role).
+        const adminUsers = await orgAdminStaffUsers(adminClient, vehicle.organization_id);
 
-        if (adminUsersError) {
-          console.error('Error fetching admin/staff users for service notification:', adminUsersError);
-        }
-
-        for (const u of adminUsers || []) {
+        for (const u of adminUsers) {
           recipients.push({
             user_id: u.id,
             email: u.email,
@@ -339,7 +336,7 @@ export async function POST(request: Request) {
           });
         }
 
-        adminRecipientCount = (adminUsers || []).length;
+        adminRecipientCount = adminUsers.length;
       }
 
       if (target === 'driver' || target === 'all') {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import CarDiagram, { ZONE_LABELS } from './CarDiagram';
 import type {
   VehicleDamage,
@@ -17,6 +18,9 @@ interface VehicleDamageTrackerProps {
   initialDamages: VehicleDamage[];
   isAdmin: boolean;
   sideZoneConfig?: Record<string, { path: string; hoverColor?: string }>;
+  topZoneConfig?: Record<string, { path: string; hoverColor?: string }>;
+  sideImageUrl?: string;
+  topImageUrl?: string;
 }
 
 const ALL_ZONES: DamageZone[] = Object.keys(ZONE_LABELS) as DamageZone[];
@@ -41,7 +45,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmin, sideZoneConfig }: VehicleDamageTrackerProps) {
+export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmin, sideZoneConfig, topZoneConfig, sideImageUrl, topImageUrl }: VehicleDamageTrackerProps) {
   const [damages, setDamages] = useState<VehicleDamage[]>(initialDamages);
   const [selectedZone, setSelectedZone] = useState<DamageZone | null>(null);
   const [hoveredZone, setHoveredZone] = useState<DamageZone | null>(null);
@@ -320,20 +324,36 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
       {/* Stats */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ color: 'var(--text-2)' }}>
+            <FleetIcon name="audit" size={15} />
+          </div>
           <div className={styles.statValue}>{damages.length}</div>
-          <div className={styles.statLabel}>Total Damages</div>
+          <div className={styles.statLabel}>Total damages</div>
+          <div className={styles.statSub}>all records</div>
         </div>
         <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ color: 'var(--neg)' }}>
+            <FleetIcon name="warning" size={15} />
+          </div>
           <div className={`${styles.statValue} ${styles.statValueDanger}`}>{openCount}</div>
           <div className={styles.statLabel}>Open</div>
+          <div className={styles.statSub}>need attention</div>
         </div>
         <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ color: 'var(--warn)' }}>
+            <FleetIcon name="shift" size={15} />
+          </div>
           <div className={`${styles.statValue} ${styles.statValueWarning}`}>{monitoringCount}</div>
           <div className={styles.statLabel}>Monitoring</div>
+          <div className={styles.statSub}>being watched</div>
         </div>
         <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ color: 'var(--pos)' }}>
+            <FleetIcon name="check" size={15} />
+          </div>
           <div className={`${styles.statValue} ${styles.statValueSuccess}`}>{repairedCount}</div>
           <div className={styles.statLabel}>Repaired</div>
+          <div className={styles.statSub}>resolved</div>
         </div>
       </div>
 
@@ -345,6 +365,9 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
         hoveredZone={hoveredZone}
         onZoneHover={setHoveredZone}
         sideZoneConfig={sideZoneConfig}
+        topZoneConfig={topZoneConfig}
+        sideImageUrl={sideImageUrl}
+        topImageUrl={topImageUrl}
       />
 
       {/* Legend */}

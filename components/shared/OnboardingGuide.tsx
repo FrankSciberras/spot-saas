@@ -26,11 +26,11 @@ const GUIDES: Guide[] = [
   {
     id: 'welcome',
     name: 'Welcome Tour',
-    description: 'Get started with SPOT Dashboard',
+    description: 'Get started with Rovora',
     icon: '👋',
     steps: [
       {
-        title: 'Welcome to SPOT Dashboard!',
+        title: 'Welcome to Rovora!',
         content: 'This quick tour will help you get familiar with the key features. Let\'s get you set up for success!',
         position: 'center',
       },
@@ -182,8 +182,8 @@ const GUIDES: Guide[] = [
     icon: '📲',
     steps: [
       {
-        title: 'Install SPOT Dashboard',
-        content: 'You can install SPOT Dashboard on your phone or computer for quick access and better notifications!',
+        title: 'Install Rovora',
+        content: 'You can install Rovora on your phone or computer for quick access and better notifications!',
         position: 'center',
       },
       {
@@ -220,7 +220,7 @@ const ADMIN_GUIDES: Guide[] = [
     steps: [
       {
         title: 'Welcome, Admin!',
-        content: 'This tour will help you understand the key management features of SPOT Dashboard.',
+        content: 'This tour will help you understand the key management features of Rovora.',
         position: 'center',
       },
       {
@@ -597,7 +597,7 @@ export default function OnboardingGuide({ userId, isNewUser = false, variant = '
                 <button className={styles.closeBtn} onClick={closeGuide}>×</button>
               </div>
               <p className={styles.guideListIntro}>
-                Choose a guide to learn about SPOT Dashboard features
+                Choose a guide to learn about Rovora features
               </p>
               <div className={styles.guides}>
                 {availableGuides.map(guide => {

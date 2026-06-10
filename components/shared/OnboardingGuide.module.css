@@ -40,7 +40,7 @@
   pointer-events: auto;
 }
 
-/* Highlight Box - creates the spotlight effect */
+/* Highlight Box - creates the highlight effect */
 .highlight {
   position: fixed;
   border-radius: 12px;

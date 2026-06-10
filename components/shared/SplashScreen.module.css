@@ -1,3 +1,9 @@
+/* ──────────────────────────────────────────────────────────────
+   Rovora app splash — minimal, modern preloader.
+   Deep near-black canvas with a soft accent glow and a glowing
+   conic-gradient ring spinner. No logo.
+   ────────────────────────────────────────────────────────────── */
+
 .splash {
   position: fixed;
   inset: 0;
@@ -5,8 +11,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); /* Keep dark for splash */
-  transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+  /* subtle radial depth instead of a flat fill */
+  background:
+    radial-gradient(60% 60% at 50% 42%, rgba(43, 189, 126, 0.10), transparent 70%),
+    #08090d;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
 }
 
 .splash.fadeOut {
@@ -20,73 +29,87 @@
   align-items: center;
   text-align: center;
   padding: 2rem;
+  /* gentle entrance for the whole stack */
+  animation: rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
-/* Logo */
-.logo {
-  width: 120px;
-  height: 120px;
-  margin-bottom: 1.5rem;
-  animation: pulse 2s ease-in-out infinite;
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
-.logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+/* ── Ring spinner ── */
+.loaderWrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1.9rem;
+  display: grid;
+  place-items: center;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-}
-
-/* Title */
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0 0 2rem 0;
-  letter-spacing: 0.05em;
-}
-
-/* Loading spinner */
-.loader {
-  margin-bottom: 1.5rem;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #60a5fa;
+/* soft pulsing halo behind the ring */
+.glow {
+  position: absolute;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  background: radial-gradient(circle, rgba(43, 189, 126, 0.30), transparent 60%);
+  filter: blur(6px);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* conic-gradient ring, masked to a thin band */
+.ring {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 8%, rgba(43, 189, 126, 0.25) 38%, #45c98e 92%, #9be3bf 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+  animation: spin 0.95s cubic-bezier(0.6, 0.1, 0.4, 0.9) infinite;
+}
+
+/* tiny bright core that breathes with the halo */
+.core {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9be3bf;
+  box-shadow: 0 0 12px 2px rgba(69, 201, 142, 0.7);
+  animation: breathe 2.4s ease-in-out infinite;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.55; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.06); }
 }
 
 /* Status text */
 .status {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  font-weight: 450;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   margin: 0;
-  min-height: 1.5em;
+  min-height: 1.4em;
+  animation: textPulse 2s ease-in-out infinite;
+}
+
+@keyframes textPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
 }
 
 .retryCount {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 /* Error state */
@@ -99,9 +122,10 @@
 }
 
 .errorHint {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
-  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+  margin: 0 0 0.25rem 0;
   max-width: 280px;
 }
 
@@ -109,63 +133,67 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 2rem;
-  background: var(--color-primary);
-  color: white;
+  padding: 0.7rem 1.75rem;
+  background: #2bbd7e;
+  color: #ffffff;
   border: none;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-weight: 500;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: filter 0.15s, transform 0.1s;
 }
 
 .retryBtn:hover {
-  background: var(--color-primary-dark);
+  filter: brightness(1.08);
 }
 
 .retryBtn:active {
-  transform: scale(0.98);
+  transform: translateY(1px);
 }
 
 .continueBtn {
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1.1rem;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9px;
+  font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .continueBtn:hover {
-  color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.32);
 }
 
-/* Mobile responsive */
+/* Respect reduced-motion: drop the entrance + spin, keep a gentle pulse only */
+@media (prefers-reduced-motion: reduce) {
+  .content { animation: none; }
+  .ring { animation-duration: 2.4s; animation-timing-function: linear; }
+  .glow, .core, .status { animation: none; }
+}
+
+/* Mobile */
 @media (max-width: 480px) {
-  .logo {
-    width: 100px;
-    height: 100px;
+  .loaderWrap {
+    width: 58px;
+    height: 58px;
   }
 
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .spinner {
-    width: 32px;
-    height: 32px;
+  .ring {
+    width: 58px;
+    height: 58px;
   }
 
   .status {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   .retryBtn {
     width: 100%;
-    max-width: 200px;
+    max-width: 220px;
   }
 }

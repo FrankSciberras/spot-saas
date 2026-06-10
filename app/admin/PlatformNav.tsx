@@ -64,7 +64,7 @@ export default function PlatformNav({ email }: { email: string }) {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.brand}>
-        Spot<span className={styles.brandDot} />
+        <img src="/rovora logo trimmed.png" alt="Rovora" className={styles.brandLogo} />
         <span className={styles.brandTag}>Platform</span>
       </div>
 

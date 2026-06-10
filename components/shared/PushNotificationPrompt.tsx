@@ -10,7 +10,7 @@ interface PushNotificationPromptProps {
   role?: UserRole;
 }
 
-const STORAGE_KEY = 'spot-push-prompt-shown';
+const STORAGE_KEY = 'rovora-push-prompt-shown';
 
 /**
  * Call this on logout to reset the prompt so it shows again on next login.
@@ -32,6 +32,20 @@ export default function PushNotificationPrompt({ variant, role }: PushNotificati
     if (sessionStorage.getItem(STORAGE_KEY)) return;
 
     const checkPushStatus = async () => {
+      // 0. For drivers, respect the fleet operator's toggle: if they've turned
+      //    the "Stay in the loop" nudge off for their fleet, never show it.
+      if (variant === 'driver') {
+        try {
+          const res = await fetch('/api/fleet/driver-push-prompt');
+          if (res.ok) {
+            const { prompt_drivers_push } = await res.json();
+            if (prompt_drivers_push === false) return;
+          }
+        } catch {
+          // Network error — fall through and prompt as usual.
+        }
+      }
+
       // 1. Check browser support
       if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
         return;
@@ -63,7 +77,7 @@ export default function PushNotificationPrompt({ variant, role }: PushNotificati
     // Small delay so the dashboard loads first
     const timer = setTimeout(checkPushStatus, 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [variant]);
 
   if (!show) return null;
 

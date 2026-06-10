@@ -1,12 +1,12 @@
 /* =============================================================================
-   Global Styles - SPOT Dashboard (Modern UI)
+   Global Styles - Rovora (Modern UI)
    ============================================================================= */
 
 :root {
   /* Primary Colors - These stay consistent across themes */
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-primary-light: #60a5fa;
+  --color-primary: #14784a;
+  --color-primary-dark: #14784a;
+  --color-primary-light: #45c98e;
   --color-primary-rgb: 37, 99, 235;
   
   /* Secondary & Status Colors */
@@ -56,7 +56,7 @@
   --badge-danger-bg: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
   --badge-danger-text: #b91c1c;
   --badge-info-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  --badge-info-text: #1d4ed8;
+  --badge-info-text: #14784a;
   --badge-primary-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   --badge-primary-text: var(--color-primary);
 
@@ -84,7 +84,7 @@
   --sidebar-bg: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
 
   /* Login page gradient */
-  --login-bg: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  --login-bg: linear-gradient(135deg, #1e3a8a 0%, #1a8f5a 100%);
 
   /* Icon filter for dark mode (no filter in light mode) */
   --icon-filter: none;
@@ -172,10 +172,10 @@
   --badge-warning-text: #fbbf24;
   --badge-danger-bg: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
   --badge-danger-text: #f87171;
-  --badge-info-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
-  --badge-info-text: #60a5fa;
-  --badge-primary-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
-  --badge-primary-text: #60a5fa;
+  --badge-info-bg: linear-gradient(135deg, rgba(20, 120, 74, 0.2) 0%, rgba(20, 120, 74, 0.1) 100%);
+  --badge-info-text: #45c98e;
+  --badge-primary-bg: linear-gradient(135deg, rgba(20, 120, 74, 0.2) 0%, rgba(20, 120, 74, 0.1) 100%);
+  --badge-primary-text: #45c98e;
 
   /* Alert backgrounds - Dark theme */
   --alert-success-bg: rgba(16, 185, 129, 0.15);
@@ -192,7 +192,7 @@
   --alert-info-text: #38bdf8;
 
   /* Stat icon backgrounds - Dark theme */
-  --stat-blue-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
+  --stat-blue-bg: linear-gradient(135deg, rgba(20, 120, 74, 0.2) 0%, rgba(20, 120, 74, 0.1) 100%);
   --stat-green-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
   --stat-purple-bg: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
   --stat-orange-bg: linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.1) 100%);
@@ -343,7 +343,7 @@ h4 {
 .form-textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(20, 120, 74, 0.1);
 }
 
 .form-input::placeholder {

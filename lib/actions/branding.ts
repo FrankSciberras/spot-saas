@@ -35,7 +35,7 @@ export async function updateBrandColorAction(color: string | null): Promise<Resu
   if (color && color.trim()) {
     const hex = color.trim().toLowerCase();
     if (!isValidHex(hex)) {
-      return { error: 'Enter a colour as a 6-digit hex value, e.g. #2f6bff.' };
+      return { error: 'Enter a colour as a 6-digit hex value, e.g. #1a8f5a.' };
     }
     value = hex;
   }
@@ -102,7 +102,7 @@ export async function uploadLogoAction(formData: FormData): Promise<Result> {
   return { ok: true, logoUrl: publicUrl };
 }
 
-/** Remove the custom logo and fall back to the default Spot logo. */
+/** Remove the custom logo and fall back to the default Rovora logo. */
 export async function removeLogoAction(): Promise<Result> {
   const user = await requireRole(['admin']);
 

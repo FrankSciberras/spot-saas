@@ -1,8 +1,13 @@
 /* =============================================================================
-   Vehicle Damages Tracker Styles
+   Vehicle Damages Tracker Styles.
+   The CAR DIAGRAM block (diagramContainer / diagramView / diagramLabel /
+   diagramSvg / zoneTooltip / zoneTooltipCount) is intentionally LEFT AS-IS —
+   it was fiddly to get right. Everything OUTSIDE the diagram (stats, legend,
+   filters, damage cards, modal, empty state, lightbox) is rethemed onto the
+   fleet design tokens so it matches the rest of the dashboard.
    ============================================================================= */
 
-/* Diagram Section */
+/* ───────── CAR DIAGRAM — do not restyle ───────── */
 .diagramContainer {
   position: relative;
   display: flex;
@@ -70,16 +75,17 @@
   opacity: 0.8;
   font-weight: 400;
 }
+/* ───────── end CAR DIAGRAM ───────── */
 
-/* Legend */
+/* ── Legend ── */
 .legend {
   display: flex;
-  gap: 1.25rem;
-  padding: 0.75rem 1rem;
-  background: var(--bg-card, #fff);
-  border-radius: 10px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  margin-bottom: 1.5rem;
+  gap: 22px;
+  padding: 14px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
@@ -88,9 +94,9 @@
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--text-secondary, #64748b);
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .legendDot {
@@ -100,69 +106,70 @@
   flex-shrink: 0;
 }
 
-.legendDotMinor {
-  background: #eab308;
-}
-
-.legendDotModerate {
-  background: #f59e0b;
-}
-
-.legendDotSevere {
-  background: #ef4444;
-}
-
+.legendDotMinor { background: #eab308; }
+.legendDotModerate { background: #f59e0b; }
+.legendDotSevere { background: #ef4444; }
 .legendDotNone {
-  background: var(--bg-secondary, #f1f5f9);
-  border: 1.5px solid var(--border-color, #d1d5db);
+  background: var(--bg-3);
+  border: 1.5px solid var(--line-3);
 }
 
-/* Stats Row */
+/* ── Stats Row ── */
 .statsRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .statCard {
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 10px;
-  padding: 1rem;
-  text-align: center;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px 14px;
+  text-align: left;
+}
+
+.statIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-2);
+  margin-bottom: 14px;
 }
 
 .statValue {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary, #1e293b);
-  line-height: 1.2;
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text-1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-family: var(--font-geist-mono, inherit);
 }
 
 .statLabel {
-  font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
-  margin-top: 0.25rem;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 2px;
 }
 
-.statValueDanger {
-  color: #ef4444;
+.statSub {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 4px;
 }
 
-.statValueWarning {
-  color: #f59e0b;
-}
+.statValueDanger { color: var(--neg); }
+.statValueWarning { color: var(--warn); }
+.statValueSuccess { color: var(--pos); }
 
-.statValueSuccess {
-  color: #22c55e;
-}
-
-/* Filters */
+/* ── Filters ── */
 .filters {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  gap: 12px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -170,76 +177,77 @@
 .filterGroup {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 7px;
 }
 
 .filterLabel {
-  font-size: 0.8rem;
+  font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-2);
 }
 
 .filterSelect {
-  padding: 0.4rem 0.6rem;
+  padding: 7px 10px;
   border-radius: 8px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #1e293b);
-  font-size: 0.8rem;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12.5px;
+  font-family: inherit;
   outline: none;
   cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .filterSelect:focus {
-  border-color: var(--color-primary, #6366f1);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .clearFilter {
-  font-size: 0.75rem;
-  color: var(--color-primary, #6366f1);
+  font-size: 12px;
+  color: var(--accent);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.3rem 0.5rem;
-  border-radius: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
 }
 
-.clearFilter:hover {
-  background: rgba(99, 102, 241, 0.08);
-}
+.clearFilter:hover { background: var(--accent-soft); }
 
-/* Damage Cards List */
+/* ── Damage Cards ── */
 .damageList {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 12px;
 }
 
 .damageCard {
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 12px;
-  padding: 1.25rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  transition: border-color 0.15s, transform 0.15s;
 }
 
 .damageCard:hover {
-  border-color: var(--color-primary, #6366f1);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+  border-color: var(--line-3);
+  transform: translateY(-2px);
 }
 
 .damageCardSelected {
-  border-color: var(--color-primary, #6366f1);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-line);
 }
 
 .damageCardHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
 .damageCardInfo {
@@ -249,91 +257,69 @@
 
 .damageZone {
   font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--text-primary, #1e293b);
-  margin-bottom: 0.25rem;
+  font-size: 14px;
+  color: var(--text-1);
+  margin-bottom: 4px;
 }
 
 .damageDescription {
-  font-size: 0.85rem;
-  color: var(--text-secondary, #64748b);
-  line-height: 1.4;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.45;
 }
 
 .damageBadges {
   display: flex;
-  gap: 0.4rem;
+  gap: 6px;
   flex-shrink: 0;
   flex-wrap: wrap;
 }
 
 .severityBadge {
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
-.severityMinor {
-  background: rgba(234, 179, 8, 0.12);
-  color: #a16207;
-}
-
-.severityModerate {
-  background: rgba(245, 158, 11, 0.12);
-  color: #b45309;
-}
-
-.severitySevere {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-}
+.severityMinor { background: var(--warn-soft); color: var(--warn); }
+.severityModerate { background: var(--warn-soft); color: var(--warn); }
+.severitySevere { background: var(--neg-soft); color: var(--neg); }
 
 .statusBadge {
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.statusOpen {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
-.statusRepaired {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-.statusMonitoring {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-}
+.statusOpen { background: var(--neg-soft); color: var(--neg); }
+.statusRepaired { background: var(--pos-soft); color: var(--pos); }
+.statusMonitoring { background: var(--accent-soft); color: var(--accent); }
 
 .damageCardMeta {
   display: flex;
-  gap: 1.25rem;
+  gap: 18px;
   flex-wrap: wrap;
-  font-size: 0.78rem;
-  color: var(--text-muted, #94a3b8);
-  margin-bottom: 0.75rem;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 12px;
 }
 
 .damageCardMeta span {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 5px;
 }
 
 .damageImages {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 0.75rem;
+  margin-bottom: 12px;
 }
 
 .damageImageThumb {
@@ -341,82 +327,84 @@
   height: 60px;
   border-radius: 8px;
   object-fit: cover;
-  border: 1px solid var(--border-color, #e2e8f0);
+  border: 1px solid var(--line-2);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .damageImageThumb:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .damageCardActions {
   display: flex;
-  gap: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-color, #e2e8f0);
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-1);
 }
 
 .damageNotes {
-  font-size: 0.8rem;
-  color: var(--text-secondary, #64748b);
+  font-size: 13px;
+  color: var(--text-2);
   font-style: italic;
-  margin-bottom: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--bg-secondary, #f8fafc);
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--bg-2);
   border-radius: 8px;
 }
 
-/* Empty State */
+/* ── Empty State ── */
 .emptyState {
   text-align: center;
-  padding: 3rem 1.5rem;
-  background: var(--bg-card, #fff);
-  border: 2px dashed var(--border-color, #e2e8f0);
-  border-radius: 12px;
+  padding: 48px 24px;
+  background: var(--bg-1);
+  border: 1px dashed var(--line-3);
+  border-radius: var(--radius-lg);
 }
 
 .emptyIcon {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 12px;
   opacity: 0.5;
+  color: var(--text-3);
 }
 
 .emptyTitle {
-  font-size: 1rem;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary, #1e293b);
-  margin-bottom: 0.25rem;
+  color: var(--text-1);
+  margin-bottom: 4px;
 }
 
 .emptyText {
-  font-size: 0.85rem;
-  color: var(--text-muted, #94a3b8);
-  margin-bottom: 1rem;
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 16px;
 }
 
-/* Modal */
+/* ── Modal ── */
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(4, 6, 12, 0.55);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 16px;
   animation: fadeIn 0.2s ease;
 }
 
 .modal {
-  background: var(--bg-card, #fff);
-  border-radius: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-elevated);
   animation: slideUp 0.25s ease;
 }
 
@@ -424,117 +412,116 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line-1);
 }
 
 .modalTitle {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-primary, #1e293b);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
 }
 
 .modalClose {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid var(--line-2);
   cursor: pointer;
-  color: var(--text-muted, #94a3b8);
-  padding: 0.3rem;
-  border-radius: 6px;
+  color: var(--text-2);
+  padding: 6px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s, color 0.15s;
 }
 
-.modalClose:hover {
-  background: var(--bg-secondary, #f1f5f9);
-  color: var(--text-primary, #1e293b);
-}
+.modalClose:hover { background: var(--bg-2); color: var(--text-1); }
 
 .modalBody {
-  padding: 1.5rem;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 16px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 7px;
 }
 
 .formLabel {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary, #64748b);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-2);
 }
 
 .formInput,
 .formSelect,
 .formTextarea {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #1e293b);
-  font-size: 0.875rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .formInput:focus,
 .formSelect:focus,
 .formTextarea:focus {
-  border-color: var(--color-primary, #6366f1);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .formTextarea {
   min-height: 70px;
   resize: vertical;
+  line-height: 1.5;
 }
 
 .formRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 14px;
 }
 
 .formHint {
-  font-size: 0.72rem;
-  color: var(--text-muted, #94a3b8);
+  font-size: 11.5px;
+  color: var(--text-3);
 }
 
-/* Image Upload */
+/* ── Image upload ── */
 .imageUploadArea {
-  border: 2px dashed var(--border-color, #e2e8f0);
+  border: 1.5px dashed var(--line-3);
   border-radius: 10px;
-  padding: 1rem;
+  padding: 16px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 .imageUploadArea:hover {
-  border-color: var(--color-primary, #6366f1);
-  background: rgba(99, 102, 241, 0.04);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .imageUploadLabel {
-  font-size: 0.8rem;
-  color: var(--text-muted, #94a3b8);
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
-.imageUploadLabel strong {
-  color: var(--color-primary, #6366f1);
-}
+.imageUploadLabel strong { color: var(--accent); }
 
 .uploadedImages {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 0.5rem;
+  margin-top: 8px;
 }
 
 .uploadedImageWrap {
@@ -548,7 +535,7 @@
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #e2e8f0);
+  border: 1px solid var(--line-2);
 }
 
 .removeImageBtn {
@@ -558,9 +545,9 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--neg);
   color: #fff;
-  border: 2px solid var(--bg-card, #fff);
+  border: 2px solid var(--bg-1);
   font-size: 10px;
   display: flex;
   align-items: center;
@@ -572,12 +559,12 @@
 .modalFooter {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-color, #e2e8f0);
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line-1);
 }
 
-/* Image Lightbox */
+/* ── Lightbox ── */
 .lightbox {
   position: fixed;
   inset: 0;
@@ -586,7 +573,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1100;
-  padding: 2rem;
+  padding: 32px;
   cursor: pointer;
 }
 
@@ -598,155 +585,99 @@
   cursor: default;
 }
 
-/* Fleet Damages Page */
-.fleetContainer {
-  max-width: 1200px;
-}
+/* ── Fleet Damages page (DamagesWorkspace overflow classes) ── */
+.fleetContainer { display: flex; flex-direction: column; }
 
 .fleetHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 16px;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 16px;
 }
 
 .vehicleDamageRow {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 10px;
-  margin-bottom: 0.75rem;
-  transition: border-color 0.2s ease;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  transition: border-color 0.15s;
   cursor: pointer;
   text-decoration: none;
   color: inherit;
 }
 
-.vehicleDamageRow:hover {
-  border-color: var(--color-primary, #6366f1);
-}
+.vehicleDamageRow:hover { border-color: var(--line-3); }
 
-.vehicleInfo {
-  flex: 1;
-  min-width: 0;
-}
+.vehicleInfo { flex: 1; min-width: 0; }
 
 .vehicleReg {
   font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--text-primary, #1e293b);
+  font-size: 15px;
+  color: var(--text-1);
 }
 
 .vehicleMake {
-  font-size: 0.8rem;
-  color: var(--text-muted, #94a3b8);
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
 .vehicleDamageCount {
   display: flex;
-  gap: 0.75rem;
+  gap: 12px;
   align-items: center;
 }
 
 .countBadge {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
   font-weight: 600;
 }
 
-/* Animations */
+/* ── Animations ── */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Tablet landscape */
+@media (prefers-reduced-motion: reduce) {
+  .modalOverlay, .modal { animation: none; }
+}
+
+/* ── Responsive ── */
 @media (max-width: 1400px) {
-  .diagramView {
-    min-width: 200px;
-    max-width: 360px;
-  }
-
-  .statsRow {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  }
+  .diagramView { min-width: 200px; max-width: 360px; }
+  .statsRow { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 }
 
-/* Tablet portrait & Mobile */
 @media (max-width: 768px) {
-  .diagramContainer {
-    flex-direction: column;
-    align-items: center;
-    padding: 1rem;
-  }
-
-  .diagramView {
-    max-width: 100%;
-  }
-
-  .formRow {
-    grid-template-columns: 1fr;
-  }
-
-  .statsRow {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .damageCardHeader {
-    flex-direction: column;
-  }
-
-  .modal {
-    max-height: 95vh;
-    border-radius: 12px;
-  }
-
-  .fleetHeader {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  .diagramContainer { flex-direction: column; align-items: center; padding: 1rem; }
+  .diagramView { max-width: 100%; }
+  .formRow { grid-template-columns: 1fr; }
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+  .damageCardHeader { flex-direction: column; }
+  .modal { max-height: 95vh; }
+  .fleetHeader { flex-direction: column; align-items: stretch; }
 }
 
 @media (max-width: 480px) {
-  .statsRow {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-  }
-
-  .statCard {
-    padding: 0.75rem;
-  }
-
-  .statValue {
-    font-size: 1.25rem;
-  }
-
-  .legend {
-    gap: 0.75rem;
-    padding: 0.5rem 0.75rem;
-  }
-
-  .damageCardActions {
-    flex-wrap: wrap;
-  }
+  .statsRow { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .statCard { padding: 12px; }
+  .statValue { font-size: 22px; }
+  .legend { gap: 12px; padding: 8px 12px; }
+  .damageCardActions { flex-wrap: wrap; }
 }

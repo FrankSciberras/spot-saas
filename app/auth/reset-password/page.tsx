@@ -98,11 +98,12 @@ export default function ResetPasswordPage() {
           <div className={styles.header}>
             <div className={styles.logo}>
               <Image
-                src="/Black Logo.svg"
-                alt="Spot Dashboard logo"
+                src="/rovora logo trimmed.png"
+                alt="Rovora logo"
                 className={styles.logoImage}
-                width={160}
-                height={44}
+                width={200}
+                height={50}
+                style={{ width: 'auto', height: 'auto' }}
                 priority
               />
             </div>
@@ -135,11 +136,12 @@ export default function ResetPasswordPage() {
           <div className={styles.header}>
             <div className={styles.logo}>
               <Image
-                src="/Black Logo.svg"
-                alt="Spot Dashboard logo"
+                src="/rovora logo trimmed.png"
+                alt="Rovora logo"
                 className={styles.logoImage}
-                width={160}
-                height={44}
+                width={200}
+                height={50}
+                style={{ width: 'auto', height: 'auto' }}
                 priority
               />
             </div>
@@ -169,11 +171,12 @@ export default function ResetPasswordPage() {
         <div className={styles.header}>
           <div className={styles.logo}>
             <Image
-              src="/Black Logo.svg"
-              alt="Spot Dashboard logo"
+              src="/rovora logo trimmed.png"
+              alt="Rovora logo"
               className={styles.logoImage}
-              width={160}
-              height={44}
+              width={200}
+              height={50}
+              style={{ width: 'auto', height: 'auto' }}
               priority
             />
           </div>

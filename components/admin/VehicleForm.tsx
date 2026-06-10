@@ -35,6 +35,13 @@ interface PartialVehicle {
   insurance_expiry_date?: string | null;
   road_license_expiry_date?: string | null;
   notes?: string | null;
+  vehicle_model_id?: string | null;
+}
+
+interface VehicleModelOption {
+  id: string;
+  name: string;
+  model_key: string;
 }
 
 interface VehicleFormProps {
@@ -82,7 +89,19 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
     insurance_expiry_date: vehicle?.insurance_expiry_date || '',
     road_license_expiry_date: vehicle?.road_license_expiry_date || '',
     notes: vehicle?.notes || '',
+    vehicle_model_id: vehicle?.vehicle_model_id || '',
   });
+
+  // Car-model diagram presets (managed by the platform admin) for the dropdown.
+  const [vehicleModels, setVehicleModels] = useState<VehicleModelOption[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/vehicle-models')
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((json) => { if (active) setVehicleModels(json.data || []); })
+      .catch(() => { /* non-fatal: dropdown just stays empty */ });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const loadAssignments = async () => {
@@ -227,6 +246,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         assigned_driver_ids: assignedDriverIds,
         insurance_expiry_date: formData.insurance_expiry_date || null,
         road_license_expiry_date: formData.road_license_expiry_date || null,
+        vehicle_model_id: formData.vehicle_model_id || null,
       };
 
       const res = await fetch(url, {
@@ -333,6 +353,22 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
               max={new Date().getFullYear() + 1}
               placeholder="e.g., 2023"
             />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="vehicle_model_id">Car model / diagram</label>
+            <select
+              id="vehicle_model_id"
+              name="vehicle_model_id"
+              value={formData.vehicle_model_id}
+              onChange={handleChange}
+            >
+              <option value="">— No diagram —</option>
+              {vehicleModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            <small className={styles.hint}>Pick the car model to show its damage diagram. Models are managed by your provider.</small>
           </div>
 
           <div className={styles.formGroup}>

@@ -59,6 +59,12 @@ interface CarDiagramProps {
   hoveredZone: DamageZone | null;
   onZoneHover: (zone: DamageZone | null) => void;
   sideZoneConfig?: Record<string, { path: string; hoverColor?: string }>;
+  topZoneConfig?: Record<string, { path: string; hoverColor?: string }>;
+  // Uploaded preset images. When present, the view renders the image + DB-traced
+  // zones overlaid (image-based preset); when absent it falls back to the
+  // built-in Yaris vector art.
+  sideImageUrl?: string;
+  topImageUrl?: string;
 }
 
 function getSeverityColor(severity: DamageSeverity): string {
@@ -91,7 +97,7 @@ interface ZonePathProps {
 
 function ZonePath({ zone, d, damageInfo, isSelected, isHovered, hoverColor, onClick, onMouseEnter, onMouseLeave }: ZonePathProps) {
   const hasDamage = damageInfo && damageInfo.count > 0;
-  const activeHoverColor = hoverColor || 'rgba(99, 102, 241, 0.12)';
+  const activeHoverColor = hoverColor || 'rgba(26, 143, 90, 0.12)';
   const fill = hasDamage
     ? getSeverityColor(damageInfo.maxSeverity)
     : isHovered
@@ -100,7 +106,7 @@ function ZonePath({ zone, d, damageInfo, isSelected, isHovered, hoverColor, onCl
   const stroke = hasDamage
     ? getSeverityStroke(damageInfo.maxSeverity)
     : isSelected
-      ? 'var(--color-primary, #6366f1)'
+      ? 'var(--color-primary, #1a8f5a)'
       : isHovered
         ? activeHoverColor
         : 'var(--border-color, #d1d5db)';
@@ -140,7 +146,7 @@ interface ZoneRectProps {
 
 function ZoneRect({ zone, x, y, width, height, rx = 0, damageInfo, isSelected, isHovered, hoverColor, onClick, onMouseEnter, onMouseLeave }: ZoneRectProps) {
   const hasDamage = damageInfo && damageInfo.count > 0;
-  const activeHoverColor = hoverColor || 'rgba(99, 102, 241, 0.12)';
+  const activeHoverColor = hoverColor || 'rgba(26, 143, 90, 0.12)';
   const fill = hasDamage
     ? getSeverityColor(damageInfo.maxSeverity)
     : isHovered
@@ -149,7 +155,7 @@ function ZoneRect({ zone, x, y, width, height, rx = 0, damageInfo, isSelected, i
   const stroke = hasDamage
     ? getSeverityStroke(damageInfo.maxSeverity)
     : isSelected
-      ? 'var(--color-primary, #6366f1)'
+      ? 'var(--color-primary, #1a8f5a)'
       : isHovered
         ? activeHoverColor
         : 'var(--border-color, #d1d5db)';
@@ -174,23 +180,91 @@ function ZoneRect({ zone, x, y, width, height, rx = 0, damageInfo, isSelected, i
   );
 }
 
-function DamageIndicator({ x, y, count, severity }: { x: number; y: number; count: number; severity: DamageSeverity }) {
+function DamageIndicator({ x, y, count, severity, r = 10, fontSize = 10 }: { x: number; y: number; count: number; severity: DamageSeverity; r?: number; fontSize?: number }) {
   const color = severity === 'severe' ? '#ef4444' : severity === 'moderate' ? '#f59e0b' : '#eab308';
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <circle cx={x} cy={y} r={10} fill={color} stroke="#fff" strokeWidth={2} />
-      <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="10" fontWeight="700">
+      <circle cx={x} cy={y} r={r} fill={color} stroke="#fff" strokeWidth={2} />
+      <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={fontSize} fontWeight="700">
         {count}
       </text>
     </g>
   );
 }
 
-export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hoveredZone, onZoneHover, sideZoneConfig }: CarDiagramProps) {
+/** Rough centroid of an SVG polygon path — averages its coordinate pairs.
+ *  Used to place damage indicators on traced zones of any shape/model. */
+function centroidOfPath(d: string): { x: number; y: number } {
+  const nums = (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  let sx = 0, sy = 0, n = 0;
+  for (let i = 0; i + 1 < nums.length; i += 2) { sx += nums[i]; sy += nums[i + 1]; n++; }
+  return n ? { x: sx / n, y: sy / n } : { x: 0, y: 0 };
+}
+
+interface ImageZoneViewProps {
+  imageUrl: string;
+  zoneConfig: Record<string, { path: string; hoverColor?: string }>;
+  zoneDamages: Record<string, ZoneDamageInfo>;
+  selectedZone: DamageZone | null;
+  hoveredZone: DamageZone | null;
+  onZoneClick: (zone: DamageZone) => void;
+  onZoneHover: (zone: DamageZone | null) => void;
+  ariaLabel: string;
+}
+
+/**
+ * Image-based diagram view: the preset's uploaded car image with the
+ * admin-traced damage zones overlaid as clickable hit areas. Both the zone
+ * polygons and this view share the 1536×1024 coordinate space used by the zone
+ * editor, so traced coordinates line up exactly with the image.
+ */
+function ImageZoneView({ imageUrl, zoneConfig, zoneDamages, selectedZone, hoveredZone, onZoneClick, onZoneHover, ariaLabel }: ImageZoneViewProps) {
+  const W = 1536, H = 1024;
+  const zones = Object.keys(zoneConfig) as DamageZone[];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={styles.diagramSvg} aria-label={ariaLabel} preserveAspectRatio="xMidYMid meet">
+      <image href={imageUrl} x={0} y={0} width={W} height={H} preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: 'none' }} />
+      {zones.map(zone => {
+        const info = zoneDamages[zone];
+        const hasDamage = info && info.count > 0;
+        const isHov = hoveredZone === zone;
+        const isSel = selectedZone === zone;
+        const hoverColor = zoneConfig[zone]?.hoverColor || 'rgba(26, 143, 90, 0.13)';
+        const hoverStroke = zoneConfig[zone]?.hoverColor || 'rgba(26, 143, 90, 0.5)';
+        return (
+          <path
+            key={`hit-${zone}`}
+            data-zone={zone}
+            d={zoneConfig[zone].path}
+            fill={hasDamage ? getSeverityColor(info.maxSeverity) : isHov ? hoverColor : 'transparent'}
+            stroke={isSel ? 'var(--color-primary, #1a8f5a)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? hoverStroke : 'transparent'}
+            strokeWidth={isSel || isHov ? 2.5 : 1.5}
+            strokeLinejoin="round"
+            style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+            onClick={() => onZoneClick(zone)}
+            onMouseEnter={() => onZoneHover(zone)}
+            onMouseLeave={() => onZoneHover(null)}
+          />
+        );
+      })}
+      {zones.map(zone => {
+        const info = zoneDamages[zone];
+        if (!info || info.count === 0) return null;
+        const c = centroidOfPath(zoneConfig[zone].path);
+        return <DamageIndicator key={`ind-${zone}`} x={c.x} y={c.y} count={info.count} severity={info.maxSeverity} r={26} fontSize={26} />;
+      })}
+    </svg>
+  );
+}
+
+export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hoveredZone, onZoneHover, sideZoneConfig, topZoneConfig, sideImageUrl, topImageUrl }: CarDiagramProps) {
   // Use DB-provided zone config if available, fall back to hardcoded defaults
   const activeSideZones: Record<string, { path: string; hoverColor?: string }> = sideZoneConfig && Object.keys(sideZoneConfig).length > 0
     ? sideZoneConfig
     : Object.fromEntries(Object.entries(SIDE_ZONE_PATHS).map(([zone, path]) => [zone, { path }])) as Record<string, { path: string; hoverColor?: string }>;
+  const activeTopZones: Record<string, { path: string; hoverColor?: string }> = topZoneConfig && Object.keys(topZoneConfig).length > 0
+    ? topZoneConfig
+    : {};
 
   const getZoneHoverColor = (zone: DamageZone) => activeSideZones[zone]?.hoverColor;
 
@@ -210,6 +284,18 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
       {/* Top-down view */}
       <div className={styles.diagramView}>
         <div className={styles.diagramLabel}>Top View</div>
+        {topImageUrl ? (
+          <ImageZoneView
+            imageUrl={topImageUrl}
+            zoneConfig={activeTopZones}
+            zoneDamages={zoneDamages}
+            selectedZone={selectedZone}
+            hoveredZone={hoveredZone}
+            onZoneClick={onZoneClick}
+            onZoneHover={onZoneHover}
+            ariaLabel="Vehicle top view"
+          />
+        ) : (
         <svg viewBox="0 0 200 440" className={styles.diagramSvg} aria-label="Toyota Yaris Cross top-down view">
           {/* === YARIS CROSS TOP-DOWN — refined from photo references === */}
 
@@ -309,33 +395,33 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
 
           {/* Wheels / Rims */}
           <rect data-zone="front_left_rim" x={36} y={102} width={14} height={36} rx={5}
-            fill={zoneDamages.front_left_rim ? getSeverityColor(zoneDamages.front_left_rim.maxSeverity) : (hoveredZone === 'front_left_rim' ? (getZoneHoverColor('front_left_rim') || 'rgba(99,102,241,0.25)') : 'var(--text-secondary, #64748b)')}
+            fill={zoneDamages.front_left_rim ? getSeverityColor(zoneDamages.front_left_rim.maxSeverity) : (hoveredZone === 'front_left_rim' ? (getZoneHoverColor('front_left_rim') || 'rgba(26, 143, 90,0.25)') : 'var(--text-secondary, #64748b)')}
             opacity={zoneDamages.front_left_rim || hoveredZone === 'front_left_rim' || selectedZone === 'front_left_rim' ? 1 : 0.35}
-            stroke={selectedZone === 'front_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.front_left_rim ? getSeverityStroke(zoneDamages.front_left_rim.maxSeverity) : 'none')}
+            stroke={selectedZone === 'front_left_rim' ? 'var(--color-primary, #1a8f5a)' : (zoneDamages.front_left_rim ? getSeverityStroke(zoneDamages.front_left_rim.maxSeverity) : 'none')}
             strokeWidth={selectedZone === 'front_left_rim' || hoveredZone === 'front_left_rim' ? 2.5 : 1.5}
             style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             onClick={() => onZoneClick('front_left_rim')} onMouseEnter={() => onZoneHover('front_left_rim')} onMouseLeave={() => onZoneHover(null)}
           />
           <rect data-zone="front_right_rim" x={150} y={102} width={14} height={36} rx={5}
-            fill={zoneDamages.front_right_rim ? getSeverityColor(zoneDamages.front_right_rim.maxSeverity) : (hoveredZone === 'front_right_rim' ? (getZoneHoverColor('front_right_rim') || 'rgba(99,102,241,0.25)') : 'var(--text-secondary, #64748b)')}
+            fill={zoneDamages.front_right_rim ? getSeverityColor(zoneDamages.front_right_rim.maxSeverity) : (hoveredZone === 'front_right_rim' ? (getZoneHoverColor('front_right_rim') || 'rgba(26, 143, 90,0.25)') : 'var(--text-secondary, #64748b)')}
             opacity={zoneDamages.front_right_rim || hoveredZone === 'front_right_rim' || selectedZone === 'front_right_rim' ? 1 : 0.35}
-            stroke={selectedZone === 'front_right_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.front_right_rim ? getSeverityStroke(zoneDamages.front_right_rim.maxSeverity) : 'none')}
+            stroke={selectedZone === 'front_right_rim' ? 'var(--color-primary, #1a8f5a)' : (zoneDamages.front_right_rim ? getSeverityStroke(zoneDamages.front_right_rim.maxSeverity) : 'none')}
             strokeWidth={selectedZone === 'front_right_rim' || hoveredZone === 'front_right_rim' ? 2.5 : 1.5}
             style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             onClick={() => onZoneClick('front_right_rim')} onMouseEnter={() => onZoneHover('front_right_rim')} onMouseLeave={() => onZoneHover(null)}
           />
           <rect data-zone="rear_left_rim" x={36} y={292} width={14} height={36} rx={5}
-            fill={zoneDamages.rear_left_rim ? getSeverityColor(zoneDamages.rear_left_rim.maxSeverity) : (hoveredZone === 'rear_left_rim' ? (getZoneHoverColor('rear_left_rim') || 'rgba(99,102,241,0.25)') : 'var(--text-secondary, #64748b)')}
+            fill={zoneDamages.rear_left_rim ? getSeverityColor(zoneDamages.rear_left_rim.maxSeverity) : (hoveredZone === 'rear_left_rim' ? (getZoneHoverColor('rear_left_rim') || 'rgba(26, 143, 90,0.25)') : 'var(--text-secondary, #64748b)')}
             opacity={zoneDamages.rear_left_rim || hoveredZone === 'rear_left_rim' || selectedZone === 'rear_left_rim' ? 1 : 0.35}
-            stroke={selectedZone === 'rear_left_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.rear_left_rim ? getSeverityStroke(zoneDamages.rear_left_rim.maxSeverity) : 'none')}
+            stroke={selectedZone === 'rear_left_rim' ? 'var(--color-primary, #1a8f5a)' : (zoneDamages.rear_left_rim ? getSeverityStroke(zoneDamages.rear_left_rim.maxSeverity) : 'none')}
             strokeWidth={selectedZone === 'rear_left_rim' || hoveredZone === 'rear_left_rim' ? 2.5 : 1.5}
             style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             onClick={() => onZoneClick('rear_left_rim')} onMouseEnter={() => onZoneHover('rear_left_rim')} onMouseLeave={() => onZoneHover(null)}
           />
           <rect data-zone="rear_right_rim" x={150} y={292} width={14} height={36} rx={5}
-            fill={zoneDamages.rear_right_rim ? getSeverityColor(zoneDamages.rear_right_rim.maxSeverity) : (hoveredZone === 'rear_right_rim' ? (getZoneHoverColor('rear_right_rim') || 'rgba(99,102,241,0.25)') : 'var(--text-secondary, #64748b)')}
+            fill={zoneDamages.rear_right_rim ? getSeverityColor(zoneDamages.rear_right_rim.maxSeverity) : (hoveredZone === 'rear_right_rim' ? (getZoneHoverColor('rear_right_rim') || 'rgba(26, 143, 90,0.25)') : 'var(--text-secondary, #64748b)')}
             opacity={zoneDamages.rear_right_rim || hoveredZone === 'rear_right_rim' || selectedZone === 'rear_right_rim' ? 1 : 0.35}
-            stroke={selectedZone === 'rear_right_rim' ? 'var(--color-primary, #6366f1)' : (zoneDamages.rear_right_rim ? getSeverityStroke(zoneDamages.rear_right_rim.maxSeverity) : 'none')}
+            stroke={selectedZone === 'rear_right_rim' ? 'var(--color-primary, #1a8f5a)' : (zoneDamages.rear_right_rim ? getSeverityStroke(zoneDamages.rear_right_rim.maxSeverity) : 'none')}
             strokeWidth={selectedZone === 'rear_right_rim' || hoveredZone === 'rear_right_rim' ? 2.5 : 1.5}
             style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
             onClick={() => onZoneClick('rear_right_rim')} onMouseEnter={() => onZoneHover('rear_right_rim')} onMouseLeave={() => onZoneHover(null)}
@@ -388,11 +474,24 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
           {zoneDamages.rear_left_rim && <DamageIndicator x={43} y={310} count={zoneDamages.rear_left_rim.count} severity={zoneDamages.rear_left_rim.maxSeverity} />}
           {zoneDamages.rear_right_rim && <DamageIndicator x={157} y={310} count={zoneDamages.rear_right_rim.count} severity={zoneDamages.rear_right_rim.maxSeverity} />}
         </svg>
+        )}
       </div>
 
       {/* Side view — hybrid: filled zone polygons (hit areas) + SVG outline (visual) */}
       <div className={styles.diagramView}>
         <div className={styles.diagramLabel}>Side View</div>
+        {sideImageUrl ? (
+          <ImageZoneView
+            imageUrl={sideImageUrl}
+            zoneConfig={activeSideZones}
+            zoneDamages={zoneDamages}
+            selectedZone={selectedZone}
+            hoveredZone={hoveredZone}
+            onZoneClick={onZoneClick}
+            onZoneHover={onZoneHover}
+            ariaLabel="Vehicle side view"
+          />
+        ) : (
         <svg viewBox="0 0 1536 1024" className={styles.diagramSvg} aria-label="Toyota Yaris Cross side view" preserveAspectRatio="xMidYMid meet">
 
           {/* Layer 1: Zone hit-area polygons — capture hover/click, show colored fill */}
@@ -401,15 +500,15 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
             const hasDamage = info && info.count > 0;
             const isHov = hoveredZone === zone;
             const isSel = selectedZone === zone;
-            const hoverColor = activeSideZones[zone]?.hoverColor || 'rgba(99, 102, 241, 0.13)';
-            const hoverStroke = activeSideZones[zone]?.hoverColor || 'rgba(99, 102, 241, 0.35)';
+            const hoverColor = activeSideZones[zone]?.hoverColor || 'rgba(26, 143, 90, 0.13)';
+            const hoverStroke = activeSideZones[zone]?.hoverColor || 'rgba(26, 143, 90, 0.35)';
             return (
               <path
                 key={`hit-${zone}`}
                 data-zone={zone}
                 d={activeSideZones[zone].path}
                 fill={hasDamage ? getSeverityColor(info.maxSeverity) : isHov ? hoverColor : 'transparent'}
-                stroke={isSel ? 'var(--color-primary, #6366f1)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? hoverStroke : 'transparent'}
+                stroke={isSel ? 'var(--color-primary, #1a8f5a)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? hoverStroke : 'transparent'}
                 strokeWidth={isSel || isHov ? 2 : 1.5}
                 strokeLinejoin="round"
                 style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
@@ -425,14 +524,14 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
             const hasDamage = info && info.count > 0;
             const isHov = hoveredZone === zone;
             const isSel = selectedZone === zone;
-            const hoverColor = getZoneHoverColor(zone) || 'rgba(99, 102, 241, 0.13)';
+            const hoverColor = getZoneHoverColor(zone) || 'rgba(26, 143, 90, 0.13)';
             return (
               <circle
                 key={`hit-${zone}`}
                 data-zone={zone}
                 cx={cx} cy={cy} r={90}
                 fill={hasDamage ? getSeverityColor(info.maxSeverity) : isHov ? hoverColor : 'transparent'}
-                stroke={isSel ? 'var(--color-primary, #6366f1)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? hoverColor : 'transparent'}
+                stroke={isSel ? 'var(--color-primary, #1a8f5a)' : hasDamage ? getSeverityStroke(info.maxSeverity) : isHov ? hoverColor : 'transparent'}
                 strokeWidth={isSel || isHov ? 2.5 : 1.5}
                 style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                 onClick={() => onZoneClick(zone)}
@@ -469,6 +568,7 @@ export default function CarDiagram({ zoneDamages, selectedZone, onZoneClick, hov
           {zoneDamages.front_left_rim && <DamageIndicator x={355} y={624} count={zoneDamages.front_left_rim.count} severity={zoneDamages.front_left_rim.maxSeverity} />}
           {zoneDamages.rear_left_rim && <DamageIndicator x={1203} y={634} count={zoneDamages.rear_left_rim.count} severity={zoneDamages.rear_left_rim.maxSeverity} />}
         </svg>
+        )}
       </div>
 
       {/* Hovered zone tooltip */}

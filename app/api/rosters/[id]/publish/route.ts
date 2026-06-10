@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
+import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -107,9 +108,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { data: rule } = await adminClient
       .from('notification_rules')
       .select('id, trigger_config, title_template, body_template, channel, target_role')
+      .eq('organization_id', roster.organization_id)
       .eq('trigger_type', triggerType)
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     const effectiveChannel = rule?.channel || 'all';
     const effectiveTargetRole = rule?.target_role || 'driver';
@@ -134,24 +136,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     const includeAdmins = effectiveTargetRole === 'admin' || effectiveTargetRole === 'all';
     const includeDrivers = effectiveTargetRole === 'driver' || effectiveTargetRole === 'all';
 
-    const adminUsers: { id: string; email: string | null; full_name: string | null }[] = [];
+    // Org-scoped — only THIS fleet's admins/staff (service role bypasses RLS, so
+    // a global users query would notify every fleet's admins — a cross-tenant leak).
+    let adminUsers: { id: string; email: string | null; full_name: string | null }[] = [];
     if (includeAdmins && (shouldSendEmail || shouldSendPush || shouldSendApp)) {
-      const { data: admins, error: adminsError } = await adminClient
-        .from('users')
-        .select('id, email, full_name, role')
-        .in('role', ['admin', 'staff']);
-
-      if (adminsError) {
-        console.error('Error fetching admin/staff recipients for roster notification:', adminsError);
-      }
-
-      for (const u of admins || []) {
-        adminUsers.push({
-          id: u.id,
-          email: u.email,
-          full_name: u.full_name,
-        });
-      }
+      adminUsers = await orgAdminStaffUsers(adminClient, roster.organization_id);
     }
 
     if (shouldSendApp) {

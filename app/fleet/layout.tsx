@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
-import { getFleetBilling } from '@/lib/billing/plans';
+import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import BrandingShell from '@/components/shared/BrandingShell';
 import { FleetBillingProvider } from '@/components/shared/FleetBillingProvider';
 import { FleetThemeRoot } from '@/components/fleet/FleetThemeRoot';

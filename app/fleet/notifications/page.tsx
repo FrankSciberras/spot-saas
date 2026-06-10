@@ -1,11 +1,24 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import NotificationManager from '@/components/admin/NotificationManager';
+import RunRulesButton from './RunRulesButton';
 import styles from './notifications.module.css';
 
 export default async function NotificationsPage() {
   const user = await requireRole(['admin']);
+  return (
+    <FleetShell user={user} title="Notifications">
+      <Suspense fallback={<FleetPageSkeleton variant="list" />}>
+        <NotificationsContent />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function NotificationsContent() {
   const supabase = await createClient();
 
   // Get notification rules
@@ -55,23 +68,22 @@ export default async function NotificationsPage() {
     .order('full_name');
 
   return (
-    <FleetShell user={user} title="Notifications">
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h2>Notification Management</h2>
-            <p className={styles.subtitle}>
-              Manage automated notifications and send custom messages
-            </p>
-          </div>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <h2>Notification Management</h2>
+          <p className={styles.subtitle}>
+            Manage automated notifications and send custom messages
+          </p>
         </div>
-
-        <NotificationManager 
-          initialRules={rules || []}
-          initialLogs={logs || []}
-          drivers={drivers || []}
-        />
+        <RunRulesButton />
       </div>
-    </FleetShell>
+
+      <NotificationManager
+        initialRules={rules || []}
+        initialLogs={logs || []}
+        drivers={drivers || []}
+      />
+    </div>
   );
 }

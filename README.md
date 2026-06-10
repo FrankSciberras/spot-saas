@@ -1,6 +1,6 @@
-# SPOT Dashboard - Cab Fleet Management System
+# Rovora Fleet Management
 
-A comprehensive Next.js 14 application for managing a taxi/cab fleet. Built with TypeScript, Supabase (auth + database), and CSS modules.
+Rovora is your true company overview of what happens on the road — fleet management for any fleet from 1 to 100+ vehicles. A comprehensive Next.js 14 application built with TypeScript, Supabase (auth + database), and CSS modules.
 
 ## Features
 
@@ -30,7 +30,7 @@ A comprehensive Next.js 14 application for managing a taxi/cab fleet. Built with
 ## Project Structure
 
 ```
-spot-dashboard/
+rovora-dashboard/
 ├── app/
 │   ├── admin/                 # Admin dashboard pages
 │   │   ├── drivers/           # Driver management
@@ -75,7 +75,7 @@ spot-dashboard/
 
 ```bash
 git clone <repository-url>
-cd spot-dashboard
+cd rovora-dashboard
 npm install
 ```
 

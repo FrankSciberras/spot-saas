@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Spot Dashboard',
-    short_name: 'Spot',
-    description: 'Fleet management dashboard for drivers and administrators',
+    name: 'Rovora Fleet Management',
+    short_name: 'Rovora',
+    description: 'Rovora is your true company overview of what happens on the road — fleet management for drivers and administrators.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

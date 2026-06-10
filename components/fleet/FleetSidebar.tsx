@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/lib/types/database';
+import { useBranding } from '@/components/shared/BrandingProvider';
 import FleetIcon from './FleetIcon';
 
 interface NavItem {
@@ -60,8 +61,9 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Profile',
+    label: 'Account',
     items: [
+      { id: 'billing', name: 'Billing & plan', href: '/fleet/billing', icon: 'settle', roles: ['admin'] },
       { id: 'profile-admin', name: 'My Profile', href: '/fleet/profile', icon: 'driver', roles: ['admin'] },
       { id: 'profile-staff', name: 'My Profile', href: '/staff/profile', icon: 'driver', roles: ['staff'] },
     ],
@@ -86,6 +88,7 @@ interface FleetSidebarProps {
 export default function FleetSidebar({ user, isMobile, open, onClose, onMenuToggle }: FleetSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { logoUrl } = useBranding();
 
   const canSee = (item: NavItem) => {
     if (!item.roles) return true;
@@ -112,13 +115,23 @@ export default function FleetSidebar({ user, isMobile, open, onClose, onMenuTogg
   const body = (
     <>
       <div style={s.logoWrap}>
-        <div style={s.logo}>
-          <FleetIcon name="logo" size={22} />
-        </div>
-        <div style={s.companyTag}>
-          <div style={s.companyName}>{user?.organization_name || 'Spot Cabs'}</div>
-          <div style={s.companyMeta}>Fleet ops</div>
-        </div>
+        {logoUrl ? (
+          // Custom fleet logo (set in Settings → Branding).
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={user?.organization_name || 'Fleet logo'} style={s.logoImg} />
+        ) : (
+          <>
+            <div style={s.logo}>
+              {/* Icon-only Rovora mark (no wordmark) — the org name sits beside it. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo without text.png" alt="Rovora" style={{ height: 30, width: 'auto' }} />
+            </div>
+            <div style={s.companyTag}>
+              <div style={s.companyName}>{user?.organization_name || 'Rovora'}</div>
+              <div style={s.companyMeta}>Fleet ops</div>
+            </div>
+          </>
+        )}
       </div>
 
       <nav style={s.nav}>
@@ -252,8 +265,9 @@ const s: Record<string, CSSProperties> = {
     textDecoration: 'none',
   },
   bottomTabActive: { color: 'var(--accent)' },
-  logoWrap: { display: 'flex', alignItems: 'center', gap: 10, padding: '18px', borderBottom: '1px solid var(--line-1)' },
+  logoWrap: { display: 'flex', alignItems: 'center', gap: 10, padding: '18px', borderBottom: '1px solid var(--line-1)', minHeight: 61 },
   logo: { color: 'var(--text-1)', display: 'flex', alignItems: 'center' },
+  logoImg: { maxWidth: '100%', maxHeight: 36, objectFit: 'contain' },
   companyTag: { display: 'flex', flexDirection: 'column', minWidth: 0 },
   companyName: { fontSize: 13, fontWeight: 600, color: 'var(--text-1)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 },
   companyMeta: { fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 },
@@ -290,7 +304,7 @@ const s: Record<string, CSSProperties> = {
     width: 32,
     height: 32,
     borderRadius: 7,
-    background: 'linear-gradient(135deg, #5b8dff, #3b6ad9)',
+    background: 'linear-gradient(135deg, #2bbd7e, #3b6ad9)',
     color: '#fff',
     fontWeight: 600,
     fontSize: 13.5,

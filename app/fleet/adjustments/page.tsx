@@ -1,7 +1,11 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import AdjustmentsWorkspace from './AdjustmentsWorkspace';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 /**
  * Admin Driver Adjustments Page
@@ -9,6 +13,16 @@ import AdjustmentsWorkspace from './AdjustmentsWorkspace';
  */
 export default async function AdjustmentsPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Driver Adjustments">
+      <Suspense fallback={<FleetPageSkeleton variant="list" stats={0} />}>
+        <AdjustmentsContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function AdjustmentsContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -28,12 +42,10 @@ export default async function AdjustmentsPage() {
     .order('date', { ascending: false });
 
   return (
-    <FleetShell user={user} title="Driver Adjustments">
-      <AdjustmentsWorkspace 
-        drivers={drivers || []}
-        adjustments={adjustments || []}
-        isAdmin={isAdmin}
-      />
-    </FleetShell>
+    <AdjustmentsWorkspace
+      drivers={drivers || []}
+      adjustments={adjustments || []}
+      isAdmin={isAdmin}
+    />
   );
 }

@@ -7,7 +7,7 @@
 -- cascades to that fleet's drivers (they share the same active org).
 --
 --   logo_url     public URL of the uploaded logo in the `branding` storage
---                bucket (NULL = use the default Spot logo)
+--                bucket (NULL = use the default Rovora logo)
 --   brand_color  hex string like '#2f6bff' (NULL = use the default palette)
 --
 -- Logo files are written server-side with the service-role key (see

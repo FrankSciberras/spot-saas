@@ -1,29 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 
 /**
  * POST /api/notifications/send
- * Send a custom notification to selected recipients
+ * Send a custom notification to selected recipients (fleet admin only).
+ *
+ * Authorization is by the caller's MEMBERSHIP role in their active org (the
+ * post-SaaS source of truth), not the deprecated global users.role — so any
+ * fleet admin can send, including multi-org users. The active org id is stamped
+ * explicitly onto every inserted notification so it lands in the right fleet.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile || profile.role !== 'admin') {
+  if (session.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  const orgId = session.organization_id;
 
   const body = await request.json();
   const {
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
       const { data: drivers } = await supabase
         .from('drivers')
         .select('id, full_name, user_id')
+        .eq('organization_id', orgId)
         .eq('status', 'active');
       targetDrivers = drivers || [];
     }
@@ -80,8 +81,9 @@ export async function POST(request: Request) {
       const { data: drivers } = await supabase
         .from('drivers')
         .select('id, full_name, user_id')
+        .eq('organization_id', orgId)
         .in('id', specific_ids);
-      
+
       if (drivers && drivers.length > 0) {
         targetDrivers = drivers;
       } else {
@@ -107,6 +109,7 @@ export async function POST(request: Request) {
       if (channels.includes('app')) {
         const now = new Date().toISOString();
         const appNotifications = targetDrivers.map(driver => ({
+          organization_id: orgId,
           driver_id: driver.id,
           title,
           body: message,
@@ -182,6 +185,7 @@ export async function POST(request: Request) {
         const { data: insertedNotif, error } = await supabase
           .from('notifications')
           .insert({
+            organization_id: orgId,
             driver_id: null,
             title,
             body: message,
@@ -250,6 +254,7 @@ export async function POST(request: Request) {
 
     // Log the notification
     await supabase.from('notification_log').insert({
+      organization_id: orgId,
       channel: channels.length === 1 ? channels[0] : 'all',
       title,
       body: message,

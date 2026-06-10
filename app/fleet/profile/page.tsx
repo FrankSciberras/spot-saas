@@ -1,15 +1,29 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import PushNotificationToggle from '@/components/shared/PushNotificationToggle';
 import ChangePasswordForm from '@/components/shared/ChangePasswordForm';
 import styles from './profile.module.css';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 /**
  * Admin Profile Page - View own profile and manage notifications
  */
 export default async function AdminProfilePage() {
   const user = await requireRole(['admin']);
+  return (
+    <FleetShell user={user} title="My Profile">
+      <Suspense fallback={<FleetPageSkeleton variant="form" />}>
+        <ProfileContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function ProfileContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
 
   // Get admin user details
@@ -20,8 +34,7 @@ export default async function AdminProfilePage() {
     .single();
 
   return (
-    <FleetShell user={user} title="My Profile">
-      <div className={styles.container}>
+    <div className={styles.container}>
         {/* Profile Header */}
         <div className={styles.profileHeader}>
           <div className={styles.avatar}>
@@ -105,7 +118,6 @@ export default async function AdminProfilePage() {
             <ChangePasswordForm />
           </div>
         </div>
-      </div>
-    </FleetShell>
+    </div>
   );
 }

@@ -11,7 +11,7 @@ interface FleetThemeContextValue {
 
 const FleetThemeContext = createContext<FleetThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'spot-fleet-theme';
+const STORAGE_KEY = 'rovora-fleet-theme';
 
 export function FleetThemeRoot({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<FleetTheme>('dark');

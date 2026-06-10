@@ -1,9 +1,13 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import DriversWorkspace, { type DriverItem, type DocState } from '@/components/fleet/drivers/DriversWorkspace';
 
-const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
+
+const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -34,6 +38,16 @@ function relativeTime(date: Date | null, now: Date): string {
 
 export default async function DriversPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Drivers">
+      <Suspense fallback={<FleetPageSkeleton variant="list" />}>
+        <DriversContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function DriversContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -127,9 +141,5 @@ export default async function DriversPage() {
     };
   });
 
-  return (
-    <FleetShell user={user} title="Drivers">
-      <DriversWorkspace drivers={drivers} canAdd={isAdmin} />
-    </FleetShell>
-  );
+  return <DriversWorkspace drivers={drivers} canAdd={isAdmin} />;
 }

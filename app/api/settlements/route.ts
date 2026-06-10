@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { CreateSettlementInput } from '@/lib/types/database';
 import { calculateSettlement, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
+import { resolveScheme } from '@/lib/config/settlements';
+
+const SCHEME_COLUMNS =
+  'settlement_driver_share_pct, settlement_tips_driver_pct, settlement_campaigns_driver_pct, settlement_fee_driver_pct';
 
 /**
  * GET /api/settlements - List settlements
@@ -137,6 +141,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // Resolve the effective settlement scheme for this driver:
+    // per-driver override (if set) -> fleet default -> code default.
+    const { data: driverRow } = await supabase
+      .from('drivers')
+      .select(`organization_id, ${SCHEME_COLUMNS}`)
+      .eq('id', body.driver_id)
+      .single();
+
+    let orgDefaults = null;
+    if (driverRow?.organization_id) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select(SCHEME_COLUMNS)
+        .eq('id', driverRow.organization_id)
+        .single();
+      orgDefaults = org;
+    }
+
+    const scheme = resolveScheme(orgDefaults, driverRow);
+
     // Calculate totals from platform data
     const platformInputs: PlatformEarningsInput[] = (body.platforms || []).map(p => ({
       platformId: p.platform_id,
@@ -147,7 +171,7 @@ export async function POST(request: Request) {
       campaigns: p.campaigns || 0,
     }));
 
-    const calculation = calculateSettlement(platformInputs, body.fss_tax);
+    const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme);
 
     // Create settlement
     const { data: settlement, error: settlementError } = await supabase
@@ -160,6 +184,10 @@ export async function POST(request: Request) {
         period_name: body.period_name || null,
         settlement_month: body.settlement_month || null,
         fss_tax: calculation.fssTax,
+        driver_share_pct: scheme.driverSharePct,
+        tips_driver_pct: scheme.tipsDriverPct,
+        campaigns_driver_pct: scheme.campaignsDriverPct,
+        fee_driver_pct: scheme.feeDriverPct,
         total_gross_fare: calculation.totalGrossFare,
         total_net: calculation.totalNet,
         total_balance_before_tax: calculation.totalBalanceBeforeTax,

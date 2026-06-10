@@ -1,98 +1,129 @@
-.container {
+/* Onboarding shares the trial-ended / billing screen's visual language:
+   open light layout, "Rovora •" wordmark, big heading, status chips and the
+   same plan-card styling. Values are kept in sync with billing.module.css. */
+
+.page {
   min-height: 100vh;
-  display: flex;
+  background: #f4f6fb;
+  padding: 48px 20px 80px;
+  font-family: var(--font-geist, ui-sans-serif, system-ui, sans-serif);
+  color: #0f172a;
+}
+
+.inner {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ── Head (brand + heading + subtitle) ── */
+.head {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.brand {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: var(--spacing-lg);
-  background: var(--login-bg);
-}
-
-.card {
-  width: 100%;
-  max-width: 420px;
-  background-color: var(--bg-primary);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  padding: var(--spacing-2xl);
-}
-
-.header {
-  text-align: center;
-  margin-bottom: var(--spacing-xl);
-}
-
-.logo {
-  max-width: 160px;
-  height: auto;
-  display: block;
-  margin: 0 auto var(--spacing-md);
-  filter: var(--logo-filter);
-}
-
-.title {
-  font-size: var(--font-xl);
+  gap: 9px;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  margin-bottom: 26px;
 }
 
-.subtitle {
-  color: var(--text-secondary);
-  font-size: var(--font-base);
+.brandDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1a8f5a;
+}
+
+.brandLogo {
+  height: 24px;
+  width: auto;
+  display: block;
+}
+
+.head h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.head p {
+  margin: 0 auto;
+  max-width: 540px;
+  color: #5b667d;
+  font-size: 15px;
   line-height: 1.5;
 }
 
-.form {
-  margin-top: var(--spacing-lg);
+.head p strong {
+  color: #0f172a;
+  font-weight: 700;
 }
 
-.error {
-  background-color: var(--alert-danger-bg);
-  border: 1px solid var(--alert-danger-border);
-  color: var(--alert-danger-text);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-md);
-  font-size: var(--font-sm);
-}
-
-.trialNote {
-  margin-top: var(--spacing-md);
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
-  line-height: 1.5;
-}
-
-/* ── Multi-step wizard ── */
-.cardWide {
-  max-width: 880px;
-  transition: max-width 0.25s ease;
-}
-
+/* ── Progress dots ── */
 .progress {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-bottom: var(--spacing-lg);
+  margin: 24px 0 4px;
 }
 
 .progressDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--border-color);
+  background: #d4dbe8;
   transition: all 0.25s ease;
 }
 
 .progressDot.progressActive {
   width: 26px;
   border-radius: 4px;
-  background: var(--color-primary);
+  background: #1a8f5a;
 }
 
 .progressDot.progressDone {
-  background: var(--color-primary);
+  background: #1a8f5a;
+}
+
+/* ── Status chips (mirrors billing) ── */
+.statusBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin: 26px 0 30px;
+}
+
+.chip {
+  background: #fff;
+  border: 1px solid #e3e8f1;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #475067;
+}
+
+.chip strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* ── Error ── */
+.error {
+  max-width: 540px;
+  margin: 0 auto 22px;
+  background: #fdecec;
+  border: 1px solid #f5c2c2;
+  color: #b42318;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: center;
 }
 
 .step {
@@ -104,162 +135,273 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Narrow form column (fleet name, range pickers) ── */
+.formWrap {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.fieldLabel {
+  display: block;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475067;
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: 10px;
+  border: 1px solid #d4dbe8;
+  background: #fff;
+  color: #0f172a;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input::placeholder {
+  color: #98a2b3;
+}
+
+.input:focus {
+  border-color: #1a8f5a;
+  box-shadow: 0 0 0 3px rgba(26, 143, 90, 0.12);
+}
+
+/* ── Range picker (driver / vehicle counts) ── */
 .rangeGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-  gap: 10px;
-  margin: var(--spacing-lg) 0;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 14px;
+  margin-bottom: 26px;
 }
 
 .rangeBtn {
-  padding: 16px 8px;
-  background: var(--bg-secondary);
-  border: 1.5px solid var(--border-color);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--font-base);
-  font-weight: 600;
+  padding: 18px 8px;
+  background: #fff;
+  border: 1px solid #e3e8f1;
+  border-radius: 12px;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .rangeBtn:hover {
-  border-color: var(--color-primary-light);
-  background: var(--bg-tertiary);
+  border-color: #b9c6e2;
 }
 
 .rangeBtn.rangeBtnActive {
-  border-color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb), 0.08);
-  color: var(--color-primary);
+  border-color: #1a8f5a;
+  background: #fff;
+  color: #1a8f5a;
+  box-shadow: 0 6px 26px rgba(26, 143, 90, 0.14);
+}
+
+/* ── Buttons (mirrors billing .btn / .btnPrimary) ── */
+.btn {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #d4dbe8;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  background: #f1f4fa;
+}
+
+.btnPrimary {
+  background: #1a8f5a;
+  border-color: #1a8f5a;
+  color: #fff;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #14784a;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnLg {
+  padding: 14px 18px;
+  font-size: 15px;
+}
+
+.btnFull {
+  width: 100%;
 }
 
 .navRow {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
+  margin-top: 8px;
 }
 
 .navRow .btn {
-  flex: 1;
+  min-width: 130px;
 }
 
-/* Plan grid */
-.planGrid {
+/* ── Plan grid (identical to billing) ── */
+.grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin: var(--spacing-lg) 0;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
 }
 
-.planCard {
-  position: relative;
+.card {
+  background: #fff;
+  border: 1px solid #e3e8f1;
+  border-radius: 16px;
+  padding: 26px 24px;
   display: flex;
   flex-direction: column;
-  padding: 20px 18px;
-  background: var(--bg-primary);
-  border: 1.5px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  text-align: left;
+  position: relative;
 }
 
-.planCard.planRecommended {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+.card.required {
+  border-color: #1a8f5a;
+  box-shadow: 0 6px 26px rgba(26, 143, 90, 0.14);
 }
 
-.planBadge {
-  position: absolute;
-  top: -10px;
-  left: 18px;
-  background: var(--color-primary);
+.recommend {
+  align-self: flex-start;
+  background: #1a8f5a;
   color: #fff;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.03em;
   text-transform: uppercase;
-  padding: 3px 10px;
-  border-radius: 20px;
+  letter-spacing: 0.05em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  margin-bottom: 12px;
 }
 
 .planName {
-  font-size: var(--font-lg);
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text-primary);
 }
 
-.planPrice {
-  font-size: 1.6rem;
+.price {
+  font-size: 30px;
   font-weight: 700;
-  color: var(--text-primary);
-  margin: 4px 0 12px;
+  letter-spacing: -0.02em;
+  margin: 8px 0 2px;
 }
 
-.planPrice span {
-  font-size: var(--font-sm);
+.price span {
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: #7a8499;
 }
 
-.planFeatures {
+.features {
   list-style: none;
-  margin: 0 0 16px;
+  margin: 16px 0 22px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #3f4759;
   flex: 1;
 }
 
-.planFeatures li {
+.features li {
   display: flex;
+  gap: 9px;
   align-items: flex-start;
-  gap: 8px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  line-height: 1.4;
 }
 
-.planFeatures svg {
-  width: 15px;
-  height: 15px;
+.features svg {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--color-primary);
+  color: #1a8f5a;
+  margin-top: 1px;
 }
 
-.planBtn {
+.cardBtn {
   width: 100%;
-  padding: 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--font-sm);
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #d4dbe8;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
 }
 
-.planBtn:hover:not(:disabled) {
-  border-color: var(--color-primary);
+.cardBtn:hover:not(:disabled) {
+  background: #f1f4fa;
 }
 
-.planBtn.planBtnPrimary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+.cardBtnPrimary {
+  background: #1a8f5a;
+  border-color: #1a8f5a;
   color: #fff;
 }
 
-.planBtn:disabled {
-  opacity: 0.55;
+.cardBtnPrimary:hover:not(:disabled) {
+  background: #14784a;
+}
+
+.cardBtn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
+/* ── Trial divider + footer ── */
+.orTrial {
+  text-align: center;
+  margin: 4px auto 18px;
+  max-width: 460px;
+}
+
+.foot {
+  text-align: center;
+  margin-top: 26px;
+  font-size: 13px;
+  color: #5b667d;
+}
+
+.spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 720px) {
-  .planGrid {
+  .grid {
     grid-template-columns: 1fr;
   }
 }

@@ -13,9 +13,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getActiveOrgId } from '@/lib/auth/org-context';
 
 export interface Branding {
-  /** Public URL of the org's logo, or null to use the default Spot logo. */
+  /** Public URL of the org's logo, or null to use the default Rovora logo. */
   logoUrl: string | null;
-  /** Hex accent colour like '#2f6bff', or null to use the default palette. */
+  /** Hex accent colour like '#1a8f5a', or null to use the default palette. */
   brandColor: string | null;
 }
 
@@ -83,11 +83,19 @@ export function brandColorVars(brandColor: string | null): CSSProperties | null 
   if (!brandColor || !isValidHex(brandColor)) return null;
 
   const { r, g, b } = hexToRgb(brandColor);
+  const rgb = `${r}, ${g}, ${b}`;
   // The cast lets us assign CSS custom properties through a typed style object.
   return {
+    // Legacy primary palette (driver app + non-fleet surfaces).
     '--color-primary': brandColor,
     '--color-primary-dark': shade(brandColor, -0.18),
     '--color-primary-light': shade(brandColor, 0.28),
-    '--color-primary-rgb': `${r}, ${g}, ${b}`,
+    '--color-primary-rgb': rgb,
+    // Fleet accent palette. fleet-theme.css reads these via var() fallbacks, so
+    // the whole dashboard accent (buttons, links, active nav, toggles) recolours.
+    '--brand-accent': brandColor,
+    '--brand-accent-rgb': rgb,
+    '--brand-accent-soft': `rgba(${rgb}, 0.14)`,
+    '--brand-accent-line': `rgba(${rgb}, 0.32)`,
   } as CSSProperties;
 }

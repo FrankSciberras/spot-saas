@@ -10,8 +10,26 @@ interface Notification {
   body: string;
   type: string;
   action_url?: string;
+  source?: string;
+  sender_label?: string | null;
   created_at: string;
   read_at: string | null;
+}
+
+/** Small "from" badge — shown when a notification came from the platform (Rovora HQ). */
+function SenderBadge({ n }: { n: Notification }) {
+  if (n.source !== 'platform') return null;
+  return (
+    <span
+      style={{
+        fontSize: 9.5, fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase',
+        padding: '1px 6px', borderRadius: 100, marginLeft: 6, verticalAlign: 'middle',
+        color: 'var(--accent, #2bbd7e)', background: 'var(--accent-soft, rgba(43, 189, 126,0.14))',
+      }}
+    >
+      {n.sender_label || 'Rovora HQ'}
+    </span>
+  );
 }
 
 export default function NotificationBell() {
@@ -165,7 +183,7 @@ export default function NotificationBell() {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className={styles.notificationContent}>
-                    <span className={styles.notificationTitle}>{notification.title}</span>
+                    <span className={styles.notificationTitle}>{notification.title}<SenderBadge n={notification} /></span>
                     <span className={styles.notificationBody}>{notification.body}</span>
                     <span className={styles.notificationTime}>{formatTime(notification.created_at)}</span>
                   </div>

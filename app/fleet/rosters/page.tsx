@@ -1,7 +1,11 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import RostersWorkspace, { type RosterItem } from '@/components/fleet/rosters/RostersWorkspace';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 function fmtDate(d: string | null): string {
   if (!d) return '—';
@@ -10,6 +14,16 @@ function fmtDate(d: string | null): string {
 
 export default async function RostersPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Rosters">
+      <Suspense fallback={<FleetPageSkeleton variant="list" stats={0} />}>
+        <RostersContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function RostersContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -29,9 +43,5 @@ export default async function RostersPage() {
     status: r.status || 'draft',
   }));
 
-  return (
-    <FleetShell user={user} title="Rosters">
-      <RostersWorkspace rosters={rosters} canManage={isAdmin} />
-    </FleetShell>
-  );
+  return <RostersWorkspace rosters={rosters} canManage={isAdmin} />;
 }

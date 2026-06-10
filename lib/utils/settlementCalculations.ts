@@ -4,7 +4,7 @@
 // Centralized calculation logic for driver settlements.
 // All formulas are defined here for consistency across the application.
 
-import { DRIVER_SHARE_PERCENT } from '@/lib/config/settlements';
+import { DEFAULT_SCHEME, type SettlementScheme } from '@/lib/config/settlements';
 
 /**
  * Platform earnings input data
@@ -69,25 +69,37 @@ export function formatCurrency(value: number, symbol = '€'): string {
 }
 
 /**
- * Calculate earnings for a single platform
- * 
- * Formulas:
- * - 50% = gross_fare * 0.5
- * - Fee = gross_fare * (platform_fee_percent / 100)
- * - Net = 50% - Fee
- * - Balance = Net - Cash Ride + Tips + Campaigns
+ * Calculate earnings for a single platform under a settlement scheme.
+ *
+ * Every "to driver" lever defaults (DEFAULT_SCHEME) to the original hardcoded
+ * model — 50/50 split, driver keeps all tips & campaigns, driver absorbs the
+ * full platform fee — so omitting `scheme` reproduces the legacy numbers.
+ *
+ * Formulas (pcts as 0–100):
+ * - Driver share  = gross_fare * driverSharePct%        (stored as `fiftyPercent`)
+ * - Platform fee  = gross_fare * platform_fee_percent%
+ * - Fee borne     = Platform fee * feeDriverPct%         (stored as `fee`)
+ * - Net           = Driver share - Fee borne
+ * - Balance       = Net - Cash Ride
+ *                       + Tips * tipsDriverPct%
+ *                       + Campaigns * campaignsDriverPct%
  */
-export function calculatePlatformEarnings(input: PlatformEarningsInput): PlatformEarningsCalculated {
+export function calculatePlatformEarnings(
+  input: PlatformEarningsInput,
+  scheme: SettlementScheme = DEFAULT_SCHEME
+): PlatformEarningsCalculated {
   const grossFare = safeNumber(input.grossFare);
   const platformFeePercent = safeNumber(input.platformFeePercent);
   const cashRide = safeNumber(input.cashRide);
   const tips = safeNumber(input.tips);
   const campaigns = safeNumber(input.campaigns);
 
-  const fiftyPercent = round2(grossFare * (DRIVER_SHARE_PERCENT / 100));
-  const fee = round2(grossFare * (platformFeePercent / 100));
+  const fiftyPercent = round2(grossFare * (scheme.driverSharePct / 100));
+  const fee = round2(grossFare * (platformFeePercent / 100) * (scheme.feeDriverPct / 100));
   const net = round2(fiftyPercent - fee);
-  const balance = round2(net - cashRide + tips + campaigns);
+  const tipsToDriver = round2(tips * (scheme.tipsDriverPct / 100));
+  const campaignsToDriver = round2(campaigns * (scheme.campaignsDriverPct / 100));
+  const balance = round2(net - cashRide + tipsToDriver + campaignsToDriver);
 
   return {
     platformId: input.platformId,
@@ -113,9 +125,10 @@ export function calculatePlatformEarnings(input: PlatformEarningsInput): Platfor
  */
 export function calculateSettlement(
   platformInputs: PlatformEarningsInput[],
-  fssTax: number
+  fssTax: number,
+  scheme: SettlementScheme = DEFAULT_SCHEME
 ): SettlementCalculation {
-  const platforms = platformInputs.map(calculatePlatformEarnings);
+  const platforms = platformInputs.map(p => calculatePlatformEarnings(p, scheme));
   const safeFssTax = safeNumber(fssTax);
 
   const totalGrossFare = round2(platforms.reduce((sum, p) => sum + p.grossFare, 0));

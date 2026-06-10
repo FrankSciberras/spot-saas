@@ -1,151 +1,152 @@
+/* =============================================================================
+   Role Permissions — Rovora Fleet flat aesthetic.
+   Uses the fleet design tokens (--bg-1, --line-1/2, --text-1/2/3, --accent,
+   --radius*) so it matches the other /fleet pages and the dark/light toggle.
+   The FleetShell already pads the page, so .container adds no outer padding.
+   ============================================================================= */
+
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.loading {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  color: var(--text-muted);
+  flex-direction: column;
 }
 
-/* Header */
+/* ─── Header (breadcrumb + title, matches workspace pages) ─── */
 .header {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
   gap: 16px;
-  flex-wrap: wrap;
+  margin-bottom: 22px;
 }
 
-.headerContent h1 {
-  font-size: var(--font-2xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-  letter-spacing: -0.02em;
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
 }
 
-.headerContent p {
-  font-size: var(--font-base);
-  color: var(--text-secondary);
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.title {
   margin: 0;
-}
-
-/* Message */
-.message {
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
-  margin-bottom: 20px;
+  font-size: 24px;
   font-weight: 500;
-  font-size: var(--font-sm);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
 }
 
-.message.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-3);
 }
 
-.message.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+/* ─── Messages ─── */
+.message {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
-/* Role Tabs */
+.success {
+  background: var(--pos-soft);
+  color: var(--pos);
+  border: 1px solid var(--accent-line);
+}
+
+.error {
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+
+/* ─── Role selector (pill cards) ─── */
 .roleTabs {
   display: flex;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .roleTab {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 16px 20px;
-  background: var(--bg-card);
-  border: 2px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  padding: 14px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
   text-align: left;
 }
 
 .roleTab:hover {
-  border-color: var(--border-color);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--line-3);
+  transform: translateY(-1px);
 }
 
 .roleTab.active {
-  border-color: var(--role-color, var(--color-primary));
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.05) 0%, transparent 100%);
-  box-shadow: var(--shadow-md);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-line);
 }
 
 .roleLabel {
-  font-size: var(--font-lg);
+  display: block;
+  font-size: 14.5px;
   font-weight: 600;
-  color: var(--text-primary);
-}
-
-.roleTab.active .roleLabel {
-  color: var(--role-color, var(--color-primary));
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+  margin-bottom: 2px;
 }
 
 .roleDescription {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
-/* Quick Actions */
+/* ─── Quick actions ─── */
 .quickActions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.quickActions > span {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+.quickActions span {
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
 .quickBtn {
-  padding: 6px 14px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-xs);
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-secondary);
+  font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background 0.15s, border-color 0.15s;
+  color: var(--text-1);
 }
 
 .quickBtn:hover {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
+  background: var(--bg-hover);
+  border-color: var(--line-3);
 }
 
-/* Table */
+/* ─── Table ─── */
 .tableWrapper {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 24px;
+  border: 1px solid var(--line-1);
 }
 
 .permissionsTable {
@@ -154,54 +155,37 @@
 }
 
 .permissionsTable thead {
-  background: var(--bg-secondary);
+  background: var(--bg-2);
 }
 
 .permissionsTable th {
-  padding: 14px 16px;
+  padding: 12px 16px;
   text-align: left;
-  font-size: var(--font-xs);
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-2);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.resourceCol {
-  width: 40%;
 }
 
 .permCol {
-  width: 15%;
   text-align: center !important;
+  width: 96px;
+}
+
+.resourceCol {
+  width: auto;
 }
 
 .permHeader {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-}
-
-.permHeader span {
-  font-size: var(--font-xs);
-}
-
-.permissionsTable tbody tr {
-  transition: background var(--transition-fast);
-}
-
-.permissionsTable tbody tr:hover {
-  background: var(--bg-secondary);
-}
-
-.permissionsTable tbody tr:not(:last-child) {
-  border-bottom: 1px solid var(--border-subtle);
+  justify-content: center;
 }
 
 .resourceCell {
-  padding: 16px;
+  padding: 13px 16px;
+  border-top: 1px solid var(--line-1);
 }
 
 .resourceInfo {
@@ -211,41 +195,44 @@
 }
 
 .resourceIcon {
-  font-size: 1.25rem;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
 }
 
 .resourceName {
   display: block;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: var(--font-sm);
+  font-weight: 500;
+  font-size: 13.5px;
+  color: var(--text-1);
 }
 
 .resourceDesc {
   display: block;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 1px;
 }
 
 .permCell {
+  padding: 13px 16px;
   text-align: center;
-  padding: 16px;
+  border-top: 1px solid var(--line-1);
 }
 
-/* Toggle Switch */
+/* ─── Toggle switch ─── */
 .toggle {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
 }
 
 .toggle input {
@@ -256,143 +243,98 @@
 
 .toggleSlider {
   position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #cbd5e1;
-  border-radius: 24px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  inset: 0;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: 22px;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.toggleSlider:before {
+.toggleSlider::before {
+  content: '';
   position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background: white;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  bottom: 2px;
+  background: var(--text-3);
   border-radius: 50%;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s, background 0.15s;
 }
 
 .toggle input:checked + .toggleSlider {
-  background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
-.toggle input:checked + .toggleSlider:before {
-  transform: translateX(20px);
+.toggle input:checked + .toggleSlider::before {
+  transform: translateX(18px);
+  background: #fff;
 }
 
-.toggle:hover .toggleSlider {
-  background: #94a3b8;
-}
-
-.toggle:hover input:checked + .toggleSlider {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-}
-
-/* Legend */
+/* ─── Legend ─── */
 .legend {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  padding: 16px 20px;
-  background: var(--bg-secondary);
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
-  margin-bottom: 16px;
 }
 
 .legendItem {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-}
-
-.legendIcon {
-  font-size: 1rem;
+  font-size: 12.5px;
+  color: var(--text-2);
 }
 
 .legendItem strong {
-  color: var(--text-primary);
+  color: var(--text-1);
+  font-weight: 600;
 }
 
-/* Note */
+.legendIcon {
+  font-size: 14px;
+}
+
+/* ─── Note ─── */
 .note {
-  padding: 14px 18px;
-  background: rgba(var(--color-primary-rgb), 0.06);
-  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
-  border-radius: var(--radius-lg);
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-2);
 }
 
 .note strong {
-  color: var(--color-primary);
+  color: var(--text-1);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .headerContent h1 {
-    font-size: var(--font-xl);
-  }
-
-  .headerContent p {
-    font-size: var(--font-sm);
-  }
-
+/* ─── Responsive ─── */
+@media (max-width: 720px) {
   .roleTabs {
     flex-direction: column;
+    gap: 10px;
   }
 
-  .roleTab {
-    padding: 12px 16px;
+  .permissionsTable th,
+  .resourceCell,
+  .permCell {
+    padding: 11px 10px;
   }
 
-  .roleLabel {
-    font-size: var(--font-base);
+  .permCol {
+    width: 56px;
   }
 
-  .tableWrapper {
-    overflow-x: auto;
-  }
-
-  .permissionsTable {
-    min-width: 600px;
-  }
-
-  .legend {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .quickActions {
-    flex-wrap: wrap;
-  }
-}
-
-@media (max-width: 480px) {
-  .headerContent h1 {
-    font-size: var(--font-lg);
-  }
-
-  .quickActions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .quickBtn {
-    width: 100%;
-    text-align: center;
+  .resourceDesc {
+    display: none;
   }
 }

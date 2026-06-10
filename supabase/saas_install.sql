@@ -1,5 +1,5 @@
 -- =============================================================================
--- SPOT SAAS - CONSOLIDATED INSTALL SCRIPT (auto-generated)
+-- Rovora SaaS - CONSOLIDATED INSTALL SCRIPT (auto-generated)
 -- Run this ONCE on a fresh empty Supabase project (SQL Editor).
 -- Reproduces the full current single-tenant schema. No multi-tenancy yet.
 -- Source files concatenated in dependency order (see headers below).
@@ -12,7 +12,7 @@
 -- #############################################################################
 
 -- =============================================================================
--- SPOT Dashboard - Supabase PostgreSQL Schema
+-- Rovora - Supabase PostgreSQL Schema
 -- =============================================================================
 -- Run this file in Supabase SQL Editor to create all required tables.
 -- This schema supports: users, drivers, vehicles, shifts, documents,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
+import AddDriverModal from '@/components/fleet/AddDriverModal';
 import styles from './RosterEditor.module.css';
 
 interface Vehicle {
@@ -41,15 +42,17 @@ interface RosterEditorProps {
   vehicles: Vehicle[];
   drivers: Driver[];
   mode: 'create' | 'edit';
+  isAdmin?: boolean;
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function RosterEditor({ roster, vehicles, drivers, mode }: RosterEditorProps) {
+export default function RosterEditor({ roster, vehicles, drivers, mode, isAdmin = false }: RosterEditorProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showAddDriver, setShowAddDriver] = useState(false);
   
   // Week selection
   const [weekStart, setWeekStart] = useState<string>(() => {
@@ -282,8 +285,17 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
           </button>
         </div>
         <div className={styles.headerRight}>
-          <button 
-            onClick={() => handleSave(false)} 
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowAddDriver(true)}
+              className={styles.addDriverBtnGhost}
+            >
+              + Add driver
+            </button>
+          )}
+          <button
+            onClick={() => handleSave(false)}
             className={styles.saveBtn}
             disabled={loading}
           >
@@ -364,10 +376,17 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
 
       {drivers.length === 0 && (
         <div className={styles.warning}>
-          <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
-            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
-          <span>No active drivers found. Please add drivers first.</span>
+          <span className={styles.warningText}>
+            <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+              <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            No active drivers found. Please add drivers first.
+          </span>
+          {isAdmin && (
+            <button type="button" className={styles.addDriverBtn} onClick={() => setShowAddDriver(true)}>
+              + Add driver
+            </button>
+          )}
         </div>
       )}
 
@@ -479,6 +498,13 @@ export default function RosterEditor({ roster, vehicles, drivers, mode }: Roster
           <span>{drivers.length} drivers</span>
         </div>
       </div>
+
+      {/* Quick-add driver modal */}
+      <AddDriverModal
+        open={showAddDriver}
+        onClose={() => setShowAddDriver(false)}
+        onCreated={() => router.refresh()}
+      />
     </div>
   );
 }

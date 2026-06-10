@@ -1,9 +1,14 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import RemindersManager from '@/components/admin/RemindersManager';
 import { getResourcePermissionsForUser } from '@/lib/permissions';
 import { redirect } from 'next/navigation';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
+type ReminderPerms = Awaited<ReturnType<typeof getResourcePermissionsForUser>>;
 
 export default async function RemindersPage() {
   const user = await requireRole(['admin', 'staff']);
@@ -13,6 +18,16 @@ export default async function RemindersPage() {
     redirect('/fleet');
   }
 
+  return (
+    <FleetShell user={user} title="Reminders">
+      <Suspense fallback={<FleetPageSkeleton variant="list" stats={0} />}>
+        <RemindersContent user={user} permissions={permissions} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function RemindersContent({ user, permissions }: { user: FleetUser; permissions: ReminderPerms }) {
   const supabase = createAdminClient();
   const isAdmin = user.role === 'admin';
 
@@ -42,13 +57,11 @@ export default async function RemindersPage() {
     : { data: [] };
 
   return (
-    <FleetShell user={user} title="Reminders">
-      <RemindersManager
-        initialReminders={reminders || []}
-        users={users || []}
-        isAdmin={isAdmin}
-        permissions={permissions}
-      />
-    </FleetShell>
+    <RemindersManager
+      initialReminders={reminders || []}
+      users={users || []}
+      isAdmin={isAdmin}
+      permissions={permissions}
+    />
   );
 }

@@ -1,5 +1,5 @@
 -- =============================================================================
--- SPOT Dashboard - Supabase PostgreSQL Schema
+-- Rovora - Supabase PostgreSQL Schema
 -- =============================================================================
 -- Run this file in Supabase SQL Editor to create all required tables.
 -- This schema supports: users, drivers, vehicles, shifts, documents,

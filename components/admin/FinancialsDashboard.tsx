@@ -904,7 +904,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
   }, [totals.expenses]);
 
   const palette = {
-    income: ['#2563eb', '#0ea5e9', '#8b5cf6', '#64748b'],
+    income: ['#14784a', '#0ea5e9', '#8b5cf6', '#64748b'],
     expenses: ['#f59e0b', '#ef4444', '#0ea5e9', '#8b5cf6', '#10b981', '#64748b', '#f97316', '#a1a1b5'],
   };
 

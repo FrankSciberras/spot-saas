@@ -11,7 +11,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUPA="$(cd "$HERE/.." && pwd)"
-CONTAINER="spot_saas_validate"
+CONTAINER="rovora_saas_validate"
 PGIMAGE="postgres:16"
 PGPASSWORD="postgres"
 PORT="55433"

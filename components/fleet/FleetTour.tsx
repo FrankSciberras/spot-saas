@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import FleetIcon from './FleetIcon';
+import { markFleetTourCompletedAction } from '@/lib/actions/fleet-tour';
 
 interface TourStep {
   target?: string;
@@ -12,7 +13,7 @@ interface TourStep {
 
 const STEPS: TourStep[] = [
   {
-    title: 'Welcome to Spot',
+    title: 'Welcome to Rovora',
     body: "This quick tour shows you around your fleet dashboard. You're on a free 30-day trial — no card needed. Let's take a look.",
   },
   {
@@ -67,9 +68,12 @@ interface Props {
   userId?: string;
   /** Only auto-start the tour for fleet operators (admins). */
   role?: string;
+  /** True once the user has already seen the tour (persisted server-side).
+   *  When true the tour never auto-opens again — only the manual replay button. */
+  tourCompleted?: boolean;
 }
 
-export default function FleetTour({ userId, role }: Props) {
+export default function FleetTour({ userId, role, tourCompleted }: Props) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
@@ -79,6 +83,8 @@ export default function FleetTour({ userId, role }: Props) {
 
   useEffect(() => {
     setMounted(true);
+    // Server-persisted "seen" flag wins — the tour shows only once, ever.
+    if (tourCompleted) return;
     let done = false;
     try {
       done = localStorage.getItem(storageKey(userId)) === '1';
@@ -89,10 +95,21 @@ export default function FleetTour({ userId, role }: Props) {
       const t = setTimeout(() => {
         setI(0);
         setOpen(true);
+        // Persist immediately so it never auto-opens again, even if the operator
+        // navigates away without finishing. Manual replay (the ? button) is
+        // unaffected — it doesn't touch this flag.
+        try {
+          localStorage.setItem(storageKey(userId), '1');
+        } catch {
+          /* ignore */
+        }
+        markFleetTourCompletedAction().catch(() => {
+          /* non-fatal: localStorage still guards this session */
+        });
       }, 700);
       return () => clearTimeout(t);
     }
-  }, [userId, role]);
+  }, [userId, role, tourCompleted]);
 
   // Resolve the highlight rect for the current step.
   useEffect(() => {

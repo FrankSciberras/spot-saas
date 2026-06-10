@@ -33,7 +33,7 @@ export async function getSession(): Promise<SessionUser | null> {
   // Identity/profile fields (org-independent).
   const { data: profile } = await supabase
     .from('users')
-    .select('id, email, full_name')
+    .select('id, email, full_name, fleet_tour_completed_at')
     .eq('id', user.id)
     .single();
 
@@ -59,6 +59,7 @@ export async function getSession(): Promise<SessionUser | null> {
     organization_id: active.organization_id,
     organization_name: active.organization_name,
     memberships,
+    fleet_tour_completed: !!(profile as { fleet_tour_completed_at?: string | null } | null)?.fleet_tour_completed_at,
   };
 }
 

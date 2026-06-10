@@ -1,9 +1,11 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import ShiftsWorkspace, { type ShiftItem } from '@/components/fleet/shifts/ShiftsWorkspace';
 
-const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
+const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
 
 function initialsOf(name: string): string {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -14,6 +16,16 @@ function initialsOf(name: string): string {
 
 export default async function ShiftsPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Driver Shifts">
+      <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
+        <ShiftsContent />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function ShiftsContent() {
   const supabase = await createClient();
   const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 
@@ -76,9 +88,5 @@ export default async function ShiftsPage() {
 
   const driverNames = Array.from(new Set(shifts.map((s) => s.driver))).sort();
 
-  return (
-    <FleetShell user={user} title="Driver Shifts">
-      <ShiftsWorkspace shifts={shifts} driverNames={driverNames} />
-    </FleetShell>
-  );
+  return <ShiftsWorkspace shifts={shifts} driverNames={driverNames} />;
 }

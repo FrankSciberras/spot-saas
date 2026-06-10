@@ -5,6 +5,7 @@ import RosterEditor from '@/components/admin/RosterEditor';
 
 export default async function NewRosterPage() {
   const user = await requireRole(['admin', 'staff']);
+  const isAdmin = user.role === 'admin';
   const supabase = await createClient();
 
   // Get all vehicles (active preferred, but show all if none active)
@@ -43,10 +44,11 @@ export default async function NewRosterPage() {
 
   return (
     <FleetShell user={user} title="New Roster">
-      <RosterEditor 
-        vehicles={vehicles || []} 
-        drivers={drivers || []} 
+      <RosterEditor
+        vehicles={vehicles || []}
+        drivers={drivers || []}
         mode="create"
+        isAdmin={isAdmin}
       />
     </FleetShell>
   );

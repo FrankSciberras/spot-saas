@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { UpdateSettlementInput } from '@/lib/types/database';
 import { calculateSettlement, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
+import type { SettlementScheme } from '@/lib/config/settlements';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -91,16 +92,25 @@ export async function PUT(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Check if settlement exists
+    // Check if settlement exists. Pull its FROZEN scheme snapshot too: edits
+    // re-price against the scheme this settlement was created under, never the
+    // fleet's current (possibly since-changed) scheme.
     const { data: existing } = await supabase
       .from('driver_settlements')
-      .select('id, status')
+      .select('id, status, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct')
       .eq('id', id)
       .single();
 
     if (!existing) {
       return NextResponse.json({ error: 'Settlement not found' }, { status: 404 });
     }
+
+    const scheme: SettlementScheme = {
+      driverSharePct: existing.driver_share_pct,
+      tipsDriverPct: existing.tips_driver_pct,
+      campaignsDriverPct: existing.campaigns_driver_pct,
+      feeDriverPct: existing.fee_driver_pct,
+    };
 
     // Parse request body
     const body: UpdateSettlementInput = await request.json();
@@ -141,7 +151,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }));
 
       const fssTax = body.fss_tax ?? 0;
-      const calculation = calculateSettlement(platformInputs, fssTax);
+      const calculation = calculateSettlement(platformInputs, fssTax, scheme);
 
       updateData = {
         ...updateData,
@@ -199,7 +209,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         campaigns: p.campaigns || 0,
       }));
 
-      const calculation = calculateSettlement(platformInputs, body.fss_tax);
+      const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme);
 
       updateData = {
         ...updateData,

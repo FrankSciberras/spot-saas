@@ -111,6 +111,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (body.road_license_expiry_date !== undefined) updateData.road_license_expiry_date = body.road_license_expiry_date;
     if (body.color !== undefined) updateData.color = body.color;
     if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.vehicle_model_id !== undefined) updateData.vehicle_model_id = body.vehicle_model_id;
     updateData.updated_at = new Date().toISOString();
 
     const { data: vehicle, error } = await supabase

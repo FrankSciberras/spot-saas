@@ -1,8 +1,16 @@
-// Shared types for the Spot Admin Console (platform back-office).
+// Shared types for the Rovora Admin Console (platform back-office).
 // Operators = organizations (fleets). Packages = the real plan catalogue.
 // Billing metrics are derived from real plan assignments + timestamps.
 
-export type RealPlan = 'trial' | 'starter' | 'growth' | 'scale';
+// A plan key: 'trial' (built-in) or any package `key` from the dynamic catalogue.
+export type RealPlan = string;
+
+/** Display label + colours for a plan key, derived from the catalogue. */
+export interface PlanMeta {
+  label: string;
+  color: string;
+  bg: string;
+}
 
 /** Mockup-aligned operator status used for pills / filtering. */
 export type OpStatus = 'active' | 'trial' | 'past_due' | 'churned';
@@ -104,22 +112,8 @@ export interface AdminData {
   /** Month-over-month MRR growth %, from the trend tail. */
   momGrowth: number;
   adminEmail: string;
+  /** Display label + colours per plan key (incl. 'trial'), from the catalogue. */
+  planMeta: Record<string, PlanMeta>;
+  /** Plan keys a platform admin can assign to an operator (incl. 'trial'). */
+  assignablePlans: string[];
 }
-
-// ── Plan presentation + flat monthly pricing (EUR) ──
-// Real catalogue is flat-rate (lib/billing/plans.ts uses $49 / $149 / Custom).
-// We mirror those as EUR here; `scale` is a nominal figure for an otherwise
-// "Custom" tier so platform metrics have a number to total.
-export const PLAN_PRICE: Record<RealPlan, number> = {
-  trial: 0,
-  starter: 49,
-  growth: 149,
-  scale: 399,
-};
-
-export const PLAN_META: Record<RealPlan, { label: string; color: string }> = {
-  trial: { label: 'Trial', color: 'var(--text-3)' },
-  starter: { label: 'Starter', color: 'var(--text-2)' },
-  growth: { label: 'Growth', color: 'var(--accent)' },
-  scale: { label: 'Scale', color: '#a78bfa' },
-};

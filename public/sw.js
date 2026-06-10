@@ -1,5 +1,5 @@
-// Spot Dashboard Service Worker
-const CACHE_NAME = 'spot-dashboard-v14';
+// Rovora Fleet Management Service Worker
+const CACHE_NAME = 'rovora-dashboard-v15';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use
@@ -135,7 +135,7 @@ self.addEventListener('push', (event) => {
   console.log('[SW] Push received');
   
   let data = {
-    title: 'Spot Dashboard',
+    title: 'Rovora',
     body: 'You have a new notification',
     icon: '/icons/android-chrome-192x192.png',
     badge: '/icons/favicon-32x32.png',

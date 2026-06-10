@@ -71,18 +71,62 @@
 
 .publishBtn {
   padding: 0.6rem 1.25rem;
-  background: var(--color-success);
+  background: var(--accent);
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
-  font-weight: 500;
-  color: white;
+  font-weight: 600;
+  color: #fff;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: filter var(--transition-fast);
 }
 
 .publishBtn:hover:not(:disabled) {
-  background: #1da34d;
+  filter: brightness(1.08);
+}
+
+/* Add-driver button (header + warning) */
+.addDriverBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  transition: filter var(--transition-fast);
+  white-space: nowrap;
+}
+
+.addDriverBtn:hover {
+  filter: brightness(1.08);
+}
+
+.addDriverBtnGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.6rem 1.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.addDriverBtnGhost:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color-dark);
 }
 
 .publishBtn:disabled {
@@ -399,11 +443,18 @@
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-lg);
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: var(--warn-soft, rgba(245, 158, 11, 0.1));
+  border: 1px solid var(--warn, rgba(245, 158, 11, 0.3));
   border-radius: var(--radius-lg);
-  color: #b45309;
+  color: var(--warn, #b45309);
   font-size: var(--font-sm);
+}
+
+.warningText {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .warning svg {

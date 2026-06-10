@@ -260,7 +260,7 @@ function EarningsPanel({ data, totals }: { data: EarningsDatum[]; totals: { inco
         <div style={{ display: 'flex', gap: 18, fontSize: 11.5, color: 'var(--text-3)', justifyContent: 'center', padding: '8px 0 2px' }}>
           <LegendDot color="#3ecf8e" label="Income" />
           <LegendDot color="#f06464" label="Expenses" />
-          <LegendDot color="#5b8dff" label="Profit" dashed />
+          <LegendDot color="#2bbd7e" label="Profit" dashed />
         </div>
       </div>
     </Card>
@@ -300,7 +300,7 @@ function FleetStatusCard({ stats }: { stats: DashStats }) {
         right={<Link href="/fleet/vehicles" style={st.linkBtn} className="fleetHover">Manage <FleetIcon name="arrow-right" size={11} /></Link>}
       />
       <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 18, borderTop: '1px solid var(--line-1)' }}>
-        <UtilRing value={util} size={84} stroke={8} color="#5b8dff" />
+        <UtilRing value={util} size={84} stroke={8} color="#2bbd7e" />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
           <FleetStatRow label="Active" count={stats.activeVehicles} color="var(--pos)" />
           <FleetStatRow label="Idle" count={stats.idleVehicles} color="var(--text-3)" />
@@ -464,7 +464,7 @@ function CardHeader({ title, subtitle, right }: { title: ReactNode; subtitle?: s
 
 function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const initials = name.split(' ').map((p) => p.charAt(0)).slice(0, 2).join('').toUpperCase() || '?';
-  const colors = ['#5b8dff', '#3ecf8e', '#f5b54a', '#f06464', '#a78bfa', '#22d3ee'];
+  const colors = ['#2bbd7e', '#3ecf8e', '#f5b54a', '#f06464', '#a78bfa', '#22d3ee'];
   const color = colors[name.charCodeAt(0) % colors.length];
   return (
     <div style={{

@@ -88,6 +88,7 @@ export async function POST(request: Request) {
         road_license_expiry_date: body.road_license_expiry_date,
         color: body.color,
         notes: body.notes,
+        vehicle_model_id: body.vehicle_model_id || null,
       })
       .select()
       .single();

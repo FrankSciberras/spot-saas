@@ -1,5 +1,5 @@
 /* =============================================================================
-   Spot Fleet — Standalone dark/light design system.
+   Rovora Fleet — Standalone dark/light design system.
 
    .fleetTheme  — wraps the whole /fleet subtree. Defines design tokens + a few
                   helpers only. It deliberately does NOT set background / font /
@@ -19,7 +19,7 @@
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
-  --accent: #5b8dff;
+  --accent: var(--brand-accent, #2bbd7e);
 }
 
 /* ─── Tokens: dark (default) ─── */
@@ -37,15 +37,15 @@
   --text-2: #9aa3b6;
   --text-3: #5f6878;
   --text-4: #404959;
-  --accent-soft: rgba(91, 141, 255, 0.14);
-  --accent-line: rgba(91, 141, 255, 0.32);
+  --accent-soft: var(--brand-accent-soft, rgba(43, 189, 126, 0.14));
+  --accent-line: var(--brand-accent-line, rgba(43, 189, 126, 0.32));
   --pos: #3ecf8e;
   --pos-soft: rgba(62, 207, 142, 0.14);
   --neg: #f06464;
   --neg-soft: rgba(240, 100, 100, 0.14);
   --warn: #f5b54a;
   --warn-soft: rgba(245, 181, 74, 0.14);
-  --ambient-1: rgba(91, 141, 255, 0.05);
+  --ambient-1: rgba(43, 189, 126, 0.05);
   --ambient-2: rgba(62, 207, 142, 0.03);
   --topbar-bg: rgba(10, 12, 17, 0.85);
   --chart-grid: rgba(255, 255, 255, 0.05);
@@ -66,15 +66,15 @@
   --text-2: #4a5260;
   --text-3: #7a8290;
   --text-4: #aab2bf;
-  --accent-soft: rgba(91, 141, 255, 0.10);
-  --accent-line: rgba(91, 141, 255, 0.28);
+  --accent-soft: var(--brand-accent-soft, rgba(43, 189, 126, 0.10));
+  --accent-line: var(--brand-accent-line, rgba(43, 189, 126, 0.28));
   --pos: #0a8c4f;
   --pos-soft: rgba(10, 140, 79, 0.10);
   --neg: #c92a2a;
   --neg-soft: rgba(201, 42, 42, 0.09);
   --warn: #a06400;
   --warn-soft: rgba(160, 100, 0, 0.10);
-  --ambient-1: rgba(91, 141, 255, 0.04);
+  --ambient-1: rgba(43, 189, 126, 0.04);
   --ambient-2: rgba(10, 140, 79, 0.025);
   --topbar-bg: rgba(247, 248, 250, 0.85);
   --chart-grid: rgba(15, 18, 26, 0.06);
@@ -136,6 +136,56 @@
   50% { opacity: 0.6; transform: scale(0.85); }
 }
 
+/* ─── "New" quick-create dropdown (topbar) ─── */
+.fleetCanvas .fleetNewMenu {
+  transform-origin: top right;
+  animation: fleetNewMenuIn 0.14s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes fleetNewMenuIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.fleetCanvas .fleetNewItem { transition: background 0.12s; }
+.fleetCanvas .fleetNewItem:hover { background: var(--bg-hover); }
+.fleetCanvas .fleetNewItem:hover .fleetNewItemIco { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+@media (prefers-reduced-motion: reduce) { .fleetCanvas .fleetNewMenu { animation: none; } }
+
+/* ─── Modal (quick-add dialogs) ─── */
+.fleetModalOverlay { animation: fleetModalFade 0.15s ease; }
+.fleetModalCard { animation: fleetModalPop 0.16s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.fleetModalCard input:focus,
+.fleetModalCard select:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-soft); }
+@keyframes fleetModalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fleetModalPop { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .fleetModalOverlay, .fleetModalCard { animation: none; }
+}
+
+/* ─── Skeleton loaders ───
+   A single placeholder bar: a muted fill with a sweeping shimmer. Used by the
+   Suspense fallbacks (FleetDashboardSkeleton / FleetPageSkeleton). Colours come
+   from the fleet theme tokens, so it tracks the dark/light toggle. */
+.fleetCanvas .fleet-skel {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+}
+.fleetCanvas .fleet-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--line-2), transparent);
+  animation: fleetSkelShimmer 1.4s ease-in-out infinite;
+}
+@keyframes fleetSkelShimmer {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleetCanvas .fleet-skel::after { animation: none; }
+}
+
 /* ─── Responsive overrides ─── */
 @media (max-width: 720px) {
   .fleetCanvas { font-size: 13.5px; }
@@ -148,7 +198,7 @@
   .fleetCanvas .stack-mobile { flex-direction: column !important; align-items: stretch !important; }
   .fleetCanvas .hide-mobile { display: none !important; }
   .fleetCanvas .full-mobile { width: 100% !important; min-width: 0 !important; }
-  .fleetCanvas .pad-mobile { padding: 0 14px 100px !important; }
+  .fleetCanvas .pad-mobile { padding: 18px 14px 100px !important; }
   .fleetCanvas .hero-h1-mobile { font-size: 19px !important; }
   .fleetCanvas .topbar-mobile { padding: 0 14px !important; height: 54px !important; }
   .fleetCanvas .topbar-mobile h1 { font-size: 16px !important; }
@@ -197,7 +247,7 @@
   --color-primary: var(--accent);
   --color-primary-dark: var(--accent);
   --color-primary-light: var(--accent);
-  --color-primary-rgb: 91, 141, 255;
+  --color-primary-rgb: var(--brand-accent-rgb, 91, 141, 255);
   --color-secondary: var(--text-2);
   --color-success: var(--pos);
   --color-success-rgb: 62, 207, 142;

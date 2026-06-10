@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -9,16 +9,36 @@ import {
   setFleetStatusAction,
 } from '@/lib/actions/platform-billing';
 import {
-  PLAN_META,
+  createVehicleModelAction,
+  uploadModelImageAction,
+  setVehicleModelPublishedAction,
+  deleteVehicleModelAction,
+} from '@/lib/actions/vehicle-models';
+import PackagesManager from './PackagesManager';
+import AddOperatorModal from './AddOperatorModal';
+import OperatorDetailModal from './OperatorDetailModal';
+import BroadcastCenter from './BroadcastCenter';
+import {
   type AdminData,
   type Operator,
   type OpStatus,
+  type PlanMeta,
   type PlanMixEntry,
   type RealPlan,
   type TrendPoint,
 } from './types';
 
 const Icon = FleetIcon;
+
+// Plan label/colour lookup + assignable keys, derived from the catalogue and
+// provided once at the console root so leaf components (PlanBadge, the operator
+// manage popover) stay prop-light.
+const PlanMetaContext = createContext<{ meta: Record<string, PlanMeta>; assignable: string[] }>({
+  meta: {},
+  assignable: [],
+});
+const usePlanMeta = () => useContext(PlanMetaContext);
+const FALLBACK_META: PlanMeta = { label: '—', color: 'var(--text-2)', bg: 'var(--bg-3)' };
 
 // ── helpers ──
 const fmtEUR = (n: number, opts: { decimals?: number; compact?: boolean } = {}) => {
@@ -56,9 +76,9 @@ const OpAvatar = ({ initials, color, size = 30 }: { initials: string; color: str
 );
 
 const PlanBadge = ({ plan }: { plan: RealPlan }) => {
-  const m = PLAN_META[plan];
-  const bg = plan === 'scale' ? 'rgba(167,139,250,0.14)' : plan === 'growth' ? 'var(--accent-soft)' : 'var(--bg-3)';
-  return <span style={{ fontSize: 11, fontWeight: 500, color: m.color, background: bg, padding: '2px 9px', borderRadius: 5, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{m.label}</span>;
+  const { meta } = usePlanMeta();
+  const m = meta[plan] ?? { ...FALLBACK_META, label: plan };
+  return <span style={{ fontSize: 11, fontWeight: 500, color: m.color, background: m.bg, padding: '2px 9px', borderRadius: 5, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{m.label}</span>;
 };
 
 const STATUS_STYLE: Record<OpStatus, { label: string; color: string; bg: string; dot: string }> = {
@@ -235,7 +255,7 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 );
 
 // ── nav ──
-type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'invoices' | 'trials' | 'churn' | 'support' | 'settings';
+type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'invoices' | 'trials' | 'churn' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
 
 function buildNav(data: AdminData) {
   const openInvoices = data.invoices.filter((i) => i.status !== 'paid').length;
@@ -251,8 +271,12 @@ function buildNav(data: AdminData) {
       { id: 'trials' as PageId, name: 'Trials', icon: 'shift', badge: String(data.metrics.trials), dot: false },
       { id: 'churn' as PageId, name: 'Churn', icon: 'chart', badge: undefined, dot: false },
     ]},
+    { label: 'Catalog', items: [
+      { id: 'vehicle-models' as PageId, name: 'Vehicle Models', icon: 'vehicle', badge: undefined, dot: false },
+    ]},
     { label: 'Admin', items: [
-      { id: 'support' as PageId, name: 'Support', icon: 'bell', badge: undefined, dot: false },
+      { id: 'broadcasts' as PageId, name: 'Broadcasts', icon: 'bell', badge: undefined, dot: false },
+      { id: 'support' as PageId, name: 'Support', icon: 'staff', badge: undefined, dot: false },
       { id: 'settings' as PageId, name: 'Settings', icon: 'adjust', badge: undefined, dot: false },
     ]},
   ];
@@ -270,7 +294,7 @@ const AdminSidebar = ({ data, active, onSelect, isMobile, open, onClose }: {
   const Body = (
     <>
       <div style={asb.logoWrap}>
-        <div style={{ color: 'var(--text-1)', display: 'flex', alignItems: 'center' }}><Icon name="logo" size={22} /></div>
+        <img src="/rovora logo trimmed.png" alt="Rovora" style={{ height: 22, width: 'auto', filter: 'brightness(0) invert(1)' }} />
         <div style={asb.adminTag}>Admin Console</div>
       </div>
       <nav style={asb.nav}>
@@ -299,7 +323,7 @@ const AdminSidebar = ({ data, active, onSelect, isMobile, open, onClose }: {
       <div style={asb.userCard}>
         <div style={asb.userAvatar}>S</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>Spot HQ</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>Rovora HQ</div>
           <div style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.adminEmail}</div>
         </div>
         <button style={asb.iconBtn} title="Sign out" onClick={signOut}><Icon name="logout" size={15} /></button>
@@ -464,6 +488,7 @@ const OverviewPage = ({ data, onNavigate }: { data: AdminData; onNavigate: (id: 
 const OperatorRowManage = ({ op }: { op: Operator }) => {
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; bottom?: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -499,7 +524,7 @@ const OperatorRowManage = ({ op }: { op: Operator }) => {
       if (r?.error) setError(r.error);
     });
   };
-  const plans: RealPlan[] = ['trial', 'starter', 'growth', 'scale'];
+  const { meta, assignable } = usePlanMeta();
   return (
     <>
       <button ref={btnRef} style={ap.ghostBtn2} onClick={toggle}>Manage <Icon name="chevron-down" size={13} /></button>
@@ -514,9 +539,9 @@ const OperatorRowManage = ({ op }: { op: Operator }) => {
           {error && <div style={{ fontSize: 11.5, color: 'var(--neg)', marginBottom: 8 }}>{error}</div>}
           <div style={{ fontSize: 10.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Plan</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
-            {plans.map((p) => (
+            {assignable.map((p) => (
               <button key={p} disabled={isPending || p === op.plan} onClick={() => run(() => setFleetPlanAction(op.id, p))}
-                style={{ ...ap.miniBtn, ...(p === op.plan ? ap.miniBtnActive : {}) }}>{PLAN_META[p].label}</button>
+                style={{ ...ap.miniBtn, ...(p === op.plan ? ap.miniBtnActive : {}) }}>{(meta[p] ?? FALLBACK_META).label}</button>
             ))}
           </div>
           <div style={{ fontSize: 10.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Trial</div>
@@ -530,9 +555,15 @@ const OperatorRowManage = ({ op }: { op: Operator }) => {
           ) : (
             <button disabled={isPending} onClick={() => run(() => setFleetStatusAction(op.id, 'suspended'))} style={{ ...ap.miniBtn, color: 'var(--neg)', borderColor: 'var(--neg-soft)' }}>Suspend</button>
           )}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--line-1)' }}>
+            <button disabled={isPending} onClick={() => { setOpen(false); setDetailOpen(true); }} style={{ ...ap.miniBtn, width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="adjust" size={12} />Edit details & members
+            </button>
+          </div>
         </div>
         </>
       )}
+      {detailOpen && <OperatorDetailModal operatorId={op.id} onClose={() => setDetailOpen(false)} />}
     </>
   );
 };
@@ -606,10 +637,18 @@ const PackagesPage = ({ data }: { data: AdminData }) => {
   return (
     <div style={ap.scroll} className="pad-mobile">
       <div style={{ padding: '24px 0 8px', maxWidth: 560 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Three plans, flat monthly pricing</div>
-        <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Every plan you sell to operators, and how each is performing.</div>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Editable pricing catalogue</div>
+        <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Create and edit the packages operators sign up for.</div>
       </div>
-      <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 20, marginBottom: 16 }}>
+
+      {/* Live editor — changes here drive the website, onboarding & billing. */}
+      <PackagesManager />
+
+      <div style={{ padding: '28px 0 8px', maxWidth: 560 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Performance</div>
+        <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em' }}>How each package is performing right now.</div>
+      </div>
+      <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16, marginBottom: 16 }}>
         {data.packages.map((p) => {
           const mix = data.planMix.find((x) => x.id === p.id) || { accounts: 0, vehicles: 0, mrr: 0 };
           return (
@@ -646,7 +685,6 @@ const PackagesPage = ({ data }: { data: AdminData }) => {
                   <div style={ap.planStatLabel}>Vehicles</div>
                 </div>
               </div>
-              <button style={{ ...ap.planBtn, ...(p.popular ? ap.planBtnPop : {}) }}>Edit package</button>
             </div>
           );
         })}
@@ -749,7 +787,7 @@ const TrialsPage = ({ data }: { data: AdminData }) => {
         </div>
       </div>
       <ACard>
-        <ACardHeader title="Trials" subtitle="Operators evaluating Spot" />
+        <ACardHeader title="Trials" subtitle="Operators evaluating Rovora" />
         <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
             <thead><tr>{['Operator', 'Vehicles', 'Drivers', 'Started', 'Trial ends', ''].map((h, i) => (
@@ -873,21 +911,215 @@ const SettingsPage = ({ data }: { data: AdminData }) => (
   </div>
 );
 
+// ── Vehicle Models (car diagram presets) ──
+interface VModelRow {
+  id: string;
+  name: string;
+  make: string | null;
+  model: string | null;
+  model_key: string;
+  side_image_url: string | null;
+  top_image_url: string | null;
+  is_published: boolean;
+  sideZoneCount: number;
+  topZoneCount: number;
+}
+
+const vmInput: CSSProperties = {
+  padding: '9px 11px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--bg-2)',
+  color: 'var(--text-1)', fontSize: 13, fontFamily: 'inherit', outline: 'none', width: '100%',
+};
+
+const ModelImageSlot = ({ model, view, onChanged }: { model: VModelRow; view: 'side' | 'top'; onChanged: () => void }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const imageUrl = view === 'side' ? model.side_image_url : model.top_image_url;
+  const zoneCount = view === 'side' ? model.sideZoneCount : model.topZoneCount;
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErr(''); setBusy(true);
+    const fd = new FormData();
+    fd.set('modelId', model.id); fd.set('view', view); fd.set('image', file);
+    const res = await uploadModelImageAction(fd);
+    setBusy(false);
+    if (inputRef.current) inputRef.current.value = '';
+    if (res.error) { setErr(res.error); return; }
+    onChanged();
+  };
+
+  return (
+    <div style={{ background: 'var(--bg-1)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-4)' }}>
+        {view === 'side' ? 'Side view' : 'Top view'}
+      </span>
+      <div style={{ aspectRatio: '16 / 10', borderRadius: 8, background: 'var(--bg-2)', border: '1px dashed var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {imageUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={imageUrl} alt={`${model.name} ${view}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          : <span style={{ fontSize: 11.5, color: 'var(--text-4)' }}>No image</span>}
+      </div>
+      <span style={{ alignSelf: 'flex-start', fontSize: 10.5, fontFamily: 'Geist Mono, monospace', padding: '1px 7px', borderRadius: 5, color: zoneCount > 0 ? 'var(--pos)' : 'var(--text-4)', background: zoneCount > 0 ? 'var(--pos-soft)' : 'var(--bg-2)' }}>
+        {zoneCount > 0 ? `${zoneCount} zones` : 'Not traced'}
+      </span>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button style={ap.miniBtn} disabled={busy} onClick={() => inputRef.current?.click()}>
+          {busy ? 'Uploading…' : imageUrl ? 'Replace' : 'Upload'}
+        </button>
+        <a style={{ ...ap.miniBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+          href={`/vehicle-diagrams/zone-editor.html?model=${encodeURIComponent(model.model_key)}&view=${view}`}
+          target="_blank" rel="noreferrer">Edit zones</a>
+      </div>
+      {err && <span style={{ fontSize: 11, color: 'var(--neg)' }}>{err}</span>}
+    </div>
+  );
+};
+
+const ModelCard = ({ model, onChanged }: { model: VModelRow; onChanged: () => void }) => {
+  const [isPending, startTransition] = useTransition();
+  const [err, setErr] = useState('');
+
+  const togglePublished = () => {
+    setErr('');
+    startTransition(async () => {
+      const r = await setVehicleModelPublishedAction(model.id, !model.is_published);
+      if (r.error) setErr(r.error); else onChanged();
+    });
+  };
+  const remove = () => {
+    if (!window.confirm(`Delete "${model.name}" and its traced zones? Vehicles using it will be detached.`)) return;
+    setErr('');
+    startTransition(async () => {
+      const r = await deleteVehicleModelAction(model.id);
+      if (r.error) setErr(r.error); else onChanged();
+    });
+  };
+
+  return (
+    <ACard>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, padding: '14px 16px 12px' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text-1)' }}>{model.name}</div>
+          <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3 }}>
+            {[model.make, model.model].filter(Boolean).join(' ') || '—'} · {model.model_key}
+          </div>
+        </div>
+        <span style={{ fontSize: 10.5, fontWeight: 500, padding: '2px 9px', borderRadius: 100, textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', color: model.is_published ? 'var(--pos)' : 'var(--text-3)', background: model.is_published ? 'var(--pos-soft)' : 'var(--bg-3)' }}>
+          {model.is_published ? 'Published' : 'Draft'}
+        </span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--line-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
+        <ModelImageSlot model={model} view="side" onChanged={onChanged} />
+        <ModelImageSlot model={model} view="top" onChanged={onChanged} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', gap: 8 }}>
+        <button style={ap.ghostBtn2} disabled={isPending} onClick={togglePublished}>
+          {model.is_published ? 'Unpublish' : 'Publish'}
+        </button>
+        {err && <span style={{ fontSize: 11.5, color: 'var(--neg)' }}>{err}</span>}
+        <button style={{ ...ap.ghostBtn2, color: 'var(--neg)', borderColor: 'var(--neg-soft)' }} disabled={isPending} onClick={remove}>
+          Delete
+        </button>
+      </div>
+    </ACard>
+  );
+};
+
+const VehicleModelsPage = () => {
+  const [models, setModels] = useState<VModelRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState('');
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [err, setErr] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/vehicle-models');
+      const json = await res.json();
+      setModels(json.data || []);
+    } catch { /* leave empty */ } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const create = async () => {
+    setErr(''); setCreating(true);
+    const res = await createVehicleModelAction(name, make, model);
+    setCreating(false);
+    if (res.error) { setErr(res.error); return; }
+    setName(''); setMake(''); setModel(''); setShowCreate(false); load();
+  };
+
+  return (
+    <div style={ap.scroll} className="pad-mobile">
+      <div style={{ padding: '20px 0 14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 560 }}>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Shared across every fleet</div>
+          <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Car diagram presets operators pick from.</div>
+        </div>
+        <button style={ap.primaryBtn} onClick={() => setShowCreate((v) => !v)}>
+          <Icon name="plus" size={14} stroke={2} />New model
+        </button>
+      </div>
+
+      {showCreate && (
+        <ACard style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Name *</label>
+              <input style={vmInput} value={name} placeholder="e.g. Toyota Yaris Cross" onChange={(e) => setName(e.target.value)} disabled={creating} />
+            </div>
+            <div style={{ flex: 1, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Make</label>
+              <input style={vmInput} value={make} placeholder="e.g. Toyota" onChange={(e) => setMake(e.target.value)} disabled={creating} />
+            </div>
+            <div style={{ flex: 1, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Model</label>
+              <input style={vmInput} value={model} placeholder="e.g. Yaris Cross" onChange={(e) => setModel(e.target.value)} disabled={creating} />
+            </div>
+            <button style={{ ...ap.primaryBtn, opacity: creating || !name.trim() ? 0.5 : 1 }} disabled={creating || !name.trim()} onClick={create}>
+              {creating ? 'Creating…' : 'Create'}
+            </button>
+          </div>
+          {err && <div style={{ fontSize: 12.5, color: 'var(--neg)', marginTop: 10 }}>{err}</div>}
+        </ACard>
+      )}
+
+      {loading ? (
+        <ACard><div style={{ padding: '40px 18px', textAlign: 'center', fontSize: 13, color: 'var(--text-3)' }}>Loading…</div></ACard>
+      ) : models.length === 0 ? (
+        <ACard><div style={{ padding: '48px 18px', textAlign: 'center', fontSize: 13.5, color: 'var(--text-3)' }}>No vehicle models yet. Create one to get started.</div></ACard>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: 16 }}>
+          {models.map((m) => <ModelCard key={m.id} model={m} onChanged={load} />)}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PAGE_META: Record<PageId, { title: string; subtitle: string }> = {
   overview: { title: 'Overview', subtitle: 'Billing & subscriptions' },
-  operators: { title: 'Operators', subtitle: 'Every fleet on Spot' },
+  operators: { title: 'Operators', subtitle: 'Every fleet on Rovora' },
   packages: { title: 'Packages', subtitle: 'Subscription plans' },
   subscriptions: { title: 'Subscriptions', subtitle: 'Active paying accounts' },
   invoices: { title: 'Invoices', subtitle: 'Current billing cycle' },
-  trials: { title: 'Trials', subtitle: 'Operators evaluating Spot' },
+  trials: { title: 'Trials', subtitle: 'Operators evaluating Rovora' },
   churn: { title: 'Churn', subtitle: 'Retention & recovery' },
+  broadcasts: { title: 'Broadcasts', subtitle: 'Message operators & drivers' },
   support: { title: 'Support', subtitle: 'Operator directory' },
   settings: { title: 'Settings', subtitle: 'Platform configuration' },
+  'vehicle-models': { title: 'Vehicle Models', subtitle: 'Car diagram presets' },
 };
 
 export default function AdminConsole({ data }: { data: AdminData }) {
   const [active, setActive] = useState<PageId>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [vw, setVw] = useState(1280);
   useEffect(() => {
     const onResize = () => setVw(window.innerWidth);
@@ -908,11 +1140,12 @@ export default function AdminConsole({ data }: { data: AdminData }) {
   }, [active, data, meta.subtitle]);
 
   return (
+    <PlanMetaContext.Provider value={{ meta: data.planMeta, assignable: data.assignablePlans }}>
     <div className="fleetTheme fleetCanvas" data-fleet-theme="dark">
       <AdminSidebar data={data} active={active} onSelect={setActive} isMobile={isMobile} open={menuOpen} onClose={() => setMenuOpen(false)} />
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
         <AdminTopbar title={meta.title} subtitle={subtitle} onMenuClick={() => setMenuOpen((o) => !o)}
-          right={<button style={ap.primaryBtn} className="hide-mobile"><Icon name="plus" size={14} stroke={2} />Add operator</button>} />
+          right={<button style={ap.primaryBtn} className="hide-mobile" onClick={() => setAddOpen(true)}><Icon name="plus" size={14} stroke={2} />Add operator</button>} />
         {active === 'overview' && <OverviewPage data={data} onNavigate={setActive} />}
         {active === 'operators' && <OperatorsPage data={data} />}
         {active === 'packages' && <PackagesPage data={data} />}
@@ -920,10 +1153,24 @@ export default function AdminConsole({ data }: { data: AdminData }) {
         {active === 'invoices' && <InvoicesPage data={data} />}
         {active === 'trials' && <TrialsPage data={data} />}
         {active === 'churn' && <ChurnPage data={data} />}
+        {active === 'broadcasts' && (
+          <div style={ap.scroll} className="pad-mobile">
+            <div style={{ padding: '24px 0 16px', maxWidth: 560 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Notifications</div>
+              <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Message your operators &amp; their drivers.</div>
+            </div>
+            <BroadcastCenter />
+          </div>
+        )}
         {active === 'support' && <SupportPage data={data} />}
         {active === 'settings' && <SettingsPage data={data} />}
+        {active === 'vehicle-models' && <VehicleModelsPage />}
       </main>
+      {addOpen && (
+        <AddOperatorModal meta={data.planMeta} assignable={data.assignablePlans} onClose={() => setAddOpen(false)} />
+      )}
     </div>
+    </PlanMetaContext.Provider>
   );
 }
 
@@ -942,7 +1189,7 @@ const asb: Record<string, CSSProperties> = {
   badgeActive: { color: 'var(--accent)', background: 'var(--accent-soft)' },
   dot: { width: 6, height: 6, borderRadius: 99, background: 'var(--warn)', boxShadow: '0 0 0 3px rgba(245,181,74,0.18)' },
   userCard: { margin: '8px 10px 12px', padding: '10px', background: 'var(--bg-2)', border: '1px solid var(--line-1)', borderRadius: 9, display: 'flex', alignItems: 'center', gap: 10 },
-  userAvatar: { width: 32, height: 32, borderRadius: 7, background: 'linear-gradient(135deg, #5b8dff, #3b6ad9)', color: '#fff', fontWeight: 600, fontSize: 13.5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  userAvatar: { width: 32, height: 32, borderRadius: 7, background: 'linear-gradient(135deg, #2bbd7e, #3b6ad9)', color: '#fff', fontWeight: 600, fontSize: 13.5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   iconBtn: { width: 28, height: 28, background: 'transparent', border: 'none', color: 'var(--text-3)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 };
 

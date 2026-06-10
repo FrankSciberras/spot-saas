@@ -92,14 +92,14 @@ export const EarningsLineChart = ({ data, w = 760, h = 240 }: { data: EarningsDa
       ))}
       <path d={areaPath} fill="url(#incomeArea)" />
       <path d={expensesPath} fill="none" stroke="#f06464" strokeWidth="1.5" opacity="0.8" />
-      <path d={profitPath} fill="none" stroke="#5b8dff" strokeWidth="1.5" opacity="0.85" strokeDasharray="3 3" />
+      <path d={profitPath} fill="none" stroke="#2bbd7e" strokeWidth="1.5" opacity="0.85" strokeDasharray="3 3" />
       <path d={incomePath} fill="none" stroke="#3ecf8e" strokeWidth="2" />
       {hover !== null && (
         <g>
           <line x1={xFor(hover)} x2={xFor(hover)} y1={padT} y2={padT + innerH} stroke="var(--chart-cursor)" strokeDasharray="2 3" />
           <circle cx={xFor(hover)} cy={yFor(data[hover].income)} r="3.5" fill="#3ecf8e" stroke="var(--bg-0)" strokeWidth="2" />
           <circle cx={xFor(hover)} cy={yFor(data[hover].expenses)} r="3" fill="#f06464" stroke="var(--bg-0)" strokeWidth="2" />
-          <circle cx={xFor(hover)} cy={yFor(data[hover].profit)} r="3" fill="#5b8dff" stroke="var(--bg-0)" strokeWidth="2" />
+          <circle cx={xFor(hover)} cy={yFor(data[hover].profit)} r="3" fill="#2bbd7e" stroke="var(--bg-0)" strokeWidth="2" />
           <g transform={`translate(${Math.min(xFor(hover) + 12, w - 140)}, ${padT + 6})`}>
             <rect width="130" height="68" rx="6" fill="var(--bg-1)" stroke="var(--line-2)" />
             <text x="10" y="16" fontSize="10.5" fill="var(--text-2)" fontFamily="Geist Mono, monospace">{data[hover].label}</text>
@@ -107,7 +107,7 @@ export const EarningsLineChart = ({ data, w = 760, h = 240 }: { data: EarningsDa
             <text x="22" y="33" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">€{data[hover].income.toLocaleString()}</text>
             <circle cx="14" cy="44" r="3" fill="#f06464" />
             <text x="22" y="47" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">€{data[hover].expenses.toLocaleString()}</text>
-            <circle cx="14" cy="58" r="3" fill="#5b8dff" />
+            <circle cx="14" cy="58" r="3" fill="#2bbd7e" />
             <text x="22" y="61" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">€{data[hover].profit.toLocaleString()}</text>
           </g>
         </g>
@@ -156,7 +156,7 @@ export const ExpenseBars = ({ data }: { data: ExpenseDatum[] }) => {
   );
 };
 
-export const Sparkline = ({ data, w = 120, h = 32, color = '#5b8dff', fill = true }: { data: { v: number }[]; w?: number; h?: number; color?: string; fill?: boolean }) => {
+export const Sparkline = ({ data, w = 120, h = 32, color = '#2bbd7e', fill = true }: { data: { v: number }[]; w?: number; h?: number; color?: string; fill?: boolean }) => {
   if (!data.length) return null;
   const max = Math.max(...data.map((d) => d.v));
   const min = Math.min(...data.map((d) => d.v));
@@ -176,7 +176,7 @@ export const Sparkline = ({ data, w = 120, h = 32, color = '#5b8dff', fill = tru
   );
 };
 
-export const UtilRing = ({ value, size = 64, stroke = 6, color = '#5b8dff' }: { value: number; size?: number; stroke?: number; color?: string }) => {
+export const UtilRing = ({ value, size = 64, stroke = 6, color = '#2bbd7e' }: { value: number; size?: number; stroke?: number; color?: string }) => {
   const cx = size / 2, cy = size / 2, r = size / 2 - stroke / 2 - 1;
   const C = 2 * Math.PI * r;
   return (

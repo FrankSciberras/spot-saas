@@ -1,5 +1,5 @@
 {
-  "name": "spot-dashboard",
+  "name": "rovora-dashboard",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -19,6 +19,7 @@
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1",
     "resend": "^6.12.3",
+    "stripe": "^18.5.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

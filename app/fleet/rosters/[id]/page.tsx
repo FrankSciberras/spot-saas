@@ -11,6 +11,7 @@ interface PageProps {
 export default async function RosterDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin', 'staff']);
+  const isAdmin = user.role === 'admin';
   const supabase = await createClient();
 
   // Get roster with assignments
@@ -69,11 +70,12 @@ export default async function RosterDetailPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title={roster.title || 'Edit Roster'}>
-      <RosterEditor 
+      <RosterEditor
         roster={rosterWithAssignments}
-        vehicles={vehicles || []} 
-        drivers={drivers || []} 
+        vehicles={vehicles || []}
+        drivers={drivers || []}
         mode="edit"
+        isAdmin={isAdmin}
       />
     </FleetShell>
   );

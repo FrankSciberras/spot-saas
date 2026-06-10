@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Figtree } from 'next/font/google';
 import './globals.css';
-import './spot-site.css';
+import './rovora-site.css';
 import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistration';
 import ErrorRecovery from '@/components/shared/ErrorRecovery';
 import SplashScreen from '@/components/shared/SplashScreen';
@@ -14,12 +14,12 @@ const figtree = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: 'Spot Dashboard - Cab Fleet Management',
-  description: 'Manage your taxi fleet with ease - drivers, vehicles, shifts, and more.',
+  title: 'Rovora Fleet Management',
+  description: 'Rovora is your true company overview of what happens on the road — drivers, vehicles, shifts, settlements and more, in one dashboard.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Spot',
+    title: 'Rovora',
   },
   formatDetection: {
     telephone: false,
@@ -47,20 +47,24 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <style dangerouslySetInnerHTML={{ __html: `
-          /* Inline critical splash screen styles to prevent FOUC */
-          body { margin: 0; background: #0f172a; }
+          /* Inline critical splash styles to prevent FOUC — minimal, gradient-free.
+             Mirrors components/shared/SplashScreen.module.css. */
+          body { margin: 0; background: #0a0c11; }
           .splash-fallback {
             position: fixed; inset: 0; z-index: 9999;
             display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            background: #0a0c11;
           }
           .splash-fallback::after {
-            content: ''; width: 40px; height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #60a5fa; border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            content: ''; width: 184px; height: 3px; border-radius: 999px;
+            background:
+              linear-gradient(90deg, transparent 0 30%, #2bbd7e 30% 70%, transparent 70% 100%)
+              rgba(255,255,255,0.08);
+            background-size: 240% 100%;
+            animation: splashSweep 1.25s ease-in-out infinite;
           }
-          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes splashSweep { 0% { background-position: 130% 0; } 100% { background-position: -130% 0; } }
+          @media (prefers-reduced-motion: reduce) { .splash-fallback::after { animation: none; } }
         `}} />
       </head>
       <body className={figtree.className}>

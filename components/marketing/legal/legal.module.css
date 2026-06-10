@@ -1,0 +1,228 @@
+/* Prose + layout for the legal pages (/privacy, /terms, /security).
+   Lives inside the FeatureShell `.rovora-site` wrapper, so every theme variable
+   (--text-*, --bg-*, --line-*, --accent) cascades in for free and dark mode just
+   works. Class names are local (CSS module) to avoid clashing with site styles. */
+
+.hero {
+  padding: 88px 0 36px;
+  border-bottom: 1px solid var(--line-1);
+}
+.eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+}
+.title {
+  font-size: clamp(32px, 4.4vw, 50px);
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  line-height: 1.05;
+  margin: 14px 0 0;
+}
+.lede {
+  margin: 18px 0 0;
+  max-width: 640px;
+  font-size: 17.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 26px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 100px;
+  background: var(--bg-1);
+}
+.metaPill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ── Body: sticky table of contents + prose column ── */
+.body {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  gap: 56px;
+  padding: 56px 0 96px;
+  align-items: start;
+}
+.toc {
+  position: sticky;
+  top: 92px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tocLabel {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  margin: 0 0 12px 12px;
+}
+.toc a {
+  display: block;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--text-2);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.toc a:hover {
+  background: var(--bg-1);
+  color: var(--text-1);
+  border-left-color: var(--accent-line);
+}
+
+.prose {
+  max-width: 760px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+.prose section {
+  scroll-margin-top: 92px;
+  padding-top: 8px;
+}
+.prose section + section {
+  margin-top: 46px;
+  padding-top: 46px;
+  border-top: 1px solid var(--line-1);
+}
+.prose h2 {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  margin: 0 0 16px;
+  scroll-margin-top: 92px;
+}
+.prose h3 {
+  font-size: 16.5px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 28px 0 10px;
+}
+.prose p {
+  margin: 0 0 14px;
+}
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-line);
+}
+.prose a:hover {
+  border-bottom-color: var(--accent);
+}
+.prose ul {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.prose ul li {
+  position: relative;
+  padding-left: 22px;
+}
+.prose ul li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 11px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.prose strong {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+/* Data-handling table, used on the Privacy page. */
+.tableWrap {
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0 0 16px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 13px 16px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-1);
+}
+.table th {
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-weight: 600;
+  font-size: 13px;
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+.table td:first-child {
+  color: var(--text-1);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Callout box for the "your rights / contact" emphasis. */
+.callout {
+  margin: 8px 0 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  border-radius: 12px;
+  color: var(--text-1);
+}
+.callout p {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.placeholder {
+  background: rgba(214, 158, 46, 0.16);
+  border-bottom: 1px dashed rgba(214, 158, 46, 0.7);
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--text-1);
+}
+
+@media (max-width: 880px) {
+  .body {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding-top: 36px;
+  }
+  .toc {
+    display: none;
+  }
+}

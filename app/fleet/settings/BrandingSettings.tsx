@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBranding } from '@/components/shared/BrandingProvider';
 import {
   updateBrandColorAction,
@@ -9,10 +10,11 @@ import {
 } from '@/lib/actions/branding';
 import styles from './settings.module.css';
 
-const DEFAULT_COLOR = '#2563eb';
+const DEFAULT_COLOR = '#14784a';
 
 export default function BrandingSettings() {
   const branding = useBranding();
+  const router = useRouter();
 
   const [logoUrl, setLogoUrl] = useState<string | null>(branding.logoUrl);
   const [color, setColor] = useState<string>(branding.brandColor ?? DEFAULT_COLOR);
@@ -38,6 +40,7 @@ export default function BrandingSettings() {
       }
       setLogoUrl(result.logoUrl ?? null);
       flash('Logo updated.');
+      router.refresh();
     });
   };
 
@@ -52,6 +55,7 @@ export default function BrandingSettings() {
       setLogoUrl(null);
       if (fileRef.current) fileRef.current.value = '';
       flash('Logo removed.');
+      router.refresh();
     });
   };
 
@@ -64,6 +68,7 @@ export default function BrandingSettings() {
         return;
       }
       flash('Brand colour saved.');
+      router.refresh();
     });
   };
 
@@ -154,7 +159,7 @@ export default function BrandingSettings() {
             value={color}
             disabled={isPending}
             onChange={(e) => setColor(e.target.value)}
-            placeholder="#2f6bff"
+            placeholder="#1a8f5a"
             maxLength={7}
           />
           <button
@@ -174,7 +179,7 @@ export default function BrandingSettings() {
               startTransition(async () => {
                 const result = await updateBrandColorAction(null);
                 if (result.error) setError(result.error);
-                else flash('Reset to the default colour.');
+                else { flash('Reset to the default colour.'); router.refresh(); }
               });
             }}
           >

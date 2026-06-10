@@ -437,11 +437,11 @@ export default function Sidebar({ user, variant }: SidebarProps) {
           />
         ) : (
           <Image
-            src="/Black Logo.svg"
-            alt="Spot dashboard logo"
+            src="/rovora logo trimmed.png"
+            alt="Rovora logo"
             className={styles.logoImage}
-            width={98}
-            height={28}
+            width={160}
+            height={40}
             style={{ width: 'auto', height: 'auto' }}
             priority
           />

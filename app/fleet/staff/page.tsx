@@ -1,9 +1,13 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import StaffWorkspace, { type StaffItem, type RoleBreakdown, type StaffStatus } from '@/components/fleet/staff/StaffWorkspace';
 
-const PALETTE = ['#5b8dff', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
+
+const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
 
 function initialsOf(name: string): string {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -27,6 +31,16 @@ function roleTone(role: string): string {
 
 export default async function StaffPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Staff">
+      <Suspense fallback={<FleetPageSkeleton variant="list" stats={3} />}>
+        <StaffContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function StaffContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -69,9 +83,5 @@ export default async function StaffPage() {
   }
   const roles: RoleBreakdown[] = Array.from(roleMap.entries()).map(([role, v]) => ({ role, n: v.n, tone: v.tone, perms: v.perms }));
 
-  return (
-    <FleetShell user={user} title="Staff">
-      <StaffWorkspace members={members} roles={roles} canManage={isAdmin} />
-    </FleetShell>
-  );
+  return <StaffWorkspace members={members} roles={roles} canManage={isAdmin} />;
 }

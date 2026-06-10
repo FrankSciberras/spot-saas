@@ -1,16 +1,12 @@
-import { Resend } from 'resend';
+// =============================================================================
+// NOTIFICATION EMAILS — thin wrapper over the unified Resend mailer (lib/email).
+// =============================================================================
+// Kept as a stable entry point for the notification call sites (rosters, alerts,
+// the rules engine, platform broadcasts). All actual sending + branding now lives
+// in lib/email so there is a single Resend chokepoint.
+// =============================================================================
 
-// Lazy-initialize Resend client to ensure env vars are available at runtime
-let resend: Resend | null = null;
-
-function getResendClient(): Resend | null {
-  if (resend) return resend;
-  const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey) {
-    resend = new Resend(apiKey);
-  }
-  return resend;
-}
+import { sendEmail, renderBrandedEmail, isEmailConfigured as configured, appName } from '@/lib/email';
 
 interface EmailNotificationParams {
   to: string;
@@ -21,89 +17,28 @@ interface EmailNotificationParams {
   actionUrl?: string;
 }
 
-/**
- * Send email notification
- * Uses Resend API if configured, otherwise logs the email
- */
+/** Send a branded notification email via Resend. Best-effort (returns boolean). */
 export async function sendEmailNotification(params: EmailNotificationParams): Promise<boolean> {
   const { to, subject, body, driverName, rosterTitle, actionUrl } = params;
 
-  // Check if email is configured
-  const client = getResendClient();
-  if (!client) {
-    console.log('Email notifications not configured (missing RESEND_API_KEY)');
-    console.log(`Would send email to ${to}: ${subject}`);
-    return false;
-  }
+  const fullBody = rosterTitle ? `${body}\n\nRoster: ${rosterTitle}` : body;
 
-  try {
-    // Use Resend's test domain if no verified domain is configured
-    const fromEmail = process.env.EMAIL_FROM || 'SPOT Dashboard <onboarding@resend.dev>';
-    const appName = process.env.NEXT_PUBLIC_APP_NAME || 'SPOT Dashboard';
-    
-    console.log(`Sending email to ${to} from ${fromEmail}`);
+  const html = renderBrandedEmail({
+    heading: subject,
+    greeting: driverName ? `Hi ${driverName},` : undefined,
+    body: fullBody,
+    actionUrl,
+    actionLabel: 'View details',
+  });
 
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .header { text-align: center; margin-bottom: 24px; }
-    .logo { font-size: 24px; font-weight: 700; color: #6366f1; }
-    h1 { font-size: 20px; margin: 0 0 16px; color: #111; }
-    p { margin: 0 0 16px; color: #555; }
-    .button { display: inline-block; padding: 12px 24px; background: #6366f1; color: white !important; text-decoration: none; border-radius: 8px; font-weight: 500; margin-top: 16px; }
-    .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #888; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="card">
-      <div class="header">
-        <div class="logo">${appName}</div>
-      </div>
-      <h1>${subject}</h1>
-      ${driverName ? `<p>Hi ${driverName},</p>` : ''}
-      <p>${body}</p>
-      ${rosterTitle ? `<p><strong>Roster:</strong> ${rosterTitle}</p>` : ''}
-      ${actionUrl ? `<a href="${actionUrl}" class="button">View Roster</a>` : ''}
-    </div>
-    <div class="footer">
-      <p>You received this email because you are registered as a driver on ${appName}.</p>
-    </div>
-  </div>
-</body>
-</html>
-    `;
-
-    const { error } = await client.emails.send({
-      from: fromEmail,
-      to: [to],
-      subject: `${appName} - ${subject}`,
-      html: htmlContent,
-    });
-
-    if (error) {
-      console.error('Resend email error:', error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Email notification error:', error);
-    return false;
-  }
+  return sendEmail({
+    to,
+    subject: `${appName()} - ${subject}`,
+    html,
+  });
 }
 
-/**
- * Check if email notifications are configured
- */
+/** Check if email is configured (RESEND_API_KEY present). */
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  return configured();
 }

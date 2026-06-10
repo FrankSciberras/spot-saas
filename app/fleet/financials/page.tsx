@@ -1,10 +1,22 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import FinancialsDashboard from '@/components/admin/FinancialsDashboard';
 
 export default async function FinancialsPage() {
   const user = await requireRole(['admin']);
+  return (
+    <FleetShell user={user} title="Financials">
+      <Suspense fallback={<FleetPageSkeleton variant="board" />}>
+        <FinancialsContent />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function FinancialsContent() {
   const supabase = await createClient();
 
   const { data: entries } = await supabase
@@ -26,9 +38,5 @@ export default async function FinancialsPage() {
     `)
     .order('week_start', { ascending: true });
 
-  return (
-    <FleetShell user={user} title="Financials">
-      <FinancialsDashboard entries={entries || []} drivers={drivers || []} settlements={settlements || []} />
-    </FleetShell>
-  );
+  return <FinancialsDashboard entries={entries || []} drivers={drivers || []} settlements={settlements || []} />;
 }

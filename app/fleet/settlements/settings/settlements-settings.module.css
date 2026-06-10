@@ -1,0 +1,199 @@
+/* =============================================================================
+   Settlement Rules — fleet split editor. Uses the shared fleet design tokens
+   (--bg-1/2, --line-1/2, --text-1/2/3, --accent, --radius*) so it matches the
+   other /fleet pages and the dark/light toggle.
+   ============================================================================= */
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  margin-bottom: 22px;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+  max-width: 680px;
+  line-height: 1.5;
+}
+
+/* ─── Messages ─── */
+.message {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.success {
+  background: var(--pos-soft);
+  color: var(--pos);
+  border: 1px solid var(--accent-line);
+}
+
+.error {
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+
+/* ─── Cards ─── */
+.card {
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.cardHead {
+  margin-bottom: 16px;
+}
+
+.cardLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.cardDesc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+  max-width: 620px;
+}
+
+/* ─── Default row ─── */
+.defaultRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pctField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pctInput {
+  width: 84px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--text-1);
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-family: inherit;
+}
+
+.pctInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pctSuffix {
+  font-size: 13px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+/* ─── Driver list ─── */
+.driverList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.driverRow {
+  display: grid;
+  grid-template-columns: 1fr 150px 150px auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 8px;
+  border-radius: var(--radius);
+}
+
+.driverRow:nth-child(odd) {
+  background: var(--bg-2);
+}
+
+.driverName {
+  font-size: 14px;
+  color: var(--text-1);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effective {
+  font-size: 13px;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.effective strong {
+  color: var(--text-1);
+}
+
+.inheritTag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-4);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.empty {
+  font-size: 13.5px;
+  color: var(--text-3);
+  padding: 8px 0;
+}
+
+@media (max-width: 720px) {
+  .driverRow {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name name'
+      'field effective'
+      'actions actions';
+    gap: 8px;
+  }
+  .driverName { grid-area: name; }
+  .pctField { grid-area: field; }
+  .effective { grid-area: effective; justify-content: flex-end; }
+  .rowActions { grid-area: actions; justify-content: flex-start; }
+}

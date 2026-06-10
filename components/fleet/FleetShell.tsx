@@ -39,13 +39,13 @@ export default function FleetShell({ user, title, children }: FleetShellProps) {
       />
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, paddingBottom: isMobile ? 'var(--bottom-nav-h)' : 0 }}>
         <FleetTrialBanner />
-        <FleetTopbar title={title} onMenuClick={() => setMenuOpen((o) => !o)} />
+        <FleetTopbar title={title} onMenuClick={() => setMenuOpen((o) => !o)} isAdmin={user?.role === 'admin'} />
         <div style={{ padding: '22px 24px 32px' }} className="pad-mobile">
           {children}
         </div>
       </main>
       {user?.role && <PushNotificationPrompt variant="admin" role={user.role} />}
-      <FleetTour userId={user?.id} role={user?.role} />
+      <FleetTour userId={user?.id} role={user?.role} tourCompleted={user?.fleet_tour_completed} />
     </div>
   );
 }

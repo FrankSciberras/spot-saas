@@ -8,7 +8,7 @@ interface IconProps {
   style?: CSSProperties;
 }
 
-/** Minimal stroke icons — ported 1:1 from the standalone Spot mockup. */
+/** Minimal stroke icons — ported 1:1 from the standalone Rovora mockup. */
 export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '', style = {} }: IconProps) {
   const props = {
     width: size,

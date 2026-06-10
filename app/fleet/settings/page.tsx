@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { SessionUser } from '@/lib/types/database';
 import BrandingSettings from './BrandingSettings';
 import styles from './settings.module.css';
@@ -23,6 +24,8 @@ const SETTING_INFO: Record<string, { label: string; icon: string }> = {
 export default function SettingsPage() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [settings, setSettings] = useState<AppSetting[]>([]);
+  const [driverPushPrompt, setDriverPushPrompt] = useState<boolean | null>(null);
+  const [savingDriverPush, setSavingDriverPush] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -42,11 +45,42 @@ export default function SettingsPage() {
         const settingsData = await settingsRes.json();
         setSettings(settingsData);
       }
+
+      const pushRes = await fetch('/api/fleet/driver-push-prompt');
+      if (pushRes.ok) {
+        const pushData = await pushRes.json();
+        setDriverPushPrompt(pushData.prompt_drivers_push !== false);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       showMessage('error', 'Failed to load settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleDriverPushPrompt = async () => {
+    if (driverPushPrompt === null) return;
+    const next = !driverPushPrompt;
+    setSavingDriverPush(true);
+    try {
+      const res = await fetch('/api/fleet/driver-push-prompt', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: next }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDriverPushPrompt(updated.prompt_drivers_push !== false);
+        showMessage('success', `Setting updated successfully`);
+      } else {
+        throw new Error('Failed to update');
+      }
+    } catch (error) {
+      console.error('Error updating driver push prompt setting:', error);
+      showMessage('error', 'Failed to update setting');
+    } finally {
+      setSavingDriverPush(false);
     }
   };
 
@@ -84,7 +118,7 @@ export default function SettingsPage() {
   if (loading || !user) {
     return (
       <FleetShell user={user as SessionUser} title="Settings">
-        <div className={styles.loading}>Loading settings...</div>
+        <FleetPageSkeleton variant="form" />
       </FleetShell>
     );
   }
@@ -92,10 +126,13 @@ export default function SettingsPage() {
   return (
     <FleetShell user={user} title="Settings">
       <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerContent}>
-            <h1>Settings</h1>
-            <p>Manage system-wide feature toggles and configuration</p>
+        <div className={`${styles.header} header-mobile-row`}>
+          <div>
+            <div className={styles.breadcrumb}>Admin / Settings</div>
+            <div className={styles.titleRow}>
+              <h1 className={styles.title}>Settings</h1>
+            </div>
+            <p className={styles.subtitle}>Manage system-wide feature toggles and configuration</p>
           </div>
         </div>
 
@@ -108,6 +145,34 @@ export default function SettingsPage() {
         {user.role === 'admin' && <BrandingSettings />}
 
         <div className={styles.settingsGrid}>
+          {user.role === 'admin' && driverPushPrompt !== null && (
+            <div className={styles.settingCard}>
+              <div className={styles.settingIcon}>🔔</div>
+              <div className={styles.settingContent}>
+                <div className={styles.settingLabel}>Prompt drivers to enable notifications</div>
+                <div className={styles.settingDescription}>
+                  When enabled, drivers in your fleet who haven&apos;t turned on push
+                  notifications see a &ldquo;Stay in the loop&rdquo; prompt on login. Turn this off
+                  to stop nudging them.
+                </div>
+              </div>
+              <div className={styles.settingAction}>
+                <label className={`${styles.toggle} ${savingDriverPush ? styles.toggleDisabled : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={driverPushPrompt}
+                    onChange={toggleDriverPushPrompt}
+                    disabled={savingDriverPush}
+                  />
+                  <span className={styles.toggleSlider}></span>
+                </label>
+                <span className={styles.statusLabel}>
+                  {driverPushPrompt ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {settings.map((setting) => {
             const info = SETTING_INFO[setting.key] || {
               label: setting.key,
@@ -151,7 +216,7 @@ export default function SettingsPage() {
             );
           })}
 
-          {settings.length === 0 && (
+          {settings.length === 0 && !(user.role === 'admin' && driverPushPrompt !== null) && (
             <div className={styles.empty}>
               <p>No settings configured yet.</p>
               <p className={styles.emptyHint}>

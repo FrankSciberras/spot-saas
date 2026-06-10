@@ -42,8 +42,16 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #5b8dff;
+  background: #2bbd7e;
   margin-left: 1px;
+}
+
+.brandLogo {
+  height: 24px;
+  width: auto;
+  display: block;
+  /* Always-dark platform shell — render the logo in white. */
+  filter: brightness(0) invert(1);
 }
 
 .brandTag {
@@ -51,8 +59,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #5b8dff;
-  background: rgba(91, 141, 255, 0.12);
+  color: #2bbd7e;
+  background: rgba(43, 189, 126, 0.12);
   padding: 2px 7px;
   border-radius: 6px;
   margin-left: auto;
@@ -77,7 +85,7 @@
 }
 
 .navItemActive {
-  background: rgba(91, 141, 255, 0.16);
+  background: rgba(43, 189, 126, 0.16);
   color: #fff;
 }
 
@@ -254,8 +262,8 @@
 }
 
 .badgeRole {
-  background: rgba(91, 141, 255, 0.15);
-  color: #93b4ff;
+  background: rgba(43, 189, 126, 0.15);
+  color: #9be3bf;
   margin-right: 5px;
   text-transform: capitalize;
 }
@@ -281,7 +289,7 @@
 }
 
 .planCard.featured {
-  border-color: rgba(91, 141, 255, 0.5);
+  border-color: rgba(43, 189, 126, 0.5);
 }
 
 .planName {
@@ -322,13 +330,13 @@
   width: 15px;
   height: 15px;
   flex-shrink: 0;
-  color: #5b8dff;
+  color: #2bbd7e;
   margin-top: 1px;
 }
 
 .notice {
-  background: rgba(91, 141, 255, 0.08);
-  border: 1px solid rgba(91, 141, 255, 0.25);
+  background: rgba(43, 189, 126, 0.08);
+  border: 1px solid rgba(43, 189, 126, 0.25);
   border-radius: 12px;
   padding: 14px 18px;
   font-size: 13.5px;
@@ -369,9 +377,9 @@
   list-style: none;
   font-size: 12px;
   font-weight: 600;
-  color: #93b4ff;
+  color: #9be3bf;
   padding: 4px 10px;
-  border: 1px solid rgba(91, 141, 255, 0.35);
+  border: 1px solid rgba(43, 189, 126, 0.35);
   border-radius: 8px;
   white-space: nowrap;
   user-select: none;
@@ -382,7 +390,7 @@
 }
 
 .manage[open] .manageToggle {
-  background: rgba(91, 141, 255, 0.12);
+  background: rgba(43, 189, 126, 0.12);
 }
 
 .managePanel {
@@ -452,9 +460,9 @@
 }
 
 .miniBtnActive {
-  background: rgba(91, 141, 255, 0.18);
-  border-color: rgba(91, 141, 255, 0.5);
-  color: #93b4ff;
+  background: rgba(43, 189, 126, 0.18);
+  border-color: rgba(43, 189, 126, 0.5);
+  color: #9be3bf;
 }
 
 .miniBtnDanger {

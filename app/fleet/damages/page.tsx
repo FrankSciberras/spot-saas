@@ -1,12 +1,26 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import DamagesWorkspace, { type DamageVehicle } from '@/components/fleet/damages/DamagesWorkspace';
+
+type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 const PLATE_COLORS = ['#1e293b', '#0f172a', '#0c4a6e', '#7f1d1d', '#854d0e', '#14532d', '#1e3a8a', '#334155'];
 
 export default async function FleetDamagesPage() {
   const user = await requireRole(['admin', 'staff']);
+  return (
+    <FleetShell user={user} title="Fleet Damages">
+      <Suspense fallback={<FleetPageSkeleton variant="grid" stats={0} />}>
+        <DamagesContent user={user} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function DamagesContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -48,9 +62,5 @@ export default async function FleetDamagesPage() {
       return b.damages.open - a.damages.open;
     });
 
-  return (
-    <FleetShell user={user} title="Fleet Damages">
-      <DamagesWorkspace vehicles={vehicles} canManage={isAdmin} />
-    </FleetShell>
-  );
+  return <DamagesWorkspace vehicles={vehicles} canManage={isAdmin} />;
 }

@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import type { AuditLogEntry } from '@/lib/types/database';
 import styles from './audit-log.module.css';
 
@@ -30,6 +32,16 @@ interface AuditLogPageProps {
 
 export default async function AuditLogPage({ searchParams }: AuditLogPageProps) {
   const user = await requireRole(['admin']);
+  return (
+    <FleetShell user={user} title="Audit Log">
+      <Suspense fallback={<FleetPageSkeleton variant="list" />}>
+        <AuditLogContent searchParams={searchParams} />
+      </Suspense>
+    </FleetShell>
+  );
+}
+
+async function AuditLogContent({ searchParams }: AuditLogPageProps) {
   const supabase = await createClient();
   const resolvedSearchParams = searchParams ? await searchParams : {};
 
@@ -82,14 +94,13 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
   };
 
   return (
-    <FleetShell user={user} title="Audit Log">
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h2>Audit Log</h2>
-            <p className={styles.subtitle}>Recent create, update, and delete actions performed by staff members.</p>
-          </div>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <h2>Audit Log</h2>
+          <p className={styles.subtitle}>Recent create, update, and delete actions performed by staff members.</p>
         </div>
+      </div>
 
         <form className={styles.filtersCard}>
           <div className={styles.filtersGrid}>
@@ -204,6 +215,5 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </div>
         )}
       </div>
-    </FleetShell>
   );
 }

@@ -1,8 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
-// Routes that don't require authentication
-const publicRoutes = ['/', '/login', '/auth/callback', '/offline'];
+// Routes that don't require authentication (exact match)
+const publicRoutes = ['/', '/login', '/auth/callback', '/offline', '/privacy', '/terms', '/security'];
+
+// Public route prefixes — anything under these is open (marketing pages, etc.)
+const publicPrefixes = ['/features', '/about', '/careers', '/contact'];
 
 // Route patterns for role-based access
 const adminRoutes = /^\/fleet/;
@@ -13,7 +16,11 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes and API routes (API routes handle their own auth)
-  if (publicRoutes.includes(pathname) || apiRoutes.test(pathname)) {
+  const isPublic =
+    publicRoutes.includes(pathname) ||
+    publicPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    apiRoutes.test(pathname);
+  if (isPublic) {
     const { supabaseResponse } = await updateSession(request);
     return supabaseResponse;
   }
