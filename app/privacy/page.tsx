@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     'How Rovora collects, uses, stores and protects personal data for fleet operators and their drivers. EU-hosted and aligned with the GDPR and Malta’s Data Protection Act.',
 };
 
-const LAST_UPDATED = '8 June 2026';
+const LAST_UPDATED = '11 June 2026';
 
 export default function PrivacyPage() {
   return (
@@ -106,6 +106,11 @@ export default function PrivacyPage() {
                       <td>To schedule servicing and keep a per-vehicle history</td>
                     </tr>
                     <tr>
+                      <td>Location data</td>
+                      <td>GPS position (latitude/longitude), speed, heading, accuracy and timestamps, collected while a driver has location sharing switched on</td>
+                      <td>So the fleet operator can see live driver positions and shift routes (see <a href="#location">Location data</a>)</td>
+                    </tr>
+                    <tr>
                       <td>Operational &amp; financial</td>
                       <td>Shifts, rosters, check-in mileage, earnings, settlements (fares, tips, campaigns, fees and tax deductions such as FSS), adjustments and weekly bookkeeping</td>
                       <td>To run rosters and reconcile each driver’s weekly pay</td>
@@ -134,6 +139,49 @@ export default function PrivacyPage() {
                 necessary to comply with transport-licensing and employment obligations, and we restrict
                 access to them tightly (see <a href="#security">Security</a>).
               </p>
+            </>
+          ),
+        },
+        {
+          id: 'location',
+          heading: 'Location data and the driver app',
+          body: (
+            <>
+              <p>
+                The Rovora driver app (and the “Share Location” feature of the driver web portal) can
+                collect a driver’s device location — GPS position, speed, heading and accuracy — and
+                share it with their fleet operator. This is how it works:
+              </p>
+              <ul>
+                <li>
+                  <strong>Sharing is always started by the driver.</strong> Nothing is collected until
+                  the driver taps “Start sharing”, and the driver can stop at any time. The app shows a
+                  clear disclosure before the first use and a visible indicator (including a persistent
+                  notification on Android) while sharing is active.
+                </li>
+                <li>
+                  <strong>Background collection.</strong> When the driver grants background location
+                  permission, the app continues to collect location while it is closed or the screen is
+                  off, so the fleet can see the driver’s position throughout the shift. Sharing ends when
+                  the driver taps “Stop sharing”.
+                </li>
+                <li>
+                  <strong>Who can see it.</strong> Live positions and route history are visible only to
+                  the authorised staff of the driver’s own fleet, inside that fleet’s dashboard. Location
+                  data is never sold, never used for advertising, and never shared with other fleets or
+                  third parties.
+                </li>
+                <li>
+                  <strong>Controller and purpose.</strong> The fleet operator decides whether and why to
+                  use location sharing (typically live operations and duty-of-care during shifts) and is
+                  the data controller for it; Rovora processes the data on the operator’s behalf.
+                </li>
+                <li>
+                  <strong>Retention.</strong> The latest position is overwritten continuously; route
+                  history is retained as operational data under the fleet’s account (see{' '}
+                  <a href="#retention">How long we keep it</a>) and is deleted with it.
+                </li>
+              </ul>
             </>
           ),
         },
