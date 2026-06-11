@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
+import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
 
 /**
  * POST /api/notifications/send
@@ -67,13 +68,11 @@ export async function POST(request: Request) {
     }
 
     if (recipients === 'all_admins' || recipients === 'all') {
-      const { data: admins, error: adminsError } = await supabase
-        .from('users')
-        .select('id, email, full_name, role')
-        .in('role', ['admin', 'staff']);
-      
-      console.log('Fetching admins/staff:', { admins, error: adminsError });
-      targetUsers = admins || [];
+      // Org-scoped via memberships (service role bypasses RLS, so a global
+      // users query would notify every fleet's admins — a cross-tenant leak).
+      const admin = createAdminClient();
+      const staff = await orgAdminStaffUsers(admin, orgId);
+      targetUsers = staff.map((u) => ({ id: u.id, email: u.email ?? '', full_name: u.full_name }));
     }
 
     if (recipients === 'specific' && specific_ids) {
@@ -87,11 +86,22 @@ export async function POST(request: Request) {
       if (drivers && drivers.length > 0) {
         targetDrivers = drivers;
       } else {
-        const { data: users } = await supabase
-          .from('users')
-          .select('id, email, full_name')
-          .in('id', specific_ids);
-        targetUsers = users || [];
+        // Only target users who are members of THIS fleet.
+        const admin = createAdminClient();
+        const { data: mems } = await admin
+          .from('memberships')
+          .select('user_id')
+          .eq('organization_id', orgId)
+          .in('user_id', specific_ids);
+        const allowedIds = Array.from(new Set((mems ?? []).map((m: { user_id: string }) => m.user_id)));
+        if (allowedIds.length > 0) {
+          const { data: users } = await admin
+            .from('users')
+            .select('id, email, full_name')
+            .in('id', allowedIds);
+          targetUsers = ((users || []) as { id: string; email: string | null; full_name: string | null }[])
+            .map((u) => ({ id: u.id, email: u.email ?? '', full_name: u.full_name }));
+        }
       }
     }
 

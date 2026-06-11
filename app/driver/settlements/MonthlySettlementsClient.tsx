@@ -42,10 +42,6 @@ function signedAdjustmentAmount(type: DriverAdjustment['type'], amount: number):
   return 0;
 }
 
-function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
-  return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, Number(adj.amount) || 0), 0);
-}
-
 export default function MonthlySettlementsClient({
   settlements: allSettlements,
   driverName,
@@ -204,36 +200,21 @@ export default function MonthlySettlementsClient({
   }, [selectedYear, yearSettlements]);
 
   const adjustmentAssignment = useMemo(() => {
-    const settlementsSorted = [...yearSettlements].sort((a, b) => dateOnly(a.week_start).localeCompare(dateOnly(b.week_start)));
+    // Group by the FROZEN settlement_id link (set when a settlement was saved),
+    // not a live date match — so an adjustment always shows under the exact
+    // settlement that priced it, and editing it can't re-bucket old records.
+    const settlementIds = new Set(yearSettlements.map(s => s.id));
     const assignedBySettlementId = new Map<string, DriverAdjustment[]>();
     const unassigned: DriverAdjustment[] = [];
 
     yearAdjustments.forEach(adj => {
-      const adjDateStr = dateOnly(adj.date);
-      const adjDate = parseDateOnly(adjDateStr);
-      if (Number.isNaN(adjDate.getTime())) {
+      if (adj.settlement_id && settlementIds.has(adj.settlement_id)) {
+        const list = assignedBySettlementId.get(adj.settlement_id) || [];
+        list.push(adj);
+        assignedBySettlementId.set(adj.settlement_id, list);
+      } else {
         unassigned.push(adj);
-        return;
       }
-
-      let matchedSettlement: SettlementWithPlatforms | null = null;
-      for (const s of settlementsSorted) {
-        const start = parseDateOnly(String(s.week_start));
-        const end = parseDateOnly(String(s.week_end));
-        if (adjDate >= start && adjDate <= end) {
-          matchedSettlement = s;
-          break;
-        }
-      }
-
-      if (!matchedSettlement) {
-        unassigned.push(adj);
-        return;
-      }
-
-      const list = assignedBySettlementId.get(matchedSettlement.id) || [];
-      list.push(adj);
-      assignedBySettlementId.set(matchedSettlement.id, list);
     });
 
     return {
@@ -261,9 +242,12 @@ export default function MonthlySettlementsClient({
     });
   }, [adjustmentAssignment.unassigned, selectedMonth, selectedYear]);
 
+  // The money figure is the FROZEN snapshot stored on each settlement, so it
+  // never drifts if a linked adjustment is later edited. (The itemized
+  // monthAdjustments list is shown for detail only.)
   const monthAdjustmentsNet = useMemo(() => {
-    return calculateAdjustmentsNet(monthAdjustments);
-  }, [monthAdjustments]);
+    return monthSettlements.reduce((sum, s) => sum + (s.total_adjustments ?? 0), 0);
+  }, [monthSettlements]);
 
   const adjustmentsNetByMonth = useMemo(() => {
     const map = new Map<number, number>();
@@ -272,14 +256,12 @@ export default function MonthlySettlementsClient({
     yearSettlements.forEach(s => {
       const monthDate = s.settlement_month ? new Date(s.settlement_month) : new Date(s.week_start);
       const month = monthDate.getMonth();
-      const assigned = adjustmentAssignment.assignedBySettlementId.get(s.id) || [];
-      const net = calculateAdjustmentsNet(assigned);
       const cur = map.get(month) || 0;
-      map.set(month, cur + net);
+      map.set(month, cur + (s.total_adjustments ?? 0));
     });
 
     return map;
-  }, [adjustmentAssignment.assignedBySettlementId, selectedYear, yearSettlements]);
+  }, [selectedYear, yearSettlements]);
 
   const monthPlatformTotals = useMemo(() => {
     const map = new Map<
@@ -559,7 +541,7 @@ export default function MonthlySettlementsClient({
                         <span className={`${styles.paymentBadge} ${isSettlementPaid(s) ? styles.paid : styles.unpaid}`}>
                           {isSettlementPaid(s) ? 'Paid' : 'Unpaid'}
                         </span>
-                        <div className={styles.weekHeaderAmount}>{formatCurrency(s.final_balance)}</div>
+                        <div className={styles.weekHeaderAmount}>{formatCurrency(s.final_balance + (s.total_adjustments ?? 0))}</div>
                         <div className={styles.expandIcon}>{expanded ? '−' : '+'}</div>
                       </div>
                     </button>
@@ -579,6 +561,21 @@ export default function MonthlySettlementsClient({
                             <span>FSS/Tax</span>
                             <span>-{formatCurrency(s.fss_tax)}</span>
                           </div>
+                          {(s.rent_amount ?? 0) > 0 && (
+                            <div className={styles.weekMiniStat}>
+                              <span>Rent</span>
+                              <span>-{formatCurrency(s.rent_amount)}</span>
+                            </div>
+                          )}
+                          {(s.total_adjustments ?? 0) !== 0 && (
+                            <div className={styles.weekMiniStat}>
+                              <span>Adjustments</span>
+                              <span>
+                                {(s.total_adjustments ?? 0) >= 0 ? '+' : '-'}
+                                {formatCurrency(Math.abs(s.total_adjustments ?? 0))}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className={styles.weekPlatforms}>

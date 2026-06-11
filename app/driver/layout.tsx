@@ -1,4 +1,5 @@
 import BrandingShell from '@/components/shared/BrandingShell';
+import NativeBridge from '@/components/driver/NativeBridge';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,5 +13,10 @@ export default async function DriverLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <BrandingShell>{children}</BrandingShell>;
+  return (
+    <BrandingShell>
+      <NativeBridge />
+      {children}
+    </BrandingShell>
+  );
 }

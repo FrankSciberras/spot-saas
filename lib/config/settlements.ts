@@ -5,8 +5,12 @@
 // Modify these values to change defaults without touching business logic.
 
 /**
- * Platform/Service configuration
- * Add new platforms here - the system will automatically include them
+ * Platform/Service configuration.
+ *
+ * Platforms are per-fleet data now (org_platforms table, editable in
+ * Settlement Rules). The PLATFORMS constant below is only the FALLBACK for
+ * orgs with zero platform rows (e.g. migration not applied yet) — it matches
+ * what seed_default_platforms() seeds.
  */
 export interface PlatformConfig {
   id: string;
@@ -14,6 +18,30 @@ export interface PlatformConfig {
   defaultFeePercent: number;
   icon: string;
   color: string;
+}
+
+/** Loose shape of an org_platforms row (structural, for partial selects). */
+export interface OrgPlatformLike {
+  key: string;
+  name: string;
+  default_fee_pct: number;
+  icon: string;
+  color: string;
+}
+
+/**
+ * Resolve the platform list for a fleet: its org_platforms rows when any
+ * exist, otherwise the hardcoded defaults.
+ */
+export function resolvePlatforms(rows: OrgPlatformLike[] | null | undefined): PlatformConfig[] {
+  if (!rows || rows.length === 0) return PLATFORMS;
+  return rows.map((r) => ({
+    id: r.key,
+    name: r.name,
+    defaultFeePercent: clampPercent(r.default_fee_pct, 10),
+    icon: r.icon || '🚗',
+    color: r.color || '#2bbd7e',
+  }));
 }
 
 export const PLATFORMS: PlatformConfig[] = [
@@ -106,6 +134,46 @@ export const DEFAULT_SCHEME: SettlementScheme = {
  * Driver share percentage — kept for back-compat. Prefer DEFAULT_SCHEME.
  */
 export const DRIVER_SHARE_PERCENT = DEFAULT_SCHEME.driverSharePct;
+
+/**
+ * Loose shape of a settlement preset row (lib/types SettlementPreset), accepted
+ * here structurally so callers can pass partial selects.
+ */
+export interface PresetLike {
+  driver_share_pct: number;
+  tips_driver_pct: number;
+  campaigns_driver_pct: number;
+  fee_driver_pct: number;
+  tax_type: 'flat' | 'percent';
+  tax_value: number;
+  rent_weekly: number;
+}
+
+/** Build a SettlementScheme from a preset row, clamping every percentage. */
+export function schemeFromPreset(preset: PresetLike): SettlementScheme {
+  return {
+    driverSharePct: clampPercent(preset.driver_share_pct, DEFAULT_SCHEME.driverSharePct),
+    tipsDriverPct: clampPercent(preset.tips_driver_pct, DEFAULT_SCHEME.tipsDriverPct),
+    campaignsDriverPct: clampPercent(preset.campaigns_driver_pct, DEFAULT_SCHEME.campaignsDriverPct),
+    feeDriverPct: clampPercent(preset.fee_driver_pct, DEFAULT_SCHEME.feeDriverPct),
+  };
+}
+
+/**
+ * Default FSS/tax for a new settlement under a preset.
+ *
+ * Flat tax keeps the long-standing employment-type rule (only full-time drivers
+ * are prefilled with the flat amount; part-time/terminated get 0). Percent tax
+ * is computed from the balance before tax by the caller, so it returns null
+ * here ("derive it live").
+ */
+export function presetFlatTax(
+  preset: PresetLike,
+  employmentType: string | null | undefined
+): number | null {
+  if (preset.tax_type === 'percent') return null;
+  return employmentType === 'full_time' ? Math.max(0, preset.tax_value) : 0;
+}
 
 /** Clamp any value to a valid 0–100 percentage, falling back to `fallback`. */
 export function clampPercent(value: unknown, fallback: number): number {

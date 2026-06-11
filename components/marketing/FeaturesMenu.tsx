@@ -7,18 +7,20 @@ import { Icon, type IconName } from './feature/icons';
 
 /** Which icon represents each feature page in the menu. */
 const ICONS: Record<string, IconName> = {
+  vehicles: 'car',
+  maintenance: 'wrench',
+  damage: 'camera',
+  'live-tracking': 'pulse',
+  rosters: 'calendar',
   settlements: 'coins',
   'flexible-pay': 'sliders',
   adjustments: 'plusCircle',
-  'live-tracking': 'pulse',
-  rosters: 'calendar',
-  maintenance: 'wrench',
 };
 
-/** Two columns: money/pay features vs day-to-day operations. */
+/** Two columns: running the fleet vs paying the drivers. */
 const GROUPS: { heading: string; slugs: string[] }[] = [
-  { heading: 'Money & pay', slugs: ['settlements', 'flexible-pay', 'adjustments'] },
-  { heading: 'Operations', slugs: ['live-tracking', 'rosters', 'maintenance'] },
+  { heading: 'Run your fleet', slugs: ['vehicles', 'maintenance', 'damage', 'live-tracking', 'rosters'] },
+  { heading: 'Driver pay', slugs: ['settlements', 'flexible-pay', 'adjustments'] },
 ];
 
 const bySlug = (slug: string) => FEATURES.find((f) => f.slug === slug)!;

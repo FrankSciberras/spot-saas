@@ -21,7 +21,6 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
             )}
             <p>Fleet management for small taxi &amp; cab operators. Drivers, vehicles, shifts and settlements — in one clean dashboard.</p>
             <div className="foot-trust">
-              <span className="foot-stars" aria-hidden>★★★★★</span>
               <span>Built for taxi &amp; cab fleets of 5–50 vehicles</span>
             </div>
             <div className="foot-badge"><span className="live" /> EU-hosted · data encrypted</div>
@@ -41,11 +40,11 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
 
             <div className="foot-col">
               <h5>Features</h5>
+              <Link href={featureHref('vehicles')}>Vehicle management</Link>
+              <Link href={featureHref('maintenance')}>Maintenance &amp; services</Link>
+              <Link href={featureHref('damage')}>Damage &amp; repairs</Link>
               <Link href={featureHref('live-tracking')}>Live driver tracking</Link>
               <Link href={featureHref('rosters')}>Rosters &amp; shifts</Link>
-              <Link href={featureHref('maintenance')}>Maintenance &amp; services</Link>
-              <a href={h('features')}>Smart alerts</a>
-              <a href={h('features')}>Driver app</a>
             </div>
 
             <div className="foot-col">

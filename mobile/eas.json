@@ -1,0 +1,30 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://lqkygfqtcpcklbrhjiha.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Oaaaj3f4xh_SpJO_c5Khaw_d2EPe0z9",
+        "EXPO_PUBLIC_PORTAL_URL": "https://rovora.eu/driver"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://lqkygfqtcpcklbrhjiha.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Oaaaj3f4xh_SpJO_c5Khaw_d2EPe0z9",
+        "EXPO_PUBLIC_PORTAL_URL": "https://rovora.eu/driver"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

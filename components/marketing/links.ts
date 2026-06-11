@@ -14,12 +14,14 @@ export interface FeatureLink {
 
 /** Live feature pages under /features/<slug>. */
 export const FEATURES: FeatureLink[] = [
+  { slug: 'vehicles', label: 'Vehicle management', blurb: 'Every car’s documents, mileage and drivers in one profile.' },
+  { slug: 'maintenance', label: 'Maintenance & services', blurb: 'Mileage-triggered servicing with automatic alerts.' },
+  { slug: 'damage', label: 'Damage & repairs', blurb: 'Log damage with photos, track repairs and costs per car.' },
+  { slug: 'live-tracking', label: 'Live driver tracking', blurb: 'See who’s on shift, hours and earnings as they happen.' },
+  { slug: 'rosters', label: 'Rosters & shifts', blurb: 'Plan the week and publish shifts in a click.' },
   { slug: 'settlements', label: 'Weekly settlements', blurb: 'Reconcile every driver’s week into one payable number.' },
   { slug: 'flexible-pay', label: 'Flexible pay', blurb: 'Per-driver splits for fares, tips, campaigns and fees.' },
   { slug: 'adjustments', label: 'Adjustments', blurb: 'Bonuses, expenses and deductions, applied automatically.' },
-  { slug: 'live-tracking', label: 'Live driver tracking', blurb: 'See who’s on shift, hours and earnings as they happen.' },
-  { slug: 'rosters', label: 'Rosters & shifts', blurb: 'Plan the week and publish shifts in a click.' },
-  { slug: 'maintenance', label: 'Maintenance & services', blurb: 'Mileage-triggered servicing with automatic alerts.' },
 ];
 
 export const featureHref = (slug: string) => `/features/${slug}`;

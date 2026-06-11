@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
 import PushNotificationToggle from '@/components/shared/PushNotificationToggle';
 import ChangePasswordForm from '@/components/shared/ChangePasswordForm';
+import DriverSelfService from '@/components/driver/DriverSelfService';
 import type { Driver, Vehicle, User } from '@/lib/types/database';
 import styles from './profile.module.css';
 
@@ -247,6 +248,16 @@ export default async function DriverProfilePage() {
           </div>
         </div>
 
+        {/* Self-service: edit own contact details + upload documents (drivers only) */}
+        {user.role === 'driver' && (
+          <DriverSelfService
+            driverId={driverData.id}
+            initialPhone={driverData.phone}
+            initialAddress={driverData.address}
+            docTypes={documentTypes.map((d) => ({ key: d.key, label: d.label }))}
+          />
+        )}
+
         {/* Documents & Licenses */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
@@ -286,7 +297,7 @@ export default async function DriverProfilePage() {
                         attachments.map((file: FileRecord) => (
                           <a 
                             key={file.id} 
-                            href={file.file_url} 
+                            href={`/api/files/${file.id}/view`} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className={styles.attachmentLink}
@@ -332,7 +343,7 @@ export default async function DriverProfilePage() {
                 <span className={styles.legacyLabel}>Older uploads (before front/back split):</span>
                 <div className={styles.legacyLinks}>
                   {legacyIdCards.map((f: FileRecord) => (
-                    <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className={styles.attachmentLink}>
+                    <a key={f.id} href={`/api/files/${f.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.attachmentLink}>
                       <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                       </svg>
@@ -340,7 +351,7 @@ export default async function DriverProfilePage() {
                     </a>
                   ))}
                   {legacyLicenses.map((f: FileRecord) => (
-                    <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className={styles.attachmentLink}>
+                    <a key={f.id} href={`/api/files/${f.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.attachmentLink}>
                       <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                       </svg>

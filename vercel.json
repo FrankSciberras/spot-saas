@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ':!mobile' ':!scripts/gen-mobile-icons.js'",
   "crons": [
     {
       "path": "/api/cron/check-updates",

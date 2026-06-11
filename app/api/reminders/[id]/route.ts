@@ -29,6 +29,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .from('reminders')
       .select('id, created_by, assigned_to')
       .eq('id', id)
+      .eq('organization_id', session.organization_id)
       .maybeSingle();
 
     if (!existingReminder) {
@@ -67,6 +68,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .from('reminders')
       .update(updates)
       .eq('id', id)
+      .eq('organization_id', session.organization_id)
       .select(`
         *,
         creator:created_by (full_name, email),
@@ -118,6 +120,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       .from('reminders')
       .select('id, title, created_by, assigned_to, status')
       .eq('id', id)
+      .eq('organization_id', session.organization_id)
       .maybeSingle();
 
     if (!existingReminder) {
@@ -135,7 +138,8 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     const { error } = await supabase
       .from('reminders')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('organization_id', session.organization_id);
 
     if (error) throw error;
 

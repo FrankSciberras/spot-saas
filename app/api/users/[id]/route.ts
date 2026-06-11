@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import { removeMemberFromOrg } from '@/lib/members/removeMember';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
@@ -16,24 +15,30 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const session = await getSession();
+
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Only admins can view users' }, { status: 403 });
     }
 
-    const { data: targetUser, error } = await supabase
+    const supabaseAdmin = createAdminClient();
+
+    // The target must be a member of the caller's active fleet.
+    const { data: membership } = await supabaseAdmin
+      .from('memberships')
+      .select('user_id')
+      .eq('organization_id', session.organization_id)
+      .eq('user_id', id)
+      .maybeSingle();
+
+    if (!membership) {
+      return NextResponse.json({ error: 'User not found in this fleet' }, { status: 404 });
+    }
+
+    const { data: targetUser, error } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', id)
@@ -57,20 +62,12 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PUT(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const session = await getSession();
+
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Only admins can update users' }, { status: 403 });
     }
 
@@ -78,21 +75,25 @@ export async function PUT(request: Request, context: RouteContext) {
     const { full_name, password, also_staff } = body;
 
     // Create admin client for password updates
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabaseAdmin = createAdminClient();
+
+    // The target must be a member of the caller's active fleet — otherwise an
+    // admin of one fleet could rename or reset the password of any platform user.
+    const { data: membership } = await supabaseAdmin
+      .from('memberships')
+      .select('user_id')
+      .eq('organization_id', session.organization_id)
+      .eq('user_id', id)
+      .maybeSingle();
+
+    if (!membership) {
+      return NextResponse.json({ error: 'User not found in this fleet' }, { status: 404 });
+    }
 
     // Update password if provided
     if (password) {
-      if (password.length < 6) {
-        return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+      if (password.length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
       }
 
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, {
@@ -170,16 +171,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     const orgId = session.organization_id;
 
     // Create admin client
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabaseAdmin = createAdminClient();
 
     // Resolve the target's role IN THIS FLEET (the source of truth post-SaaS).
     const { data: membership } = await supabaseAdmin

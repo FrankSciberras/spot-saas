@@ -1,0 +1,194 @@
+/* =============================================================================
+   Share Location — driver web tracking toggle
+   ============================================================================= */
+
+.page {
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.backBtn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.backBtn:hover {
+  background: var(--bg-tertiary);
+  transform: translateX(-2px);
+}
+
+.headerSpacer {
+  width: 40px;
+}
+
+.card {
+  max-width: 440px;
+  margin: 24px auto;
+  padding: 36px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  text-align: center;
+}
+
+.statusRing {
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.3s ease;
+}
+
+.statusRingOn {
+  border-color: #2bbd7e;
+  animation: ringPulse 2s ease-out infinite;
+}
+
+@keyframes ringPulse {
+  0% { box-shadow: 0 0 0 0 rgba(43, 189, 126, 0.35); }
+  100% { box-shadow: 0 0 0 16px rgba(43, 189, 126, 0); }
+}
+
+.statusDot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  transition: background 0.3s ease;
+}
+
+.statusDotOn {
+  background: #2bbd7e;
+}
+
+.statusTitle {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.hint {
+  margin: 14px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.errorMsg {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #c0392b;
+  background: rgba(240, 100, 100, 0.1);
+  border: 1px solid rgba(240, 100, 100, 0.3);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin: 20px 0 4px;
+}
+
+.statValue {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.toggleBtn {
+  width: 100%;
+  margin-top: 22px;
+  padding: 15px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: #2bbd7e;
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.toggleBtn:hover {
+  filter: brightness(1.06);
+}
+
+.toggleBtn:active {
+  transform: scale(0.98);
+}
+
+.toggleBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleBtnStop {
+  background: #f06464;
+}
+
+.footnote {
+  margin: 16px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

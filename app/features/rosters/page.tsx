@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'Rosters & shift scheduling — Rovora',
@@ -141,7 +142,7 @@ export default function RostersFeaturePage() {
 
       <CtaBand
         title="Plan the week once — everyone’s in the loop."
-        body="Start your 14-day free trial and publish your first roster this afternoon. No card required."
+        body={`Start your ${TRIAL_DAYS}-day free trial and publish your first roster this afternoon. No card required.`}
       />
     </FeatureShell>
   );

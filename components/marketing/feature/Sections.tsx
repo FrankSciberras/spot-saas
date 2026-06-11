@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { START_TRIAL } from '../links';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { Icon, type IconName } from './icons';
 
 const accents = ['green', 'violet', 'amber', 'teal'] as const;
@@ -13,7 +14,7 @@ export function FeatureHero({
   accent,
   sub,
   visual,
-  micro = ['14-day free trial', 'No card required', 'Set up in an afternoon'],
+  micro = [`${TRIAL_DAYS}-day free trial`, 'No card required', 'Set up in an afternoon'],
 }: {
   eyebrow: string;
   title: ReactNode;

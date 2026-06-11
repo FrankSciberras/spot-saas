@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'Live driver & shift tracking — Rovora',
@@ -137,7 +138,7 @@ export default function LiveTrackingFeaturePage() {
 
       <CtaBand
         title="Stop calling round to find your drivers."
-        body="Start your 14-day free trial and watch your fleet come to life on one screen."
+        body={`Start your ${TRIAL_DAYS}-day free trial and watch your fleet come to life on one screen.`}
       />
     </FeatureShell>
   );

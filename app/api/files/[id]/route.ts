@@ -27,10 +27,14 @@ export async function DELETE(
   const { id } = await context.params;
   const adminClient = createAdminClient();
 
+  // Tenant check: scope by organization_id. The service-role client bypasses
+  // RLS, so without this a fleet admin could delete any other tenant's
+  // documents by id.
   const { data: fileRow, error: fetchError } = await adminClient
     .from('files')
     .select('id, file_url')
     .eq('id', id)
+    .eq('organization_id', session.organization_id)
     .single();
 
   if (fetchError || !fileRow) {

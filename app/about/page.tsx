@@ -3,6 +3,7 @@ import Link from 'next/link';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { START_TRIAL } from '@/components/marketing/links';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'About — Rovora',
@@ -63,7 +64,7 @@ export default function AboutPage() {
 
       <CtaBand
         title="Come see what a calmer fleet feels like."
-        body="Start your 14-day free trial — no card, no lock-in — or book a demo and we’ll walk you through it."
+        body={`Start your ${TRIAL_DAYS}-day free trial — no card, no lock-in — or book a demo and we’ll walk you through it.`}
       />
     </FeatureShell>
   );

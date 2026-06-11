@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'Weekly driver settlements — Rovora',
@@ -145,7 +146,7 @@ export default function SettlementsFeaturePage() {
 
       <CtaBand
         title="Give your weekly payroll back to the week."
-        body="Start your 14-day free trial — no card, no lock-in. Run your first reconciled settlement this afternoon."
+        body={`Start your ${TRIAL_DAYS}-day free trial — no card, no lock-in. Run your first reconciled settlement this afternoon.`}
       />
     </FeatureShell>
   );

@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'vehicles', name: 'Vehicles', href: '/fleet/vehicles', icon: 'vehicle' },
       { id: 'rosters', name: 'Rosters', href: '/fleet/rosters', icon: 'roster' },
       { id: 'shifts', name: 'Shifts', href: '/fleet/shifts', icon: 'shift' },
+      { id: 'tracking', name: 'Live Map', href: '/fleet/tracking', icon: 'map' },
     ],
   },
   {

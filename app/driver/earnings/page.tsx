@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import DashboardLayout from '@/components/shared/DashboardLayout';
+import { resolvePlatforms } from '@/lib/config/settlements';
 import EarningsClient from './EarningsClient';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './earnings.module.css';
@@ -53,11 +54,19 @@ export default async function DriverEarningsPage() {
     .gte('week_start', sixMonthsAgo.toISOString().split('T')[0])
     .order('week_start', { ascending: false });
 
+  // Fleet's platforms for icons/colors in the breakdown (members can read).
+  const { data: platformRows } = await supabase
+    .from('org_platforms')
+    .select('key, name, default_fee_pct, icon, color')
+    .order('sort_order');
+  const platforms = resolvePlatforms(platformRows);
+
   return (
     <DashboardLayout user={user} variant="driver" title="My Earnings">
-      <EarningsClient 
-        settlements={(settlements || []) as SettlementWithPlatforms[]} 
+      <EarningsClient
+        settlements={(settlements || []) as SettlementWithPlatforms[]}
         driverName={driver.full_name}
+        platforms={platforms}
       />
     </DashboardLayout>
   );

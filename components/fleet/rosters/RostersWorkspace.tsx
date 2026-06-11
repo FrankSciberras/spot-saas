@@ -34,6 +34,21 @@ function RosStat({ label, value, sub, accent, icon }: { label: string; value: st
 export default function RostersWorkspace({ rosters, canManage }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  const duplicate = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setDuplicatingId(id);
+    try {
+      const res = await fetch(`/api/rosters/${id}/duplicate`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to copy roster');
+      router.push(`/fleet/rosters/${data.data.id}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to copy roster');
+      setDuplicatingId(null);
+    }
+  };
 
   const toggle = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -104,6 +119,17 @@ export default function RostersWorkspace({ rosters, canManage }: Props) {
                   <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-2)' }}>{r.published}</div>
                 </div>
               </div>
+              {canManage && (
+                <button
+                  onClick={(e) => duplicate(e, r.id)}
+                  disabled={duplicatingId === r.id}
+                  style={st.copyBtn}
+                  className="fleetHover"
+                  title="Create a draft for the following week with the same assignments"
+                >
+                  <FleetIcon name="doc" size={13} /> {duplicatingId === r.id ? 'Copying…' : 'Copy to next week'}
+                </button>
+              )}
             </div>
           );
         })}
@@ -127,4 +153,5 @@ const st: Record<string, CSSProperties> = {
   card: { padding: '16px 18px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12, cursor: 'pointer', transition: 'border-color 120ms ease, background 120ms ease' },
   statusPill: { fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: 'var(--pos)', background: 'var(--pos-soft)', padding: '2px 8px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase' },
   draftPill: { fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: 'var(--text-3)', background: 'var(--bg-2)', padding: '2px 8px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase' },
+  copyBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '6px 10px', width: '100%', justifyContent: 'center', background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 7, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },
 };

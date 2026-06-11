@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession } from '@/lib/auth/session';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
@@ -30,6 +31,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   // Parse request body for republish flag
   let republish = false;
   try {
@@ -47,6 +53,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     .single();
 
   if (rosterError || !roster) {
+    return NextResponse.json({ error: 'Roster not found' }, { status: 404 });
+  }
+
+  // Tenant check: the admin client bypasses RLS, so confirm the roster belongs
+  // to the caller's active fleet before publishing + blasting notifications.
+  if (roster.organization_id !== session.organization_id) {
     return NextResponse.json({ error: 'Roster not found' }, { status: 404 });
   }
 

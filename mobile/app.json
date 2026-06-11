@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Rovora Driver",
+    "slug": "rovora-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "rovora",
+    "ios": {
+      "bundleIdentifier": "eu.rovora.driver",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Rovora shares your live position with your fleet operator while you are on shift.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Rovora shares your live position with your fleet operator while location sharing is on, including in the background.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
+    },
+    "android": {
+      "package": "eu.rovora.driver",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1411",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Rovora shares your live position with your fleet operator while you are on shift.",
+          "locationAlwaysAndWhenInUsePermission": "Rovora shares your live position with your fleet operator while location sharing is on, including in the background.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "@sentry/react-native"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "84bbfe5e-e18c-4258-87d2-758225ba2770"
+      }
+    },
+    "owner": "franksciberras"
+  }
+}
