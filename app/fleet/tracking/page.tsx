@@ -34,7 +34,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes] = await Promise.all([
+  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes, orgRes, distancesRes, speedingRes] = await Promise.all([
     supabase
       .from('driver_positions')
       .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, drivers:driver_id (full_name)')
@@ -58,10 +58,21 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       .eq('organization_id', orgId)
       .order('occurred_at', { ascending: false })
       .limit(30),
+    supabase.from('organizations').select('speed_limit_kmh').eq('id', orgId).single(),
+    supabase.rpc('driver_distances', { p_since: startOfDay.toISOString() }),
+    supabase
+      .from('speeding_events')
+      .select('id, speed_kmh, limit_kmh, occurred_at, drivers:driver_id (full_name)')
+      .eq('organization_id', orgId)
+      .order('occurred_at', { ascending: false })
+      .limit(20),
   ]);
 
   const maxSpeedByDriver = new Map<string, number>(
     ((maxSpeedsRes.data || []) as any[]).map((r) => [r.driver_id, Number(r.max_speed)])
+  );
+  const distanceByDriver = new Map<string, number>(
+    ((distancesRes.data || []) as any[]).map((r) => [r.driver_id, Number(r.distance_m)])
   );
 
   const positions: PositionItem[] = ((positionsRes.data || []) as any[]).map((r, i) => {
@@ -77,6 +88,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       heading: r.heading,
       speed: r.speed,
       maxSpeedToday: maxSpeedByDriver.get(r.driver_id) ?? null,
+      distanceToday: distanceByDriver.get(r.driver_id) ?? null,
       isTracking: !!r.is_tracking,
       recordedAt: r.recorded_at,
     };
@@ -102,6 +114,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       event: e.event as string,
       driverName: nameOf(e.drivers),
       zoneName: null,
+      detail: null,
       occurredAt: e.occurred_at as string,
     })),
     ...((zoneEventsRes.data || []) as any[]).map((e) => ({
@@ -110,6 +123,16 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       event: e.event as string,
       driverName: nameOf(e.drivers),
       zoneName: zoneNameOf(e.geofences),
+      detail: null,
+      occurredAt: e.occurred_at as string,
+    })),
+    ...((speedingRes.data || []) as any[]).map((e) => ({
+      id: `s-${e.id}`,
+      kind: 'speed' as const,
+      event: 'speeding',
+      driverName: nameOf(e.drivers),
+      zoneName: null,
+      detail: `${e.speed_kmh} km/h (limit ${e.limit_kmh})`,
       occurredAt: e.occurred_at as string,
     })),
   ]
@@ -123,6 +146,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       initialPositions={positions}
       initialZones={zones}
       initialActivity={activity}
+      initialSpeedLimit={(orgRes.data as any)?.speed_limit_kmh ?? null}
     />
   );
 }

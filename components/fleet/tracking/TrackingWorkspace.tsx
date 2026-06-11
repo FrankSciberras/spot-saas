@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { Map as LeafletMap, Marker, Circle } from 'leaflet';
+import type { Map as LeafletMap, Marker, Circle, Polyline } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import 'leaflet/dist/leaflet.css';
@@ -17,6 +17,7 @@ export interface PositionItem {
   heading: number | null;
   speed: number | null;
   maxSpeedToday: number | null;
+  distanceToday: number | null;
   isTracking: boolean;
   recordedAt: string;
 }
@@ -33,10 +34,11 @@ export interface ZoneItem {
 
 export interface ActivityItem {
   id: string;
-  kind: 'tracking' | 'zone';
+  kind: 'tracking' | 'zone' | 'speed';
   event: string;
   driverName: string;
   zoneName: string | null;
+  detail: string | null;
   occurredAt: string;
 }
 
@@ -46,6 +48,7 @@ interface TrackingWorkspaceProps {
   initialPositions: PositionItem[];
   initialZones: ZoneItem[];
   initialActivity: ActivityItem[];
+  initialSpeedLimit: number | null;
 }
 
 const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
@@ -109,6 +112,7 @@ export default function TrackingWorkspace({
   initialPositions,
   initialZones,
   initialActivity,
+  initialSpeedLimit,
 }: TrackingWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const [positions, setPositions] = useState<Map<string, PositionItem>>(
@@ -124,6 +128,10 @@ export default function TrackingWorkspace({
   const [draft, setDraft] = useState<ZoneDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [zoneError, setZoneError] = useState('');
+  const [routeDriver, setRouteDriver] = useState<string | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [speedLimitInput, setSpeedLimitInput] = useState(initialSpeedLimit != null ? String(initialSpeedLimit) : '');
+  const [speedLimitSaved, setSpeedLimitSaved] = useState(false);
 
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -131,6 +139,7 @@ export default function TrackingWorkspace({
   const markersRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map());
   const circlesRef = useRef<globalThis.Map<string, Circle>>(new globalThis.Map());
   const draftCircleRef = useRef<Circle | null>(null);
+  const routeLineRef = useRef<Polyline | null>(null);
   const pickingRef = useRef(false);
   const namesRef = useRef<globalThis.Map<string, string>>(
     new globalThis.Map(initialPositions.map((p) => [p.driverId, p.name]))
@@ -213,6 +222,7 @@ export default function TrackingWorkspace({
               speed,
               maxSpeedToday:
                 speed != null && (prevMax == null || Number(speed) > prevMax) ? Number(speed) : prevMax,
+              distanceToday: existing?.distanceToday ?? null,
               isTracking: !!row.is_tracking,
               recordedAt: (row.recorded_at as string) || new Date().toISOString(),
             });
@@ -230,7 +240,7 @@ export default function TrackingWorkspace({
   }, [supabase, orgId]);
 
   const refetchActivity = useCallback(async () => {
-    const [trackingRes, zoneRes] = await Promise.all([
+    const [trackingRes, zoneRes, speedRes] = await Promise.all([
       supabase
         .from('driver_tracking_events')
         .select('id, event, occurred_at, drivers:driver_id (full_name)')
@@ -243,6 +253,12 @@ export default function TrackingWorkspace({
         .eq('organization_id', orgId)
         .order('occurred_at', { ascending: false })
         .limit(30),
+      supabase
+        .from('speeding_events')
+        .select('id, speed_kmh, limit_kmh, occurred_at, drivers:driver_id (full_name)')
+        .eq('organization_id', orgId)
+        .order('occurred_at', { ascending: false })
+        .limit(20),
     ]);
     const nameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.full_name || 'Unknown driver';
     const zoneNameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.name || 'zone';
@@ -253,6 +269,7 @@ export default function TrackingWorkspace({
         event: e.event as string,
         driverName: nameOf(e.drivers),
         zoneName: null,
+        detail: null,
         occurredAt: e.occurred_at as string,
       })),
       ...((zoneRes.data || []) as any[]).map((e) => ({
@@ -261,6 +278,16 @@ export default function TrackingWorkspace({
         event: e.event as string,
         driverName: nameOf(e.drivers),
         zoneName: zoneNameOf(e.geofences),
+        detail: null,
+        occurredAt: e.occurred_at as string,
+      })),
+      ...((speedRes.data || []) as any[]).map((e) => ({
+        id: `s-${e.id}`,
+        kind: 'speed' as const,
+        event: 'speeding',
+        driverName: nameOf(e.drivers),
+        zoneName: null,
+        detail: `${e.speed_kmh} km/h (limit ${e.limit_kmh})`,
         occurredAt: e.occurred_at as string,
       })),
     ]
@@ -294,6 +321,7 @@ export default function TrackingWorkspace({
             heading: r.heading,
             speed: r.speed,
             maxSpeedToday: existing?.maxSpeedToday ?? null,
+            distanceToday: existing?.distanceToday ?? null,
             isTracking: !!r.is_tracking,
             recordedAt: r.recorded_at,
           });
@@ -420,6 +448,65 @@ export default function TrackingWorkspace({
     mapRef.current?.flyTo([z.latitude, z.longitude], 13, { duration: 0.6 });
   };
 
+  // Route playback: draw today's GPS trail for one driver.
+  const clearRoute = useCallback(() => {
+    routeLineRef.current?.remove();
+    routeLineRef.current = null;
+    setRouteDriver(null);
+  }, []);
+
+  const toggleRoute = async (p: PositionItem) => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!L || !map) return;
+    if (routeDriver === p.driverId) {
+      clearRoute();
+      return;
+    }
+    clearRoute();
+    setRouteLoading(true);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const { data } = await supabase.rpc('driver_route', {
+      p_driver: p.driverId,
+      p_since: startOfDay.toISOString(),
+    });
+    setRouteLoading(false);
+    const pts = ((data || []) as any[]).map((r) => [r.latitude, r.longitude] as [number, number]);
+    if (pts.length < 2) {
+      setRouteDriver(null);
+      window.alert('Not enough GPS points recorded today to draw a route for this driver.');
+      return;
+    }
+    routeLineRef.current = L.polyline(pts, {
+      color: p.color,
+      weight: 4,
+      opacity: 0.85,
+    }).addTo(map);
+    routeLineRef.current.bindTooltip(`${p.name} — route today (${pts.length} points)`);
+    map.fitBounds(routeLineRef.current.getBounds().pad(0.2));
+    setRouteDriver(p.driverId);
+  };
+
+  const saveSpeedLimit = async () => {
+    const value = speedLimitInput.trim() === '' ? null : Number(speedLimitInput);
+    if (value !== null && (!Number.isFinite(value) || value < 10 || value > 250)) {
+      setZoneError('Speed limit must be between 10 and 250 km/h (or empty to disable).');
+      return;
+    }
+    setZoneError('');
+    const { error } = await supabase
+      .from('organizations')
+      .update({ speed_limit_kmh: value })
+      .eq('id', orgId);
+    if (error) {
+      setZoneError(`Could not save speed limit: ${error.message}`);
+      return;
+    }
+    setSpeedLimitSaved(true);
+    setTimeout(() => setSpeedLimitSaved(false), 2000);
+  };
+
   const refetchZones = useCallback(async () => {
     const { data } = await supabase
       .from('geofences')
@@ -486,15 +573,25 @@ export default function TrackingWorkspace({
   const liveCount = list.filter((p) => statusOf(p, now) === 'live').length;
 
   const activityIcon = (a: ActivityItem) => {
-    if (a.kind === 'tracking') return a.event === 'started' ? '▶' : '⏹';
+    if (a.kind === 'speed') return '⚠';
+    if (a.kind === 'tracking') return a.event === 'started' ? '▶' : a.event === 'lost' ? '⚡' : '⏹';
     return a.event === 'enter' ? '⊕' : '⊖';
   };
   const activityColor = (a: ActivityItem) => {
-    if (a.kind === 'tracking') return a.event === 'started' ? 'var(--pos, #2bbd7e)' : 'var(--text-3)';
+    if (a.kind === 'speed') return 'var(--neg, #f06464)';
+    if (a.kind === 'tracking') {
+      if (a.event === 'started') return 'var(--pos, #2bbd7e)';
+      if (a.event === 'lost') return 'var(--neg, #f06464)';
+      return 'var(--text-3)';
+    }
     return 'var(--warn, #f5b54a)';
   };
   const activityText = (a: ActivityItem) => {
-    if (a.kind === 'tracking') return `${a.driverName} ${a.event === 'started' ? 'started sharing' : 'stopped sharing'}`;
+    if (a.kind === 'speed') return `${a.driverName} was speeding — ${a.detail}`;
+    if (a.kind === 'tracking') {
+      if (a.event === 'lost') return `${a.driverName}'s tracking signal was lost`;
+      return `${a.driverName} ${a.event === 'started' ? 'started sharing' : 'stopped sharing'}`;
+    }
     return `${a.driverName} ${a.event === 'enter' ? 'entered' : 'left'} “${a.zoneName}”`;
   };
 
@@ -535,29 +632,42 @@ export default function TrackingWorkspace({
               const active = selected === p.driverId;
               const speedNow = kmh(p.speed);
               const speedMax = kmh(p.maxSpeedToday);
+              const km = p.distanceToday != null && p.distanceToday > 100 ? (p.distanceToday / 1000).toFixed(1) : null;
+              const showingRoute = routeDriver === p.driverId;
               return (
-                <button
-                  key={p.driverId}
-                  onClick={() => focusDriver(p)}
-                  className="fleetHover"
-                  style={{ ...st.row, ...(active ? st.rowActive : {}) }}
-                >
-                  <span style={{ ...st.avatar, background: p.color }}>{p.initials}</span>
-                  <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <span style={st.rowName}>{p.name}</span>
-                    <span style={st.rowMeta}>
-                      <span style={{ ...st.dot, background: STATUS_COLOR[status] }} />
-                      {status === 'live' ? 'Live' : status === 'stale' ? 'Stale' : 'Offline'} · {agoLabel(p.recordedAt, now)}
+                <div key={p.driverId} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                  <button
+                    onClick={() => focusDriver(p)}
+                    className="fleetHover"
+                    style={{ ...st.row, ...(active ? st.rowActive : {}), flex: 1, minWidth: 0, marginBottom: 0 }}
+                  >
+                    <span style={{ ...st.avatar, background: p.color }}>{p.initials}</span>
+                    <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <span style={st.rowName}>{p.name}</span>
+                      <span style={st.rowMeta}>
+                        <span style={{ ...st.dot, background: STATUS_COLOR[status] }} />
+                        {status === 'live' ? 'Live' : status === 'stale' ? 'Stale' : 'Offline'} · {agoLabel(p.recordedAt, now)}
+                        {km != null && ` · ${km} km`}
+                      </span>
                     </span>
-                  </span>
-                  {status === 'live' && speedNow != null && (
-                    <span style={st.speedBadge} title={speedMax != null ? `Top speed today: ${speedMax} km/h` : undefined}>
-                      <span style={st.speedValue}>{speedNow}</span>
-                      <span style={st.speedUnit}>km/h</span>
-                      {speedMax != null && <span style={st.speedMax}>↑{speedMax}</span>}
-                    </span>
-                  )}
-                </button>
+                    {status === 'live' && speedNow != null && (
+                      <span style={st.speedBadge} title={speedMax != null ? `Top speed today: ${speedMax} km/h` : undefined}>
+                        <span style={st.speedValue}>{speedNow}</span>
+                        <span style={st.speedUnit}>km/h</span>
+                        {speedMax != null && <span style={st.speedMax}>↑{speedMax}</span>}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    className="fleetHover"
+                    style={{ ...st.routeBtn, ...(showingRoute ? st.routeBtnActive : {}) }}
+                    title={showingRoute ? 'Hide route' : "Show today's route"}
+                    onClick={() => void toggleRoute(p)}
+                    disabled={routeLoading}
+                  >
+                    <FleetIcon name="pin" size={14} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -630,6 +740,31 @@ export default function TrackingWorkspace({
               </div>
             )}
 
+            {canManage && !draft && (
+              <div style={st.zoneForm}>
+                <div style={st.zoneFormTitle}>Speed alerts</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    style={{ ...st.input, width: 90 }}
+                    type="number"
+                    min={10}
+                    max={250}
+                    placeholder="off"
+                    value={speedLimitInput}
+                    onChange={(e) => setSpeedLimitInput(e.target.value)}
+                  />
+                  <span style={{ fontSize: 12.5, color: 'var(--text-3)', flex: 1 }}>km/h limit</span>
+                  <button className="fleetHover" style={{ ...st.ghostBtn, padding: '8px 12px' }} onClick={saveSpeedLimit}>
+                    {speedLimitSaved ? 'Saved ✓' : 'Save'}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-4)', lineHeight: 1.45 }}>
+                  Alerts when any driver exceeds this speed (max one per driver per 10 min). Leave empty to disable.
+                </div>
+                {zoneError && <div style={st.formError}>{zoneError}</div>}
+              </div>
+            )}
+
             {zones.map((z) => (
               <div key={z.id} style={st.zoneRow}>
                 <button className="fleetHover" style={st.zoneMain} onClick={() => focusZone(z)}>
@@ -677,7 +812,9 @@ export default function TrackingWorkspace({
               <div key={a.id} style={st.activityRow}>
                 <span style={{ ...st.activityIcon, color: activityColor(a) }}>{activityIcon(a)}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={st.activityText}>{activityText(a)}</span>
+                  <span style={{ ...st.activityText, ...(a.kind === 'speed' || a.event === 'lost' ? { fontWeight: 600 } : {}) }}>
+                    {activityText(a)}
+                  </span>
                   <span style={st.activityTime}>
                     {agoLabel(a.occurredAt, now)} · {new Date(a.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -886,6 +1023,24 @@ const st: Record<string, CSSProperties> = {
     border: `2px solid ${'#3b6ad9'}`,
     background: 'rgba(59,106,217,0.25)',
     flexShrink: 0,
+  },
+  routeBtn: {
+    width: 28,
+    height: 28,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'transparent',
+    border: '1px solid var(--line-1)',
+    borderRadius: 7,
+    color: 'var(--text-3)',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  routeBtnActive: {
+    background: 'var(--accent-soft, rgba(43,189,126,0.15))',
+    borderColor: 'var(--accent, #2bbd7e)',
+    color: 'var(--accent, #2bbd7e)',
   },
   zoneAction: {
     width: 28,
