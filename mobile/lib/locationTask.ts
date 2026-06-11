@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import { supabase } from './supabase';
 
 export const LOCATION_TASK = 'rovora-driver-location';
@@ -67,6 +68,7 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     }
   } catch (e) {
     try {
+      Sentry.captureException(e);
       await AsyncStorage.setItem(SEND_ERROR_KEY, `Tracking error: ${String(e)}`);
     } catch {
       // never throw out of the task
