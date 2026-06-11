@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'Maintenance & services — Rovora',
@@ -136,7 +137,7 @@ export default function MaintenanceFeaturePage() {
 
       <CtaBand
         title="Keep every car serviced and on the road."
-        body="Start your 14-day free trial and let the mileage tell you what’s due — no card required."
+        body={`Start your ${TRIAL_DAYS}-day free trial and let the mileage tell you what’s due — no card required.`}
       />
     </FeatureShell>
   );

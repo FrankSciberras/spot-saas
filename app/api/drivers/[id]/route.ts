@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/auth/session';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
 import { removeMemberFromOrg } from '@/lib/members/removeMember';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import type { UpdateDriverInput } from '@/lib/types/database';
@@ -16,19 +16,12 @@ export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || !['admin', 'staff'].includes(profile.role)) {
+    if (!isAdminOrStaff(session)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -89,19 +82,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 import type { CreateAdjustmentInput } from '@/lib/types/database';
 
 function normalizeAdjustmentsError(message: string): string {
@@ -20,22 +21,11 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
-    
+
     // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check role
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Build query
@@ -51,12 +41,12 @@ export async function GET(request: Request) {
     const driverId = searchParams.get('driver_id');
     if (driverId) {
       query = query.eq('driver_id', driverId);
-    } else if (profile.role === 'driver') {
+    } else if (session.role === 'driver') {
       // Drivers can only see their own adjustments
       const { data: driverRecord } = await supabase
         .from('drivers')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', session.id)
         .single();
       
       if (driverRecord) {
@@ -82,6 +72,22 @@ export async function GET(request: Request) {
       query = query.lte('date', toDate);
     }
 
+    // Settlement linkage filters (frozen adjustments).
+    //   settlement_id=<id>      → adjustments frozen onto one settlement
+    //   settlement_ids=a,b,c    → frozen onto any of these settlements
+    //   unassigned=true         → not yet attached to any settlement
+    const settlementId = searchParams.get('settlement_id');
+    const settlementIds = searchParams.get('settlement_ids');
+    const unassigned = searchParams.get('unassigned');
+    if (settlementId) {
+      query = query.eq('settlement_id', settlementId);
+    } else if (settlementIds) {
+      const ids = settlementIds.split(',').map((s) => s.trim()).filter(Boolean);
+      query = ids.length > 0 ? query.in('settlement_id', ids) : query.eq('settlement_id', '__none__');
+    } else if (unassigned === 'true') {
+      query = query.is('settlement_id', null);
+    }
+
     const { data: adjustments, error } = await query;
 
     if (error) {
@@ -105,21 +111,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+
+    // Check auth - only admin can create adjustments
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Check role - only admin can create adjustments
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -153,7 +151,7 @@ export async function POST(request: Request) {
         description: body.description,
         date: body.date,
         notes: body.notes || null,
-        created_by: user.id,
+        created_by: session.id,
       })
       .select(`
         *,

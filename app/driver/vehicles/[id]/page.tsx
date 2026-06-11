@@ -185,7 +185,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
             {groupedDocs.VEHICLE_INSURANCE?.map((doc) => (
               <a
                 key={doc.id}
-                href={doc.file_url}
+                href={`/api/files/${doc.id}/view`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
@@ -212,7 +212,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
             {groupedDocs.ROAD_LICENSE?.map((doc) => (
               <a
                 key={doc.id}
-                href={doc.file_url}
+                href={`/api/files/${doc.id}/view`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
@@ -236,7 +236,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
             {groupedDocs.LOGBOOK?.map((doc) => (
               <a
                 key={doc.id}
-                href={doc.file_url}
+                href={`/api/files/${doc.id}/view`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
@@ -259,7 +259,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
             {groupedDocs.OTHER?.map((doc) => (
               <a
                 key={doc.id}
-                href={doc.file_url}
+                href={`/api/files/${doc.id}/view`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}

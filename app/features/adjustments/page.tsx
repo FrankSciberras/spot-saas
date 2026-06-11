@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'Adjustments, bonuses & deductions — Rovora',
@@ -132,7 +133,7 @@ export default function AdjustmentsFeaturePage() {
 
       <CtaBand
         title="Never chase a missing €40 again."
-        body="Start your 14-day free trial and keep every bonus and deduction where it belongs — in the settlement."
+        body={`Start your ${TRIAL_DAYS}-day free trial and keep every bonus and deduction where it belongs — in the settlement.`}
       />
     </FeatureShell>
   );

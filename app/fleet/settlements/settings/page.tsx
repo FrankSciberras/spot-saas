@@ -1,16 +1,16 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
-import { DEFAULT_SCHEME } from '@/lib/config/settlements';
-import SettlementSettingsClient, { type DriverShareRow } from './SettlementSettingsClient';
+import type { SettlementPreset, OrgPlatform, RecurringAdjustment } from '@/lib/types/database';
+import SettlementSettingsClient, { type DriverPresetRow } from './SettlementSettingsClient';
 
 type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
 /**
- * Settlement rules — fleet-wide default revenue split + per-driver overrides.
- * Admin only.
+ * Settlement Rules — named presets (revenue split + tax + weekly rent), a fleet
+ * default, and per-driver assignment. Admin only.
  */
 export default async function SettlementSettingsPage() {
   const user = await requireRole(['admin']);
@@ -24,27 +24,51 @@ export default async function SettlementSettingsPage() {
 }
 
 async function SettlementSettingsContent({ user }: { user: FleetUser }) {
-  const supabase = await createClient();
+  // Service-role reads scoped to the caller's org (requireRole resolved it).
+  const admin = createAdminClient();
 
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('settlement_driver_share_pct')
-    .eq('id', user.organization_id)
-    .single();
+  const [{ data: org }, { data: presets }, { data: drivers }, { data: platforms }, { data: recurring }] = await Promise.all([
+    admin
+      .from('organizations')
+      .select('default_settlement_preset_id')
+      .eq('id', user.organization_id)
+      .single(),
+    admin
+      .from('settlement_presets')
+      .select('*')
+      .eq('organization_id', user.organization_id)
+      .order('created_at'),
+    admin
+      .from('drivers')
+      .select('id, full_name, settlement_preset_id')
+      .eq('organization_id', user.organization_id)
+      .eq('status', 'active')
+      .order('full_name'),
+    admin
+      .from('org_platforms')
+      .select('*')
+      .eq('organization_id', user.organization_id)
+      .order('sort_order'),
+    admin
+      .from('recurring_adjustments')
+      .select('*')
+      .eq('organization_id', user.organization_id)
+      .order('created_at'),
+  ]);
 
-  const defaultPct = org?.settlement_driver_share_pct ?? DEFAULT_SCHEME.driverSharePct;
-
-  const { data: drivers } = await supabase
-    .from('drivers')
-    .select('id, full_name, settlement_driver_share_pct')
-    .eq('status', 'active')
-    .order('full_name');
-
-  const driverRows: DriverShareRow[] = (drivers || []).map((d) => ({
+  const driverRows: DriverPresetRow[] = (drivers || []).map((d: { id: string; full_name: string; settlement_preset_id: string | null }) => ({
     id: d.id,
     full_name: d.full_name,
-    overridePct: d.settlement_driver_share_pct,
+    presetId: d.settlement_preset_id,
   }));
 
-  return <SettlementSettingsClient defaultPct={defaultPct} drivers={driverRows} />;
+  return (
+    <SettlementSettingsClient
+      presets={(presets || []) as SettlementPreset[]}
+      defaultPresetId={org?.default_settlement_preset_id ?? null}
+      drivers={driverRows}
+      platforms={(platforms || []) as OrgPlatform[]}
+      recurring={(recurring || []) as RecurringAdjustment[]}
+    />
+  );
 }

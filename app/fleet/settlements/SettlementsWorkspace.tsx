@@ -5,14 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DatePicker from '@/components/shared/DatePicker';
 import AddDriverModal from '@/components/fleet/AddDriverModal';
-import { PLATFORMS, getDefaultFssTax, DEFAULT_SCHEME } from '@/lib/config/settlements';
+import SettlementImportModal, { type StagedImport, type ImportedFigures } from './SettlementImportModal';
+import { getDefaultFssTax, DEFAULT_SCHEME, schemeFromPreset, presetFlatTax, type PlatformConfig } from '@/lib/config/settlements';
 import {
   calculateSettlement,
   formatCurrency,
+  round2,
   type PlatformEarningsInput
 } from '@/lib/utils/settlementCalculations';
 import { exportMonthlySettlementsPdf, exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
-import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment } from '@/lib/types/database';
+import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
+import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment, SettlementPreset } from '@/lib/types/database';
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
 
@@ -20,19 +23,11 @@ function dateOnly(value: string): string {
   return value.includes('T') ? value.split('T')[0] : value;
 }
 
-function signedAdjustmentAmount(type: DriverAdjustment['type'], amount: number): number {
-  if (type === 'expense' || type === 'deduction') return -amount;
-  if (type === 'bonus' || type === 'reimbursement') return amount;
-  return 0;
-}
-
-function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
-  return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, adj.amount), 0);
-}
 
 interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name' | 'employment_type'> {
   status: string;
   settlement_driver_share_pct?: number | null;
+  settlement_preset_id?: string | null;
 }
 
 interface SettlementWithRelations extends DriverSettlement {
@@ -56,8 +51,14 @@ interface SettlementsWorkspaceProps {
   archivedDrivers: DriverWithStatus[];
   settlements: SettlementWithRelations[];
   isAdmin: boolean;
-  /** Fleet-wide default driver share %, the fallback when a driver has no override. */
+  /** Fleet-wide default driver share %, the legacy fallback when no preset applies. */
   orgDriverSharePct: number;
+  /** The fleet's settlement presets (for resolving the selected driver's scheme). */
+  presets: SettlementPreset[];
+  /** The fleet's default preset id (applies to drivers without their own). */
+  orgDefaultPresetId: string | null;
+  /** The fleet's active platforms (entry-form rows). Resolved server-side. */
+  platforms: PlatformConfig[];
 }
 
 export default function SettlementsWorkspace({
@@ -66,6 +67,9 @@ export default function SettlementsWorkspace({
   settlements,
   isAdmin,
   orgDriverSharePct,
+  presets,
+  orgDefaultPresetId,
+  platforms,
 }: SettlementsWorkspaceProps) {
   const router = useRouter();
   
@@ -97,9 +101,18 @@ export default function SettlementsWorkspace({
   // Form state
   const [periodName, setPeriodName] = useState('');
   const [fssTax, setFssTax] = useState(getDefaultFssTax().toString());
+  // When set, FSS/tax auto-derives as this % of the balance before tax (from a
+  // percent-tax preset). Cleared the moment the operator edits the tax field.
+  const [taxAutoPct, setTaxAutoPct] = useState<number | null>(null);
+
+  // CSV import: staged figures per driver/platform (nothing saved until the
+  // operator creates drafts or saves a prefilled form).
+  const [showImport, setShowImport] = useState(false);
+  const [stagedImport, setStagedImport] = useState<StagedImport>({});
+  const [bulkCreating, setBulkCreating] = useState(false);
   const [notes, setNotes] = useState('');
-  const [platformData, setPlatformData] = useState<PlatformFormData[]>(() => 
-    PLATFORMS.map(p => ({
+  const [platformData, setPlatformData] = useState<PlatformFormData[]>(() =>
+    platforms.map(p => ({
       platformId: p.id,
       platformName: p.name,
       grossFare: '0',
@@ -346,11 +359,19 @@ export default function SettlementsWorkspace({
         return;
       }
 
+      // Saved settlement → show its FROZEN snapshot (stable, never re-fetched).
+      if (existingSettlement) {
+        setSelectedDriverAdjustmentsNet(existingSettlement.total_adjustments ?? 0);
+        return;
+      }
+
+      // New settlement → preview the unattached adjustments in this period that
+      // WILL be frozen on save.
       const fromDate = dateOnly(currentPeriod.startISO);
       const toDate = dateOnly(currentPeriod.endISO);
 
       try {
-        const url = `/api/adjustments?driver_id=${encodeURIComponent(selectedDriverId)}&from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`;
+        const url = `/api/adjustments?driver_id=${encodeURIComponent(selectedDriverId)}&from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}&unassigned=true`;
         const res = await fetch(url);
         const json = await res.json();
         if (!res.ok) {
@@ -375,7 +396,7 @@ export default function SettlementsWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [currentPeriod, selectedDriverId]);
+  }, [currentPeriod, selectedDriverId, existingSettlement]);
 
   useEffect(() => {
     if (!isEditingPeriod) return;
@@ -395,24 +416,23 @@ export default function SettlementsWorkspace({
 
     const monthLabel = `${monthNames[selectedMonth]} ${selectedYear}`;
 
-    const monthNum = selectedMonth + 1;
-    const fromDate = `${selectedYear}-${String(monthNum).padStart(2, '0')}-01`;
-    const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-    const toDate = `${selectedYear}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
+    // Frozen adjustments linked to this month's settlements (not a live query).
     let adjustmentsByDriver: Record<string, DriverAdjustment[]> = {};
-    try {
-      const res = await fetch(`/api/adjustments?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`);
-      const json = await res.json();
-      if (res.ok) {
-        const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
-        adjustments.forEach((adj) => {
-          adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
-          adjustmentsByDriver[adj.driver_id].push(adj);
-        });
+    const monthSettlementIds = monthSettlements.map((s) => s.id).filter(Boolean);
+    if (monthSettlementIds.length > 0) {
+      try {
+        const res = await fetch(`/api/adjustments?settlement_ids=${encodeURIComponent(monthSettlementIds.join(','))}`);
+        const json = await res.json();
+        if (res.ok) {
+          const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
+          adjustments.forEach((adj) => {
+            adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
+            adjustmentsByDriver[adj.driver_id].push(adj);
+          });
+        }
+      } catch {
+        adjustmentsByDriver = {};
       }
-    } catch {
-      adjustmentsByDriver = {};
     }
 
     const exportRows = monthSettlements.map(s => ({
@@ -441,22 +461,23 @@ export default function SettlementsWorkspace({
   const handleExportPdf = useCallback(async () => {
     if (!currentPeriod || periodSettlements.length === 0) return;
 
-    const fromDate = dateOnly(currentPeriod.startISO);
-    const toDate = dateOnly(currentPeriod.endISO);
-
+    // Frozen adjustments linked to this period's settlements (not a live query).
     let adjustmentsByDriver: Record<string, DriverAdjustment[]> = {};
-    try {
-      const res = await fetch(`/api/adjustments?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`);
-      const json = await res.json();
-      if (res.ok) {
-        const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
-        adjustments.forEach((adj) => {
-          adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
-          adjustmentsByDriver[adj.driver_id].push(adj);
-        });
+    const periodSettlementIds = periodSettlements.map((s) => s.id).filter(Boolean);
+    if (periodSettlementIds.length > 0) {
+      try {
+        const res = await fetch(`/api/adjustments?settlement_ids=${encodeURIComponent(periodSettlementIds.join(','))}`);
+        const json = await res.json();
+        if (res.ok) {
+          const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
+          adjustments.forEach((adj) => {
+            adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
+            adjustmentsByDriver[adj.driver_id].push(adj);
+          });
+        }
+      } catch {
+        adjustmentsByDriver = {};
       }
-    } catch {
-      adjustmentsByDriver = {};
     }
 
     const settlementsData = periodSettlements.map(s => {
@@ -502,6 +523,152 @@ export default function SettlementsWorkspace({
     if (!settlement) return 'pending';
     return settlement.status;
   }, [periodSettlements]);
+
+  // The preset that would price a NEW settlement for a driver:
+  // the driver's own preset, else the fleet default preset, else none (legacy).
+  const presetForDriver = useCallback((driverId: string | null) => {
+    const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === driverId);
+    const presetId = driver?.settlement_preset_id ?? orgDefaultPresetId;
+    return presetId ? presets.find(p => p.id === presetId) ?? null : null;
+  }, [activeDrivers, archivedDrivers, presets, orgDefaultPresetId]);
+
+  // ── CSV import ─────────────────────────────────────────────────────────────
+
+  /** Merge one platform's imported figures into the staged set. */
+  const handleImportApply = useCallback((platformId: string, rows: Record<string, ImportedFigures>) => {
+    setStagedImport(prev => {
+      const next: StagedImport = { ...prev };
+      for (const [driverId, figures] of Object.entries(rows)) {
+        next[driverId] = { ...(next[driverId] ?? {}), [platformId]: figures };
+      }
+      return next;
+    });
+    setShowImport(false);
+    const count = Object.keys(rows).length;
+    setSuccessMessage(
+      `Staged figures for ${count} driver${count === 1 ? '' : 's'}. ` +
+      `Select a driver to review, import another platform, or create all drafts.`
+    );
+  }, []);
+
+  /** Drivers with staged figures but no settlement yet in this period. */
+  const stagedPendingIds = useMemo(() => {
+    if (!currentPeriod) return [];
+    return Object.keys(stagedImport).filter(driverId =>
+      !settlements.some(s => s.driver_id === driverId && s.week_start === currentPeriod.startISO)
+    );
+  }, [stagedImport, settlements, currentPeriod]);
+
+  /** Create a draft settlement for every staged driver (skips existing ones). */
+  const handleBulkCreateFromImport = useCallback(async () => {
+    if (!currentPeriod || !isAdmin || bulkCreating) return;
+    setBulkCreating(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    let settlementMonth = currentPeriod.settlementMonth;
+    if (!settlementMonth && selectedMonth !== null) {
+      const month = String(selectedMonth + 1).padStart(2, '0');
+      settlementMonth = `${selectedYear}-${month}-01`;
+    }
+
+    let created = 0;
+    let failed = 0;
+    const skipped = Object.keys(stagedImport).length - stagedPendingIds.length;
+    const createdIds: string[] = [];
+
+    for (const driverId of stagedPendingIds) {
+      const staged = stagedImport[driverId];
+      const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === driverId);
+
+      const platformsPayload = platforms.map(p => {
+        const fig = staged[p.id];
+        return {
+          platform_id: p.id,
+          platform_name: p.name,
+          gross_fare: fig?.grossFare || 0,
+          platform_fee_percent: p.defaultFeePercent,
+          cash_ride: fig?.cashRide || 0,
+          tips: fig?.tips || 0,
+          campaigns: fig?.campaigns || 0,
+        };
+      });
+
+      // Same tax resolution as the manual form: preset percent → derived from
+      // the balance before tax; preset flat → full-time drivers only; no
+      // preset → the legacy employment-type default.
+      const preset = presetForDriver(driverId);
+      const driverScheme = preset
+        ? schemeFromPreset(preset)
+        : { ...DEFAULT_SCHEME, driverSharePct: driver?.settlement_driver_share_pct ?? orgDriverSharePct };
+      const base = calculateSettlement(
+        platformsPayload.map(p => ({
+          platformId: p.platform_id,
+          grossFare: p.gross_fare,
+          platformFeePercent: p.platform_fee_percent,
+          cashRide: p.cash_ride,
+          tips: p.tips,
+          campaigns: p.campaigns,
+        })),
+        0,
+        driverScheme,
+        0
+      );
+      let tax: number;
+      if (preset && preset.tax_type === 'percent') {
+        tax = round2(Math.max(0, base.totalBalanceBeforeTax) * (preset.tax_value / 100));
+      } else if (preset) {
+        tax = presetFlatTax(preset, driver?.employment_type) ?? 0;
+      } else {
+        tax = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
+      }
+
+      try {
+        const res = await fetch('/api/settlements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            driver_id: driverId,
+            week_start: currentPeriod.startISO,
+            week_end: currentPeriod.endISO,
+            week_label: currentPeriod.label,
+            period_name: currentPeriod.periodName || null,
+            settlement_month: settlementMonth || null,
+            fss_tax: tax,
+            notes: null,
+            status: 'draft',
+            platforms: platformsPayload,
+          }),
+        });
+        if (res.ok) {
+          created++;
+          createdIds.push(driverId);
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    // Created drivers no longer need staged data; keep it for skipped/failed.
+    setStagedImport(prev => {
+      const next = { ...prev };
+      createdIds.forEach(id => delete next[id]);
+      return next;
+    });
+
+    setBulkCreating(false);
+    const parts = [`Created ${created} draft${created === 1 ? '' : 's'} from import`];
+    if (skipped > 0) parts.push(`${skipped} already had a settlement (select them to review)`);
+    if (failed > 0) parts.push(`${failed} failed`);
+    if (failed > 0) setError(parts.join(' · '));
+    else setSuccessMessage(parts.join(' · '));
+    router.refresh();
+  }, [
+    currentPeriod, isAdmin, bulkCreating, selectedMonth, selectedYear, stagedImport, stagedPendingIds,
+    activeDrivers, archivedDrivers, platforms, presetForDriver, orgDriverSharePct, router,
+  ]);
 
   const startEditingPeriod = useCallback(() => {
     if (!currentPeriod) return;
@@ -588,8 +755,11 @@ export default function SettlementsWorkspace({
     if (existing) {
       setPeriodName(existing.period_name || currentPeriod.periodName || '');
       setFssTax(existing.fss_tax.toString());
+      setTaxAutoPct(null); // editing: the stored tax is the source of truth
       setNotes(existing.notes || '');
-      setPlatformData(PLATFORMS.map(platform => {
+      // Current platforms first, then any snapshot platforms no longer in the
+      // fleet's list (deactivated/deleted) so their saved figures stay visible.
+      const rows: PlatformFormData[] = platforms.map(platform => {
         const existingPlatform = existing.settlement_platforms?.find(
           p => p.platform_id === platform.id
         );
@@ -602,26 +772,59 @@ export default function SettlementsWorkspace({
           tips: existingPlatform?.tips?.toString() || '0',
           campaigns: existingPlatform?.campaigns?.toString() || '0',
         };
-      }));
+      });
+      for (const p of existing.settlement_platforms || []) {
+        if (!rows.some(r => r.platformId === p.platform_id)) {
+          rows.push({
+            platformId: p.platform_id,
+            platformName: p.platform_name,
+            grossFare: p.gross_fare?.toString() || '0',
+            platformFeePercent: p.platform_fee_percent?.toString() || '0',
+            cashRide: p.cash_ride?.toString() || '0',
+            tips: p.tips?.toString() || '0',
+            campaigns: p.campaigns?.toString() || '0',
+          });
+        }
+      }
+      setPlatformData(rows);
     } else {
       // Reset to defaults - keep periodName from current period
       setPeriodName(currentPeriod.periodName || newPeriodName || '');
-      // Set FSS based on employment type: full_time = 22, part_time/terminated/null = 0
       const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === driverId);
-      const defaultFss = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
-      setFssTax(defaultFss.toString());
+      // Tax prefill from the driver's preset (or fleet default preset):
+      //   percent tax → auto-derive live from the balance before tax,
+      //   flat tax    → flat amount (full-time drivers only, like before).
+      // No preset → legacy rule: full_time = €22, everyone else = 0.
+      const presetId = driver?.settlement_preset_id ?? orgDefaultPresetId;
+      const preset = presetId ? presets.find(p => p.id === presetId) ?? null : null;
+      if (preset && preset.tax_type === 'percent') {
+        setTaxAutoPct(preset.tax_value);
+        setFssTax('0');
+      } else if (preset) {
+        setTaxAutoPct(null);
+        setFssTax(String(presetFlatTax(preset, driver?.employment_type) ?? 0));
+      } else {
+        setTaxAutoPct(null);
+        const defaultFss = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
+        setFssTax(defaultFss.toString());
+      }
       setNotes('');
-      setPlatformData(PLATFORMS.map(p => ({
-        platformId: p.id,
-        platformName: p.name,
-        grossFare: '0',
-        platformFeePercent: p.defaultFeePercent.toString(),
-        cashRide: '0',
-        tips: '0',
-        campaigns: '0',
-      })));
+      // Prefill from CSV-imported staged figures when we have them.
+      const staged = stagedImport[driverId];
+      setPlatformData(platforms.map(p => {
+        const fig = staged?.[p.id];
+        return {
+          platformId: p.id,
+          platformName: p.name,
+          grossFare: fig ? String(fig.grossFare) : '0',
+          platformFeePercent: p.defaultFeePercent.toString(),
+          cashRide: fig ? String(fig.cashRide) : '0',
+          tips: fig ? String(fig.tips) : '0',
+          campaigns: fig ? String(fig.campaigns) : '0',
+        };
+      }));
     }
-  }, [currentPeriod, settlements, newPeriodName, activeDrivers, archivedDrivers]);
+  }, [currentPeriod, settlements, newPeriodName, activeDrivers, archivedDrivers, presets, orgDefaultPresetId, platforms, stagedImport]);
 
   // Handle platform data change
   const handlePlatformChange = useCallback((
@@ -636,24 +839,41 @@ export default function SettlementsWorkspace({
     });
   }, []);
 
-  // Effective driver share % for the selected driver/period:
-  //   editing an existing settlement → its frozen snapshot,
-  //   otherwise → the driver's override, else the fleet default.
-  const currentSharePct = useMemo(() => {
-    if (existingSettlement) {
-      return existingSettlement.driver_share_pct ?? orgDriverSharePct;
-    }
-    const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === selectedDriverId);
-    return driver?.settlement_driver_share_pct ?? orgDriverSharePct;
-  }, [existingSettlement, selectedDriverId, activeDrivers, archivedDrivers, orgDriverSharePct]);
-
-  // Only the driver-share knob is editable for now; the rest stay at defaults.
-  const scheme = useMemo(
-    () => ({ ...DEFAULT_SCHEME, driverSharePct: currentSharePct }),
-    [currentSharePct]
+  const currentPreset = useMemo(
+    () => presetForDriver(selectedDriverId),
+    [presetForDriver, selectedDriverId]
   );
 
-  // Calculate settlement in real-time
+  // Effective scheme for the selected driver/period:
+  //   editing an existing settlement → its frozen snapshot,
+  //   otherwise → the driver's preset (or fleet default preset),
+  //   else → the legacy column-based fallback (driver override / fleet share %).
+  const scheme = useMemo(() => {
+    if (existingSettlement) {
+      return {
+        driverSharePct: existingSettlement.driver_share_pct ?? orgDriverSharePct,
+        tipsDriverPct: existingSettlement.tips_driver_pct ?? DEFAULT_SCHEME.tipsDriverPct,
+        campaignsDriverPct: existingSettlement.campaigns_driver_pct ?? DEFAULT_SCHEME.campaignsDriverPct,
+        feeDriverPct: existingSettlement.fee_driver_pct ?? DEFAULT_SCHEME.feeDriverPct,
+      };
+    }
+    if (currentPreset) {
+      return schemeFromPreset(currentPreset);
+    }
+    const driver = [...activeDrivers, ...archivedDrivers].find(d => d.id === selectedDriverId);
+    return { ...DEFAULT_SCHEME, driverSharePct: driver?.settlement_driver_share_pct ?? orgDriverSharePct };
+  }, [existingSettlement, currentPreset, selectedDriverId, activeDrivers, archivedDrivers, orgDriverSharePct]);
+
+  const currentSharePct = scheme.driverSharePct;
+
+  // Weekly rent: frozen snapshot when editing, else from the preset.
+  const rentAmount = existingSettlement
+    ? (existingSettlement.rent_amount ?? 0)
+    : (currentPreset?.rent_weekly ?? 0);
+
+  // Calculate settlement in real-time. When the preset uses percent tax and the
+  // operator hasn't overridden it (taxAutoPct set), the tax derives live from
+  // the balance before tax instead of the input field.
   const calculation = useMemo(() => {
     const inputs: PlatformEarningsInput[] = platformData.map(p => ({
       platformId: p.platformId,
@@ -663,8 +883,17 @@ export default function SettlementsWorkspace({
       tips: parseFloat(p.tips) || 0,
       campaigns: parseFloat(p.campaigns) || 0,
     }));
-    return calculateSettlement(inputs, parseFloat(fssTax) || 0, scheme);
-  }, [platformData, fssTax, scheme]);
+    const base = calculateSettlement(inputs, 0, scheme, 0);
+    const effTax = taxAutoPct !== null
+      ? round2(Math.max(0, base.totalBalanceBeforeTax) * (taxAutoPct / 100))
+      : parseFloat(fssTax) || 0;
+    return {
+      ...base,
+      fssTax: round2(effTax),
+      rent: round2(rentAmount),
+      finalBalance: round2(base.totalBalanceBeforeTax - effTax - rentAmount),
+    };
+  }, [platformData, fssTax, scheme, taxAutoPct, rentAmount]);
 
   // Save settlement
   const handleSave = async (status: 'draft' | 'finalized' = 'draft') => {
@@ -692,7 +921,8 @@ export default function SettlementsWorkspace({
         week_label: currentPeriod.label,
         period_name: periodName || null,
         settlement_month: settlementMonth || null,
-        fss_tax: parseFloat(fssTax) || 0,
+        // Effective tax: auto-derived (% presets) or the manual field value.
+        fss_tax: calculation.fssTax,
         notes: notes || null,
         status,
         platforms: platformData.map(p => ({
@@ -1142,6 +1372,16 @@ export default function SettlementsWorkspace({
             </span>
           </div>
           <div className={styles.weekStatsActions}>
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowImport(true)}
+                title="Import per-driver earnings from a platform CSV export"
+              >
+                Import CSV
+              </button>
+            )}
             {isAdmin && periodSettlements.length > 0 && (
               <button
                 type="button"
@@ -1168,6 +1408,41 @@ export default function SettlementsWorkspace({
                 Export PDF
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Staged CSV import summary */}
+      {currentPeriod && !isCreatingPeriod && Object.keys(stagedImport).length > 0 && (
+        <div className={styles.weekStatsBar}>
+          <div className={styles.weekStats}>
+            <span className={styles.statItem}>
+              <span className={styles.statDot} style={{ background: 'var(--accent, #2bbd7e)' }}></span>
+              Imported figures staged for {Object.keys(stagedImport).length} driver{Object.keys(stagedImport).length === 1 ? '' : 's'}
+              {stagedPendingIds.length < Object.keys(stagedImport).length
+                ? ` (${Object.keys(stagedImport).length - stagedPendingIds.length} already have settlements)`
+                : ''}
+            </span>
+          </div>
+          <div className={styles.weekStatsActions}>
+            {isAdmin && stagedPendingIds.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleBulkCreateFromImport}
+                disabled={bulkCreating}
+              >
+                {bulkCreating ? 'Creating…' : `Create ${stagedPendingIds.length} draft${stagedPendingIds.length === 1 ? '' : 's'}`}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setStagedImport({})}
+              disabled={bulkCreating}
+            >
+              Clear import
+            </button>
           </div>
         </div>
       )}
@@ -1493,7 +1768,7 @@ export default function SettlementsWorkspace({
                   <tbody>
                     {platformData.map((platform, index) => {
                       const calc = calculation.platforms[index];
-                      const platformConfig = PLATFORMS.find(p => p.id === platform.platformId);
+                      const platformConfig = platforms.find(p => p.id === platform.platformId);
                       
                       return (
                         <tr key={platform.platformId}>
@@ -1598,14 +1873,23 @@ export default function SettlementsWorkspace({
                     {formatCurrency(selectedDriverAdjustmentsNet)}
                   </span>
                 </div>
+                {calculation.rent > 0 && (
+                  <div className={styles.totalItem}>
+                    <span>Rent</span>
+                    <span className={styles.balanceNegative}>-{formatCurrency(calculation.rent)}</span>
+                  </div>
+                )}
                 <div className={styles.fssTaxCompact}>
-                  <span>FSS/Tax</span>
+                  <span>FSS/Tax{taxAutoPct !== null ? ` (auto ${taxAutoPct}%)` : ''}</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    value={fssTax}
-                    onChange={(e) => setFssTax(e.target.value)}
+                    value={taxAutoPct !== null ? calculation.fssTax : fssTax}
+                    onChange={(e) => {
+                      setTaxAutoPct(null);
+                      setFssTax(e.target.value);
+                    }}
                     disabled={!isAdmin}
                   />
                 </div>
@@ -1716,6 +2000,15 @@ export default function SettlementsWorkspace({
           }
         }}
       />
+
+      {showImport && (
+        <SettlementImportModal
+          platforms={platforms}
+          drivers={activeDrivers.map(d => ({ id: d.id, full_name: d.full_name }))}
+          onApply={handleImportApply}
+          onClose={() => setShowImport(false)}
+        />
+      )}
     </div>
   );
 }

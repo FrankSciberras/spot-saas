@@ -1,12 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { isPlatformAdmin } from '@/lib/auth/platform';
 
 /**
  * GET /api/cron/reminders
  * 1. Fire notifications for reminders where remind_at <= now and not yet sent
  * 2. Regenerate recurring reminders that were completed
+ *
+ * Authorization (either is accepted):
+ *   1. A scheduler presents the shared secret:
+ *        Authorization: Bearer <CRON_SECRET>   (or  ?secret=<CRON_SECRET>)
+ *   2. A signed-in platform admin (so it can be triggered manually).
+ * If CRON_SECRET is unset, only a platform admin can run it (never left open).
  */
-export async function GET() {
+async function authorize(request: Request): Promise<boolean> {
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const header = request.headers.get('authorization');
+    const url = new URL(request.url);
+    if (header === `Bearer ${secret}` || url.searchParams.get('secret') === secret) return true;
+  }
+  return isPlatformAdmin();
+}
+
+export async function GET(request: Request) {
+  if (!(await authorize(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const supabase = createAdminClient();
     const now = new Date().toISOString();

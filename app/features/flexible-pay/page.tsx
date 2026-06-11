@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata: Metadata = {
   title: 'Flexible driver pay — Rovora',
@@ -131,7 +132,7 @@ export default function FlexiblePayFeaturePage() {
 
       <CtaBand
         title="Run the pay deals you actually have."
-        body="Start free for 14 days and set up your fleet’s pay schemes in minutes — no card required."
+        body={`Start free for ${TRIAL_DAYS} days and set up your fleet’s pay schemes in minutes — no card required.`}
       />
     </FeatureShell>
   );

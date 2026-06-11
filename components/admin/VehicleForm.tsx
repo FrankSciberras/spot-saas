@@ -450,7 +450,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {uploadedFiles.VEHICLE_INSURANCE?.map(file => (
               <span key={file.id} className={styles.uploadedFileRow}>
                 <a
-                  href={file.file_url}
+                  href={`/api/files/${file.id}/view`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
@@ -507,7 +507,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {uploadedFiles.ROAD_LICENSE?.map(file => (
               <span key={file.id} className={styles.uploadedFileRow}>
                 <a
-                  href={file.file_url}
+                  href={`/api/files/${file.id}/view`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
@@ -557,7 +557,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {uploadedFiles.LOGBOOK?.map(file => (
               <span key={file.id} className={styles.uploadedFileRow}>
                 <a
-                  href={file.file_url}
+                  href={`/api/files/${file.id}/view`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
@@ -607,7 +607,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
             {uploadedFiles.OTHER?.map(file => (
               <span key={file.id} className={styles.uploadedFileRow}>
                 <a
-                  href={file.file_url}
+                  href={`/api/files/${file.id}/view`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}

@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         creator:created_by (full_name, email),
         assignee:assigned_to (full_name, email)
       `)
+      .eq('organization_id', session.organization_id)
       .order('due_date', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false });
 

@@ -162,6 +162,12 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
               <span>FSS/Tax</span>
               <span>-{formatCurrency(latestSettlement.fss_tax)}</span>
             </div>
+            {(latestSettlement.rent_amount ?? 0) > 0 && (
+              <div className={styles.breakdownItem}>
+                <span>Vehicle Rent</span>
+                <span>-{formatCurrency(latestSettlement.rent_amount)}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -350,6 +356,12 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
                     <span>FSS/Tax</span>
                     <span>-{formatCurrency(settlement.fss_tax)}</span>
                   </div>
+                  {(settlement.rent_amount ?? 0) > 0 && (
+                    <div className={styles.summaryRow}>
+                      <span>Vehicle Rent</span>
+                      <span>-{formatCurrency(settlement.rent_amount)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

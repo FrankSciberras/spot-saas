@@ -302,7 +302,7 @@ export default function DriverInlineEdit({
         {files.map(file => (
           <a 
             key={file.id} 
-            href={file.file_url} 
+            href={`/api/files/${file.id}/view`} 
             target="_blank" 
             rel="noopener noreferrer" 
             className={inlineStyles.fileLink}

@@ -169,7 +169,10 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
         const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
         if (res.ok) {
           const { data } = await res.json();
-          newUrls.push(data.file_url);
+          // Store the authenticated proxy URL (not the raw bucket URL) — the
+          // documents bucket is private, so this resolves a fresh signed URL on
+          // each load and is stable to persist.
+          newUrls.push(`/api/files/${data.id}/view`);
         } else {
           const data = await res.json().catch(() => null);
           uploadErrors.push(data?.error || `Failed to upload ${file.name}`);

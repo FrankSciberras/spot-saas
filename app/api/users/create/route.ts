@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 
 /**
  * POST /api/users/create
@@ -9,21 +9,14 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
  */
 export async function POST(request: Request) {
   try {
-    // First verify the requesting user is an admin
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    // Authorize by membership role in the active fleet (not the deprecated
+    // global users.role).
+    const session = await getSession();
+
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Only admins can create users' }, { status: 403 });
     }
 
@@ -34,21 +27,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    // Never let this endpoint mint a global admin — only non-privileged roles.
+    if (role !== 'driver' && role !== 'staff') {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    }
+
+    if (password.length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
 
     // Create admin client with service role key
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabaseAdmin = createAdminClient();
 
     // Create the user in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

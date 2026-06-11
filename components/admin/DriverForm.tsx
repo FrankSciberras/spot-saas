@@ -466,7 +466,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
             {uploadedFiles.ID_CARD?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.ID_CARD.map(file => (
-                  <a key={file.id} href={file.file_url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
+                  <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
                     📄 {file.file_name || 'View Document'}
                   </a>
                 ))}
@@ -514,7 +514,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
             {uploadedFiles.DRIVING_LICENSE?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.DRIVING_LICENSE.map(file => (
-                  <a key={file.id} href={file.file_url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
+                  <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
                     📄 {file.file_name || 'View Document'}
                   </a>
                 ))}
@@ -550,7 +550,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
             {uploadedFiles.POLICE_CONDUCT?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.POLICE_CONDUCT.map(file => (
-                  <a key={file.id} href={file.file_url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
+                  <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
                     📄 {file.file_name || 'View Document'}
                   </a>
                 ))}
@@ -586,7 +586,7 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
             {uploadedFiles.TAG_LICENSE?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.TAG_LICENSE.map(file => (
-                  <a key={file.id} href={file.file_url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
+                  <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
                     📄 {file.file_name || 'View Document'}
                   </a>
                 ))}

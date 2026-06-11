@@ -10,9 +10,10 @@ const GREETING: Msg = {
   text: "Hi! 👋 I'm Rovora's assistant. Ask me anything about features, pricing or getting set up — or tell me what your fleet needs.",
 };
 
-// Placeholder reply until the guide is wired to real data.
+// This is a lightweight contact form, not a live agent. Be honest: a human
+// follows up by email rather than replying in the widget.
 const STUB_REPLY =
-  "Thanks! A real assistant is on the way — for now you can start a free trial or email hello@rovora.eu and a human will jump in.";
+  "Thanks for that! This chat isn't staffed live — drop your email here or write to hello@rovora.eu and a real person will get back to you. In the meantime you're welcome to start a free trial.";
 
 export default function RovoraSupportChat() {
   const [open, setOpen] = useState(false);
@@ -58,7 +59,7 @@ export default function RovoraSupportChat() {
               </span>
               <div className="chat-head-txt">
                 <strong>Rovora support</strong>
-                <span className="chat-status"><i /> Typically replies in a few minutes</span>
+                <span className="chat-status"><i /> We&apos;ll follow up by email</span>
               </div>
             </div>
             <button className="chat-x" onClick={() => setOpen(false)} aria-label="Close chat">

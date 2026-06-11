@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 import type { UpdateSettlementInput } from '@/lib/types/database';
 import { calculateSettlement, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
 import type { SettlementScheme } from '@/lib/config/settlements';
+import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -15,22 +17,11 @@ export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    
+
     // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check role
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Fetch settlement
@@ -49,9 +40,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Drivers can only view their own settlements
-    if (profile.role === 'driver') {
+    if (session.role === 'driver') {
       const driver = settlement.drivers as { id: string; full_name: string; user_id: string } | null;
-      if (!driver || driver.user_id !== user.id) {
+      if (!driver || driver.user_id !== session.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
@@ -74,30 +65,22 @@ export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+
+    // Check auth - only admin can update settlements
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Check role - only admin can update settlements
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Check if settlement exists. Pull its FROZEN scheme snapshot too: edits
-    // re-price against the scheme this settlement was created under, never the
-    // fleet's current (possibly since-changed) scheme.
+    // Check if settlement exists. Pull its FROZEN scheme + rent snapshot too:
+    // edits re-price against the scheme this settlement was created under,
+    // never the fleet's current (possibly since-changed) preset.
     const { data: existing } = await supabase
       .from('driver_settlements')
-      .select('id, status, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct')
+      .select('id, status, driver_id, week_start, week_end, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, rent_amount')
       .eq('id', id)
       .single();
 
@@ -111,6 +94,33 @@ export async function PUT(request: Request, { params }: RouteParams) {
       campaignsDriverPct: existing.campaigns_driver_pct,
       feeDriverPct: existing.fee_driver_pct,
     };
+    const frozenRent = existing.rent_amount ?? 0;
+
+    // Re-freeze adjustments: release any currently linked to this settlement,
+    // then re-capture the driver's unattached adjustments in this period. This
+    // lets a re-save pick up adjustments added since the settlement was created
+    // while keeping the snapshot tied to (and recomputed for) THIS record.
+    await supabase
+      .from('driver_adjustments')
+      .update({ settlement_id: null })
+      .eq('settlement_id', id);
+
+    const { data: pendingAdjustments } = await supabase
+      .from('driver_adjustments')
+      .select('id, type, amount')
+      .eq('driver_id', existing.driver_id)
+      .is('settlement_id', null)
+      .gte('date', existing.week_start)
+      .lte('date', existing.week_end);
+    const adjustmentRows = pendingAdjustments || [];
+    const totalAdjustments = calculateAdjustmentsNet(adjustmentRows);
+
+    if (adjustmentRows.length > 0) {
+      await supabase
+        .from('driver_adjustments')
+        .update({ settlement_id: id })
+        .in('id', adjustmentRows.map((a) => a.id));
+    }
 
     // Parse request body
     const body: UpdateSettlementInput = await request.json();
@@ -118,6 +128,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // Calculate new totals if platforms are provided
     let updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
+      total_adjustments: totalAdjustments,
     };
 
     if (body.period_name !== undefined) {
@@ -151,7 +162,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }));
 
       const fssTax = body.fss_tax ?? 0;
-      const calculation = calculateSettlement(platformInputs, fssTax, scheme);
+      const calculation = calculateSettlement(platformInputs, fssTax, scheme, frozenRent);
 
       updateData = {
         ...updateData,
@@ -209,7 +220,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         campaigns: p.campaigns || 0,
       }));
 
-      const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme);
+      const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme, frozenRent);
 
       updateData = {
         ...updateData,
@@ -258,21 +269,13 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+
+    // Check auth - only admin can delete settlements
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Check role - only admin can delete settlements
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
+    if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

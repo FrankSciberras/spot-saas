@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import type { PlanDef } from '@/lib/billing/plans';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
 import RovoraReveal from './RovoraReveal';
 import RovoraSmoothScroll from './RovoraSmoothScroll';
 import RovoraSupportChat from './RovoraSupportChat';
@@ -53,19 +54,99 @@ const INTEGRATIONS: {
 
 /** Quick "everything Rovora does" overview grid on the homepage. */
 const WAYS: { icon: IconName; label: string; href: string }[] = [
-  { icon: 'coins', label: 'Reconcile driver pay', href: featureHref('settlements') },
-  { icon: 'sliders', label: 'Flexible pay schemes', href: featureHref('flexible-pay') },
-  { icon: 'plusCircle', label: 'Bonuses & deductions', href: featureHref('adjustments') },
+  { icon: 'car', label: 'Manage your vehicles', href: featureHref('vehicles') },
+  { icon: 'wrench', label: 'Never miss a service', href: featureHref('maintenance') },
+  { icon: 'camera', label: 'Log damage & repairs', href: featureHref('damage') },
   { icon: 'pulse', label: 'Track live shifts', href: featureHref('live-tracking') },
   { icon: 'calendar', label: 'Plan weekly rosters', href: featureHref('rosters') },
-  { icon: 'wrench', label: 'Never miss a service', href: featureHref('maintenance') },
+  { icon: 'coins', label: 'Reconcile driver pay', href: featureHref('settlements') },
   { icon: 'shield', label: 'Stay compliant', href: '#features' },
   { icon: 'bell', label: 'Get smart alerts', href: '#features' },
 ];
 
+/** Landing-page FAQ — rendered below and reused to build FAQPage JSON-LD in app/page.tsx. */
+export const LANDING_FAQ: { q: string; a: string }[] = [
+  {
+    q: 'How long does it take to get set up?',
+    a: "Most fleets are live in an afternoon. Add your vehicles and drivers, invite the team to the driver app, and you're running shifts the same day. On the Fleet plan we'll import your existing data for you.",
+  },
+  {
+    q: 'Do my drivers need to install anything?',
+    a: 'Drivers use the free Rovora driver app to clock in, log shifts and see their earnings. It takes a couple of minutes to set up and needs no training — if they can use a ride-hail app, they can use Rovora.',
+  },
+  {
+    q: 'Can I move over my current vehicles and drivers?',
+    a: "Yes. You can add everything manually in minutes, or send us a spreadsheet and we'll import your vehicles, drivers and documents so nothing gets left behind.",
+  },
+  {
+    q: 'How do driver settlements and payouts work?',
+    a: "Rovora reconciles each driver's week automatically — gross splits, fees, cash drops, tips and any adjustments — then produces a clean, payable amount. You review, approve and run payouts in a single pass, with a PDF statement for your records.",
+  },
+  {
+    q: 'Is my fleet data secure?',
+    a: 'Your data is encrypted in transit and at rest, hosted in the EU, and only ever visible to your team. You can export everything at any time, and we never sell or share your data.',
+  },
+  {
+    q: 'What if I run more than 50 vehicles?',
+    a: "The Fleet plan is built for larger operators, with volume per-vehicle pricing, guided onboarding and a dedicated account manager. Book a demo and we'll tailor it to your operation.",
+  },
+];
+
+const SITE_URL = 'https://rovora.eu';
+
+/** Structured data for SEO — Organization, FAQPage and the priced Product offers. */
+function buildJsonLd(plans: PlanDef[]) {
+  const organization = {
+    '@type': 'Organization',
+    name: 'Rovora',
+    url: SITE_URL,
+    logo: `${SITE_URL}/icons/apple-touch-icon.png`,
+    description:
+      'Fleet management software for taxi & rideshare operators — vehicles, maintenance, damage, drivers, shifts and driver pay in one dashboard.',
+    email: 'hello@rovora.eu',
+  };
+
+  const faqPage = {
+    '@type': 'FAQPage',
+    mainEntity: LANDING_FAQ.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: { '@type': 'Answer', text: item.a },
+    })),
+  };
+
+  const product = {
+    '@type': 'Product',
+    name: 'Rovora Fleet Management',
+    description:
+      'All-in-one taxi & rideshare fleet management — vehicle upkeep, maintenance and damage tracking, rosters, live shifts, driver pay and compliance alerts.',
+    brand: { '@type': 'Brand', name: 'Rovora' },
+    offers: plans
+      .filter((p) => p.priceAmount > 0)
+      .map((p) => ({
+        '@type': 'Offer',
+        name: p.name,
+        price: p.priceAmount,
+        priceCurrency: 'EUR',
+        url: `${SITE_URL}/#pricing`,
+        availability: 'https://schema.org/InStock',
+      })),
+  };
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [organization, faqPage, product],
+  };
+}
+
 export default function LandingPage({ plans }: { plans: PlanDef[] }) {
+  const jsonLd = buildJsonLd(plans);
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Without JS the reveal classes would leave content hidden — force it visible. */}
       <noscript>
         <style>{`.rovora-site .reveal{opacity:1!important;transform:none!important}`}</style>
@@ -79,16 +160,26 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         <section className="hero" id="top">
           <div className="container reveal-stagger">
             <span className="eyebrow"><span className="live" /> Built for fleets of 1 to 100+ vehicles</span>
-            <h1 className="hero-title">Your whole fleet, <span className="pos">running smoothly</span>.</h1>
-            <p className="hero-sub">Rovora is your true company overview of what happens on the road. It pulls drivers, vehicles, shifts, compliance and weekly settlements into one clean dashboard — so you spend less time in spreadsheets and more time keeping cars on the road.</p>
+            <h1 className="hero-title">Run your whole fleet from <span className="pos">one place</span>.</h1>
+            <p className="hero-sub">Vehicles, maintenance, damage, drivers and pay — Rovora keeps every part of your operation in a single dashboard, so nothing slips through the cracks.</p>
             <div className="hero-cta">
               <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
-              <a className="btn btn-ghost btn-lg" href="#features">See how it works</a>
+              <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>
             </div>
             <div className="hero-micro">
-              <span><span className="ck">✓</span> 14-day free trial</span>
+              <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
               <span><span className="ck">✓</span> No card required</span>
               <span><span className="ck">✓</span> Set up in an afternoon</span>
+            </div>
+            <div className="hero-trust">
+              <span>EU-hosted</span>
+              <span>·</span>
+              <span>Encrypted</span>
+              <span>·</span>
+              <span>GDPR-compliant</span>
+              <span>·</span>
+              <span>Cancel anytime</span>
+              <Link href="/security">Read our security &amp; privacy →</Link>
             </div>
           </div>
           <div className="container hero-shot-wrap reveal">
@@ -119,9 +210,9 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         <section className="stats">
           <div className="container">
             <div className="stats-grid reveal-stagger">
-              <div className="stat"><div className="num mono">6<span style={{ fontSize: 24 }}> hrs</span></div><div className="lbl">saved on payroll every week</div></div>
-              <div className="stat"><div className="num mono">100<span style={{ fontSize: 24 }}>%</span></div><div className="lbl">licence &amp; VRT compliance</div></div>
-              <div className="stat"><div className="num mono">1</div><div className="lbl">click to run driver payouts</div></div>
+              <div className="stat"><div className="num mono">6<span style={{ fontSize: 24 }}> hrs</span></div><div className="lbl">saved every week on admin</div></div>
+              <div className="stat"><div className="num mono">100<span style={{ fontSize: 24 }}>%</span></div><div className="lbl">document &amp; service compliance</div></div>
+              <div className="stat"><div className="num mono">1</div><div className="lbl">dashboard for your whole fleet</div></div>
               <div className="stat"><div className="num mono">0</div><div className="lbl">spreadsheets to maintain</div></div>
             </div>
           </div>
@@ -289,13 +380,41 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           </div>
         </section>
 
+        {/* HOW IT WORKS */}
+        <section className="sec-pad" id="how" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
+          <div className="container">
+            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
+              <span className="kicker">How it works</span>
+              <h2 className="sec-title">Up and running in three steps</h2>
+              <p className="sec-desc">No migration project, no consultants. Add your fleet, run the day from one place, and stay on top of compliance, costs and pay.</p>
+            </div>
+            <div className="how-grid reveal-stagger">
+              <div className="how-step">
+                <span className="how-num mono">1</span>
+                <h3>Add your fleet, drivers &amp; vehicles</h3>
+                <p>Enter them in minutes or send us a spreadsheet and we&rsquo;ll import everything — drivers, vehicles and documents — for you.</p>
+              </div>
+              <div className="how-step">
+                <span className="how-num mono">2</span>
+                <h3>Run the day from one screen</h3>
+                <p>Drivers clock in from the free app while shifts, mileage, services and damage all flow into Rovora — no calls, no chasing, nothing logged on paper.</p>
+              </div>
+              <div className="how-step">
+                <span className="how-num mono">3</span>
+                <h3>Stay on top of everything</h3>
+                <p>Document expiries, vehicle health, weekly driver pay and the books — all reconciled and in view, so problems surface before they cost you.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* INTEGRATIONS */}
         <section className="sec-pad" id="integrations" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
           <div className="container">
             <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <span className="kicker">Integrations</span>
-              <h2 className="sec-title">Plugs into the platforms you already use</h2>
-              <p className="sec-desc">Stop copying trip data and payouts by hand. We&rsquo;re building native connections to the ride-hail and payment platforms your fleet runs on — earnings flow straight into Rovora.</p>
+              <span className="kicker">Integrations · On the roadmap</span>
+              <h2 className="sec-title">Built to work with the platforms you already use</h2>
+              <p className="sec-desc">Stop copying trip data and payouts by hand. We&rsquo;re building native connections to the ride-hail and payment platforms your fleet runs on — so earnings will flow straight into Rovora.</p>
             </div>
 
             <div className="integ-grid reveal-stagger">
@@ -312,6 +431,39 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
             <p className="integ-note">
               Want a platform we haven&rsquo;t listed? <a href="mailto:hello@rovora.eu?subject=Integration%20request">Tell us</a> and we&rsquo;ll prioritise it.
             </p>
+          </div>
+        </section>
+
+        {/* COMPARISON */}
+        <section className="sec-pad" id="compare">
+          <div className="container">
+            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
+              <span className="kicker">Spreadsheets vs Rovora</span>
+              <h2 className="sec-title">There&rsquo;s a calmer way to run a fleet</h2>
+              <p className="sec-desc">Most small fleets run on a patchwork of spreadsheets, paper logs and group chats. Here&rsquo;s what changes the day you move to Rovora.</p>
+            </div>
+            <div className="cmp-grid reveal-stagger">
+              <div className="cmp-card cmp-old">
+                <div className="cmp-head">Spreadsheets &amp; WhatsApp</div>
+                <ul className="cmp-list">
+                  <li><span className="cmp-x" aria-hidden>✕</span> Vehicle docs &amp; services tracked from memory</li>
+                  <li><span className="cmp-x" aria-hidden>✕</span> Damage logged on scraps of paper — costs lost</li>
+                  <li><span className="cmp-x" aria-hidden>✕</span> No expiry alerts — licences lapse unnoticed</li>
+                  <li><span className="cmp-x" aria-hidden>✕</span> Driver pay worked out by hand, every week</li>
+                  <li><span className="cmp-x" aria-hidden>✕</span> Version chaos across a dozen spreadsheets</li>
+                </ul>
+              </div>
+              <div className="cmp-card cmp-new">
+                <div className="cmp-head">Rovora</div>
+                <ul className="cmp-list">
+                  <li><span className="tick"><Check /></span> Every vehicle&rsquo;s docs, mileage &amp; services in one place</li>
+                  <li><span className="tick"><Check /></span> Damage logged against the car with full repair history</li>
+                  <li><span className="tick"><Check /></span> Tiered alerts before any licence or doc lapses</li>
+                  <li><span className="tick"><Check /></span> Driver pay reconciled automatically each week</li>
+                  <li><span className="tick"><Check /></span> One source of truth, plus a free driver app</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -363,30 +515,12 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               <h2 className="sec-title">Questions, answered</h2>
             </div>
             <div className="faq-grid reveal-stagger">
-              <details className="faq" open>
-                <summary><span className="q">How long does it take to get set up?</span><span className="pm" /></summary>
-                <div className="ans">Most fleets are live in an afternoon. Add your vehicles and drivers, invite the team to the driver app, and you&apos;re running shifts the same day. On the Fleet plan we&apos;ll import your existing data for you.</div>
-              </details>
-              <details className="faq">
-                <summary><span className="q">Do my drivers need to install anything?</span><span className="pm" /></summary>
-                <div className="ans">Drivers use the free Rovora driver app to clock in, log shifts and see their earnings. It takes a couple of minutes to set up and needs no training — if they can use a ride-hail app, they can use Rovora.</div>
-              </details>
-              <details className="faq">
-                <summary><span className="q">Can I move over my current vehicles and drivers?</span><span className="pm" /></summary>
-                <div className="ans">Yes. You can add everything manually in minutes, or send us a spreadsheet and we&apos;ll import your vehicles, drivers and documents so nothing gets left behind.</div>
-              </details>
-              <details className="faq">
-                <summary><span className="q">How do driver settlements and payouts work?</span><span className="pm" /></summary>
-                <div className="ans">Rovora reconciles each driver&apos;s week automatically — gross splits, fees, cash drops, tips and any adjustments — then produces a clean, payable amount. You review, approve and run payouts in a single pass, with a PDF statement for your records.</div>
-              </details>
-              <details className="faq">
-                <summary><span className="q">Is my fleet data secure?</span><span className="pm" /></summary>
-                <div className="ans">Your data is encrypted in transit and at rest, hosted in the EU, and only ever visible to your team. You can export everything at any time, and we never sell or share your data.</div>
-              </details>
-              <details className="faq">
-                <summary><span className="q">What if I run more than 50 vehicles?</span><span className="pm" /></summary>
-                <div className="ans">The Fleet plan is built for larger operators, with volume per-vehicle pricing, guided onboarding and a dedicated account manager. Book a demo and we&apos;ll tailor it to your operation.</div>
-              </details>
+              {LANDING_FAQ.map((item, i) => (
+                <details className="faq" key={item.q} open={i === 0}>
+                  <summary><span className="q">{item.q}</span><span className="pm" /></summary>
+                  <div className="ans">{item.a}</div>
+                </details>
+              ))}
             </div>
           </div>
         </section>
@@ -396,7 +530,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           <div className="container">
             <div className="cta-band reveal">
               <h2>Ready to get your fleet on Rovora?</h2>
-              <p>Start your 14-day free trial today. No card, no lock-in — just your whole operation, finally in one place.</p>
+              <p>Start your {TRIAL_DAYS}-day free trial today. No card, no lock-in — just your whole operation, finally in one place.</p>
               <div className="hero-cta">
                 <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
                 <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>

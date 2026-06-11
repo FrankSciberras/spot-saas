@@ -15,7 +15,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { PLATFORMS } from '@/lib/config/settlements';
+import type { PlatformConfig } from '@/lib/config/settlements';
 import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './earnings.module.css';
@@ -27,6 +27,8 @@ interface SettlementWithPlatforms extends DriverSettlement {
 interface EarningsClientProps {
   settlements: SettlementWithPlatforms[];
   driverName: string;
+  /** The fleet's platforms (icons/colors for the breakdown). */
+  platforms: PlatformConfig[];
 }
 
 type ViewMode = 'weekly' | 'monthly';
@@ -56,7 +58,7 @@ function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-export default function EarningsClient({ settlements: allSettlements, driverName }: EarningsClientProps) {
+export default function EarningsClient({ settlements: allSettlements, driverName, platforms }: EarningsClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [weekRange, setWeekRange] = useState<WeekRange>(4);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
@@ -100,6 +102,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
     let totalCampaigns = 0;
     let totalGross = 0;
     const platformTotals: Record<string, number> = {};
+    const platformNames: Record<string, string> = {};
     let bestWeek: SettlementWithPlatforms | null = null;
 
     // Weekly data for chart
@@ -131,18 +134,23 @@ export default function EarningsClient({ settlements: allSettlements, driverName
         totalTips += p.tips;
         totalCampaigns += p.campaigns || 0;
         platformTotals[p.platform_id] = (platformTotals[p.platform_id] || 0) + p.net;
+        platformNames[p.platform_id] = p.platform_name;
       });
     });
 
-    // Platform breakdown
-    const platformBreakdown = PLATFORMS.map(p => ({
-      id: p.id,
-      name: p.name,
-      icon: p.icon,
-      color: p.color,
-      total: platformTotals[p.id] || 0,
-      percentage: totalNet > 0 ? ((platformTotals[p.id] || 0) / totalNet) * 100 : 0,
-    })).filter(p => p.total > 0);
+    // Platform breakdown — driven by what's in the data, styled from the
+    // fleet's platform list, with snapshot names covering removed platforms.
+    const platformBreakdown = Object.keys(platformTotals).map(id => {
+      const config = platforms.find(p => p.id === id);
+      return {
+        id,
+        name: config?.name || platformNames[id] || id,
+        icon: config?.icon || '📊',
+        color: config?.color || '#8884d8',
+        total: platformTotals[id] || 0,
+        percentage: totalNet > 0 ? ((platformTotals[id] || 0) / totalNet) * 100 : 0,
+      };
+    }).filter(p => p.total > 0);
 
     // Monthly data
     const monthlyMap = new Map<string, { net: number; tips: number; campaigns: number; weeks: number }>();
@@ -177,7 +185,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
       weeklyData,
       monthlyData,
     };
-  }, [settlements]);
+  }, [settlements, platforms]);
 
   // Get current period earnings
   const currentWeek = settlements[0];
@@ -190,7 +198,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
 
   // Get platform icon
   const getPlatformIcon = (platformId: string) => {
-    return PLATFORMS.find(p => p.id === platformId)?.icon || '📊';
+    return platforms.find(p => p.id === platformId)?.icon || '📊';
   };
 
   // Chart max for scaling

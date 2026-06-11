@@ -127,8 +127,11 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
     ? session.customer
     : session.customer?.id ?? null;
 
-  // Prefer the plan recorded at checkout; fall back to mapping the subscription's price.
-  let planKey = session.metadata?.plan ?? null;
+  // Derive the plan from the price actually paid — that's the authoritative
+  // source. Only fall back to the checkout metadata if the price isn't mapped,
+  // so a mismatch between metadata and the paid price can never grant a higher
+  // tier than was purchased.
+  let planKey: string | null = null;
   let subStatus: string | null = null;
   let periodEnd: string | null = null;
 
@@ -136,9 +139,11 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
     const sub = await stripe.subscriptions.retrieve(subId);
     subStatus = sub.status;
     periodEnd = periodEndIso(sub);
-    if (!planKey) {
-      planKey = await planKeyForPrice(sub.items.data[0]?.price);
-    }
+    planKey = await planKeyForPrice(sub.items.data[0]?.price);
+  }
+
+  if (!planKey) {
+    planKey = session.metadata?.plan ?? null;
   }
 
   if (!planKey) {

@@ -249,7 +249,7 @@ function DocCard({ title, subtitle, slots, files, driverId, onUpload, onDelete, 
                 slotFiles.map(f => (
                   <div key={f.id} className={styles.docFileUploaded}>
                     <span className={styles.docFileName}>{f.file_name || 'Document'}</span>
-                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" className={styles.docFileViewBtn}>View</a>
+                    <a href={`/api/files/${f.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.docFileViewBtn}>View</a>
                     <button
                       type="button"
                       className={styles.docFileRemoveBtn}
@@ -647,12 +647,12 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
               <strong>Legacy uploads:</strong> Some files were uploaded before front/back was available.
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 {(uploadedFiles['ID_CARD'] || []).map(f => (
-                  <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontSize: 12 }}>
+                  <a key={f.id} href={`/api/files/${f.id}/view`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontSize: 12 }}>
                     ID Card — {f.file_name || 'View'}
                   </a>
                 ))}
                 {(uploadedFiles['DRIVING_LICENSE'] || []).map(f => (
-                  <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontSize: 12 }}>
+                  <a key={f.id} href={`/api/files/${f.id}/view`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontSize: 12 }}>
                     License — {f.file_name || 'View'}
                   </a>
                 ))}

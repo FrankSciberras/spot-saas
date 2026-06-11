@@ -205,8 +205,39 @@
   display: flex;
   flex-direction: column;
   padding: 1.25rem;
+  padding-bottom: 3rem; /* reserve space for the copy-week action */
   text-decoration: none;
   color: inherit;
+}
+
+.cardFooterActions {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+}
+
+.copyWeekBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.08);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.copyWeekBtn:hover {
+  background: rgba(var(--color-primary-rgb), 0.16);
+}
+
+.copyWeekBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .rosterHeader {

@@ -24,9 +24,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowedTypes.includes(file.type)) {
+    if (ownerType !== 'driver' && ownerType !== 'vehicle') {
+      return NextResponse.json({ error: 'Invalid owner type' }, { status: 400 });
+    }
+
+    // Tenant check: the owner (driver/vehicle) must be visible to the caller
+    // under RLS — i.e. belong to a fleet they're a member of. Without this a
+    // user could attach forged documents to another tenant's driver/vehicle.
+    const ownerTable = ownerType === 'driver' ? 'drivers' : 'vehicles';
+    const { data: owner } = await supabase
+      .from(ownerTable)
+      .select('id')
+      .eq('id', ownerId)
+      .maybeSingle();
+
+    if (!owner) {
+      return NextResponse.json({ error: 'Owner not found' }, { status: 404 });
+    }
+
+    // Validate file type. The stored extension is derived from the MIME type,
+    // not the client-supplied filename, so a mislabelled payload can't smuggle
+    // an arbitrary extension into the storage path.
+    const extByType: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+    };
+    const ext = extByType[file.type];
+    if (!ext) {
       return NextResponse.json({ error: 'Invalid file type. Allowed: PDF, JPG, PNG' }, { status: 400 });
     }
 
@@ -37,7 +63,6 @@ export async function POST(request: Request) {
     }
 
     // Generate unique filename
-    const ext = file.name.split('.').pop();
     const timestamp = Date.now();
     const fileName = `${ownerType}/${ownerId}/${docType}_${timestamp}.${ext}`;
 

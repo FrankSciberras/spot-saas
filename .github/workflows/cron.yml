@@ -1,0 +1,71 @@
+# =============================================================================
+# Scheduled jobs — triggers the app's cron endpoints on the production server.
+# =============================================================================
+# Production runs as a self-hosted Docker container (see main.yml), so
+# vercel.json crons never fire there. This workflow is the scheduler instead:
+# it simply curls the app's secured /api/cron/* endpoints on a schedule.
+#
+# Required repo configuration (Settings → Secrets and variables → Actions):
+#   * secret  CRON_SECRET — must match the CRON_SECRET env var inside the app
+#     container (set it in the ENV_FILE secret used by main.yml).
+#   * variable APP_URL (optional) — base URL of the deployed app.
+#     Defaults to https://rovora.eu when unset.
+#
+# Schedules (UTC; Malta is UTC+1/+2):
+#   * reminders          — every 30 min (fires due reminder notifications;
+#                          tighten/loosen the cadence by editing its cron line —
+#                          each run costs ~1 Actions minute).
+#   * notification rules — daily 05:00 (doc-expiry / shift-reminder sweep;
+#                          deduped server-side, safe to re-run).
+#   * package updates    — Mondays 08:00 (same slot vercel.json intended).
+#
+# All three endpoints return 401 unless the Bearer secret matches, and each can
+# also be triggered manually by a platform admin in the app. workflow_dispatch
+# runs every step, which is handy for testing the wiring end to end.
+# =============================================================================
+
+name: Scheduled Jobs
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # reminders
+    - cron: '0 5 * * *'     # daily notification rules sweep
+    - cron: '0 8 * * 1'     # weekly package update check
+  workflow_dispatch:
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ vars.APP_URL || 'https://rovora.eu' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+    steps:
+      - name: Fail fast if CRON_SECRET is missing
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set — add it (and the same value in the app's ENV_FILE)."
+            exit 1
+          fi
+
+      - name: Reminders (every 30 min)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
+        run: |
+          curl -fsS -m 60 --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/reminders"
+
+      - name: Notification rules (daily)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *'
+        run: |
+          curl -fsS -m 120 --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/notifications"
+
+      - name: Package update check (weekly)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 8 * * 1'
+        run: |
+          curl -fsS -m 300 --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/check-updates"

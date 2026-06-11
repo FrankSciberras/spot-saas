@@ -42,6 +42,8 @@ export interface SettlementCalculation {
   totalCampaigns: number;
   totalBalanceBeforeTax: number;
   fssTax: number;
+  /** Fixed weekly rent deduction (0 when the scheme has no rent). */
+  rent: number;
   finalBalance: number;
 }
 
@@ -117,19 +119,24 @@ export function calculatePlatformEarnings(
 
 /**
  * Calculate full settlement for all platforms
- * 
+ *
  * Formulas:
  * - Total Net = sum of net for all platforms
  * - Total Balance Before Tax = sum of balance for all platforms
- * - Final Balance = Total Balance Before Tax - FSS/Tax
+ * - Final Balance = Total Balance Before Tax - FSS/Tax - Rent
+ *
+ * `rent` is the fixed weekly vehicle-rent deduction from the driver's
+ * settlement preset (0 = none, which reproduces the old formula exactly).
  */
 export function calculateSettlement(
   platformInputs: PlatformEarningsInput[],
   fssTax: number,
-  scheme: SettlementScheme = DEFAULT_SCHEME
+  scheme: SettlementScheme = DEFAULT_SCHEME,
+  rent: number = 0
 ): SettlementCalculation {
   const platforms = platformInputs.map(p => calculatePlatformEarnings(p, scheme));
   const safeFssTax = safeNumber(fssTax);
+  const safeRent = Math.max(0, safeNumber(rent));
 
   const totalGrossFare = round2(platforms.reduce((sum, p) => sum + p.grossFare, 0));
   const totalFiftyPercent = round2(platforms.reduce((sum, p) => sum + p.fiftyPercent, 0));
@@ -139,7 +146,7 @@ export function calculateSettlement(
   const totalTips = round2(platforms.reduce((sum, p) => sum + p.tips, 0));
   const totalCampaigns = round2(platforms.reduce((sum, p) => sum + p.campaigns, 0));
   const totalBalanceBeforeTax = round2(platforms.reduce((sum, p) => sum + p.balance, 0));
-  const finalBalance = round2(totalBalanceBeforeTax - safeFssTax);
+  const finalBalance = round2(totalBalanceBeforeTax - safeFssTax - safeRent);
 
   return {
     platforms,
@@ -152,6 +159,7 @@ export function calculateSettlement(
     totalCampaigns,
     totalBalanceBeforeTax,
     fssTax: round2(safeFssTax),
+    rent: round2(safeRent),
     finalBalance,
   };
 }

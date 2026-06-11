@@ -214,6 +214,9 @@
 .rovora-site .hero-micro { margin-top: 18px; font-size: 13px; color: var(--text-3); display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
 .rovora-site .hero-micro span { display: inline-flex; align-items: center; gap: 7px; }
 .rovora-site .hero-micro .ck { color: var(--pos); }
+.rovora-site .hero-trust { margin-top: 20px; font-size: 12.5px; color: var(--text-3); display: flex; gap: 9px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.rovora-site .hero-trust a { color: var(--text-2); text-decoration: none; font-weight: 500; margin-left: 4px; }
+.rovora-site .hero-trust a:hover { color: var(--accent); text-decoration: underline; }
 
 /* ─── Browser shot frame ─── */
 .rovora-site .shot { margin: 60px auto 0; max-width: 1240px; border-radius: 16px; overflow: hidden; background: var(--bg-1); border: 1px solid var(--line-2); box-shadow: var(--shot-shadow); }
@@ -337,6 +340,27 @@
 .rovora-site .integ-note { margin: 28px 0 0; text-align: center; font-size: 14px; color: var(--text-3); }
 .rovora-site .integ-note a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .rovora-site .integ-note a:hover { text-decoration: underline; }
+
+/* ─── How it works ─── */
+.rovora-site .how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.rovora-site .how-step { position: relative; padding: 28px 26px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-2); transition: border-color .15s, transform .15s; }
+.rovora-site .how-step:hover { border-color: var(--line-3); transform: translateY(-2px); }
+.rovora-site .how-num { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent); font-size: 18px; font-weight: 600; margin-bottom: 18px; }
+.rovora-site .how-step h3 { margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.015em; }
+.rovora-site .how-step p { margin: 9px 0 0; font-size: 14.5px; color: var(--text-2); line-height: 1.55; }
+
+/* ─── Comparison ─── */
+.rovora-site .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rovora-site .cmp-card { padding: 30px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--bg-1); }
+.rovora-site .cmp-card.cmp-new { border-color: var(--accent-line); box-shadow: 0 0 0 1px var(--accent-line); background: var(--bg-2); }
+.rovora-site .cmp-head { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 18px; }
+.rovora-site .cmp-card.cmp-new .cmp-head { color: var(--accent); }
+.rovora-site .cmp-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 13px; }
+.rovora-site .cmp-list li { display: flex; gap: 11px; align-items: flex-start; font-size: 15px; color: var(--text-1); line-height: 1.4; }
+.rovora-site .cmp-list li .tick { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--pos-soft); color: var(--pos); display: grid; place-items: center; margin-top: 1px; }
+.rovora-site .cmp-list li .tick svg { width: 11px; height: 11px; }
+.rovora-site .cmp-x { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--line-2); color: var(--text-3); display: grid; place-items: center; margin-top: 1px; font-size: 10px; line-height: 1; }
+.rovora-site .cmp-old .cmp-list li { color: var(--text-2); }
 
 /* ─── Pricing ─── */
 .rovora-site .price-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 52px; align-items: stretch; }
@@ -486,6 +510,8 @@
   .rovora-site .mini-grid { grid-template-columns: 1fr 1fr; }
   .rovora-site .way-grid { grid-template-columns: repeat(2, 1fr); gap: 30px 18px; }
   .rovora-site .integ-grid { grid-template-columns: 1fr 1fr; }
+  .rovora-site .how-grid { grid-template-columns: 1fr; }
+  .rovora-site .cmp-grid { grid-template-columns: 1fr; }
   .rovora-site .price-grid { grid-template-columns: 1fr; max-width: 420px; margin-left: auto; margin-right: auto; }
   .rovora-site .foot-top { grid-template-columns: 1fr; gap: 36px; }
   .rovora-site .foot-cols { grid-template-columns: repeat(2, 1fr); }

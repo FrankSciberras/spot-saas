@@ -248,7 +248,7 @@ function DocCard({ title, subtitle, docType, files, onUpload, onDelete, uploadin
       {files.map(f => (
         <div key={f.id} className={styles.docFileUploaded}>
           <span className={styles.docFileName}>{f.file_name || 'Document'}</span>
-          <a href={f.file_url} target="_blank" rel="noopener noreferrer" className={styles.docFileViewBtn}>View</a>
+          <a href={`/api/files/${f.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.docFileViewBtn}>View</a>
           <button
             type="button"
             className={styles.docFileRemoveBtn}

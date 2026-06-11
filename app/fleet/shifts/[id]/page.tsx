@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import ClickableImage from '@/components/shared/ClickableImage';
+import { signStorageUrl } from '@/lib/storage/signed';
 import styles from '@/components/admin/AdminForms.module.css';
 import shiftStyles from '../shifts.module.css';
 
@@ -56,6 +57,20 @@ export default async function ShiftDetailPage({ params }: PageProps) {
   }
 
   const shiftData = shift as ShiftWithRelations;
+
+  // The shift-images bucket is private — swap the stored URLs for short-lived
+  // signed URLs. The row was just read under RLS, so the caller is authorised.
+  [
+    shiftData.front_image_url,
+    shiftData.back_image_url,
+    shiftData.left_image_url,
+    shiftData.right_image_url,
+  ] = await Promise.all([
+    signStorageUrl(shiftData.front_image_url, 'shift-images'),
+    signStorageUrl(shiftData.back_image_url, 'shift-images'),
+    signStorageUrl(shiftData.left_image_url, 'shift-images'),
+    signStorageUrl(shiftData.right_image_url, 'shift-images'),
+  ]);
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-GB', {
