@@ -51,7 +51,8 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
