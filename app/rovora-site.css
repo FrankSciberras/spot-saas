@@ -710,3 +710,147 @@
   .rovora-site .rovora-chat { right: 16px; bottom: 16px; }
   .rovora-site .chat-panel { height: min(70vh, 480px); }
 }
+
+/* ============================================================
+   Live tracking section — animated map mockup (#tracking)
+   ============================================================ */
+.rovora-site .mapmock {
+  position: relative; overflow: hidden;
+  height: 420px; background: var(--bg-2);
+}
+/* stylised street grid */
+.rovora-site .mm-roads {
+  position: absolute; inset: 0; opacity: .9;
+  background:
+    linear-gradient(90deg, transparent 0 18%, var(--bg-3) 18% calc(18% + 3px), transparent calc(18% + 3px) 100%),
+    linear-gradient(90deg, transparent 0 46%, var(--bg-3) 46% calc(46% + 5px), transparent calc(46% + 5px) 100%),
+    linear-gradient(90deg, transparent 0 78%, var(--bg-3) 78% calc(78% + 3px), transparent calc(78% + 3px) 100%),
+    linear-gradient(0deg, transparent 0 28%, var(--bg-3) 28% calc(28% + 4px), transparent calc(28% + 4px) 100%),
+    linear-gradient(0deg, transparent 0 62%, var(--bg-3) 62% calc(62% + 3px), transparent calc(62% + 3px) 100%),
+    radial-gradient(circle at 85% 15%, var(--ambient-1), transparent 42%),
+    radial-gradient(circle at 10% 85%, var(--ambient-2), transparent 38%);
+}
+.rovora-site .mm-roads::after {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--line-1) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-1) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+/* geofence zone */
+.rovora-site .mm-zone {
+  position: absolute; left: 56%; top: 38%; width: 36%; aspect-ratio: 1;
+  border: 2px dashed var(--accent-line); border-radius: 50%;
+  background: var(--accent-soft);
+  animation: mmZonePulse 4s ease-in-out infinite;
+}
+.rovora-site .mm-zone-tag {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 999px;
+  padding: 3px 11px; font-size: 11.5px; font-weight: 600; color: var(--text-2);
+  white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.07);
+}
+@keyframes mmZonePulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 14px transparent; }
+}
+/* drivers */
+.rovora-site .mm-drv { position: absolute; display: flex; align-items: center; gap: 7px; will-change: left, top; }
+.rovora-site .mm-dot {
+  position: relative; width: 34px; height: 34px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+  border: 2.5px solid #fff; box-shadow: 0 3px 10px rgba(0,0,0,.25); flex: none;
+}
+.rovora-site .mm-dot::after {
+  content: ''; position: absolute; inset: -7px; border-radius: 50%;
+  border: 2px solid currentColor; color: inherit; opacity: .5;
+  animation: mmPing 2.2s ease-out infinite;
+}
+@keyframes mmPing {
+  0% { transform: scale(.75); opacity: .5; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+.rovora-site .mm-spd {
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 7px;
+  padding: 3px 8px; font-size: 11px; font-weight: 600; color: var(--text-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,.06);
+}
+.rovora-site .mm-drv1 { animation: mmDrive1 26s ease-in-out infinite alternate; }
+.rovora-site .mm-drv2 { animation: mmDrive2 21s ease-in-out infinite alternate; }
+.rovora-site .mm-drv3 { animation: mmDrive3 31s ease-in-out infinite alternate; }
+@keyframes mmDrive1 {
+  0%   { left: 6%;  top: 72%; }
+  30%  { left: 26%; top: 56%; }
+  55%  { left: 44%; top: 64%; }
+  80%  { left: 64%; top: 54%; }
+  100% { left: 72%; top: 50%; }
+}
+@keyframes mmDrive2 {
+  0%   { left: 80%; top: 16%; }
+  35%  { left: 56%; top: 22%; }
+  70%  { left: 34%; top: 14%; }
+  100% { left: 12%; top: 24%; }
+}
+@keyframes mmDrive3 {
+  0%   { left: 16%; top: 30%; }
+  40%  { left: 14%; top: 56%; }
+  75%  { left: 28%; top: 78%; }
+  100% { left: 44%; top: 84%; }
+}
+/* zone alert toast */
+.rovora-site .mm-toast {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 11px;
+  padding: 9px 13px; font-size: 12.5px; color: var(--text-2);
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,.18);
+  opacity: 0; transform: translateY(-8px);
+  animation: mmToast 13s ease-in-out infinite;
+}
+.rovora-site .mm-toast b { color: var(--text-1); font-weight: 600; }
+.rovora-site .mm-toast-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none;
+  box-shadow: 0 0 0 3px var(--warn-soft);
+}
+@keyframes mmToast {
+  0%, 38% { opacity: 0; transform: translateY(-8px); }
+  44%, 86% { opacity: 1; transform: translateY(0); }
+  92%, 100% { opacity: 0; transform: translateY(-8px); }
+}
+/* legend chip */
+.rovora-site .mm-legend {
+  position: absolute; left: 14px; bottom: 14px;
+  display: flex; align-items: center; gap: 7px;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 999px;
+  padding: 6px 13px; font-size: 12px; color: var(--text-2);
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+}
+.rovora-site .mm-leg-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--pos); display: inline-block;
+  box-shadow: 0 0 0 3px var(--pos-soft);
+}
+.rovora-site .mm-leg-sep { color: var(--text-4); }
+
+/* pricing "everything included" strip */
+.rovora-site .price-incl {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px;
+  margin-top: 18px; font-size: 13.5px; color: var(--text-2);
+}
+.rovora-site .price-incl .ck { color: var(--accent); font-weight: 700; margin-right: 5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site .mm-drv1, .rovora-site .mm-drv2, .rovora-site .mm-drv3 { animation: none; }
+  .rovora-site .mm-drv1 { left: 64%; top: 54%; }
+  .rovora-site .mm-drv2 { left: 40%; top: 18%; }
+  .rovora-site .mm-drv3 { left: 18%; top: 60%; }
+  .rovora-site .mm-dot::after { animation: none; opacity: 0; }
+  .rovora-site .mm-zone { animation: none; }
+  .rovora-site .mm-toast { animation: none; opacity: 1; transform: none; }
+}
+
+@media (max-width: 880px) {
+  .rovora-site .mapmock { height: 320px; }
+  .rovora-site .mm-zone { left: 50%; top: 34%; width: 44%; }
+}
