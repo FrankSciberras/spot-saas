@@ -75,6 +75,10 @@ export const LANDING_FAQ: { q: string; a: string }[] = [
     a: 'Drivers use the free Rovora driver app to clock in, log shifts and see their earnings. It takes a couple of minutes to set up and needs no training — if they can use a ride-hail app, they can use Rovora.',
   },
   {
+    q: 'Do I need to buy GPS trackers for my cars?',
+    a: "No. Rovora's live map works through the free driver app on the phone your driver already carries — no hardware to buy, install or maintain, and no SIM contracts. Drivers share their location with one tap when a shift starts, you see the whole fleet live, and tracking stops when they stop. For a 10-car fleet that's typically €1,000+ saved up front versus dedicated trackers.",
+  },
+  {
     q: 'Can I move over my current vehicles and drivers?',
     a: "Yes. You can add everything manually in minutes, or send us a spreadsheet and we'll import your vehicles, drivers and documents so nothing gets left behind.",
   },
@@ -161,7 +165,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           <div className="container reveal-stagger">
             <span className="eyebrow"><span className="live" /> Built for fleets of 1 to 100+ vehicles</span>
             <h1 className="hero-title">Run your whole fleet from <span className="pos">one place</span>.</h1>
-            <p className="hero-sub">Vehicles, maintenance, damage, drivers and pay — Rovora keeps every part of your operation in a single dashboard, so nothing slips through the cracks.</p>
+            <p className="hero-sub">Vehicles, maintenance, damage, drivers, live GPS tracking and pay — Rovora keeps every part of your operation in a single dashboard, so nothing slips through the cracks.</p>
             <div className="hero-cta">
               <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
               <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>
@@ -213,7 +217,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               <div className="stat"><div className="num mono">6<span style={{ fontSize: 24 }}> hrs</span></div><div className="lbl">saved every week on admin</div></div>
               <div className="stat"><div className="num mono">100<span style={{ fontSize: 24 }}>%</span></div><div className="lbl">document &amp; service compliance</div></div>
               <div className="stat"><div className="num mono">1</div><div className="lbl">dashboard for your whole fleet</div></div>
-              <div className="stat"><div className="num mono">0</div><div className="lbl">spreadsheets to maintain</div></div>
+              <div className="stat"><div className="num mono">€0</div><div className="lbl">spent on GPS tracking hardware</div></div>
             </div>
           </div>
         </section>
@@ -380,6 +384,64 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           </div>
         </section>
 
+        {/* LIVE TRACKING — NO HARDWARE */}
+        <section className="sec-pad" id="tracking">
+          <div className="container">
+            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
+              <span className="kicker">Live tracking · No hardware</span>
+              <h2 className="sec-title">A live map of your fleet — without buying a single GPS box</h2>
+              <p className="sec-desc">Traditional fleet tracking means €100+ trackers wired into every car, SIM contracts and an installer. Rovora turns the phone your driver already carries into the tracker — switched on with one tap at shift start.</p>
+            </div>
+
+            <div className="frow reveal">
+              <div className="ftext">
+                <div className="feat-ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                </div>
+                <h3>Everything a hardware tracker does. Nothing it costs.</h3>
+                <p>Live positions, speeds, distance driven, route playback and a full log of who shared when — streamed from the free driver app, with privacy built in: tracking only runs during shifts, started and stopped by the driver.</p>
+                <ul className="feat-list">
+                  <li><span className="tick"><Check /></span> Live map with speed &amp; top speed per driver</li>
+                  <li><span className="tick"><Check /></span> Draw zones — get alerted when a driver enters or leaves</li>
+                  <li><span className="tick"><Check /></span> Route playback &amp; km driven for every shift</li>
+                  <li><span className="tick"><Check /></span> No devices, no installation, no SIM contracts <span className="t2">— a 10-car fleet saves €1,000+ up front</span></li>
+                </ul>
+              </div>
+
+              <div className="shot tight">
+                <ShotBar path="fleet/tracking" />
+                <div className="mapmock" aria-hidden>
+                  <div className="mm-roads" />
+                  <div className="mm-zone">
+                    <span className="mm-zone-tag">Airport</span>
+                  </div>
+                  <div className="mm-drv mm-drv1">
+                    <span className="mm-dot" style={{ background: '#2bbd7e' }}>MV</span>
+                    <span className="mm-spd">62 km/h</span>
+                  </div>
+                  <div className="mm-drv mm-drv2">
+                    <span className="mm-dot" style={{ background: '#3b6ad9' }}>JB</span>
+                    <span className="mm-spd">48 km/h</span>
+                  </div>
+                  <div className="mm-drv mm-drv3">
+                    <span className="mm-dot" style={{ background: '#a78bfa' }}>KW</span>
+                    <span className="mm-spd">35 km/h</span>
+                  </div>
+                  <div className="mm-toast">
+                    <span className="mm-toast-dot" />
+                    <span><b>Zone alert</b> — M. Vella entered “Airport”</span>
+                  </div>
+                  <div className="mm-legend">
+                    <span><i className="mm-leg-dot" /> 3 drivers live</span>
+                    <span className="mm-leg-sep">·</span>
+                    <span>updating in real time</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* HOW IT WORKS */}
         <section className="sec-pad" id="how" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
           <div className="container">
@@ -450,6 +512,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
                   <li><span className="cmp-x" aria-hidden>✕</span> Damage logged on scraps of paper — costs lost</li>
                   <li><span className="cmp-x" aria-hidden>✕</span> No expiry alerts — licences lapse unnoticed</li>
                   <li><span className="cmp-x" aria-hidden>✕</span> Driver pay worked out by hand, every week</li>
+                  <li><span className="cmp-x" aria-hidden>✕</span> GPS trackers: €100+ per car, SIM fees, installers</li>
                   <li><span className="cmp-x" aria-hidden>✕</span> Version chaos across a dozen spreadsheets</li>
                 </ul>
               </div>
@@ -460,6 +523,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
                   <li><span className="tick"><Check /></span> Damage logged against the car with full repair history</li>
                   <li><span className="tick"><Check /></span> Tiered alerts before any licence or doc lapses</li>
                   <li><span className="tick"><Check /></span> Driver pay reconciled automatically each week</li>
+                  <li><span className="tick"><Check /></span> Live GPS map through the driver app — €0 hardware</li>
                   <li><span className="tick"><Check /></span> One source of truth, plus a free driver app</li>
                 </ul>
               </div>
@@ -473,7 +537,14 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
             <div className="sec-head center reveal">
               <span className="kicker">Pricing</span>
               <h2 className="sec-title">Simple, per-vehicle pricing</h2>
-              <p className="sec-desc">Pay only for the cars you run. Every plan includes the full dashboard, the driver app and unlimited team members.</p>
+              <p className="sec-desc">Pay only for the cars you run. Every plan includes the full dashboard, live GPS tracking, the driver app and unlimited team members — no modules, no add-ons, no surprises.</p>
+              <div className="price-incl">
+                <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
+                <span><span className="ck">✓</span> No card required</span>
+                <span><span className="ck">✓</span> Live GPS tracking included</span>
+                <span><span className="ck">✓</span> Free driver app</span>
+                <span><span className="ck">✓</span> Cancel anytime</span>
+              </div>
             </div>
             <div className="price-grid reveal-stagger">
               {plans.map((plan) => {

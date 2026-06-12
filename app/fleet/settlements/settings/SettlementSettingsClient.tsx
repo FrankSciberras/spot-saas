@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
   SettlementPreset,
@@ -219,7 +220,12 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.breadcrumb}>Settlements / Settlement Rules</div>
-        <h1 className={styles.title}>Settlement Rules</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Settlement Rules</h1>
+          <Link href="/fleet/settlements/setup" className="btn btn-secondary btn-sm">
+            ✨ Guided setup
+          </Link>
+        </div>
         <p className={styles.subtitle}>
           Create settlement presets — how fares, tips, tax and rent are split — then assign one to
           each driver. Changes only affect settlements you create from now on; existing settlements
@@ -252,7 +258,8 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
         {presets.length === 0 && editing === null && (
           <div className={styles.empty}>
             No presets yet. Create your first one — drivers without a preset use the classic 50/50
-            split until you do.
+            split until you do. New here?{' '}
+            <Link href="/fleet/settlements/setup">Let the guided setup build it for you →</Link>
           </div>
         )}
 

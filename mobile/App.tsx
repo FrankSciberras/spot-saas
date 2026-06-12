@@ -2,15 +2,23 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Sentry from '@sentry/react-native';
 import { clearLastCrash, getLastCrash, installCrashLogger, type CrashReport } from './lib/crashLog';
 import PortalScreen from './screens/PortalScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { colors } from './lib/theme';
 
-// Capture fatal JS errors to storage so the next launch can show them.
+// Crashes report automatically to Sentry (project: spot-cabs/react-native).
+Sentry.init({
+  dsn: 'https://5d4c2cb73bd0b32e1687c9153811a59f@o4510936404983808.ingest.de.sentry.io/4511546974994512',
+  sendDefaultPii: false,
+});
+
+// Also capture fatal JS errors to storage so the next launch can show them
+// on-screen (works even when offline; chains into Sentry's handler).
 installCrashLogger();
 
-export default function App() {
+function App() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
@@ -20,6 +28,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+export default Sentry.wrap(App);
 
 function Main() {
   const [crash, setCrash] = useState<CrashReport | null>(null);
