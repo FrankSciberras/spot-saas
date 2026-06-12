@@ -19,6 +19,23 @@
   margin-bottom: 4px;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.titleRow a {
+  text-decoration: none;
+}
+
+.empty a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .title {
   margin: 0;
   font-size: 24px;
