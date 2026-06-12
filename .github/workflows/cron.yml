@@ -27,11 +27,15 @@
 name: Scheduled Jobs
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
-    - cron: '*/30 * * * *'  # reminders
-    - cron: '0 5 * * *'     # daily notification rules sweep
-    - cron: '0 8 * * 1'     # weekly package update check
+  # PAUSED until the app is deployed (rovora.eu still parked — these endpoints
+  # don't exist yet, so scheduled runs only generate failure emails). Re-enable
+  # by uncommenting the schedule block below AND adding the CRON_SECRET repo
+  # secret (Settings → Secrets and variables → Actions) once hosting is live.
+  # schedule:
+  #   - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
+  #   - cron: '*/30 * * * *'  # reminders
+  #   - cron: '0 5 * * *'     # daily notification rules sweep
+  #   - cron: '0 8 * * 1'     # weekly package update check
   workflow_dispatch:
 
 jobs:
