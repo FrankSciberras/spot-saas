@@ -156,6 +156,10 @@ export interface PlanRow {
   cap_label: string | null;
   max_drivers: number | null;
   max_vehicles: number | null;
+  /** Vehicles covered by the base price. NULL = unlimited included. */
+  included_vehicles: number | null;
+  /** Price per vehicle beyond `included_vehicles`. NULL = no per-vehicle add-on. */
+  per_vehicle_price: number | null;
   features: string[];
   color: string | null;
   cta_label: string | null;

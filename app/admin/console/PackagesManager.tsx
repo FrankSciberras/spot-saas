@@ -62,6 +62,8 @@ interface Draft {
   capLabel: string;
   maxDrivers: string;
   maxVehicles: string;
+  includedVehicles: string;
+  perVehiclePrice: string;
   features: string; // newline-separated
   color: string;
   ctaLabel: string;
@@ -74,7 +76,7 @@ interface Draft {
 
 const EMPTY_DRAFT: Draft = {
   name: '', blurb: '', priceLabel: '', priceUnit: '/ mo', priceAmount: '', billingNote: '', capLabel: '',
-  maxDrivers: '', maxVehicles: '', features: '', color: '', ctaLabel: '', ctaHref: '', isCustom: false, isPopular: false,
+  maxDrivers: '', maxVehicles: '', includedVehicles: '', perVehiclePrice: '', features: '', color: '', ctaLabel: '', ctaHref: '', isCustom: false, isPopular: false,
   stripePriceId: '', stripeProductId: '',
 };
 
@@ -89,6 +91,8 @@ function rowToDraft(r: PlanRow): Draft {
     capLabel: r.cap_label ?? '',
     maxDrivers: r.max_drivers === null ? '' : String(r.max_drivers),
     maxVehicles: r.max_vehicles === null ? '' : String(r.max_vehicles),
+    includedVehicles: r.included_vehicles === null || r.included_vehicles === undefined ? '' : String(r.included_vehicles),
+    perVehiclePrice: r.per_vehicle_price === null || r.per_vehicle_price === undefined ? '' : String(r.per_vehicle_price),
     features: (r.features ?? []).join('\n'),
     color: r.color ?? '',
     ctaLabel: r.cta_label ?? '',
@@ -111,6 +115,8 @@ function draftToInput(d: Draft): PlanInput {
     capLabel: d.capLabel,
     maxDrivers: intOrNull(d.maxDrivers),
     maxVehicles: intOrNull(d.maxVehicles),
+    includedVehicles: intOrNull(d.includedVehicles),
+    perVehiclePrice: d.perVehiclePrice.trim() === '' ? null : Number(d.perVehiclePrice),
     features: d.features.split('\n').map((f) => f.trim()).filter(Boolean),
     color: d.color,
     ctaLabel: d.ctaLabel,
@@ -161,6 +167,16 @@ const DraftFields = ({ d, set, disabled }: { d: Draft; set: (patch: Partial<Draf
       <div style={field(2, 160)}>
         <label style={lbl}>Cap label</label>
         <input style={inp} value={d.capLabel} placeholder="Up to 10 drivers & vehicles" disabled={disabled} onChange={(e) => set({ capLabel: e.target.value })} />
+      </div>
+    </div>
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div style={field(1, 110)}>
+        <label style={lbl}>Vehicles included (blank = ∞)</label>
+        <input style={inp} type="number" value={d.includedVehicles} placeholder="∞" disabled={disabled} onChange={(e) => set({ includedVehicles: e.target.value })} />
+      </div>
+      <div style={field(1, 110)}>
+        <label style={lbl}>€ per extra vehicle (blank = none)</label>
+        <input style={inp} type="number" value={d.perVehiclePrice} placeholder="—" disabled={disabled} onChange={(e) => set({ perVehiclePrice: e.target.value })} />
       </div>
     </div>
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
