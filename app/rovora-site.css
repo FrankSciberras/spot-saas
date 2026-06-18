@@ -854,3 +854,63 @@
   .rovora-site .mapmock { height: 320px; }
   .rovora-site .mm-zone { left: 50%; top: 34%; width: 44%; }
 }
+
+/* ============================================================
+   Interactive pricing calculator (#pricing)
+   ============================================================ */
+.rovora-site .calc {
+  max-width: 560px; margin: 36px auto 0;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 16px;
+  padding: 22px 26px;
+}
+.rovora-site .calc-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap;
+}
+.rovora-site .calc-q { font-size: 15px; font-weight: 500; color: var(--text-1); letter-spacing: -0.01em; }
+.rovora-site .calc-stepper {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 100px; padding: 4px;
+}
+.rovora-site .calc-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--bg-1); color: var(--text-1); font-size: 19px; line-height: 1;
+  display: grid; place-items: center; transition: background .14s, opacity .14s;
+}
+.rovora-site .calc-btn:hover { background: var(--accent); color: #fff; }
+.rovora-site .calc-btn:disabled { opacity: .35; cursor: not-allowed; }
+.rovora-site .calc-btn:disabled:hover { background: var(--bg-1); color: var(--text-1); }
+.rovora-site .calc-count { min-width: 96px; text-align: center; font-size: 13.5px; color: var(--text-2); }
+.rovora-site .calc-count b { color: var(--text-1); font-size: 15px; font-variant-numeric: tabular-nums; }
+
+.rovora-site .calc-range {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin-top: 20px;
+  border-radius: 100px; background: var(--bg-3); cursor: pointer; outline: none;
+}
+.rovora-site .calc-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); border: 3px solid var(--bg-1);
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer;
+}
+.rovora-site .calc-range::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+  border: 3px solid var(--bg-1); box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer;
+}
+.rovora-site .calc-scale {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 11.5px; color: var(--text-4);
+}
+
+/* live price breakdown + best-value badge + over-cap state */
+.rovora-site .plan .pbreak { margin-top: 6px; font-size: 12.5px; color: var(--text-3); min-height: 16px; font-variant-numeric: tabular-nums; }
+.rovora-site .plan .pbreak-na { color: var(--warn); }
+.rovora-site .plan .pop-best { background: var(--text-1); }
+.rovora-site .plan.plan-na { opacity: .62; }
+.rovora-site .plan .pprice .amt-na { font-size: 26px; color: var(--text-3); }
+.rovora-site .plan.plan-na .btn { opacity: .5; pointer-events: none; }
+
+.rovora-site .price-incl { /* shifted down a touch now the calculator sits above */ }
+
+@media (max-width: 560px) {
+  .rovora-site .calc-head { justify-content: center; text-align: center; }
+}

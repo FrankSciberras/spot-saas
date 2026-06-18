@@ -40,6 +40,8 @@ export interface PlanInput {
   capLabel?: string | null;
   maxDrivers?: number | null;
   maxVehicles?: number | null;
+  includedVehicles?: number | null;
+  perVehiclePrice?: number | null;
   features?: string[];
   color?: string | null;
   ctaLabel?: string | null;
@@ -65,6 +67,8 @@ function toColumns(input: PlanInput): Record<string, unknown> {
   if (input.capLabel !== undefined) col.cap_label = input.capLabel?.trim() || null;
   if (input.maxDrivers !== undefined) col.max_drivers = input.maxDrivers;
   if (input.maxVehicles !== undefined) col.max_vehicles = input.maxVehicles;
+  if (input.includedVehicles !== undefined) col.included_vehicles = input.includedVehicles;
+  if (input.perVehiclePrice !== undefined) col.per_vehicle_price = input.perVehiclePrice;
   if (input.features !== undefined) col.features = input.features.map((f) => f.trim()).filter(Boolean);
   if (input.color !== undefined) col.color = input.color?.trim() || null;
   if (input.ctaLabel !== undefined) col.cta_label = input.ctaLabel?.trim() || null;

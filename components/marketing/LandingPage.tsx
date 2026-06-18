@@ -7,6 +7,7 @@ import RovoraSmoothScroll from './RovoraSmoothScroll';
 import RovoraSupportChat from './RovoraSupportChat';
 import MarketingNav from './MarketingNav';
 import MarketingFooter from './MarketingFooter';
+import PricingPlans from './PricingPlans';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import { Icon, type IconName } from './feature/icons';
 
@@ -546,35 +547,8 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
                 <span><span className="ck">✓</span> Cancel anytime</span>
               </div>
             </div>
-            <div className="price-grid reveal-stagger">
-              {plans.map((plan) => {
-                const ctaLabel = plan.ctaLabel ?? (plan.isCustom ? 'Book a demo' : 'Start free trial');
-                const ctaClass = `btn ${plan.isPopular ? 'btn-primary' : 'btn-ghost'}`;
-                return (
-                  <div key={plan.id} className={`plan${plan.isPopular ? ' feat' : ''}`}>
-                    {plan.isPopular && <div className="pop">Most popular</div>}
-                    <div className="pname">{plan.name}</div>
-                    {plan.blurb && <div className="pdesc">{plan.blurb}</div>}
-                    <div className="pprice">
-                      <span className="amt">{plan.priceLabel}</span>
-                      {plan.priceUnit && <span className="per">{plan.priceUnit}</span>}
-                    </div>
-                    {plan.billingNote && <div className="pbill">{plan.billingNote}</div>}
-                    <ul className="pfeat">
-                      {plan.features.map((f) => (
-                        <li key={f}><span className="tick"><Check /></span> {f}</li>
-                      ))}
-                    </ul>
-                    {plan.ctaHref ? (
-                      <a className={ctaClass} href={plan.ctaHref}>{ctaLabel}</a>
-                    ) : (
-                      <Link className={ctaClass} href={START_TRIAL}>{ctaLabel}</Link>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="price-note">Prices in EUR, excl. VAT. Cancel anytime — no lock-in.</p>
+            <PricingPlans plans={plans} />
+            <p className="price-note">Prices in EUR, excl. VAT. Add vehicles any time — you&rsquo;re only billed for what you run. Cancel anytime, no lock-in.</p>
           </div>
         </section>
 

@@ -27,6 +27,8 @@ function mapRow(r: PlanRow): PlanDef {
     capLabel: r.cap_label,
     maxDrivers: r.max_drivers,
     maxVehicles: r.max_vehicles,
+    includedVehicles: r.included_vehicles ?? null,
+    perVehiclePrice: r.per_vehicle_price != null ? Number(r.per_vehicle_price) : null,
     features: r.features ?? [],
     color: r.color,
     ctaLabel: r.cta_label,

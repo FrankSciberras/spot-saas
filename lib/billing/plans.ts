@@ -42,6 +42,10 @@ export interface PlanDef {
   /** Max drivers / vehicles. null = unlimited. */
   maxDrivers: number | null;
   maxVehicles: number | null;
+  /** Vehicles covered by the base price. null = unlimited included. */
+  includedVehicles: number | null;
+  /** Price per vehicle beyond `includedVehicles`. null = no per-vehicle add-on. */
+  perVehiclePrice: number | null;
   features: string[];
   /** Accent colour token or hex. */
   color: string | null;
@@ -69,15 +73,17 @@ export const FALLBACK_PLANS: PlanDef[] = [
   {
     id: 'starter',
     name: 'Starter',
-    blurb: 'For owner-operators getting off spreadsheets.',
-    priceLabel: '€49',
+    blurb: 'For solo owners & very small fleets getting off spreadsheets.',
+    priceLabel: '€9',
     priceUnit: '/ mo',
-    priceAmount: 49,
-    billingNote: 'Up to 10 vehicles · billed monthly',
-    capLabel: 'Up to 10 drivers & vehicles',
-    maxDrivers: 10,
-    maxVehicles: 10,
-    features: ['Dashboard, drivers & vehicles', 'Shifts & rosters', 'Free driver app', 'Email support'],
+    priceAmount: 9,
+    billingNote: '3 vehicles included · €4 per extra car',
+    capLabel: 'Up to 6 vehicles',
+    maxDrivers: 6,
+    maxVehicles: 6,
+    includedVehicles: 3,
+    perVehiclePrice: 4,
+    features: ['Vehicles, drivers & shifts', 'Weekly rosters', 'Live GPS map (basic)', 'Service & damage logging', 'Free driver app', 'Email support'],
     color: 'var(--text-2)',
     ctaLabel: 'Start free trial',
     ctaHref: null,
@@ -89,16 +95,18 @@ export const FALLBACK_PLANS: PlanDef[] = [
   },
   {
     id: 'growth',
-    name: 'Growth',
-    blurb: 'For growing fleets that pay drivers weekly.',
-    priceLabel: '€149',
+    name: 'Pro',
+    blurb: 'For working fleets that pay drivers weekly. Our most popular plan.',
+    priceLabel: '€35',
     priceUnit: '/ mo',
-    priceAmount: 149,
-    billingNote: 'Up to 50 vehicles · billed monthly',
-    capLabel: 'Up to 50 drivers & vehicles',
-    maxDrivers: 50,
-    maxVehicles: 50,
-    features: ['Everything in Starter', 'Financials & settlements', 'Maintenance & damages', 'Priority support'],
+    priceAmount: 35,
+    billingNote: '10 vehicles included · €3 per extra car',
+    capLabel: 'Up to 40 vehicles',
+    maxDrivers: 40,
+    maxVehicles: 40,
+    includedVehicles: 10,
+    perVehiclePrice: 3,
+    features: ['Everything in Starter', 'Full GPS: zones, speed & route playback', 'Speeding & lost-signal alerts', 'Driver settlements & weekly pay', 'Financials & bookkeeping', 'Full document-expiry alerts', 'Priority support'],
     color: 'var(--accent)',
     ctaLabel: 'Start free trial',
     ctaHref: null,
@@ -110,20 +118,22 @@ export const FALLBACK_PLANS: PlanDef[] = [
   },
   {
     id: 'scale',
-    name: 'Scale',
-    blurb: 'For larger operators with custom needs.',
-    priceLabel: 'Custom',
-    priceUnit: null,
-    priceAmount: 0,
-    billingNote: '50+ vehicles · annual billing',
+    name: 'Fleet',
+    blurb: 'For larger operators who want everything, with hands-on onboarding.',
+    priceLabel: '€99',
+    priceUnit: '/ mo',
+    priceAmount: 99,
+    billingNote: 'Unlimited vehicles · billed monthly',
     capLabel: 'Unlimited drivers & vehicles',
     maxDrivers: null,
     maxVehicles: null,
-    features: ['Everything in Growth', 'Dedicated subdomain', 'Guided onboarding & import', 'SLA & dedicated account manager'],
+    includedVehicles: null,
+    perVehiclePrice: null,
+    features: ['Everything in Pro', 'Unlimited vehicles', 'We import your data for you', 'First in line for Uber & Bolt integrations', 'Dedicated account manager'],
     color: '#a78bfa',
-    ctaLabel: 'Book a demo',
-    ctaHref: 'mailto:hello@rovora.eu?subject=Rovora%20Fleet%20demo',
-    isCustom: true,
+    ctaLabel: 'Start free trial',
+    ctaHref: null,
+    isCustom: false,
     isPopular: false,
     sortOrder: 3,
     stripePriceId: null,
@@ -151,6 +161,26 @@ export function planRank(plans: PlanDef[], plan: Plan): number {
 
 export function getPlanDef(plans: PlanDef[], plan: Plan): PlanDef | undefined {
   return plans.find((p) => p.id === plan);
+}
+
+/** Does a plan's hard cap allow this many vehicles? (null cap = unlimited). */
+export function planAllowsVehicles(plan: PlanDef, vehicles: number): boolean {
+  return plan.maxVehicles === null || vehicles <= plan.maxVehicles;
+}
+
+/**
+ * Monthly price for a plan at a given vehicle count:
+ *   base + max(0, vehicles − includedVehicles) × perVehiclePrice
+ * Custom-priced plans (priceAmount 0 + isCustom) and plans without a
+ * per-vehicle add-on just return their base priceAmount.
+ */
+export function monthlyPriceFor(plan: PlanDef, vehicles: number): number {
+  if (plan.isCustom) return plan.priceAmount;
+  const included = plan.includedVehicles;
+  const perVehicle = plan.perVehiclePrice;
+  if (included == null || perVehicle == null) return plan.priceAmount;
+  const extra = Math.max(0, vehicles - included);
+  return plan.priceAmount + extra * perVehicle;
 }
 
 /** True when a plan is wired to Stripe (an explicit price or a product to resolve). */
