@@ -1,0 +1,16 @@
+# Keep the Docker build context small and the image clean.
+# (The host's node_modules/.next are local artifacts — rebuilt inside the image.)
+node_modules
+.next
+.git
+.gitignore
+mobile
+coverage
+.vercel
+.DS_Store
+*.log
+npm-debug.log*
+
+# Never copy local secrets into the image — Coolify injects env at build/runtime.
+.env
+.env.*
