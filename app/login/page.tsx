@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -23,6 +23,13 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<Mode>(initialMode);
   const [successMessage, setSuccessMessage] = useState('');
+  // Hide the "Back to home" escape hatch when running inside the Rovora Driver
+  // app's WebView — there's no marketing site to go back to there.
+  const [inApp, setInApp] = useState(false);
+
+  useEffect(() => {
+    if ((window as any).ReactNativeWebView) setInApp(true);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,12 +134,14 @@ function LoginPageContent() {
 
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
-      <Link className="auth-back" href="/">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 12H5M12 19l-7-7 7-7" />
-        </svg>
-        Back to home
-      </Link>
+      {!inApp && (
+        <Link className="auth-back" href="/">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to home
+        </Link>
+      )}
       <div className="auth-toggle">
         <RovoraThemeToggle />
       </div>

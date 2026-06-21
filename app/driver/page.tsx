@@ -115,6 +115,16 @@ export default async function DriverDashboardPage() {
     .select('*', { count: 'exact', head: true })
     .eq('driver_id', driver.id);
 
+  // Is there a shift currently in progress? (drives the Start ⇄ End toggle)
+  const { data: activeShift } = await supabase
+    .from('driver_shifts')
+    .select('id')
+    .eq('driver_id', driver.id)
+    .is('end_time', null)
+    .order('start_time', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   return (
     <DashboardLayout user={user} variant="driver" title="Dashboard">
       <DashboardClient
@@ -122,6 +132,7 @@ export default async function DriverDashboardPage() {
         settlements={(settlements || []) as any}
         nextShift={nextShift}
         totalShifts={safeNumber(totalShifts)}
+        hasActiveShift={Boolean(activeShift)}
       />
     </DashboardLayout>
   );

@@ -299,9 +299,19 @@ export default function GoOnlinePage() {
         console.error('Service check failed:', checkError);
       }
 
+      // Starting a shift starts everything: kick off live location tracking.
+      // Inside the Rovora Driver app this hands off to the native shell, which
+      // shows the background-location disclosure, requests permission and tracks
+      // in the background. In a plain browser there's nothing to start here
+      // (browser GPS can't run once we navigate away).
+      const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+      if (native) {
+        native.postMessage(JSON.stringify({ type: 'start-tracking' }));
+      }
+
       setSuccess(true);
       setTimeout(() => {
-        router.push('/driver/shifts');
+        router.push('/driver');
       }, 2000);
 
     } catch (err) {

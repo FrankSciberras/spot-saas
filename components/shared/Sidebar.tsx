@@ -95,22 +95,6 @@ const VehicleIcon = () => (
   </svg>
 );
 
-const PinIcon = () => (
-  <svg
-    className={styles.navIcon}
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    fill="none"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" />
-    <circle cx="12" cy="10" r="2.5" />
-  </svg>
-);
-
 const ListIcon = () => (
   <svg
     className={styles.navIcon}
@@ -355,9 +339,8 @@ const adminNavItems: NavItem[] = [
 
 const driverNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/driver', section: 'Overview', icon: <DashboardIcon /> },
-  { label: 'Go Online', href: '/driver/go-online', section: 'Work', icon: <ListIcon /> },
+  { label: 'Start Shift', href: '/driver/go-online', section: 'Work', icon: <ListIcon /> },
   { label: 'My Shifts', href: '/driver/shifts', section: 'Work', icon: <ListIcon /> },
-  { label: 'Share Location', href: '/driver/tracking', section: 'Work', icon: <PinIcon /> },
   { label: 'Vehicles', href: '/driver/vehicles', section: 'Work', icon: <VehicleIcon /> },
   { label: 'My Roster', href: '/driver/roster', section: 'Work', icon: <RosterIcon /> },
   { label: 'My Earnings', href: '/driver/earnings', section: 'Financial', icon: <MoneyIcon /> },

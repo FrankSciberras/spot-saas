@@ -12,7 +12,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://lqkygfqtcpcklbrhjiha.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Oaaaj3f4xh_SpJO_c5Khaw_d2EPe0z9",
-        "EXPO_PUBLIC_PORTAL_URL": "https://rovora.eu/driver"
+        "EXPO_PUBLIC_PORTAL_URL": "https://rovora.eu/driver",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
@@ -20,7 +21,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://lqkygfqtcpcklbrhjiha.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Oaaaj3f4xh_SpJO_c5Khaw_d2EPe0z9",
-        "EXPO_PUBLIC_PORTAL_URL": "https://rovora.eu/driver"
+        "EXPO_PUBLIC_PORTAL_URL": "https://rovora.eu/driver",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },
