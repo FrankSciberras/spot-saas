@@ -497,13 +497,6 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
               <span className="badge badge-info">{employmentLabel(driver.employment_type)}</span>
             </div>
           </div>
-          {isAdmin && (
-            <div className={styles.heroActions}>
-              <Link href={`/fleet/drivers/${driver.id}/edit`} className="btn btn-secondary" style={{ fontSize: '13px', padding: '8px 14px' }}>
-                Legacy Edit
-              </Link>
-            </div>
-          )}
         </div>
       </div>
 

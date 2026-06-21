@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -63,7 +65,34 @@ export default function DashboardClient(props: {
   settlements: Settlement[];
   nextShift: NextShift;
   totalShifts: number;
+  hasActiveShift: boolean;
 }) {
+  const router = useRouter();
+  const [ending, setEnding] = useState(false);
+  const [endError, setEndError] = useState('');
+
+  const handleEndShift = async () => {
+    if (ending) return;
+    setEnding(true);
+    setEndError('');
+    try {
+      // Stop background location in the app (no-op in a plain browser).
+      const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+      if (native) native.postMessage(JSON.stringify({ type: 'stop-tracking' }));
+
+      const res = await fetch('/api/shifts/end', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || 'Could not end shift.');
+      }
+      router.refresh();
+    } catch (e) {
+      setEndError(e instanceof Error ? e.message : 'Could not end shift.');
+    } finally {
+      setEnding(false);
+    }
+  };
+
   const settlementsData = Array.isArray(props.settlements) ? props.settlements : [];
   const periodSettlements = settlementsData.slice(0, 8);
   const prevPeriodSettlements = settlementsData.slice(8, 16);
@@ -152,19 +181,43 @@ export default function DashboardClient(props: {
           <span className={styles.dashboardKicker}>Welcome back</span>
           <h1 className={styles.dashboardTitle}>{props.firstName}</h1>
           <div className={styles.dashboardMeta}>
+            {props.hasActiveShift && (
+              <>
+                <span style={{ color: '#16a34a', fontWeight: 600 }}>● On shift — sharing location</span>
+                <span className={styles.metaDot} />
+              </>
+            )}
             <span>Last 8 weeks: {formatCurrency(periodTotal)}</span>
             <span className={styles.metaDot} />
             <span>MTD: {formatCurrency(monthToDateTotal)}</span>
           </div>
         </div>
         <div className={styles.dashboardTopbarRight}>
-          <Link href="/driver/go-online" className={styles.dashboardPrimaryAction}>
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            Start Shift
-          </Link>
+          {props.hasActiveShift ? (
+            <button
+              type="button"
+              onClick={handleEndShift}
+              disabled={ending}
+              className={styles.dashboardPrimaryAction}
+              style={{ background: '#dc2626', border: 'none', cursor: ending ? 'wait' : 'pointer' }}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+              {ending ? 'Ending…' : 'End Shift'}
+            </button>
+          ) : (
+            <Link href="/driver/go-online" className={styles.dashboardPrimaryAction}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Start Shift
+            </Link>
+          )}
           <Link href="/driver/earnings" className={styles.dashboardSecondaryAction}>My Earnings</Link>
+          {endError && (
+            <span style={{ color: '#dc2626', fontSize: 12, alignSelf: 'center' }}>{endError}</span>
+          )}
         </div>
       </section>
 
@@ -319,7 +372,7 @@ export default function DashboardClient(props: {
               <Link href="/driver/roster" className={styles.cardLink}>Roster →</Link>
             </div>
             <div className={styles.quickActions}>
-              <Link href="/driver/go-online" className={styles.actionTile}>Go Online</Link>
+              <Link href="/driver/go-online" className={styles.actionTile}>Start Shift</Link>
               <Link href="/driver/shifts" className={styles.actionTile}>My Shifts</Link>
               <Link href="/driver/settlements" className={styles.actionTile}>Settlements</Link>
               <Link href="/driver/profile" className={styles.actionTile}>Profile</Link>
