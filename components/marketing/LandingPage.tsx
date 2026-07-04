@@ -127,11 +127,16 @@ function buildJsonLd(plans: PlanDef[]) {
     })),
   };
 
-  const product = {
-    '@type': 'Product',
+  // SoftwareApplication (not Product) — Product markup with offers makes Google
+  // validate it as a physical merchant listing (image/shipping/returns required).
+  const softwareApp = {
+    '@type': 'SoftwareApplication',
     name: 'Rovora Fleet Management',
     description:
       'All-in-one taxi & rideshare fleet management — vehicle upkeep, maintenance and damage tracking, rosters, live shifts, driver pay and compliance alerts.',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    image: `${SITE_URL}/og-image.png`,
     brand: { '@type': 'Brand', name: 'Rovora' },
     offers: plans
       .filter((p) => p.priceAmount > 0)
@@ -147,7 +152,7 @@ function buildJsonLd(plans: PlanDef[]) {
 
   return {
     '@context': 'https://schema.org',
-    '@graph': [webSite, organization, faqPage, product],
+    '@graph': [webSite, organization, faqPage, softwareApp],
   };
 }
 
