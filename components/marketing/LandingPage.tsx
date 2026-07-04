@@ -99,8 +99,15 @@ export const LANDING_FAQ: { q: string; a: string }[] = [
 
 const SITE_URL = 'https://rovora.eu';
 
-/** Structured data for SEO — Organization, FAQPage and the priced Product offers. */
+/** Structured data for SEO — WebSite, Organization, FAQPage and the priced Product offers. */
 function buildJsonLd(plans: PlanDef[]) {
+  const webSite = {
+    '@type': 'WebSite',
+    name: 'Rovora',
+    alternateName: 'Rovora Fleet Management',
+    url: SITE_URL,
+  };
+
   const organization = {
     '@type': 'Organization',
     name: 'Rovora',
@@ -140,7 +147,7 @@ function buildJsonLd(plans: PlanDef[]) {
 
   return {
     '@context': 'https://schema.org',
-    '@graph': [organization, faqPage, product],
+    '@graph': [webSite, organization, faqPage, product],
   };
 }
 

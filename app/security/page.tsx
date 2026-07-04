@@ -1,11 +1,12 @@
-import type { Metadata } from 'next';
 import LegalLayout, { legalStyles as s } from '@/components/marketing/legal/LegalLayout';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Security — Rovora',
   description:
     'How Rovora keeps fleet data safe: EU hosting, encryption in transit and at rest, strict tenant isolation, role-based access, audit logging and responsible disclosure.',
-};
+  path: '/security',
+});
 
 const LAST_UPDATED = '8 June 2026';
 

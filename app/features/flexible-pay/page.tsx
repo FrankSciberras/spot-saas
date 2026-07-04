@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Flexible driver pay — Rovora',
   description:
     'Set how each driver is paid — the split on fares, tips, campaigns and platform fees — fleet-wide or per driver. Rovora applies the right scheme to every settlement automatically.',
-};
+  path: '/features/flexible-pay',
+  keywords: ['driver pay splits', 'driver commission software', 'fleet driver pay schemes', 'rideshare fleet payroll'],
+});
 
 export default function FlexiblePayFeaturePage() {
   return (

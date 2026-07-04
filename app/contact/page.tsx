@@ -1,12 +1,13 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { Icon } from '@/components/marketing/feature/icons';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Contact — Rovora',
   description:
     'Get in touch with Rovora — sales and demos, product support, partnerships, or anything else. We reply fast.',
-};
+  path: '/contact',
+});
 
 const METHODS: {
   icon: keyof typeof Icon;

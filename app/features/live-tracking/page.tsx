@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Live driver & shift tracking — Rovora',
+export const metadata = marketingMetadata({
+  title: 'Live Fleet Tracking Without Hardware — Rovora',
   description:
-    'See who’s on shift, their hours and earnings as the day unfolds. Drivers clock in with a photo check-in that updates mileage automatically — no phone calls, no guesswork.',
-};
+    'Live fleet tracking with no GPS hardware to install — see every driver on shift, their hours and earnings as the day unfolds. Drivers clock in with a photo check-in that updates mileage automatically.',
+  path: '/features/live-tracking',
+  keywords: ['fleet tracking', 'fleet tracking software', 'live fleet tracking', 'GPS fleet tracking without hardware', 'driver tracking app', 'taxi fleet tracking'],
+});
 
 export default function LiveTrackingFeaturePage() {
   return (

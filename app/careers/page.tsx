@@ -1,12 +1,13 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, IconGrid } from '@/components/marketing/feature/Sections';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Careers — Rovora',
   description:
     'Join Rovora and help small taxi & cab fleets run smoothly. We’re a small, product-led team building software operators actually love.',
-};
+  path: '/careers',
+});
 
 const CAREERS_EMAIL = 'mailto:careers@rovora.eu?subject=Working%20at%20Rovora';
 

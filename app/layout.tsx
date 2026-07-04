@@ -14,8 +14,19 @@ const figtree = Figtree({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://rovora.eu'),
+  applicationName: 'Rovora',
   title: 'Rovora Fleet Management',
   description: 'Rovora is your true company overview of what happens on the road — drivers, vehicles, shifts, settlements and more, in one dashboard.',
+  openGraph: {
+    type: 'website',
+    siteName: 'Rovora',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Rovora — fleet management software' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/og-image.png'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

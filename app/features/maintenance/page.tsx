@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Maintenance & services — Rovora',
   description:
     'Schedule servicing by mileage and let Rovora predict what’s next. Get an alert the moment a vehicle hits its threshold at check-in, and keep a full cost and service history per car.',
-};
+  path: '/features/maintenance',
+  keywords: ['fleet maintenance software', 'vehicle service tracking', 'mileage-based servicing', 'fleet service history'],
+});
 
 export default function MaintenanceFeaturePage() {
   return (

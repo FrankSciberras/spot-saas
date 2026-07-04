@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Weekly driver settlements — Rovora',
   description:
     'Rovora reconciles every driver’s week — gross fares, platform fees, tips, campaigns, cash and tax — into one clean, payable amount. Review, approve and pay in a single pass.',
-};
+  path: '/features/settlements',
+  keywords: ['driver settlement software', 'taxi driver pay reconciliation', 'rideshare driver settlements', 'Uber Bolt driver pay'],
+});
 
 export default function SettlementsFeaturePage() {
   return (

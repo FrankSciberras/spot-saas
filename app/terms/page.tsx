@@ -1,11 +1,12 @@
-import type { Metadata } from 'next';
 import LegalLayout, { legalStyles as s } from '@/components/marketing/legal/LegalLayout';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Terms of Service — Rovora',
   description:
     'The terms that govern use of Rovora’s fleet-management platform: subscriptions, trials, acceptable use, billing, liability and termination.',
-};
+  path: '/terms',
+});
 
 const LAST_UPDATED = '8 June 2026';
 

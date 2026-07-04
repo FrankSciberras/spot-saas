@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { OG_IMAGE } from '@/lib/seo';
 import { getPlans } from '@/lib/billing/plans-data';
 import LandingPage from '@/components/marketing/LandingPage';
 
@@ -28,12 +29,14 @@ export const metadata: Metadata = {
       'Manage vehicles, maintenance, damage, drivers, rosters, compliance and driver pay — your whole fleet in one dashboard.',
     url: '/',
     siteName: 'Rovora',
+    images: [OG_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Taxi & Rideshare Fleet Management Software — Rovora',
     description:
       'Manage vehicles, maintenance, damage, drivers, rosters, compliance and driver pay — your whole fleet in one dashboard.',
+    images: [OG_IMAGE.url],
   },
 };
 

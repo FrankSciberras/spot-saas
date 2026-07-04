@@ -50,11 +50,12 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - robots.txt / sitemap.xml (search engine files — must never redirect)
      * - manifest.webmanifest (PWA manifest)
      * - sw.js (service worker)
      * - icons folder (PWA icons)
      * - public folder assets
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)',
   ],
 };

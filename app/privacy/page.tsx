@@ -1,11 +1,12 @@
-import type { Metadata } from 'next';
 import LegalLayout, { legalStyles as s } from '@/components/marketing/legal/LegalLayout';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Privacy Policy — Rovora',
   description:
     'How Rovora collects, uses, stores and protects personal data for fleet operators and their drivers. EU-hosted and aligned with the GDPR and Malta’s Data Protection Act.',
-};
+  path: '/privacy',
+});
 
 const LAST_UPDATED = '11 June 2026';
 

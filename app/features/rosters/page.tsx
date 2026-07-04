@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Rosters & shift scheduling — Rovora',
   description:
     'Build the week’s roster — drivers, vehicles and days — and publish it to every driver with push and email in a click. Republish changes with a clear trail and no clashes.',
-};
+  path: '/features/rosters',
+  keywords: ['driver scheduling software', 'shift roster app', 'taxi driver rosters', 'fleet shift planning'],
+});
 
 export default function RostersFeaturePage() {
   return (

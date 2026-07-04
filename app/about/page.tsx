@@ -1,15 +1,16 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
+import { marketingMetadata } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { START_TRIAL } from '@/components/marketing/links';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'About — Rovora',
   description:
     'Rovora is fleet management built for small taxi & cab operators — drivers, vehicles, shifts and weekly settlements in one clean, EU-hosted dashboard.',
-};
+  path: '/about',
+});
 
 export default function AboutPage() {
   return (

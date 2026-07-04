@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Damage & repairs — Rovora',
   description:
     'Log damage against any vehicle with photos and zones, track repair cost and status, and capture a four-side photo check at every clock-in — so unreported damage is on the driver, not you.',
-};
+  path: '/features/damage',
+  keywords: ['vehicle damage reporting software', 'fleet damage tracking', 'vehicle condition photo check', 'repair cost tracking'],
+});
 
 export default function DamageFeaturePage() {
   return (

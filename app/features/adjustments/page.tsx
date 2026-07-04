@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { marketingMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Adjustments, bonuses & deductions — Rovora',
   description:
     'Add bonuses, expenses, reimbursements and deductions to any driver’s week. Rovora folds them straight into the settlement balance and onto the payslip — no manual maths.',
-};
+  path: '/features/adjustments',
+  keywords: ['driver bonuses and deductions', 'fleet expense adjustments', 'driver payslip software'],
+});
 
 export default function AdjustmentsFeaturePage() {
   return (

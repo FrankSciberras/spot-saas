@@ -1,14 +1,16 @@
-import type { Metadata } from 'next';
+import { marketingMetadata } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
 
-export const metadata: Metadata = {
+export const metadata = marketingMetadata({
   title: 'Vehicle management — Rovora',
   description:
     'Keep every vehicle you run in check — one profile per car for documents, live mileage, driver assignment and utilisation, with expiry alerts weeks before any licence, insurance or inspection lapses.',
-};
+  path: '/features/vehicles',
+  keywords: ['fleet vehicle management software', 'vehicle document tracking', 'fleet compliance alerts', 'taxi fleet software'],
+});
 
 export default function VehiclesFeaturePage() {
   return (
