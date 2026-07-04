@@ -68,6 +68,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
             <div className="foot-col">
               <h5>Company</h5>
               <Link href="/about">About</Link>
+              <Link href="/blog">Blog</Link>
               <Link href="/contact">Contact us</Link>
               <Link href="/careers">Careers</Link>
               <a href="mailto:support@rovora.eu?subject=Support">Help &amp; support</a>

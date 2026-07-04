@@ -28,6 +28,7 @@ export default async function MarketingNav({ onHome = false }: { onHome?: boolea
           <a href={h('integrations')}>Integrations</a>
           <a href={h('pricing')}>Pricing</a>
           <a href={h('faq')}>FAQ</a>
+          <Link href="/blog">Blog</Link>
         </nav>
         <div className="nav-actions">
           <RovoraThemeToggle />

@@ -5,7 +5,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 const publicRoutes = ['/', '/login', '/auth/callback', '/offline', '/privacy', '/terms', '/security'];
 
 // Public route prefixes — anything under these is open (marketing pages, etc.)
-const publicPrefixes = ['/features', '/about', '/careers', '/contact'];
+const publicPrefixes = ['/features', '/about', '/careers', '/contact', '/blog'];
 
 // Route patterns for role-based access
 const adminRoutes = /^\/fleet/;
