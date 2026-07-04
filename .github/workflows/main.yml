@@ -1,9 +1,10 @@
 name: Deploy Rovora Dashboard Production
 
+# Manual-trigger only: production deploys happen via Coolify on push to main.
+# This SSH/docker path has failed on every run since June 2026 because the
+# SSH_HOST / SSH_USERNAME / SSH_PRIVATE_KEY repo secrets are not set.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build:
