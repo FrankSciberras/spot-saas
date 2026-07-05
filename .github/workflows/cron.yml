@@ -12,6 +12,7 @@
 #     Defaults to https://rovora.eu when unset.
 #
 # Schedules (UTC; Malta is UTC+1/+2):
+#   * tracking watch     — every 5 min (lost-connection alerts for live tracking)
 #   * reminders          — every 30 min (fires due reminder notifications;
 #                          tighten/loosen the cadence by editing its cron line —
 #                          each run costs ~1 Actions minute).
@@ -27,15 +28,15 @@
 name: Scheduled Jobs
 
 on:
-  # PAUSED until the app is deployed (rovora.eu still parked — these endpoints
-  # don't exist yet, so scheduled runs only generate failure emails). Re-enable
-  # by uncommenting the schedule block below AND adding the CRON_SECRET repo
-  # secret (Settings → Secrets and variables → Actions) once hosting is live.
-  # schedule:
-  #   - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
-  #   - cron: '*/30 * * * *'  # reminders
-  #   - cron: '0 5 * * *'     # daily notification rules sweep
-  #   - cron: '0 8 * * 1'     # weekly package update check
+  # Live since 2026-07-05 — rovora.eu is deployed and the CRON_SECRET repo
+  # secret is set (same value as CRON_SECRET in the app's Coolify env).
+  # Note: GitHub schedules can lag 5–15 min under load; all jobs are
+  # idempotent/deduped server-side so late or repeated runs are safe.
+  schedule:
+    - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
+    - cron: '*/30 * * * *'  # reminders
+    - cron: '0 5 * * *'     # daily notification rules sweep
+    - cron: '0 8 * * 1'     # weekly package update check
   workflow_dispatch:
 
 jobs:
