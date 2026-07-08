@@ -10,6 +10,7 @@ import MarketingFooter from './MarketingFooter';
 import PricingPlans from './PricingPlans';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import { Icon, type IconName } from './feature/icons';
+import { markFontSize } from '@/lib/integrations/catalog';
 
 const Check = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -39,7 +40,7 @@ function ShotBar({ path }: { path: string }) {
   );
 }
 
-/** Ride-hail & payout platforms we're building native integrations for. */
+/** A representative tile from each marketplace category — full list at /integrations. */
 const INTEGRATIONS: {
   name: string;
   mark: string;
@@ -47,10 +48,10 @@ const INTEGRATIONS: {
   fg: string;
   desc: string;
 }[] = [
+  { name: 'Wialon', mark: 'W', bg: '#f26722', fg: '#ffffff', desc: 'Import GPS positions & trips from your trackers.' },
   { name: 'Uber', mark: 'U', bg: '#000000', fg: '#ffffff', desc: 'Auto-import trips & weekly earnings.' },
-  { name: 'Bolt', mark: 'b', bg: '#34d186', fg: '#06231a', desc: 'Sync driver payouts straight into settlements.' },
-  { name: 'FreeNow', mark: 'F', bg: '#00b9b0', fg: '#04211f', desc: 'Pull trip data across your whole fleet.' },
-  { name: 'Stripe', mark: 'S', bg: '#635bff', fg: '#ffffff', desc: 'Pay drivers out in one click, reconciled.' },
+  { name: 'WhatsApp', mark: 'WA', bg: '#25d366', fg: '#06341c', desc: 'Send shift reminders straight to drivers.' },
+  { name: 'Xero', mark: 'X', bg: '#13b5ea', fg: '#ffffff', desc: 'Push settlements & expenses to your books.' },
 ];
 
 /** Quick "everything Rovora does" overview grid on the homepage. */
@@ -488,19 +489,23 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           <div className="container">
             <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
               <span className="kicker">Integrations · On the roadmap</span>
-              <h2 className="sec-title">Built to work with the platforms you already use</h2>
-              <p className="sec-desc">Stop copying trip data and payouts by hand. We&rsquo;re building native connections to the ride-hail and payment platforms your fleet runs on — so earnings will flow straight into Rovora.</p>
+              <h2 className="sec-title">Built to work with the tools you already run</h2>
+              <p className="sec-desc">Stop copying trip data, positions and payouts by hand. We&rsquo;re building native connections across GPS &amp; telematics, ride-hail platforms, messaging and accounting — so everything flows straight into Rovora.</p>
             </div>
 
             <div className="integ-grid reveal-stagger">
               {INTEGRATIONS.map((it) => (
                 <div className="integ" key={it.name}>
                   <span className="integ-soon">Coming soon</span>
-                  <div className="integ-logo" style={{ background: it.bg, color: it.fg }} aria-hidden>{it.mark}</div>
+                  <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.mark}</div>
                   <div className="integ-name">{it.name}</div>
                   <p className="integ-desc">{it.desc}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="reveal" style={{ textAlign: 'center', marginTop: 32 }}>
+              <Link className="btn btn-primary btn-lg" href="/integrations">Explore all integrations</Link>
             </div>
 
             <p className="integ-note">

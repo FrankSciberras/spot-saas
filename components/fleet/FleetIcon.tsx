@@ -77,6 +77,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>;
     case 'map':
       return <svg {...props}><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z" /><path d="M9 4v13M15 6.5v13" /></svg>;
+    case 'plug':
+      return <svg {...props}><path d="M12 22v-5" /><path d="M9 7V2" /><path d="M15 7V2" /><path d="M6 13V8h12v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4z" /></svg>;
     case 'pin':
       return <svg {...props}><path d="M12 21v-7" /><path d="M8 7l-1 7h10l-1-7M9 3h6v4H9z" /></svg>;
     case 'fuel':

@@ -341,6 +341,17 @@
 .rovora-site .integ-note a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .rovora-site .integ-note a:hover { text-decoration: underline; }
 
+/* Integrations marketplace — category sections (used on /integrations) */
+.rovora-site .integ-cat { margin-bottom: 52px; }
+.rovora-site .integ-cat:last-of-type { margin-bottom: 0; }
+.rovora-site .integ-cat-head { margin-bottom: 22px; }
+.rovora-site .integ-cat-title { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-1); margin: 0; }
+.rovora-site .integ-cat-blurb { margin: 8px 0 0; max-width: 620px; font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
+
+/* Hero "logo cloud" — a scattered wall of integration tiles */
+.rovora-site .integ-cloud { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; padding: 8px 0; }
+.rovora-site .integ-cloud-tile { width: 60px; height: 60px; border-radius: 15px; display: grid; place-items: center; font-weight: 600; line-height: 1; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12); }
+
 /* ─── How it works ─── */
 .rovora-site .how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .rovora-site .how-step { position: relative; padding: 28px 26px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-2); transition: border-color .15s, transform .15s; }
