@@ -73,13 +73,13 @@
 }
 
 .statusRingOn {
-  border-color: #2bbd7e;
+  border-color: var(--accent);
   animation: ringPulse 2s ease-out infinite;
 }
 
 @keyframes ringPulse {
-  0% { box-shadow: 0 0 0 0 rgba(43, 189, 126, 0.35); }
-  100% { box-shadow: 0 0 0 16px rgba(43, 189, 126, 0); }
+  0% { box-shadow: 0 0 0 0 var(--accent-line); }
+  100% { box-shadow: 0 0 0 16px transparent; }
 }
 
 .statusDot {
@@ -91,7 +91,7 @@
 }
 
 .statusDotOn {
-  background: #2bbd7e;
+  background: var(--accent);
 }
 
 .statusTitle {
@@ -123,9 +123,9 @@
   padding: 10px 12px;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: #c0392b;
-  background: rgba(240, 100, 100, 0.1);
-  border: 1px solid rgba(240, 100, 100, 0.3);
+  color: var(--color-danger);
+  background: rgba(var(--color-danger-rgb), 0.1);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
   border-radius: 10px;
   text-align: left;
 }
@@ -162,7 +162,7 @@
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: #2bbd7e;
+  background: var(--accent);
   border: none;
   border-radius: 13px;
   cursor: pointer;
@@ -183,7 +183,7 @@
 }
 
 .toggleBtnStop {
-  background: #f06464;
+  background: var(--color-danger);
 }
 
 .footnote {

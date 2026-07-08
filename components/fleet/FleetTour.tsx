@@ -53,7 +53,7 @@ const STEPS: TourStep[] = [
   },
   {
     title: "You're all set!",
-    body: 'Add your first driver and vehicle to get going. You can replay this tour any time from the ? button in the corner.',
+    body: 'Add your first driver and vehicle to get going. You can replay this tour any time from “Help & tour” at the bottom of the menu.',
   },
 ];
 
@@ -151,10 +151,15 @@ export default function FleetTour({ userId, role, tourCompleted }: Props) {
     setI(0);
   }, [userId]);
 
-  const restart = () => {
-    setI(0);
-    setOpen(true);
-  };
+  // Manual replay: triggered by the "Help & tour" entry in the sidebar.
+  useEffect(() => {
+    const onStart = () => {
+      setI(0);
+      setOpen(true);
+    };
+    window.addEventListener('rovora:start-tour', onStart);
+    return () => window.removeEventListener('rovora:start-tour', onStart);
+  }, []);
 
   if (!mounted) return null;
 
@@ -172,10 +177,6 @@ export default function FleetTour({ userId, role, tourCompleted }: Props) {
 
   return (
     <>
-      <button onClick={restart} title="Replay tour" style={t.helpBtn} className="fleetHover">
-        <FleetIcon name="doc" size={20} />
-      </button>
-
       {open &&
         createPortal(
           <div className="fleetTheme" data-fleet-theme="dark" style={t.overlay}>
@@ -230,23 +231,6 @@ export default function FleetTour({ userId, role, tourCompleted }: Props) {
 }
 
 const t: Record<string, CSSProperties> = {
-  helpBtn: {
-    position: 'fixed',
-    bottom: 20,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: '50%',
-    background: 'var(--bg-1)',
-    border: '1px solid var(--line-2)',
-    color: 'var(--text-2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    zIndex: 40,
-    boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
-  },
   overlay: { position: 'fixed', inset: 0, zIndex: 9998 },
   dim: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)' },
   highlight: {

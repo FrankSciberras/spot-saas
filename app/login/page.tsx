@@ -149,7 +149,7 @@ function LoginPageContent() {
       <div className="auth-wrap">
         <div className="auth-card">
           <div className="auth-logo">
-            <span className="logo"><img src="/rovora logo trimmed.png" alt="Rovora" /></span>
+            <span className="logo"><img src="/logo-full.png" alt="Rovora" /></span>
           </div>
 
           <div className="auth-head">

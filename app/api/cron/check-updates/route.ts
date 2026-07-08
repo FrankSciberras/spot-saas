@@ -56,13 +56,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if the feature is enabled
+    // Check if the feature is enabled. The platform-wide flag lives under the
+    // bootstrap org row (see /api/admin/settings); the org filter + maybeSingle
+    // keep stray per-fleet copies of this key from breaking the lookup.
     const supabase = createAdminClient();
     const { data: setting } = await supabase
       .from('app_settings')
       .select('value')
+      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
       .eq('key', 'package_update_check_enabled')
-      .single();
+      .maybeSingle();
 
     if (!setting || setting.value !== true) {
       console.log('[cron/check-updates] Feature disabled or app_settings query failed. setting:', JSON.stringify(setting));

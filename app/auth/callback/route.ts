@@ -14,8 +14,9 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     await supabase.auth.exchangeCodeForSession(code);
 
-    // If this is a password recovery, redirect to the reset password page
-    if (type === 'recovery') {
+    // Password recovery and fleet invites both land on the set-password page
+    // (an invited user has no password yet).
+    if (type === 'recovery' || type === 'invite') {
       return NextResponse.redirect(new URL('/auth/reset-password', requestUrl.origin));
     }
   }

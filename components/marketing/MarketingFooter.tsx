@@ -15,9 +15,9 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
           {/* Brand + trust */}
           <div className="foot-brand">
             {onHome ? (
-              <a className="logo" href="#top"><img src="/rovora logo trimmed.png" alt="Rovora" /></a>
+              <a className="logo" href="#top"><img src="/logo-full.png" alt="Rovora" /></a>
             ) : (
-              <Link className="logo" href="/"><img src="/rovora logo trimmed.png" alt="Rovora" /></Link>
+              <Link className="logo" href="/"><img src="/logo-full.png" alt="Rovora" /></Link>
             )}
             <p>Fleet management for small taxi &amp; cab operators. Drivers, vehicles, shifts and settlements — in one clean dashboard.</p>
             <div className="foot-trust">

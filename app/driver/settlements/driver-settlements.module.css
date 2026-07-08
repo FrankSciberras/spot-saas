@@ -1,7 +1,7 @@
 /* Driver Settlements Page Styles */
 
 .container {
-  max-width: 800px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -434,7 +434,7 @@
 
 /* Balance Card */
 .balanceCard {
-  background: linear-gradient(135deg, var(--color-primary), #1e40af);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   border-radius: var(--radius-xl);
   padding: 24px;
   color: white;

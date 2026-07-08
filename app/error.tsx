@@ -68,7 +68,7 @@ export default function GlobalError({
       <div style={st.wrap}>
         <div style={st.card}>
           <a className="logo" href="/" style={{ justifyContent: 'center', marginBottom: 22 }}>
-            <img src="/rovora logo trimmed.png" alt="Rovora" />
+            <img src="/logo-full.png" alt="Rovora" />
           </a>
 
           <div

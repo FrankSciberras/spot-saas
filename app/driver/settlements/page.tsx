@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import MonthlySettlementsClient from './MonthlySettlementsClient';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './driver-settlements.module.css';
@@ -29,12 +29,12 @@ export default async function DriverSettlementsPage() {
       redirect('/fleet');
     }
     return (
-      <DashboardLayout user={user} variant="driver" title="My Settlements">
+      <FleetShell user={user} variant="driver" title="My Settlements">
         <div className={styles.errorCard}>
           <h3>Profile Not Found</h3>
           <p>Your driver profile has not been set up yet. Please contact an administrator.</p>
         </div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
@@ -50,11 +50,11 @@ export default async function DriverSettlementsPage() {
     .order('week_start', { ascending: false });
 
   return (
-    <DashboardLayout user={user} variant="driver" title="My Settlements">
+    <FleetShell user={user} variant="driver" title="My Settlements">
       <MonthlySettlementsClient 
         settlements={(settlements || []) as SettlementWithPlatforms[]} 
         driverName={driver.full_name}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

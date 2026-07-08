@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import RosterView from '@/components/driver/RosterView';
 import styles from './roster.module.css';
 
@@ -17,11 +17,11 @@ export default async function DriverRosterPage() {
 
   if (!driver) {
     return (
-      <DashboardLayout user={user} variant="driver" title="My Roster">
+      <FleetShell user={user} variant="driver" title="My Roster">
         <div className={styles.error}>
           <p>No driver profile found. Please contact admin.</p>
         </div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
@@ -116,11 +116,11 @@ export default async function DriverRosterPage() {
   });
 
   return (
-    <DashboardLayout user={user} variant="driver" title="Roster">
+    <FleetShell user={user} variant="driver" title="Roster">
       <RosterView 
         myRosters={rosters} 
         driverId={driver.id} 
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import type { Vehicle } from '@/lib/types/database';
 import styles from '@/app/fleet/vehicles/vehicles.module.css';
 
@@ -44,7 +44,7 @@ export default async function DriverVehiclesPage() {
   };
 
   return (
-    <DashboardLayout user={user} variant="driver" title="Vehicles">
+    <FleetShell user={user} variant="driver" title="Vehicles">
       <div className={styles.container}>
         <div className={styles.header}>
           <h2>All Vehicles</h2>
@@ -144,6 +144,6 @@ export default async function DriverVehiclesPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

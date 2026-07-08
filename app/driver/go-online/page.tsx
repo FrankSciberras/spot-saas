@@ -325,7 +325,7 @@ export default function GoOnlinePage() {
 
   if (initialLoading) {
     return (
-      <div className={styles.page}>
+      <div className={`fleetSolo ${styles.page}`}>
         <div className={styles.successCard}>
           <div className={styles.successIcon}>⏳</div>
           <h2>Loading...</h2>
@@ -337,7 +337,7 @@ export default function GoOnlinePage() {
 
   if (success) {
     return (
-      <div className={styles.page}>
+      <div className={`fleetSolo ${styles.page}`}>
         <div className={styles.successCard}>
           <div className={styles.successIcon}>✓</div>
           <h2>You&apos;re Online!</h2>
@@ -349,7 +349,7 @@ export default function GoOnlinePage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`fleetSolo ${styles.page}`}>
       {/* Header */}
       <header className={styles.header}>
         <Link href="/driver" className={styles.backBtn}>

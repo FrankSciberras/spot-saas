@@ -1,5 +1,5 @@
 .container {
-  max-width: 800px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -76,15 +76,15 @@
 }
 
 .message.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(var(--color-success-rgb), 0.3);
 }
 
 .message.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-danger-rgb), 0.1);
+  color: var(--color-danger);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
 }
 
 @keyframes slideIn {
@@ -151,18 +151,18 @@
 
 .deleteBtn {
   padding: 8px 14px;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--color-danger-rgb), 0.1);
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
   font-weight: 500;
-  color: #dc2626;
+  color: var(--color-danger);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .deleteBtn:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(var(--color-danger-rgb), 0.2);
 }
 
 /* Select All Bar */
@@ -318,8 +318,8 @@
 }
 
 .actionBtn.deleteAction:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: rgba(var(--color-danger-rgb), 0.1);
+  color: var(--color-danger);
 }
 
 /* Empty State */

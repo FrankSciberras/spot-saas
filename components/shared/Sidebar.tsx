@@ -437,7 +437,7 @@ export default function Sidebar({ user, variant }: SidebarProps) {
           />
         ) : (
           <Image
-            src="/rovora logo trimmed.png"
+            src="/logo-full.png"
             alt="Rovora logo"
             className={styles.logoImage}
             width={160}

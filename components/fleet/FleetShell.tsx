@@ -12,10 +12,12 @@ interface FleetShellProps {
   user: SessionUser;
   title: string;
   children: ReactNode;
+  /** 'fleet' (default) = operator dashboard; 'driver' = driver dashboard. */
+  variant?: 'fleet' | 'driver';
 }
 
-/** Standalone-design shell (sidebar + topbar) used by converted /fleet pages. */
-export default function FleetShell({ user, title, children }: FleetShellProps) {
+/** Standalone-design shell (sidebar + topbar) used by converted /fleet and /driver pages. */
+export default function FleetShell({ user, title, children, variant = 'fleet' }: FleetShellProps) {
   const [vw, setVw] = useState(1280);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -32,20 +34,23 @@ export default function FleetShell({ user, title, children }: FleetShellProps) {
     <div className="fleetCanvas">
       <FleetSidebar
         user={user}
+        variant={variant}
         isMobile={isMobile}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         onMenuToggle={() => setMenuOpen((o) => !o)}
       />
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, paddingBottom: isMobile ? 'var(--bottom-nav-h)' : 0 }}>
-        <FleetTrialBanner />
-        <FleetTopbar title={title} onMenuClick={() => setMenuOpen((o) => !o)} isAdmin={user?.role === 'admin'} />
+        {variant === 'fleet' && <FleetTrialBanner />}
+        <FleetTopbar title={title} variant={variant} onMenuClick={() => setMenuOpen((o) => !o)} isAdmin={user?.role === 'admin'} />
         <div style={{ padding: '22px 24px 32px' }} className="pad-mobile">
           {children}
         </div>
       </main>
-      {user?.role && <PushNotificationPrompt variant="admin" role={user.role} />}
-      <FleetTour userId={user?.id} role={user?.role} tourCompleted={user?.fleet_tour_completed} />
+      {user?.role && <PushNotificationPrompt variant={variant === 'driver' ? 'driver' : 'admin'} role={user.role} />}
+      {variant === 'fleet' && (
+        <FleetTour userId={user?.id} role={user?.role} tourCompleted={user?.fleet_tour_completed} />
+      )}
     </div>
   );
 }

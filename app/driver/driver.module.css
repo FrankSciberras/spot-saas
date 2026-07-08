@@ -766,7 +766,7 @@
 
 .platformDot.bolt {
   background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 2px 8px rgba(var(--color-success-rgb), 0.4);
 }
 
 .platformDot.uber {
@@ -1074,7 +1074,7 @@
 
 .statCardIcon.purple {
   background: var(--stat-purple-bg);
-  color: #7c3aed;
+  color: var(--color-primary);
 }
 
 .statCardIcon.orange {
@@ -1406,13 +1406,13 @@
 }
 
 .actionIcon.purple {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
-  color: #8b5cf6;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
+  color: var(--color-primary);
 }
 
 .actionIcon.orange {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(249, 115, 22, 0.05) 100%);
-  color: #f97316;
+  background: linear-gradient(135deg, rgba(var(--color-warning-rgb), 0.15) 0%, rgba(var(--color-warning-rgb), 0.05) 100%);
+  color: var(--color-warning);
 }
 
 .actionContent {

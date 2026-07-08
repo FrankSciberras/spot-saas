@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import { SessionUser } from '@/lib/types/database';
 import { useRouter } from 'next/navigation';
 import styles from './notifications.module.css';
@@ -179,14 +179,14 @@ export default function NotificationsPage() {
 
   if (loading || !user) {
     return (
-      <DashboardLayout user={user as SessionUser} variant="driver" title="Notifications">
+      <FleetShell user={user as SessionUser} variant="driver" title="Notifications">
         <div className={styles.loading}>Loading notifications...</div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
   return (
-    <DashboardLayout user={user} variant="driver" title="Notifications">
+    <FleetShell user={user} variant="driver" title="Notifications">
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -321,6 +321,6 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

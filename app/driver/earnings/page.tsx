@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import { resolvePlatforms } from '@/lib/config/settlements';
 import EarningsClient from './EarningsClient';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
@@ -30,12 +30,12 @@ export default async function DriverEarningsPage() {
       redirect('/fleet');
     }
     return (
-      <DashboardLayout user={user} variant="driver" title="My Earnings">
+      <FleetShell user={user} variant="driver" title="My Earnings">
         <div className={styles.errorCard}>
           <h3>Profile Not Found</h3>
           <p>Your driver profile has not been set up yet. Please contact an administrator.</p>
         </div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
@@ -62,12 +62,12 @@ export default async function DriverEarningsPage() {
   const platforms = resolvePlatforms(platformRows);
 
   return (
-    <DashboardLayout user={user} variant="driver" title="My Earnings">
+    <FleetShell user={user} variant="driver" title="My Earnings">
       <EarningsClient
         settlements={(settlements || []) as SettlementWithPlatforms[]}
         driverName={driver.full_name}
         platforms={platforms}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

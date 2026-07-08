@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
           <div className={styles.header}>
             <div className={styles.logo}>
               <Image
-                src="/rovora logo trimmed.png"
+                src="/logo-full.png"
                 alt="Rovora logo"
                 className={styles.logoImage}
                 width={200}
@@ -136,7 +136,7 @@ export default function ResetPasswordPage() {
           <div className={styles.header}>
             <div className={styles.logo}>
               <Image
-                src="/rovora logo trimmed.png"
+                src="/logo-full.png"
                 alt="Rovora logo"
                 className={styles.logoImage}
                 width={200}
@@ -171,7 +171,7 @@ export default function ResetPasswordPage() {
         <div className={styles.header}>
           <div className={styles.logo}>
             <Image
-              src="/rovora logo trimmed.png"
+              src="/logo-full.png"
               alt="Rovora logo"
               className={styles.logoImage}
               width={200}

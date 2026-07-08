@@ -196,7 +196,7 @@ export default function DriverTrackingPage() {
 
   if (loading) {
     return (
-      <div className={styles.page}>
+      <div className={`fleetSolo ${styles.page}`}>
         <div className={styles.card}>
           <p className={styles.muted}>Loading…</p>
         </div>
@@ -205,7 +205,7 @@ export default function DriverTrackingPage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`fleetSolo ${styles.page}`}>
       <header className={styles.header}>
         <Link href="/driver" className={styles.backBtn}>←</Link>
         <h1>Share Location</h1>
@@ -222,7 +222,7 @@ export default function DriverTrackingPage() {
             ? nativeMode
               ? 'Your fleet can see your live position — it keeps working with the screen off or while using other apps.'
               : 'Your fleet can see your live position on the map. Keep this page open while you drive.'
-            : 'Share your live position with your fleet during your shift. Nothing is shared until you start.'}
+            : 'Sharing starts automatically when you start a shift and stops when you end it. You can also start or stop it manually here.'}
         </p>
 
         {shiftId === null && !sharing && (

@@ -50,8 +50,6 @@
   height: 24px;
   width: auto;
   display: block;
-  /* Always-dark platform shell — render the logo in white. */
-  filter: brightness(0) invert(1);
 }
 
 .brandTag {

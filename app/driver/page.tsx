@@ -1,6 +1,6 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import DashboardClient from './DashboardClient';
 import { safeNumber } from '@/lib/utils/settlementCalculations';
 import styles from './driver.module.css';
@@ -22,7 +22,7 @@ export default async function DriverDashboardPage() {
 
   if (!driver) {
     return (
-      <DashboardLayout user={user} variant="driver" title="Dashboard">
+      <FleetShell user={user} variant="driver" title="Dashboard">
         <div className={styles.page}>
           <div className={styles.errorCard}>
             <div className={styles.errorIcon}>
@@ -35,7 +35,7 @@ export default async function DriverDashboardPage() {
             <p>Please contact an administrator to set up your driver profile.</p>
           </div>
         </div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
@@ -126,7 +126,7 @@ export default async function DriverDashboardPage() {
     .maybeSingle();
 
   return (
-    <DashboardLayout user={user} variant="driver" title="Dashboard">
+    <FleetShell user={user} variant="driver" title="Dashboard">
       <DashboardClient
         firstName={driver.full_name?.split(' ')[0] || 'Driver'}
         settlements={(settlements || []) as any}
@@ -134,6 +134,6 @@ export default async function DriverDashboardPage() {
         totalShifts={safeNumber(totalShifts)}
         hasActiveShift={Boolean(activeShift)}
       />
-    </DashboardLayout>
+    </FleetShell>
   );
 }

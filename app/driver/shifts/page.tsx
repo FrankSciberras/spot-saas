@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import styles from './shifts.module.css';
 
 // SVG Icons
@@ -58,14 +58,14 @@ export default async function DriverShiftsPage() {
 
   if (!driver) {
     return (
-      <DashboardLayout user={user} variant="driver" title="My Shifts">
+      <FleetShell user={user} variant="driver" title="My Shifts">
         <div className={styles.container}>
           <div className={styles.alertCard}>
             <span className={styles.alertIcon}>⚠️</span>
             <p>Your driver profile is not set up. Please contact an administrator.</p>
           </div>
         </div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
@@ -102,7 +102,7 @@ export default async function DriverShiftsPage() {
   };
 
   return (
-    <DashboardLayout user={user} variant="driver" title="My Shifts">
+    <FleetShell user={user} variant="driver" title="My Shifts">
       <div className={styles.container}>
         <div className={styles.header}>
           <h2>Shift History</h2>
@@ -195,6 +195,6 @@ export default async function DriverShiftsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

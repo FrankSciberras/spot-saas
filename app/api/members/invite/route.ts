@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getSession } from '@/lib/auth/session';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
+import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
 import type { UserRole } from '@/lib/types/database';
 
 /**
@@ -52,21 +53,31 @@ export async function POST(request: Request) {
     const redirectTo = appUrl ? `${appUrl}/auth/callback` : undefined;
 
     // --- 1. Create or find the auth user --------------------------------------
+    // Supabase's own mailer (inviteUserByEmail) fails on this project with
+    // "Error sending invite email" — same broken SMTP path as password recovery
+    // (see lib/actions/auth-email.ts). generateLink creates the user and returns
+    // the invite link WITHOUT sending anything; we deliver it via Resend below.
     let userId: string | null = null;
+    let inviteLink: string | null = null;
 
-    const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
-      redirectTo,
+    const { data: invited, error: inviteError } = await admin.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: {
+        data: { full_name: fullName },
+        redirectTo: redirectTo ? `${redirectTo}?type=invite` : undefined,
+      },
     });
 
     if (invited?.user) {
       userId = invited.user.id;
+      inviteLink = invited.properties?.action_link ?? null;
     } else if (inviteError) {
       // Already registered → reuse the existing user (they may work at another
       // fleet). Look them up by email rather than failing the whole invite.
       const alreadyExists = /already|registered|exists/i.test(inviteError.message);
       if (!alreadyExists) {
-        console.error('inviteUserByEmail failed:', inviteError);
+        console.error('invite generateLink failed:', inviteError);
         return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 });
       }
       const { data: existingProfile } = await admin
@@ -75,10 +86,42 @@ export async function POST(request: Request) {
         .eq('email', email)
         .maybeSingle();
       userId = existingProfile?.id ?? null;
+      if (!userId) {
+        // Auth user exists but has no profile row yet (e.g. an earlier invite
+        // died halfway). Resolve them via the auth admin API instead.
+        const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        userId = authList?.users?.find((u: { email?: string }) => u.email === email)?.id ?? null;
+      }
     }
 
     if (!userId) {
       return NextResponse.json({ error: 'Could not resolve the invited user' }, { status: 500 });
+    }
+
+    // --- 1b. Deliver the invite email through Resend (new users only) ---------
+    if (inviteLink) {
+      const orgName = session.organization_name || appName();
+      const roleLabel = role === 'driver' ? 'a driver' : `a ${role}`;
+      const html = renderBrandedEmail({
+        heading: `You're invited to ${orgName}`,
+        greeting: fullName ? `Hi ${fullName},` : undefined,
+        body:
+          `${orgName} has invited you to join their fleet on ${appName()} as ${roleLabel}. ` +
+          `Click the button below to accept the invitation and set your password.\n\n` +
+          `Trouble with the button? Copy and paste this link into your browser:\n${inviteLink}`,
+        actionUrl: inviteLink,
+        actionLabel: 'Accept invitation',
+      });
+      const sent = await sendEmail({
+        to: email,
+        subject: `You're invited to join ${orgName} on ${appName()}`,
+        html,
+      });
+      if (!sent) {
+        // Roll back the just-created auth user so a retry starts clean.
+        await admin.auth.admin.deleteUser(userId);
+        return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 });
+      }
     }
 
     // --- 2. Ensure a profile row exists (memberships FK target) ---------------

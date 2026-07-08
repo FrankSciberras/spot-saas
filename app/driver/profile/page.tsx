@@ -1,7 +1,8 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import PushNotificationToggle from '@/components/shared/PushNotificationToggle';
 import ChangePasswordForm from '@/components/shared/ChangePasswordForm';
 import DriverSelfService from '@/components/driver/DriverSelfService';
@@ -48,12 +49,12 @@ export default async function DriverProfilePage() {
       redirect('/fleet');
     }
     return (
-      <DashboardLayout user={user} variant="driver" title="My Profile">
+      <FleetShell user={user} variant="driver" title="My Profile">
         <div className={styles.errorCard}>
           <h3>Profile Not Found</h3>
           <p>Your driver profile has not been set up yet. Please contact an administrator.</p>
         </div>
-      </DashboardLayout>
+      </FleetShell>
     );
   }
 
@@ -157,7 +158,7 @@ export default async function DriverProfilePage() {
   const legacyLicenses = getDocumentsByType('DRIVING_LICENSE');
 
   return (
-    <DashboardLayout user={user} variant="driver" title="My Profile">
+    <FleetShell user={user} variant="driver" title="My Profile">
       <div className={styles.container}>
         {/* Profile Header */}
         <div className={styles.profileHeader}>
@@ -442,6 +443,26 @@ export default async function DriverProfilePage() {
           </div>
         </div>
 
+        {/* Location Sharing */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <h3>Location Sharing</h3>
+          </div>
+          <div className={styles.cardContent}>
+            <p style={{ margin: '0 0 12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Location sharing starts automatically when you start a shift and stops when you
+              end it. Use the controls below if you ever need to manage it manually.
+            </p>
+            <Link href="/driver/tracking" className="btn btn-secondary">
+              Manage location sharing
+            </Link>
+          </div>
+        </div>
+
         {/* Notification Settings */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
@@ -505,6 +526,6 @@ export default async function DriverProfilePage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </FleetShell>
   );
 }

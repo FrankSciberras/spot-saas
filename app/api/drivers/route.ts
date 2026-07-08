@@ -77,6 +77,21 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
+    // The linked user must already be a member of this fleet — otherwise an
+    // admin could attach another fleet's user (or an arbitrary id) to their org.
+    const { data: membership } = await supabase
+      .from('memberships')
+      .select('user_id')
+      .eq('organization_id', orgId)
+      .eq('user_id', body.user_id)
+      .maybeSingle();
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Selected user is not a member of this fleet' },
+        { status: 400 }
+      );
+    }
+
     // Create driver — explicitly stamp organization_id so the insert satisfies
     // RLS WITH CHECK even for admins who belong to more than one fleet (where the
     // auto-stamp trigger intentionally leaves it NULL).

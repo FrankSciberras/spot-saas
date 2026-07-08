@@ -35,13 +35,13 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
   return (
     <FleetShell user={user} title="Audit Log">
       <Suspense fallback={<FleetPageSkeleton variant="list" />}>
-        <AuditLogContent searchParams={searchParams} />
+        <AuditLogContent searchParams={searchParams} orgId={user.organization_id} />
       </Suspense>
     </FleetShell>
   );
 }
 
-async function AuditLogContent({ searchParams }: AuditLogPageProps) {
+async function AuditLogContent({ searchParams, orgId }: AuditLogPageProps & { orgId: string }) {
   const supabase = await createClient();
   const resolvedSearchParams = searchParams ? await searchParams : {};
 
@@ -50,15 +50,25 @@ async function AuditLogContent({ searchParams }: AuditLogPageProps) {
   const toDate = getSearchValue(resolvedSearchParams.to);
   const queryText = getSearchValue(resolvedSearchParams.q).trim();
 
+  // Staff filter options: members of THIS fleet only (a multi-fleet admin
+  // would otherwise see staff from every org they belong to).
+  const { data: orgMembers } = await supabase
+    .from('memberships')
+    .select('user_id')
+    .eq('organization_id', orgId);
+  const memberIds = (orgMembers || []).map((m) => m.user_id);
+
   const { data: staffOptions } = await supabase
     .from('users')
     .select('id, full_name, email')
+    .in('id', memberIds)
     .or('role.eq.staff,also_staff.eq.true')
     .order('full_name', { ascending: true });
 
   let query = supabase
     .from('audit_logs')
     .select('*')
+    .eq('organization_id', orgId)
     .order('created_at', { ascending: false })
     .limit(200);
 

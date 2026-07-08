@@ -1,9 +1,9 @@
-// One-off: generate Expo app icons for mobile/ from the Rovora web icon.
+// One-off: generate Expo app icons for mobile/ from the Rovora "R" mark.
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-const SRC = path.join(__dirname, '..', 'public', 'icons', 'android-chrome-512x512.png');
+const SRC = path.join(__dirname, '..', 'public', 'logo-mark.png');
 const OUT = path.join(__dirname, '..', 'mobile', 'assets');
 const BG = '#0f1411';
 

@@ -183,7 +183,7 @@ export default function DashboardClient(props: {
           <div className={styles.dashboardMeta}>
             {props.hasActiveShift && (
               <>
-                <span style={{ color: '#16a34a', fontWeight: 600 }}>● On shift — sharing location</span>
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>● On shift — sharing location</span>
                 <span className={styles.metaDot} />
               </>
             )}
@@ -199,7 +199,7 @@ export default function DashboardClient(props: {
               onClick={handleEndShift}
               disabled={ending}
               className={styles.dashboardPrimaryAction}
-              style={{ background: '#dc2626', border: 'none', cursor: ending ? 'wait' : 'pointer' }}
+              style={{ background: 'var(--color-danger)', border: 'none', cursor: ending ? 'wait' : 'pointer' }}
             >
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
                 <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -216,7 +216,7 @@ export default function DashboardClient(props: {
           )}
           <Link href="/driver/earnings" className={styles.dashboardSecondaryAction}>My Earnings</Link>
           {endError && (
-            <span style={{ color: '#dc2626', fontSize: 12, alignSelf: 'center' }}>{endError}</span>
+            <span style={{ color: 'var(--color-danger)', fontSize: 12, alignSelf: 'center' }}>{endError}</span>
           )}
         </div>
       </section>

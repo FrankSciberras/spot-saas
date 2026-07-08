@@ -19,9 +19,9 @@ export default async function MarketingNav({ onHome = false }: { onHome?: boolea
     <header className="nav">
       <div className="container nav-inner">
         {onHome ? (
-          <a className="logo" href="#top"><img src="/rovora logo trimmed.png" alt="Rovora" /></a>
+          <a className="logo" href="#top"><img src="/logo-full.png" alt="Rovora" /></a>
         ) : (
-          <Link className="logo" href="/"><img src="/rovora logo trimmed.png" alt="Rovora" /></Link>
+          <Link className="logo" href="/"><img src="/logo-full.png" alt="Rovora" /></Link>
         )}
         <nav className="nav-links">
           <FeaturesMenu sectionHref={h('features')} />

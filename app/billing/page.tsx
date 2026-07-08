@@ -62,7 +62,7 @@ export default async function BillingPage({
       <div className={styles.inner}>
         <div className={styles.head}>
           <div className={styles.brand}>
-            <img src="/rovora logo trimmed.png" alt="Rovora" className={styles.brandLogo} />
+            <img src="/logo-full.png" alt="Rovora" className={styles.brandLogo} />
           </div>
           <h1>{heading}</h1>
           <p>{sub}</p>

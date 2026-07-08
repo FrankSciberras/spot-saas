@@ -306,7 +306,7 @@
 }
 
 .checkItem input:checked + .checkBox {
-  background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
+  background: var(--color-success);
   border-color: var(--color-success);
   animation: checkmark 0.25s ease-out;
 }

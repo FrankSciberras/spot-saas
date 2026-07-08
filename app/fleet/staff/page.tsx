@@ -44,9 +44,18 @@ async function StaffContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
+  // Restrict to members of THIS fleet — a multi-fleet admin would otherwise see
+  // staff from every org they belong to (RLS allows any shared-org profile).
+  const { data: orgMembers } = await supabase
+    .from('memberships')
+    .select('user_id')
+    .eq('organization_id', user.organization_id);
+  const memberIds = (orgMembers || []).map((m) => m.user_id);
+
   const { data: staffData } = await supabase
     .from('users')
     .select('id, full_name, email, role, also_staff, created_at')
+    .in('id', memberIds)
     .or('role.eq.staff,also_staff.eq.true')
     .order('full_name');
 

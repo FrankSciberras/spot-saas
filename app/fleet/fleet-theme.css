@@ -106,9 +106,21 @@
   z-index: 0;
 }
 
+/* ─── Solo canvas: full-page flows without the sidebar shell (e.g. driver
+       go-online / tracking). Same skin as .fleetCanvas, but no flex layout. ─── */
+.fleetSolo {
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
 /* ─── Helpers (scoped, harmless to unmigrated pages) ─── */
-.fleetCanvas * { box-sizing: border-box; }
-.fleetCanvas button { font-family: inherit; cursor: pointer; }
+.fleetCanvas *, .fleetSolo * { box-sizing: border-box; }
+.fleetCanvas button, .fleetSolo button { font-family: inherit; cursor: pointer; }
 .fleetCanvas ::selection { background: var(--accent-soft); color: var(--text-1); }
 
 .fleetTheme .mono { font-family: 'Geist Mono', ui-monospace, monospace; font-feature-settings: 'tnum'; }
@@ -224,7 +236,7 @@
    the new palette AND follow the fleet light/dark toggle, without touching each
    page's JSX. The fleet tokens themselves flip via .fleetTheme[data-fleet-theme].
    ============================================================================= */
-.fleetCanvas {
+.fleetCanvas, .fleetSolo {
   /* surfaces */
   --bg-primary: var(--bg-1);
   --bg-secondary: var(--bg-2);
@@ -247,7 +259,9 @@
   --color-primary: var(--accent);
   --color-primary-dark: var(--accent);
   --color-primary-light: var(--accent);
-  --color-primary-rgb: var(--brand-accent-rgb, 91, 141, 255);
+  /* Must match --accent's default (#2bbd7e) — a blue fallback here makes every
+     ring/glow/tint built from this variable clash with the green brand. */
+  --color-primary-rgb: var(--brand-accent-rgb, 43, 189, 126);
   --color-secondary: var(--text-2);
   --color-success: var(--pos);
   --color-success-rgb: 62, 207, 142;

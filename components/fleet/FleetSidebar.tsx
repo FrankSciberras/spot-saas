@@ -1,6 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -71,6 +72,33 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+const DRIVER_NAV_GROUPS: NavGroup[] = [
+  { label: null, items: [{ id: 'dashboard', name: 'Dashboard', href: '/driver', icon: 'dashboard' }] },
+  {
+    label: 'Work',
+    items: [
+      { id: 'go-online', name: 'Start Shift', href: '/driver/go-online', icon: 'shift' },
+      { id: 'shifts', name: 'My Shifts', href: '/driver/shifts', icon: 'audit' },
+      { id: 'vehicles', name: 'Vehicles', href: '/driver/vehicles', icon: 'vehicle' },
+      { id: 'roster', name: 'My Roster', href: '/driver/roster', icon: 'roster' },
+    ],
+  },
+  {
+    label: 'Financial',
+    items: [
+      { id: 'earnings', name: 'My Earnings', href: '/driver/earnings', icon: 'chart' },
+      { id: 'settlements', name: 'Settlements', href: '/driver/settlements', icon: 'settle' },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { id: 'notifications', name: 'Notifications', href: '/driver/notifications', icon: 'bell' },
+      { id: 'profile', name: 'My Profile', href: '/driver/profile', icon: 'driver' },
+    ],
+  },
+];
+
 const BOTTOM_TABS: { name: string; href: string; icon: string }[] = [
   { name: 'Home', href: '/fleet', icon: 'dashboard' },
   { name: 'Drivers', href: '/fleet/drivers', icon: 'driver' },
@@ -78,15 +106,124 @@ const BOTTOM_TABS: { name: string; href: string; icon: string }[] = [
   { name: 'Shifts', href: '/fleet/shifts', icon: 'shift' },
 ];
 
+// Two tabs each side of the centre Go-online button (+ "More"), so it sits
+// exactly in the middle. Earnings stays reachable via More and the dashboard.
+const DRIVER_BOTTOM_TABS: { name: string; href: string; icon: string }[] = [
+  { name: 'Home', href: '/driver', icon: 'dashboard' },
+  { name: 'Shifts', href: '/driver/shifts', icon: 'shift' },
+  { name: 'Roster', href: '/driver/roster', icon: 'roster' },
+];
+
+/**
+ * Raised centre button in the driver's mobile tab bar: one press to go online
+ * (→ /driver/go-online) or, while on shift, to end it (confirm → /api/shifts/end).
+ */
+function DriverShiftFab() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [onShift, setOnShift] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // Re-check whenever the driver navigates (e.g. right after starting a shift).
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      if (!driver) return;
+      const { data: shift } = await supabase
+        .from('driver_shifts')
+        .select('id')
+        .eq('driver_id', driver.id)
+        .is('end_time', null)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setOnShift(Boolean(shift));
+    };
+    void check();
+    return () => { cancelled = true; };
+  }, [pathname]);
+
+  const handlePress = async () => {
+    if (busy) return;
+    if (!onShift) {
+      router.push('/driver/go-online');
+      return;
+    }
+    if (!window.confirm('End your shift now?')) return;
+    setBusy(true);
+    try {
+      // Stop background location in the app (no-op in a plain browser).
+      const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+      if (native) native.postMessage(JSON.stringify({ type: 'stop-tracking' }));
+      const res = await fetch('/api/shifts/end', { method: 'POST' });
+      if (res.ok) {
+        setOnShift(false);
+        router.push('/driver');
+        router.refresh();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <button
+        onClick={handlePress}
+        disabled={busy}
+        aria-label={onShift ? 'End shift' : 'Go online'}
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: '50%',
+          marginTop: -20,
+          background: onShift ? 'var(--neg)' : 'var(--accent)',
+          color: '#fff',
+          border: '4px solid var(--bg-1)',
+          boxShadow: '0 6px 16px rgba(0, 0, 0, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          cursor: busy ? 'wait' : 'pointer',
+          transition: 'background 160ms ease',
+        }}
+      >
+        {onShift ? (
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden>
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden>
+            <path d="M8 5.5v13l11-6.5-11-6.5z" />
+          </svg>
+        )}
+      </button>
+      <span style={{ fontSize: 9.5, marginTop: 2, fontWeight: 600, color: onShift ? 'var(--neg)' : 'var(--accent)' }}>
+        {busy ? 'Ending…' : onShift ? 'End shift' : 'Go online'}
+      </span>
+    </div>
+  );
+}
+
 interface FleetSidebarProps {
   user: SessionUser;
+  variant?: 'fleet' | 'driver';
   isMobile: boolean;
   open: boolean;
   onClose: () => void;
   onMenuToggle: () => void;
 }
 
-export default function FleetSidebar({ user, isMobile, open, onClose, onMenuToggle }: FleetSidebarProps) {
+export default function FleetSidebar({ user, variant = 'fleet', isMobile, open, onClose, onMenuToggle }: FleetSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logoUrl } = useBranding();
@@ -98,8 +235,13 @@ export default function FleetSidebar({ user, isMobile, open, onClose, onMenuTogg
     return item.roles.includes(user.role);
   };
 
+  const isDriver = variant === 'driver';
+  const rootHref = isDriver ? '/driver' : '/fleet';
+  const navGroups = isDriver ? DRIVER_NAV_GROUPS : NAV_GROUPS;
+  const bottomTabs = isDriver ? DRIVER_BOTTOM_TABS : BOTTOM_TABS;
+
   const isActive = (href: string) =>
-    pathname === href || (href !== '/fleet' && pathname.startsWith(href));
+    pathname === href || (href !== rootHref && pathname.startsWith(href));
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -125,18 +267,18 @@ export default function FleetSidebar({ user, isMobile, open, onClose, onMenuTogg
             <div style={s.logo}>
               {/* Icon-only Rovora mark (no wordmark) — the org name sits beside it. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo without text.png" alt="Rovora" style={{ height: 30, width: 'auto' }} />
+              <img src="/logo-mark.png" alt="Rovora" style={{ height: 30, width: 'auto' }} />
             </div>
             <div style={s.companyTag}>
               <div style={s.companyName}>{user?.organization_name || 'Rovora'}</div>
-              <div style={s.companyMeta}>Fleet ops</div>
+              <div style={s.companyMeta}>{isDriver ? 'Driver' : 'Fleet ops'}</div>
             </div>
           </>
         )}
       </div>
 
       <nav style={s.nav}>
-        {NAV_GROUPS.map((g, gi) => {
+        {navGroups.map((g, gi) => {
           const items = g.items.filter(canSee);
           if (!items.length) return null;
           return (
@@ -167,6 +309,36 @@ export default function FleetSidebar({ user, isMobile, open, onClose, onMenuTogg
         })}
       </nav>
 
+      {!isDriver && (
+        <button
+          onClick={() => {
+            onClose();
+            window.dispatchEvent(new Event('rovora:start-tour'));
+          }}
+          className="fleetNavItem"
+          style={{ ...s.navItem, margin: '0 10px 2px', width: 'auto', cursor: 'pointer' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 11, color: 'var(--text-2)' }}>
+            <FleetIcon name="doc" size={17} stroke={1.6} />
+            <span>Help &amp; tour</span>
+          </span>
+        </button>
+      )}
+
+      {user?.also_staff && user?.role === 'driver' && (
+        <Link
+          href={isDriver ? '/fleet' : '/driver'}
+          onClick={onClose}
+          className="fleetNavItem"
+          style={{ ...s.navItem, margin: '0 10px 6px', width: 'auto', textDecoration: 'none' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 11, color: 'var(--text-2)' }}>
+            <FleetIcon name="logout" size={17} stroke={1.6} />
+            <span>{isDriver ? 'Switch to Fleet View' : 'Switch to Driver View'}</span>
+          </span>
+        </Link>
+      )}
+
       <div style={s.userCard}>
         <div style={s.userAvatar}>{initial}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -184,6 +356,16 @@ export default function FleetSidebar({ user, isMobile, open, onClose, onMenuTogg
     </>
   );
 
+  const renderBottomTab = (tab: { name: string; href: string; icon: string }) => {
+    const active = isActive(tab.href);
+    return (
+      <Link key={tab.href} href={tab.href} style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}) }}>
+        <FleetIcon name={tab.icon} size={20} stroke={active ? 1.9 : 1.6} />
+        <span style={{ fontSize: 10.5, marginTop: 2 }}>{tab.name}</span>
+      </Link>
+    );
+  };
+
   if (isMobile) {
     return (
       <>
@@ -192,15 +374,9 @@ export default function FleetSidebar({ user, isMobile, open, onClose, onMenuTogg
           {body}
         </aside>
         <nav style={s.bottomBar}>
-          {BOTTOM_TABS.map((tab) => {
-            const active = isActive(tab.href);
-            return (
-              <Link key={tab.href} href={tab.href} style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}) }}>
-                <FleetIcon name={tab.icon} size={20} stroke={active ? 1.9 : 1.6} />
-                <span style={{ fontSize: 10.5, marginTop: 2 }}>{tab.name}</span>
-              </Link>
-            );
-          })}
+          {(isDriver ? bottomTabs.slice(0, 2) : bottomTabs).map(renderBottomTab)}
+          {isDriver && <DriverShiftFab />}
+          {isDriver && bottomTabs.slice(2).map(renderBottomTab)}
           <button onClick={onMenuToggle} style={{ ...s.bottomTab, ...(open ? s.bottomTabActive : {}) }} className="fleetHover">
             <FleetIcon name="dots" size={20} stroke={1.6} />
             <span style={{ fontSize: 10.5, marginTop: 2 }}>More</span>

@@ -1,23 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/auth/session';
+import { createAdminClient } from '@/lib/supabase/server';
+import { getPlatformAdmin } from '@/lib/auth/platform';
+
+// app_settings rows under the bootstrap org act as PLATFORM-wide configuration
+// (e.g. the weekly npm package update check). Only the platform admin may read
+// or change them — not fleet admins. The service-role client is used because a
+// platform admin isn't necessarily an org admin of the bootstrap org.
+const PLATFORM_ORG = '00000000-0000-0000-0000-000000000001';
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const platformAdmin = await getPlatformAdmin();
+    if (!platformAdmin) {
+      return NextResponse.json({ error: 'Platform admin access required' }, { status: 403 });
     }
 
-    if (session.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
-
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('app_settings')
       .select('*')
+      .eq('organization_id', PLATFORM_ORG)
       .order('key');
 
     if (error) throw error;
@@ -31,15 +33,9 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createClient();
-
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (session.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    const platformAdmin = await getPlatformAdmin();
+    if (!platformAdmin) {
+      return NextResponse.json({ error: 'Platform admin access required' }, { status: 403 });
     }
 
     const { key, value } = await request.json();
@@ -48,11 +44,12 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Key is required' }, { status: 400 });
     }
 
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('app_settings')
       .upsert(
-        { key, value, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
+        { organization_id: PLATFORM_ORG, key, value, updated_at: new Date().toISOString() },
+        { onConflict: 'organization_id,key' }
       )
       .select()
       .single();

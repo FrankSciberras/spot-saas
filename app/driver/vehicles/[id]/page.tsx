@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import DashboardLayout from '@/components/shared/DashboardLayout';
+import FleetShell from '@/components/fleet/FleetShell';
 import type { Vehicle, FileRecord } from '@/lib/types/database';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -100,7 +100,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
   };
 
   return (
-    <DashboardLayout user={user} variant="driver" title={vehicleData.registration_number}>
+    <FleetShell user={user} variant="driver" title={vehicleData.registration_number}>
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <Link href="/driver/vehicles" className={styles.backButton} aria-label="Back to vehicles">
@@ -287,6 +287,6 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
           <p className={styles.notesContent}>{vehicleData.notes}</p>
         </div>
       )}
-    </DashboardLayout>
+    </FleetShell>
   );
 }

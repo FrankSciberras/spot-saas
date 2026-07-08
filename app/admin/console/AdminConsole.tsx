@@ -294,7 +294,7 @@ const AdminSidebar = ({ data, active, onSelect, isMobile, open, onClose }: {
   const Body = (
     <>
       <div style={asb.logoWrap}>
-        <img src="/rovora logo trimmed.png" alt="Rovora" style={{ height: 22, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+        <img src="/logo-full-white.png" alt="Rovora" style={{ height: 22, width: 'auto' }} />
         <div style={asb.adminTag}>Admin Console</div>
       </div>
       <nav style={asb.nav}>
@@ -877,6 +877,66 @@ const SupportPage = ({ data }: { data: AdminData }) => {
   );
 };
 
+// ── Package update check (platform maintenance toggle, stored in app_settings) ──
+const PackageUpdateCard = () => {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/admin/settings')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: { key: string; value: boolean }[]) => {
+        const row = Array.isArray(rows) ? rows.find((s) => s.key === 'package_update_check_enabled') : undefined;
+        setEnabled(row ? Boolean(row.value) : false);
+      })
+      .catch(() => setEnabled(false));
+  }, []);
+
+  const toggle = async () => {
+    if (enabled === null || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'package_update_check_enabled', value: !enabled }),
+      });
+      if (res.ok) {
+        const row = await res.json();
+        setEnabled(Boolean(row.value));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ACard style={{ marginTop: 16 }}>
+      <ACardHeader
+        title="Package update check"
+        subtitle="Weekly npm dependency report for the platform codebase"
+        right={
+          <button onClick={toggle} disabled={enabled === null || busy} style={ap.linkBtn}>
+            {enabled === null || busy ? '…' : enabled ? 'Disable' : 'Enable'}
+          </button>
+        }
+      />
+      <div style={{ borderTop: '1px solid var(--line-1)', padding: '14px 18px', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.55 }}>
+        <div style={{ marginBottom: 6 }}>
+          Status:{' '}
+          <span style={{ color: enabled ? 'var(--pos)' : 'var(--text-3)', fontWeight: 600 }}>
+            {enabled === null ? 'Loading…' : enabled ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+        When enabled, an automated check runs every Monday at 08:00 UTC comparing installed npm packages
+        against the npm registry, and emails a report to{' '}
+        <span className="mono" style={{ color: 'var(--text-1)' }}>franksciberras@gmail.com</span>{' '}
+        when updates are available.
+      </div>
+    </ACard>
+  );
+};
+
 const SettingsPage = ({ data }: { data: AdminData }) => (
   <div style={ap.scroll} className="pad-mobile">
     <div style={{ padding: '20px 0 14px', maxWidth: 560 }}>
@@ -908,6 +968,7 @@ const SettingsPage = ({ data }: { data: AdminData }) => (
         </div>
       </ACard>
     </div>
+    <PackageUpdateCard />
   </div>
 );
 

@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
 import { TRIAL_DAYS, TRIAL_PLAN } from '@/lib/billing/plans';
+import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
 
 type Result = { error?: string; ok?: boolean; warning?: string; organizationId?: string };
 
@@ -41,8 +42,38 @@ async function resolveOrInviteUser(
   if (existing?.id) return { id: existing.id as string };
 
   try {
-    const { data: invited, error } = await admin.auth.admin.inviteUserByEmail(email);
-    if (error || !invited?.user) throw error ?? new Error('no user returned');
+    // Supabase's own mailer (inviteUserByEmail) fails on this project — same
+    // broken SMTP path as password recovery. generateLink creates the user and
+    // returns the invite link without emailing; we deliver it via Resend.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const { data: invited, error } = await admin.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: appUrl ? { redirectTo: `${appUrl}/auth/callback?type=invite` } : undefined,
+    });
+    const link = invited?.properties?.action_link;
+    if (error || !invited?.user || !link) throw error ?? new Error('no user/link returned');
+
+    const html = renderBrandedEmail({
+      heading: `Welcome to ${appName()}`,
+      body:
+        `You've been set up as a fleet operator on ${appName()}. ` +
+        `Click the button below to accept the invitation and set your password.\n\n` +
+        `Trouble with the button? Copy and paste this link into your browser:\n${link}`,
+      actionUrl: link,
+      actionLabel: 'Accept invitation',
+    });
+    const sent = await sendEmail({
+      to: email,
+      subject: `You're invited to ${appName()}`,
+      html,
+    });
+    if (!sent) {
+      // Roll back the just-created auth user so a retry starts clean.
+      await admin.auth.admin.deleteUser(invited.user.id);
+      throw new Error('invite email delivery failed');
+    }
+
     await admin.from('users').upsert({ id: invited.user.id, email, role: 'admin' }, { onConflict: 'id' });
     return { id: invited.user.id };
   } catch (err) {

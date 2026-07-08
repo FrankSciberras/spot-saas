@@ -10,6 +10,7 @@ interface FleetTopbarProps {
   title: string;
   onMenuClick: () => void;
   isAdmin?: boolean;
+  variant?: 'fleet' | 'driver';
 }
 
 interface NewAction {
@@ -29,7 +30,7 @@ const NEW_ACTIONS: NewAction[] = [
   { label: 'staff member', hint: 'Invite an operations user', icon: 'staff', href: '/fleet/staff/new', adminOnly: true },
 ];
 
-export default function FleetTopbar({ title, onMenuClick, isAdmin = false }: FleetTopbarProps) {
+export default function FleetTopbar({ title, onMenuClick, isAdmin = false, variant = 'fleet' }: FleetTopbarProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useFleetTheme();
   const [now, setNow] = useState<Date | null>(null);
@@ -81,11 +82,13 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false }: Fle
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={st.searchBox} className="hide-mobile">
-          <FleetIcon name="search" size={15} />
-          <input placeholder="Search drivers, plates, settlements…" style={st.searchInput} />
-          <kbd style={st.kbd}>⌘K</kbd>
-        </div>
+        {variant === 'fleet' && (
+          <div style={st.searchBox} className="hide-mobile">
+            <FleetIcon name="search" size={15} />
+            <input placeholder="Search drivers, plates, settlements…" style={st.searchInput} />
+            <kbd style={st.kbd}>⌘K</kbd>
+          </div>
+        )}
         <button
           onClick={toggleTheme}
           style={st.ghostBtn}
@@ -95,6 +98,8 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false }: Fle
         >
           <FleetIcon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
         </button>
+        {variant === 'fleet' && (
+        <>
         <div style={{ width: 1, height: 20, background: 'var(--line-2)', margin: '0 4px' }} className="hide-mobile" />
 
         {/* New quick-create dropdown */}
@@ -139,6 +144,8 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false }: Fle
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
