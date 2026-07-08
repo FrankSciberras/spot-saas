@@ -89,7 +89,25 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
           </a>
           <div className="foot-app">
             <span className="foot-app-label">Free driver app</span>
-            <span className="foot-app-soon">iOS &amp; Android · coming soon</span>
+            <a
+              className="gplay-badge"
+              href="https://play.google.com/store/apps/details?id=eu.rovora.driver&hl=en"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Get Rovora Driver on Google Play"
+            >
+              <svg className="gplay-logo" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#00A0FF" d="M3 1.5 11.5 12 3 22.5Z" />
+                <path fill="#FF3B30" d="M3 1.5 21 10.3 11.5 12Z" />
+                <path fill="#00D267" d="M3 22.5 21 13.7 11.5 12Z" />
+                <path fill="#FFCE00" d="M21 10.3 21 13.7 11.5 12Z" />
+              </svg>
+              <span className="gplay-text">
+                <small>GET IT ON</small>
+                <strong>Google Play</strong>
+              </span>
+            </a>
+            <span className="foot-app-soon">iOS coming soon</span>
           </div>
         </div>
 

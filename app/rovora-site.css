@@ -434,9 +434,20 @@
 }
 .rovora-site .foot-sub:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .rovora-site .foot-sub svg { width: 16px; height: 16px; }
-.rovora-site .foot-app { display: flex; flex-direction: column; gap: 2px; padding-left: 24px; border-left: 1px solid var(--line-2); }
+.rovora-site .foot-app { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-left: 24px; border-left: 1px solid var(--line-2); }
 .rovora-site .foot-app-label { font-size: 13.5px; font-weight: 500; color: var(--text-2); }
-.rovora-site .foot-app-soon { font-size: 12px; color: var(--text-4); }
+.rovora-site .foot-app-soon { font-size: 12px; color: var(--text-4); margin-top: 6px; }
+.rovora-site .gplay-badge {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 8px;
+  background: #000; border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 9px; padding: 7px 15px 7px 12px;
+  transition: filter .15s, transform .15s, border-color .15s;
+}
+.rovora-site .gplay-badge:hover { filter: brightness(1.18); transform: translateY(-1px); border-color: rgba(255, 255, 255, 0.55); }
+.rovora-site .gplay-logo { width: 22px; height: 22px; flex: none; }
+.rovora-site .gplay-text { display: flex; flex-direction: column; line-height: 1.05; color: #fff; }
+.rovora-site .gplay-text small { font-size: 8.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; opacity: .92; }
+.rovora-site .gplay-text strong { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
 
 /* Bottom legal bar */
 .rovora-site .foot-bottom { margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--line-1); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-3); }
