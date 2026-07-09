@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -20,6 +21,7 @@ function initialsOf(name: string): string {
 
 export default async function TrackingPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'tracking');
   return (
     <FleetShell user={user} title="Live Map">
       <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>

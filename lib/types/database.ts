@@ -80,6 +80,21 @@ export interface OrgPlatform {
   updated_at: string;
 }
 
+/**
+ * A per-fleet module on/off OVERRIDE (the "apps" / plugins system). The master
+ * list of modules lives in lib/modules/catalog.ts; a row here exists only when a
+ * fleet has flipped a module away from its catalog default. `module_key` is the
+ * stable slug from that catalog.
+ */
+export interface OrgModule {
+  id: string;
+  organization_id: string;
+  module_key: string;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 /** How a preset's tax_value is interpreted. */
 export type SettlementTaxType = 'flat' | 'percent';
 

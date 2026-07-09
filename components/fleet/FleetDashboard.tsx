@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import FleetIcon from './FleetIcon';
 import GettingStartedCard, { type OnboardingState } from './GettingStartedCard';
+import { useEnabledModules } from './FleetModulesProvider';
 import {
   fmtEUR,
   EarningsLineChart,
@@ -428,12 +429,13 @@ function ExpenseBreakdownCard({ totals, data }: { totals: { income: number; expe
 
 /* ───────────────────────── Quick actions ───────────────────────── */
 function QuickActionsCard() {
-  const actions = [
+  const enabledModules = useEnabledModules();
+  const actions: { label: string; href: string; icon: string; module?: string }[] = [
     { label: 'Add driver', href: '/fleet/drivers/new', icon: 'driver' },
     { label: 'Add vehicle', href: '/fleet/vehicles/new', icon: 'vehicle' },
-    { label: 'Manage rosters', href: '/fleet/rosters', icon: 'roster' },
-    { label: 'View shifts', href: '/fleet/shifts', icon: 'shift' },
-  ];
+    { label: 'Manage rosters', href: '/fleet/rosters', icon: 'roster', module: 'rostering' },
+    { label: 'View shifts', href: '/fleet/shifts', icon: 'shift', module: 'rostering' },
+  ].filter((a) => !a.module || enabledModules.has(a.module));
   return (
     <Card>
       <CardHeader title="Quick actions" subtitle="Common tasks" />

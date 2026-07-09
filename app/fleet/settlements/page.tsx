@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import { resolvePlatforms } from '@/lib/config/settlements';
 import FleetShell from '@/components/fleet/FleetShell';
@@ -14,6 +15,7 @@ type FleetUser = Awaited<ReturnType<typeof requireRole>>;
  */
 export default async function SettlementsPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'settlements');
   return (
     <FleetShell user={user} title="Driver Settlements">
       <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
@@ -35,10 +37,12 @@ async function SettlementsContent({ user }: { user: FleetUser }) {
     .single();
   const orgDriverSharePct = org?.settlement_driver_share_pct ?? 50;
 
-  // Settlement presets (price new settlements; RLS scopes to the active org).
+  // Settlement presets (price new settlements). Scope to the active org: RLS
+  // allows every org the user belongs to, so a multi-fleet account merges them.
   const { data: presets } = await supabase
     .from('settlement_presets')
     .select('*')
+    .eq('organization_id', user.organization_id)
     .order('created_at');
 
   // First-visit gate: a fleet with no presets has never configured how it pays
@@ -65,6 +69,7 @@ async function SettlementsContent({ user }: { user: FleetUser }) {
   const { data: allDrivers } = await supabase
     .from('drivers')
     .select('id, full_name, status, employment_type, settlement_driver_share_pct, settlement_preset_id')
+    .eq('organization_id', user.organization_id)
     .order('full_name');
 
   // Separate active and archived drivers
@@ -79,6 +84,7 @@ async function SettlementsContent({ user }: { user: FleetUser }) {
       drivers:driver_id (id, full_name, status),
       settlement_platforms (*)
     `)
+    .eq('organization_id', user.organization_id)
     .order('week_start', { ascending: false });
 
   return (

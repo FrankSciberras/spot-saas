@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import styles from '../../settlements.module.css';
@@ -15,6 +16,7 @@ interface PageProps {
 export default async function EditSettlementPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin']);
+  await requireModule(user.organization_id, 'settlements');
   const supabase = await createClient();
 
   // Fetch the settlement
@@ -26,6 +28,7 @@ export default async function EditSettlementPage({ params }: PageProps) {
       settlement_platforms (*)
     `)
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !settlement) {
@@ -36,6 +39,7 @@ export default async function EditSettlementPage({ params }: PageProps) {
   const { data: drivers } = await supabase
     .from('drivers')
     .select('id, full_name')
+    .eq('organization_id', user.organization_id)
     .eq('status', 'active')
     .order('full_name');
 

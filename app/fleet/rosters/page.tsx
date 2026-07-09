@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -14,6 +15,7 @@ function fmtDate(d: string | null): string {
 
 export default async function RostersPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'rostering');
   return (
     <FleetShell user={user} title="Rosters">
       <Suspense fallback={<FleetPageSkeleton variant="list" stats={0} />}>
@@ -30,6 +32,7 @@ async function RostersContent({ user }: { user: FleetUser }) {
   const { data } = await supabase
     .from('rosters')
     .select('id, title, week_start, week_end, status, created_at, published_at')
+    .eq('organization_id', user.organization_id)
     .order('week_start', { ascending: false });
 
   const rows = (data || []) as any[];

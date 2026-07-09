@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -13,6 +14,7 @@ type FleetUser = Awaited<ReturnType<typeof requireRole>>;
  */
 export default async function AdjustmentsPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'settlements');
   return (
     <FleetShell user={user} title="Driver Adjustments">
       <Suspense fallback={<FleetPageSkeleton variant="list" stats={0} />}>
@@ -30,6 +32,7 @@ async function AdjustmentsContent({ user }: { user: FleetUser }) {
   const { data: drivers } = await supabase
     .from('drivers')
     .select('id, full_name, status')
+    .eq('organization_id', user.organization_id)
     .order('full_name');
 
   // Fetch all adjustments with driver info
@@ -39,6 +42,7 @@ async function AdjustmentsContent({ user }: { user: FleetUser }) {
       *,
       drivers:driver_id (id, full_name)
     `)
+    .eq('organization_id', user.organization_id)
     .order('date', { ascending: false });
 
   return (

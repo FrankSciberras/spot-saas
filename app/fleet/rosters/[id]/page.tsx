@@ -1,4 +1,5 @@
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import FleetShell from '@/components/fleet/FleetShell';
@@ -11,6 +12,7 @@ interface PageProps {
 export default async function RosterDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'rostering');
   const isAdmin = user.role === 'admin';
   const supabase = await createClient();
 
@@ -19,6 +21,7 @@ export default async function RosterDetailPage({ params }: PageProps) {
     .from('rosters')
     .select('*')
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (rosterError || !roster) {
@@ -35,6 +38,7 @@ export default async function RosterDetailPage({ params }: PageProps) {
   const { data: activeVehicles } = await supabase
     .from('vehicles')
     .select('id, registration_number, make, model')
+    .eq('organization_id', user.organization_id)
     .eq('status', 'active')
     .order('registration_number');
 
@@ -43,6 +47,7 @@ export default async function RosterDetailPage({ params }: PageProps) {
     const { data: allVehicles } = await supabase
       .from('vehicles')
       .select('id, registration_number, make, model')
+      .eq('organization_id', user.organization_id)
       .order('registration_number');
     vehicles = allVehicles;
   }
@@ -51,6 +56,7 @@ export default async function RosterDetailPage({ params }: PageProps) {
   const { data: activeDrivers } = await supabase
     .from('drivers')
     .select('id, full_name, phone')
+    .eq('organization_id', user.organization_id)
     .eq('status', 'active')
     .order('full_name');
 
@@ -59,6 +65,7 @@ export default async function RosterDetailPage({ params }: PageProps) {
     const { data: allDrivers } = await supabase
       .from('drivers')
       .select('id, full_name, phone')
+      .eq('organization_id', user.organization_id)
       .order('full_name');
     drivers = allDrivers;
   }

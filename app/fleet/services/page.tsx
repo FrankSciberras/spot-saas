@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -61,16 +62,17 @@ function categoryFor(serviceType: string): SvcRecord['category'] {
 
 export default async function ServicesPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'maintenance');
   return (
     <FleetShell user={user} title="Services">
       <Suspense fallback={<FleetPageSkeleton variant="list" stats={3} />}>
-        <ServicesContent />
+        <ServicesContent orgId={user.organization_id} />
       </Suspense>
     </FleetShell>
   );
 }
 
-async function ServicesContent() {
+async function ServicesContent({ orgId }: { orgId: string }) {
   const supabase = await createClient();
 
   const { data: services } = await supabase
@@ -79,13 +81,15 @@ async function ServicesContent() {
       *,
       vehicles:vehicle_id (id, registration_number, make, model)
     `)
+    .eq('organization_id', orgId)
     .order('service_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(200);
 
   const { data: vehiclesData } = await supabase
     .from('vehicles')
-    .select('id, registration_number, make, model, mileage');
+    .select('id, registration_number, make, model, mileage')
+    .eq('organization_id', orgId);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

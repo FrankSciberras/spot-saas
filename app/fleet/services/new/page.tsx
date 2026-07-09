@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import ServiceForm from '@/components/admin/ServiceForm';
@@ -11,6 +12,7 @@ interface PageProps {
 
 export default async function NewServicePage({ searchParams }: PageProps) {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'maintenance');
   const supabase = await createClient();
   const { vehicle: preselectedVehicleId } = await searchParams;
 
@@ -18,6 +20,7 @@ export default async function NewServicePage({ searchParams }: PageProps) {
   const { data: vehicles } = await supabase
     .from('vehicles')
     .select('id, registration_number, make, model, mileage')
+    .eq('organization_id', user.organization_id)
     .order('registration_number');
 
   // Pre-populate service with vehicle if provided

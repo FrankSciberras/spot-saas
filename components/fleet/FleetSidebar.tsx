@@ -7,6 +7,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/lib/types/database';
 import { useBranding } from '@/components/shared/BrandingProvider';
+import { useEnabledModules } from './FleetModulesProvider';
+import { moduleForNav } from '@/lib/modules/catalog';
 import FleetIcon from './FleetIcon';
 
 interface NavItem {
@@ -56,7 +58,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'reminders', name: 'Reminders', href: '/fleet/reminders', icon: 'bell' },
       { id: 'audit', name: 'Audit Log', href: '/fleet/audit-log', icon: 'audit', roles: ['admin'] },
-      { id: 'events', name: 'Events', href: '/fleet/events', icon: 'roster' },
       { id: 'notify', name: 'Notify', href: '/fleet/notifications', icon: 'bell', roles: ['admin'] },
       { id: 'permissions', name: 'Permissions', href: '/fleet/permissions', icon: 'doc', roles: ['admin'] },
       { id: 'integrations', name: 'Integrations', href: '/fleet/integrations', icon: 'plug', roles: ['admin'] },
@@ -228,18 +229,26 @@ export default function FleetSidebar({ user, variant = 'fleet', isMobile, open, 
   const pathname = usePathname();
   const router = useRouter();
   const { logoUrl } = useBranding();
-
-  const canSee = (item: NavItem) => {
-    if (!item.roles) return true;
-    if (!user?.role) return false;
-    if (user.role === 'driver' && user.also_staff && item.roles.includes('staff')) return true;
-    return item.roles.includes(user.role);
-  };
+  const enabledModules = useEnabledModules();
 
   const isDriver = variant === 'driver';
   const rootHref = isDriver ? '/driver' : '/fleet';
   const navGroups = isDriver ? DRIVER_NAV_GROUPS : NAV_GROUPS;
   const bottomTabs = isDriver ? DRIVER_BOTTOM_TABS : BOTTOM_TABS;
+
+  const canSee = (item: NavItem) => {
+    // Module gate (fleet nav only): hide items whose module the fleet switched
+    // off. Driver nav is never module-gated — a driver's own pages stay put.
+    if (!isDriver) {
+      const moduleKey = moduleForNav(item.id);
+      if (moduleKey && !enabledModules.has(moduleKey)) return false;
+    }
+    // Role gate.
+    if (!item.roles) return true;
+    if (!user?.role) return false;
+    if (user.role === 'driver' && user.also_staff && item.roles.includes('staff')) return true;
+    return item.roles.includes(user.role);
+  };
 
   const isActive = (href: string) =>
     pathname === href || (href !== rootHref && pathname.startsWith(href));

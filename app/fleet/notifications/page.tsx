@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -9,22 +10,24 @@ import styles from './notifications.module.css';
 
 export default async function NotificationsPage() {
   const user = await requireRole(['admin']);
+  await requireModule(user.organization_id, 'reminders');
   return (
     <FleetShell user={user} title="Notifications">
       <Suspense fallback={<FleetPageSkeleton variant="list" />}>
-        <NotificationsContent />
+        <NotificationsContent orgId={user.organization_id} />
       </Suspense>
     </FleetShell>
   );
 }
 
-async function NotificationsContent() {
+async function NotificationsContent({ orgId }: { orgId: string }) {
   const supabase = await createClient();
 
   // Get notification rules
   const { data: rules } = await supabase
     .from('notification_rules')
     .select('*')
+    .eq('organization_id', orgId)
     .order('trigger_type')
     .order('name');
 
@@ -32,6 +35,7 @@ async function NotificationsContent() {
   const { data: logEntries } = await supabase
     .from('notification_log')
     .select('*')
+    .eq('organization_id', orgId)
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -39,6 +43,7 @@ async function NotificationsContent() {
   const { data: recentNotifications } = await supabase
     .from('notifications')
     .select('id, title, body, type, created_at, read_at, action_url')
+    .eq('organization_id', orgId)
     .order('created_at', { ascending: false })
     .limit(30);
 
@@ -64,6 +69,7 @@ async function NotificationsContent() {
   const { data: drivers } = await supabase
     .from('drivers')
     .select('id, full_name, status')
+    .eq('organization_id', orgId)
     .eq('status', 'active')
     .order('full_name');
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import styles from './GettingStartedCard.module.css';
+import { useEnabledModules } from './FleetModulesProvider';
 
 export interface OnboardingState {
   hasDrivers: boolean;
@@ -21,13 +22,15 @@ interface Step {
   hint: string;
   href: string;
   cta: string;
+  /** Only shown when the fleet has this module on (undefined = always shown). */
+  module?: string;
 }
 
 const STEPS: Step[] = [
   { key: 'hasDrivers', label: 'Add your first driver', hint: 'Invite the people who drive for you', href: '/fleet/drivers/new', cta: 'Add driver' },
   { key: 'hasVehicles', label: 'Add your first vehicle', hint: 'Register a car in your fleet', href: '/fleet/vehicles/new', cta: 'Add vehicle' },
-  { key: 'hasPay', label: 'Set up how you pay drivers', hint: 'A 2-minute guided interview', href: '/fleet/settlements/setup', cta: 'Set up pay' },
-  { key: 'hasSettlement', label: 'Run your first settlement', hint: 'Reconcile a driver’s week', href: '/fleet/settlements', cta: 'Open settlements' },
+  { key: 'hasPay', label: 'Set up how you pay drivers', hint: 'A 2-minute guided interview', href: '/fleet/settlements/setup', cta: 'Set up pay', module: 'settlements' },
+  { key: 'hasSettlement', label: 'Run your first settlement', hint: 'Reconcile a driver’s week', href: '/fleet/settlements', cta: 'Open settlements', module: 'settlements' },
 ];
 
 /**
@@ -37,6 +40,7 @@ const STEPS: Step[] = [
  * a checklist, not a forced tour.
  */
 export default function GettingStartedCard({ state }: { state: OnboardingState }) {
+  const enabledModules = useEnabledModules();
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -47,8 +51,10 @@ export default function GettingStartedCard({ state }: { state: OnboardingState }
     }
   }, []);
 
-  const done = STEPS.filter((s) => state[s.key]).length;
-  const allDone = done === STEPS.length;
+  // Hide steps for modules the fleet has switched off (e.g. settlements pay setup).
+  const steps = STEPS.filter((s) => !s.module || enabledModules.has(s.module));
+  const done = steps.filter((s) => state[s.key]).length;
+  const allDone = done === steps.length;
 
   // Nothing to nudge once everything's done (or the admin closed it).
   if (allDone || dismissed) return null;
@@ -63,14 +69,14 @@ export default function GettingStartedCard({ state }: { state: OnboardingState }
   };
 
   // The first not-yet-done step is the "next" one — highlighted.
-  const nextKey = STEPS.find((s) => !state[s.key])?.key;
+  const nextKey = steps.find((s) => !state[s.key])?.key;
 
   return (
     <div className={styles.card}>
       <div className={styles.head}>
         <div>
           <div className={styles.title}>Get your fleet up and running</div>
-          <div className={styles.sub}>{done} of {STEPS.length} done — finish setup to unlock the full dashboard.</div>
+          <div className={styles.sub}>{done} of {steps.length} done — finish setup to unlock the full dashboard.</div>
         </div>
         <button type="button" className={styles.dismiss} onClick={dismiss} title="Dismiss" aria-label="Dismiss getting started">
           ✕
@@ -78,11 +84,11 @@ export default function GettingStartedCard({ state }: { state: OnboardingState }
       </div>
 
       <div className={styles.progressTrack}>
-        <div className={styles.progressFill} style={{ width: `${(done / STEPS.length) * 100}%` }} />
+        <div className={styles.progressFill} style={{ width: `${(done / steps.length) * 100}%` }} />
       </div>
 
       <div className={styles.steps}>
-        {STEPS.map((s) => {
+        {steps.map((s) => {
           const complete = state[s.key];
           const isNext = s.key === nextKey;
           return (

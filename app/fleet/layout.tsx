@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
+import { getEnabledModuleKeys } from '@/lib/modules/server';
 import BrandingShell from '@/components/shared/BrandingShell';
 import { FleetBillingProvider } from '@/components/shared/FleetBillingProvider';
+import { FleetModulesProvider } from '@/components/fleet/FleetModulesProvider';
 import { FleetThemeRoot } from '@/components/fleet/FleetThemeRoot';
 import './fleet-theme.css';
 
@@ -26,17 +28,24 @@ export default async function FleetLayout({
     redirect('/billing');
   }
 
+  // Which product modules this fleet has switched on (drives the sidebar, the
+  // "+ New" menu and dashboard quick actions). Cached per request, so the
+  // per-page module guards reuse this same read.
+  const enabledModules = await getEnabledModuleKeys(user.organization_id);
+
   return (
     <BrandingShell>
-      <FleetBillingProvider
-        value={{
-          onTrial: billing.onTrial,
-          trialExpired: billing.trialExpired,
-          trialDaysLeft: billing.trialDaysLeft,
-        }}
-      >
-        <FleetThemeRoot>{children}</FleetThemeRoot>
-      </FleetBillingProvider>
+      <FleetModulesProvider enabled={Array.from(enabledModules)}>
+        <FleetBillingProvider
+          value={{
+            onTrial: billing.onTrial,
+            trialExpired: billing.trialExpired,
+            trialDaysLeft: billing.trialDaysLeft,
+          }}
+        >
+          <FleetThemeRoot>{children}</FleetThemeRoot>
+        </FleetBillingProvider>
+      </FleetModulesProvider>
     </BrandingShell>
   );
 }
