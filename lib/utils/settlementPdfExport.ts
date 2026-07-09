@@ -33,6 +33,11 @@ interface DriverSettlementData {
   totalBalanceBeforeTax: number;
   fssTax: number;
   finalBalance: number;
+  /** Wage line (hourly + fixed) for wage-based presets. 0/undefined = none. */
+  wageAmount?: number;
+  hoursWorked?: number;
+  /** Weekly vehicle rent deducted. 0/undefined = none. */
+  rentAmount?: number;
   driverAdjustments?: DriverAdjustment[];
   driverAdjustmentsNet?: number;
   status: string;
@@ -260,6 +265,13 @@ export function exportSettlementsPdf(options: ExportOptions): void {
       ['Cash Rides', `-${formatCurrency(settlement.totalCashRide)}`],
       ['Tips', `+${formatCurrency(settlement.totalTips)}`],
       ['Campaigns', `+${formatCurrency(settlement.totalCampaigns)}`],
+      // Wage line for wage-based presets, so the balance below adds up.
+      ...((settlement.wageAmount ?? 0) > 0
+        ? [[
+            `Wage${(settlement.hoursWorked ?? 0) > 0 ? ` (${settlement.hoursWorked}h)` : ''}`,
+            `+${formatCurrency(settlement.wageAmount ?? 0)}`,
+          ]]
+        : []),
       ['Balance Before Tax', formatCurrency(settlement.totalBalanceBeforeTax)],
       ['Driver Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
     ];
@@ -288,6 +300,10 @@ export function exportSettlementsPdf(options: ExportOptions): void {
     const finalData = [
       ['Balance Before Tax', formatCurrency(settlement.totalBalanceBeforeTax)],
       ['FSS / Tax Deduction', `-${formatCurrency(settlement.fssTax)}`],
+      // Rent line for rent presets, so Final Balance visibly adds up.
+      ...((settlement.rentAmount ?? 0) > 0
+        ? [['Vehicle Rent', `-${formatCurrency(settlement.rentAmount ?? 0)}`]]
+        : []),
       ['Final Balance (Settlement)', formatCurrency(settlement.finalBalance)],
       ['Driver Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
       ['PAYABLE BALANCE', formatCurrency(payableBalance)],

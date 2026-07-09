@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import FleetIcon from './FleetIcon';
+import GettingStartedCard, { type OnboardingState } from './GettingStartedCard';
 import {
   fmtEUR,
   EarningsLineChart,
@@ -51,6 +52,8 @@ interface FleetDashboardProps {
   expenseBreakdown: ExpenseDatum[];
   expiringDocs: ExpiringDoc[];
   recentShifts: RecentShift[];
+  /** Getting-started checklist state (admin only). Omitted → card not shown. */
+  onboarding?: OnboardingState;
 }
 
 export default function FleetDashboard({
@@ -62,9 +65,12 @@ export default function FleetDashboard({
   expenseBreakdown,
   expiringDocs,
   recentShifts,
+  onboarding,
 }: FleetDashboardProps) {
   return (
     <>
+      {isAdmin && onboarding && <GettingStartedCard state={onboarding} />}
+
       <HeroStrip userName={userName} stats={stats} totals={totals} financialSeries={financialSeries} isAdmin={isAdmin} />
 
       {isAdmin && financialSeries.length > 0 && (

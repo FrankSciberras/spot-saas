@@ -136,6 +136,86 @@ export const DEFAULT_SCHEME: SettlementScheme = {
 export const DRIVER_SHARE_PERCENT = DEFAULT_SCHEME.driverSharePct;
 
 /**
+ * Settlement components — the toggleable "columns" of a settlement.
+ *
+ * Every line that contributes to (or is deducted from) a driver's pay is a
+ * component that can be switched on/off per preset, so the same engine covers
+ * the Malta-style revenue split, a plain hourly/fixed wage, or any mix:
+ *   share     — driver's % of gross fares
+ *   fee       — platform fee borne by the driver (deduction)
+ *   cash      — cash collected by the driver (deduction)
+ *   tips      — tips line (addition)
+ *   campaigns — campaign bonuses line (addition)
+ *   hours     — hourly wage: hourly_rate × hours worked (addition)
+ *   fixed     — fixed weekly wage (addition)
+ *   tax       — FSS/tax withholding (deduction)
+ *   rent      — weekly vehicle rent (deduction)
+ */
+export type SettlementComponentKey =
+  | 'share'
+  | 'fee'
+  | 'cash'
+  | 'tips'
+  | 'campaigns'
+  | 'hours'
+  | 'fixed'
+  | 'tax'
+  | 'rent';
+
+export type SettlementComponents = Record<SettlementComponentKey, boolean>;
+
+/**
+ * Legacy defaults: the classic split lines on, wage lines off — so presets and
+ * settlements stored before components existed ('{}') behave exactly as before.
+ */
+export const DEFAULT_COMPONENTS: SettlementComponents = {
+  share: true,
+  fee: true,
+  cash: true,
+  tips: true,
+  campaigns: true,
+  hours: false,
+  fixed: false,
+  tax: true,
+  rent: true,
+};
+
+export const COMPONENT_KEYS = Object.keys(DEFAULT_COMPONENTS) as SettlementComponentKey[];
+
+/** Display metadata for the settings UI (grouped checkboxes). */
+export const COMPONENT_META: {
+  key: SettlementComponentKey;
+  label: string;
+  hint: string;
+  group: 'earnings' | 'deductions';
+}[] = [
+  { key: 'share', label: 'Share of fares', hint: 'Driver earns a % of gross fares', group: 'earnings' },
+  { key: 'hours', label: 'Hourly wage', hint: 'Hours worked × hourly rate (hours prefill from shifts)', group: 'earnings' },
+  { key: 'fixed', label: 'Fixed weekly wage', hint: 'A flat amount every settlement', group: 'earnings' },
+  { key: 'tips', label: 'Tips', hint: 'Tips line on the settlement', group: 'earnings' },
+  { key: 'campaigns', label: 'Campaigns', hint: 'Platform campaign bonuses', group: 'earnings' },
+  { key: 'fee', label: 'Platform fee', hint: 'Driver bears (part of) the platform commission', group: 'deductions' },
+  { key: 'cash', label: 'Cash collected', hint: 'Cash the driver already holds is deducted', group: 'deductions' },
+  { key: 'tax', label: 'FSS / Tax', hint: 'Tax withholding line', group: 'deductions' },
+  { key: 'rent', label: 'Weekly rent', hint: 'Fixed weekly vehicle rent', group: 'deductions' },
+];
+
+/**
+ * Resolve stored component toggles (jsonb, possibly partial/null) against the
+ * defaults. Unknown keys are ignored; missing keys fall back to the default.
+ */
+export function resolveComponents(raw: unknown): SettlementComponents {
+  const result = { ...DEFAULT_COMPONENTS };
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const key of COMPONENT_KEYS) {
+      const v = (raw as Record<string, unknown>)[key];
+      if (typeof v === 'boolean') result[key] = v;
+    }
+  }
+  return result;
+}
+
+/**
  * Loose shape of a settlement preset row (lib/types SettlementPreset), accepted
  * here structurally so callers can pass partial selects.
  */
@@ -147,6 +227,10 @@ export interface PresetLike {
   tax_type: 'flat' | 'percent';
   tax_value: number;
   rent_weekly: number;
+  /** Wage fields + toggles (optional: rows predating the pay-models migration). */
+  hourly_rate?: number | null;
+  fixed_wage_weekly?: number | null;
+  components?: unknown;
 }
 
 /** Build a SettlementScheme from a preset row, clamping every percentage. */

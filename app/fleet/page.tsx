@@ -34,7 +34,16 @@ export default async function FleetDashboardPage() {
 async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: boolean }) {
   const supabase = await createClient();
 
-  const [driversResult, vehiclesResult, shiftsResult] = await Promise.all([
+  // Onboarding signals (admin only): whether pay is configured (any preset) and
+  // whether a first settlement exists. `head + count` keeps these near-free.
+  const onboardingProbe = isAdmin
+    ? Promise.all([
+        supabase.from('settlement_presets').select('id', { count: 'exact', head: true }),
+        supabase.from('driver_settlements').select('id', { count: 'exact', head: true }),
+      ])
+    : Promise.resolve([{ count: 1 }, { count: 1 }] as { count: number | null }[]);
+
+  const [driversResult, vehiclesResult, shiftsResult, [presetProbe, settlementProbe]] = await Promise.all([
     supabase.from('drivers').select('id, status'),
     supabase.from('vehicles').select('id, status'),
     supabase
@@ -42,6 +51,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
       .select('id, start_time, driver_id, drivers(full_name), vehicles(registration_number)')
       .order('start_time', { ascending: false })
       .limit(6),
+    onboardingProbe,
   ]);
 
   const drivers = driversResult.data || [];
@@ -171,6 +181,15 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
 
   const userName = user.full_name?.split(' ')[0] || 'there';
 
+  const onboarding = isAdmin
+    ? {
+        hasDrivers: totalDrivers > 0,
+        hasVehicles: totalVehicles > 0,
+        hasPay: (presetProbe.count ?? 0) > 0,
+        hasSettlement: (settlementProbe.count ?? 0) > 0,
+      }
+    : undefined;
+
   return (
     <FleetDashboard
       userName={userName}
@@ -189,6 +208,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
       expenseBreakdown={expenseBreakdown}
       expiringDocs={topExpiringDocs}
       recentShifts={recentShifts}
+      onboarding={onboarding}
     />
   );
 }

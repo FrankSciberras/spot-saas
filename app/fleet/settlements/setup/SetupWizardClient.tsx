@@ -1,17 +1,25 @@
 'use client';
 
 // =============================================================================
-// SETTLEMENT SETUP WIZARD
+// SETTLEMENT SETUP WIZARD — the "pay interview"
 // =============================================================================
-// A guided Q&A for fleet operators: pick platforms, describe how drivers are
-// paid, tips/campaigns/fee handling, tax withholding and standing weekly
-// charges — then everything is created in one go via the existing server
-// actions (platforms, settlement preset + fleet default, recurring rules).
-// Nothing is saved until the final "Finish" click, except that retries after a
-// partial failure skip the parts that already succeeded.
+// A guided, plain-English Q&A for fleet operators. The headline question is
+// "How do you pay your drivers?" and the follow-ups BRANCH from the answer:
+//
+//   • Share of earnings  → % split (+ optional weekly rent), tips, campaigns, fee
+//   • Hourly wage        → €/hour (hours auto-fill from shifts) + tips
+//   • Fixed weekly wage  → flat €/week + tips
+//   • Wage + commission  → €/hour base AND a % of fares
+//
+// Each model sets the settlement COMPONENTS (which lines the settlement
+// calculates) plus the wage rates, then everything is created in one go via the
+// existing server actions. The review step shows a LIVE example settlement — run
+// through the real calculateSettlement — so the owner can trust the maths before
+// saving. Nothing is saved until "Finish"; retries after a partial failure skip
+// the parts that already succeeded.
 // =============================================================================
 
-import { useRef, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { OrgPlatform } from '@/lib/types/database';
@@ -22,6 +30,12 @@ import {
   setPlatformActiveAction,
 } from '@/lib/actions/platforms';
 import { createRecurringAdjustmentAction } from '@/lib/actions/recurring-adjustments';
+import {
+  DEFAULT_COMPONENTS,
+  type SettlementComponents,
+  type SettlementScheme,
+} from '@/lib/config/settlements';
+import { calculateSettlement, formatCurrency, round2 } from '@/lib/utils/settlementCalculations';
 import styles from './setup-wizard.module.css';
 
 interface Props {
@@ -31,18 +45,10 @@ interface Props {
   driverCount: number;
 }
 
-type StepId = 'welcome' | 'platforms' | 'pay' | 'extras' | 'tax' | 'charges' | 'review' | 'done';
+type StepId = 'welcome' | 'pay' | 'platforms' | 'extras' | 'tax' | 'charges' | 'review' | 'done';
 
-const QUESTION_STEPS: { id: StepId; label: string }[] = [
-  { id: 'platforms', label: 'Platforms' },
-  { id: 'pay', label: 'Pay model' },
-  { id: 'extras', label: 'Tips & fees' },
-  { id: 'tax', label: 'Tax' },
-  { id: 'charges', label: 'Weekly charges' },
-  { id: 'review', label: 'Review' },
-];
-
-type PayModel = 'split' | 'rent' | 'split_rent';
+/** The four pay models. Everything else branches from this choice. */
+type PayModel = 'share' | 'hourly' | 'fixed' | 'wage_share';
 type FeeWho = 'driver' | 'fleet' | 'split';
 type TaxChoice = 'flat' | 'percent' | 'none';
 
@@ -64,8 +70,17 @@ interface ChargeDraft {
 
 const SHARE_QUICK_PICKS = ['40', '45', '50', '55', '60'];
 
+// Figures used for the live example on the review step.
+const SAMPLE_GROSS = 1000;
+const SAMPLE_TIPS = 40;
+const SAMPLE_HOURS = 40;
+
 function fmtNum(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+
+function clampPct(value: string): number {
+  return Math.min(100, Math.max(0, parseFloat(value) || 0));
 }
 
 function todayLocal(): string {
@@ -96,7 +111,12 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
 
   const [payModel, setPayModel] = useState<PayModel | null>(null);
   const [sharePct, setSharePct] = useState('50');
+  const [hourlyRate, setHourlyRate] = useState('10');
+  const [fixedWage, setFixedWage] = useState('500');
+  const [hasRent, setHasRent] = useState(false);
   const [rentWeekly, setRentWeekly] = useState('150');
+  // "The share isn't the same for every driver" — drives guidance at the end.
+  const [splitVaries, setSplitVaries] = useState(false);
 
   const [tipsAll, setTipsAll] = useState(true);
   const [tipsPct, setTipsPct] = useState('50');
@@ -121,30 +141,124 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
   const presetIdRef = useRef<string | null>(null);
   const chargesCreated = useRef(0);
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const stepIndex = QUESTION_STEPS.findIndex((s) => s.id === step);
+  // ── Derived pay-model facts ────────────────────────────────────────────────
+  const shareBased = payModel === 'share' || payModel === 'wage_share';
+  const usesHours = payModel === 'hourly' || payModel === 'wage_share';
+  const usesFixed = payModel === 'fixed';
+  const isWageOnly = payModel === 'hourly' || payModel === 'fixed';
+
+  const effectiveShare = shareBased ? clampPct(sharePct) : 0;
+  const effectiveRent = hasRent && shareBased ? Math.max(0, parseFloat(rentWeekly) || 0) : 0;
+  const effectiveHourly = usesHours ? Math.max(0, parseFloat(hourlyRate) || 0) : 0;
+  const effectiveFixed = usesFixed ? Math.max(0, parseFloat(fixedWage) || 0) : 0;
+
+  // The steps shown depend on the pay model: pure-wage fleets skip the
+  // platforms step (no fares to split) and get a slimmed "tips only" extras step.
+  const questionSteps = useMemo(() => {
+    const steps: { id: StepId; label: string }[] = [{ id: 'pay', label: 'Pay model' }];
+    if (shareBased) steps.push({ id: 'platforms', label: 'Platforms' });
+    steps.push({ id: 'extras', label: shareBased ? 'Tips & fees' : 'Tips' });
+    steps.push({ id: 'tax', label: 'Tax' });
+    steps.push({ id: 'charges', label: 'Weekly charges' });
+    steps.push({ id: 'review', label: 'Review' });
+    return steps;
+  }, [shareBased]);
+
+  const flow = questionSteps.map((s) => s.id);
+  const stepIndex = questionSteps.findIndex((s) => s.id === step);
   const activePlatformCount = platformDrafts.filter((d) => d.active).length;
 
-  const effectiveShare = payModel === 'rent' ? 100 : Math.min(100, Math.max(0, parseFloat(sharePct) || 0));
-  const effectiveRent = payModel === 'split' ? 0 : Math.max(0, parseFloat(rentWeekly) || 0);
+  // ── The settlement components + scheme this wizard will produce ─────────────
+  const components: SettlementComponents = useMemo(
+    () => ({
+      share: shareBased,
+      fee: shareBased,
+      cash: shareBased,
+      // Share models always have a tips line (split by tipsPct); wage models
+      // include it only when the driver keeps their tips.
+      tips: shareBased ? true : tipsAll,
+      campaigns: shareBased,
+      hours: usesHours,
+      fixed: usesFixed,
+      tax: taxChoice !== 'none',
+      rent: effectiveRent > 0,
+    }),
+    [shareBased, usesHours, usesFixed, taxChoice, tipsAll, effectiveRent]
+  );
+
+  const scheme: SettlementScheme = useMemo(
+    () => ({
+      driverSharePct: effectiveShare,
+      tipsDriverPct: tipsAll ? 100 : clampPct(tipsPct),
+      campaignsDriverPct: campaignsAll ? 100 : clampPct(campaignsPct),
+      feeDriverPct: feeWho === 'driver' ? 100 : feeWho === 'fleet' ? 0 : 50,
+    }),
+    [effectiveShare, tipsAll, tipsPct, campaignsAll, campaignsPct, feeWho]
+  );
 
   const suggestedName = (): string => {
-    if (payModel === 'rent') return `Rent-a-car €${fmtNum(effectiveRent)}/wk`;
+    if (payModel === 'hourly') return `Hourly €${fmtNum(effectiveHourly)}/h`;
+    if (payModel === 'fixed') return `Fixed €${fmtNum(effectiveFixed)}/wk`;
+    if (payModel === 'wage_share') return `€${fmtNum(effectiveHourly)}/h + ${fmtNum(effectiveShare)}%`;
     const split = `${fmtNum(effectiveShare)}/${fmtNum(100 - effectiveShare)}`;
-    if (payModel === 'split_rent') return `${split} + €${fmtNum(effectiveRent)} rent`;
+    if (effectiveRent > 0) return effectiveShare >= 100 ? `Rent-a-car €${fmtNum(effectiveRent)}/wk` : `${split} + €${fmtNum(effectiveRent)} rent`;
     return `Standard ${split}`;
   };
 
   const presetInput = (): PresetInput => ({
     name: presetName.trim(),
     driver_share_pct: effectiveShare,
-    tips_driver_pct: tipsAll ? 100 : Math.min(100, Math.max(0, parseFloat(tipsPct) || 0)),
-    campaigns_driver_pct: campaignsAll ? 100 : Math.min(100, Math.max(0, parseFloat(campaignsPct) || 0)),
+    tips_driver_pct: tipsAll ? 100 : clampPct(tipsPct),
+    campaigns_driver_pct: campaignsAll ? 100 : clampPct(campaignsPct),
     fee_driver_pct: feeWho === 'driver' ? 100 : feeWho === 'fleet' ? 0 : 50,
     tax_type: taxChoice === 'percent' ? 'percent' : 'flat',
     tax_value: taxChoice === 'none' ? 0 : Math.max(0, parseFloat(taxValue) || 0),
     rent_weekly: effectiveRent,
+    hourly_rate: effectiveHourly,
+    fixed_wage_weekly: effectiveFixed,
+    components,
   });
+
+  // ── Live example settlement (uses the real engine) ─────────────────────────
+  const example = useMemo(() => {
+    const activePlatforms = platformDrafts.filter((d) => d.active);
+    const avgFee =
+      activePlatforms.length > 0
+        ? activePlatforms.reduce((s, d) => s + (parseFloat(d.feePct) || 0), 0) / activePlatforms.length
+        : 10;
+
+    const calc = calculateSettlement(
+      [
+        {
+          platformId: 'example',
+          grossFare: shareBased ? SAMPLE_GROSS : 0,
+          platformFeePercent: avgFee,
+          cashRide: 0,
+          tips: SAMPLE_TIPS,
+          campaigns: 0,
+        },
+      ],
+      0,
+      scheme,
+      effectiveRent,
+      {
+        components,
+        hoursWorked: SAMPLE_HOURS,
+        hourlyRate: effectiveHourly,
+        fixedWageWeekly: effectiveFixed,
+      }
+    );
+
+    const taxVal =
+      taxChoice === 'none'
+        ? 0
+        : taxChoice === 'percent'
+          ? round2(Math.max(0, calc.totalBalanceBeforeTax) * (Math.max(0, parseFloat(taxValue) || 0) / 100))
+          : Math.max(0, parseFloat(taxValue) || 0);
+
+    const final = round2(calc.totalBalanceBeforeTax - taxVal - calc.rent);
+    return { calc, taxVal, final };
+  }, [platformDrafts, shareBased, scheme, effectiveRent, components, effectiveHourly, effectiveFixed, taxChoice, taxValue]);
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const goTo = (next: StepId) => {
@@ -153,51 +267,54 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
   };
 
   const next = () => {
-    if (step === 'welcome') return goTo('platforms');
-    if (step === 'platforms') {
-      if (activePlatformCount === 0) {
-        setError('Keep at least one platform ticked — settlements need at least one.');
-        return;
-      }
-      return goTo('pay');
-    }
+    if (step === 'welcome') return goTo(flow[0]);
+
     if (step === 'pay') {
       if (!payModel) {
         setError('Pick the option that matches how you pay your drivers.');
         return;
       }
-      if (payModel !== 'split' && effectiveRent <= 0) {
-        setError('Enter the weekly rent amount (more than €0).');
-        return;
-      }
-      if (payModel !== 'rent' && (effectiveShare <= 0 || effectiveShare > 100)) {
+      if (shareBased && (effectiveShare <= 0 || effectiveShare > 100)) {
         setError('Enter a driver share between 1 and 100%.');
         return;
       }
-      return goTo('extras');
-    }
-    if (step === 'extras') return goTo('tax');
-    if (step === 'tax') {
-      if (taxChoice !== 'none' && (parseFloat(taxValue) || 0) < 0) {
-        setError('Enter a valid tax amount.');
+      if (usesHours && effectiveHourly <= 0) {
+        setError('Enter an hourly rate greater than €0.');
         return;
       }
-      return goTo('charges');
+      if (usesFixed && effectiveFixed <= 0) {
+        setError('Enter a weekly wage greater than €0.');
+        return;
+      }
+      if (hasRent && shareBased && effectiveRent <= 0) {
+        setError('Enter the weekly rent amount (more than €0), or untick vehicle rent.');
+        return;
+      }
     }
-    if (step === 'charges') {
-      if (!nameTouched.current) setPresetName(suggestedName());
-      return goTo('review');
+
+    if (step === 'platforms' && activePlatformCount === 0) {
+      setError('Keep at least one platform ticked — settlements need at least one.');
+      return;
     }
+
+    if (step === 'tax' && taxChoice !== 'none' && (parseFloat(taxValue) || 0) < 0) {
+      setError('Enter a valid tax amount.');
+      return;
+    }
+
+    if (step === 'charges' && !nameTouched.current) {
+      setPresetName(suggestedName());
+    }
+
+    const nextId = flow[stepIndex + 1];
+    if (nextId) goTo(nextId);
   };
 
   const back = () => {
     setError('');
-    if (step === 'platforms') return setStep('welcome');
-    if (step === 'pay') return setStep('platforms');
-    if (step === 'extras') return setStep('pay');
-    if (step === 'tax') return setStep('extras');
-    if (step === 'charges') return setStep('tax');
-    if (step === 'review') return setStep('charges');
+    if (step === flow[0]) return setStep('welcome');
+    const prevId = flow[stepIndex - 1];
+    setStep(prevId ?? 'welcome');
   };
 
   // ── Platform step helpers ─────────────────────────────────────────────────
@@ -251,8 +368,9 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
     }
     setError('');
     startSaving(async () => {
-      // 1. Platforms (idempotent on retry). Order matters for the server-side
-      //    "at least one active" guard: create/enable first, disable last.
+      // 1. Platforms (idempotent on retry). Only relevant for share-based
+      //    models, but harmless to apply otherwise. Order matters for the
+      //    server-side "at least one active" guard: create/enable, then disable.
       if (!platformsApplied.current) {
         const fail = (msg: string) => setError(`Platforms: ${msg}`);
 
@@ -294,7 +412,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
         platformsApplied.current = true;
       }
 
-      // 2. The preset itself.
+      // 2. The preset itself (components + wage rates included).
       if (!presetIdRef.current) {
         const res = await createPresetAction(presetInput());
         if (res.error || !res.id) {
@@ -342,26 +460,36 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
   // ── Plain-English review lines ────────────────────────────────────────────
   const reviewLines = (): string[] => {
     const lines: string[] = [];
-    const names = platformDrafts.filter((d) => d.active).map((d) => `${d.name} (${d.feePct || 0}% fee)`);
-    lines.push(`Platforms: ${names.join(', ')}`);
 
-    if (payModel === 'rent') {
+    if (payModel === 'hourly') {
+      lines.push(`Drivers are paid €${fmtNum(effectiveHourly)} per hour worked (hours fill in automatically from their shifts)`);
+    } else if (payModel === 'fixed') {
+      lines.push(`Drivers are paid a fixed €${fmtNum(effectiveFixed)} per week`);
+    } else if (payModel === 'wage_share') {
+      lines.push(`Drivers earn €${fmtNum(effectiveHourly)} per hour PLUS ${fmtNum(effectiveShare)}% of their fares`);
+    } else if (effectiveRent > 0 && effectiveShare >= 100) {
       lines.push(`Drivers keep 100% of fares and pay €${fmtNum(effectiveRent)} vehicle rent per week`);
-    } else if (payModel === 'split_rent') {
+    } else if (effectiveRent > 0) {
       lines.push(`Drivers keep ${fmtNum(effectiveShare)}% of fares, plus €${fmtNum(effectiveRent)} vehicle rent per week`);
     } else {
       lines.push(`Drivers keep ${fmtNum(effectiveShare)}% of fares (fleet keeps ${fmtNum(100 - effectiveShare)}%)`);
     }
 
-    lines.push(tipsAll ? 'Drivers keep all their tips' : `Drivers keep ${tipsPct || 0}% of tips`);
-    lines.push(campaignsAll ? 'Drivers keep all campaign bonuses' : `Drivers keep ${campaignsPct || 0}% of campaign bonuses`);
-    lines.push(
-      feeWho === 'driver'
-        ? 'The driver absorbs the platform commission'
-        : feeWho === 'fleet'
-          ? 'The fleet absorbs the platform commission'
-          : 'Platform commission is split 50/50'
-    );
+    if (shareBased) {
+      const names = platformDrafts.filter((d) => d.active).map((d) => `${d.name} (${d.feePct || 0}% fee)`);
+      lines.push(`Platforms: ${names.join(', ')}`);
+      lines.push(tipsAll ? 'Drivers keep all their tips' : `Drivers keep ${tipsPct || 0}% of tips`);
+      lines.push(campaignsAll ? 'Drivers keep all campaign bonuses' : `Drivers keep ${campaignsPct || 0}% of campaign bonuses`);
+      lines.push(
+        feeWho === 'driver'
+          ? 'The driver absorbs the platform commission'
+          : feeWho === 'fleet'
+            ? 'The fleet absorbs the platform commission'
+            : 'Platform commission is split 50/50'
+      );
+    } else {
+      lines.push(tipsAll ? 'Drivers keep their tips' : 'Tips are not tracked in settlements');
+    }
 
     if (taxChoice === 'none') lines.push('No tax withheld from payouts');
     else if (taxChoice === 'percent') lines.push(`Tax withheld: ${taxValue || 0}% of the weekly balance`);
@@ -369,6 +497,10 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
 
     for (const c of charges) {
       lines.push(`${c.kind === 'bonus' ? 'Weekly bonus' : 'Weekly charge'}: ${c.description} — €${c.amount} (all drivers)`);
+    }
+
+    if (splitVaries) {
+      lines.push('This is your standard deal — you’ll set different presets for specific drivers afterwards');
     }
     return lines;
   };
@@ -382,14 +514,14 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
         <div className={styles.progress}>
           <div className={styles.progressMeta}>
             <span className={styles.progressStep}>
-              Step {stepIndex + 1} of {QUESTION_STEPS.length} · {QUESTION_STEPS[stepIndex].label}
+              Step {stepIndex + 1} of {questionSteps.length} · {questionSteps[stepIndex].label}
             </span>
-            <span>{Math.round(((stepIndex + 1) / QUESTION_STEPS.length) * 100)}%</span>
+            <span>{Math.round(((stepIndex + 1) / questionSteps.length) * 100)}%</span>
           </div>
           <div className={styles.progressTrack}>
             <div
               className={styles.progressFill}
-              style={{ width: `${((stepIndex + 1) / QUESTION_STEPS.length) * 100}%` }}
+              style={{ width: `${((stepIndex + 1) / questionSteps.length) * 100}%` }}
             />
           </div>
         </div>
@@ -401,23 +533,24 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
         {/* ── Welcome ── */}
         {step === 'welcome' && (
           <>
-            <h1 className={styles.stepTitle}>Set up your settlement rules</h1>
+            <h1 className={styles.stepTitle}>Set up how you pay your drivers</h1>
             <p className={styles.stepDesc}>
-              Answer a few plain-English questions about how your fleet pays drivers, and this
-              wizard configures everything for you. Takes about two minutes.
+              Answer a few plain-English questions and this wizard configures your whole settlement
+              system — however you pay: a share of earnings, an hourly or fixed wage, or a mix.
+              Takes about two minutes.
             </p>
             <ul className={styles.welcomeList}>
               <li className={styles.welcomeItem}>
                 <span className={styles.welcomeNum}>1</span>
-                <span>Confirm the <strong>ride platforms</strong> your drivers work on (Bolt, Uber, …) and their commission.</span>
+                <span>Tell us <strong>how drivers are paid</strong> — we adapt every question to your answer.</span>
               </li>
               <li className={styles.welcomeItem}>
                 <span className={styles.welcomeNum}>2</span>
-                <span>Describe <strong>how drivers are paid</strong> — commission split, rent-a-car, tips, tax.</span>
+                <span>Fine-tune <strong>tips, tax and any weekly charges</strong> in plain English.</span>
               </li>
               <li className={styles.welcomeItem}>
                 <span className={styles.welcomeNum}>3</span>
-                <span>We create a <strong>settlement preset</strong> from your answers and apply it to all{driverCount > 0 ? ` ${driverCount}` : ''} drivers.</span>
+                <span>See a <strong>live example payslip</strong>, then we apply it to all{driverCount > 0 ? ` ${driverCount}` : ''} drivers.</span>
               </li>
             </ul>
             <p className={styles.welcomeNote}>
@@ -427,7 +560,154 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
           </>
         )}
 
-        {/* ── Platforms ── */}
+        {/* ── Pay model (the headline question) ── */}
+        {step === 'pay' && (
+          <>
+            <h1 className={styles.stepTitle}>How do you pay your drivers?</h1>
+            <p className={styles.stepDesc}>Pick the option closest to your deal — the next questions adapt to your choice.</p>
+            <div className={styles.optionGrid}>
+              <button
+                type="button"
+                className={`${styles.optionCard} ${payModel === 'share' ? styles.optionCardActive : ''}`}
+                onClick={() => { setPayModel('share'); setError(''); }}
+              >
+                <div className={styles.optionTitle}>💶 Share of earnings</div>
+                <div className={styles.optionDesc}>The driver keeps a percentage of what they earn; the fleet keeps the rest. The classic split (and rent-a-car).</div>
+              </button>
+              <button
+                type="button"
+                className={`${styles.optionCard} ${payModel === 'hourly' ? styles.optionCardActive : ''}`}
+                onClick={() => { setPayModel('hourly'); setError(''); }}
+              >
+                <div className={styles.optionTitle}>⏱️ Hourly wage</div>
+                <div className={styles.optionDesc}>Paid for the hours they work. Hours fill in automatically from their clocked shifts.</div>
+              </button>
+              <button
+                type="button"
+                className={`${styles.optionCard} ${payModel === 'fixed' ? styles.optionCardActive : ''}`}
+                onClick={() => { setPayModel('fixed'); setError(''); }}
+              >
+                <div className={styles.optionTitle}>📅 Fixed weekly wage</div>
+                <div className={styles.optionDesc}>A flat amount every week, whatever they earn on the road.</div>
+              </button>
+              <button
+                type="button"
+                className={`${styles.optionCard} ${payModel === 'wage_share' ? styles.optionCardActive : ''}`}
+                onClick={() => { setPayModel('wage_share'); setError(''); }}
+              >
+                <div className={styles.optionTitle}>➕ Wage + commission</div>
+                <div className={styles.optionDesc}>An hourly base wage plus a percentage of the fares they bring in.</div>
+              </button>
+            </div>
+
+            {/* Follow-ups for share of earnings */}
+            {shareBased && (
+              <div className={styles.followUp}>
+                <span className={styles.followUpLabel}>
+                  {payModel === 'wage_share' ? 'What percentage of fares does the driver keep (on top of the wage)?' : 'What percentage does the driver keep?'}
+                </span>
+                <div className={styles.quickPicks}>
+                  {SHARE_QUICK_PICKS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`${styles.quickPick} ${sharePct === p ? styles.quickPickActive : ''}`}
+                      onClick={() => setSharePct(p)}
+                    >
+                      {payModel === 'wage_share' ? `${p}%` : `${p}/${100 - Number(p)}`}
+                    </button>
+                  ))}
+                  <span className={styles.inlineControl}>
+                    <input
+                      type="number" min={1} max={100} step="0.5"
+                      className={styles.numInput}
+                      value={sharePct}
+                      onChange={(e) => setSharePct(e.target.value)}
+                      aria-label="Driver share percent"
+                    />
+                    <span className={styles.suffix}>% to driver</span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Hourly rate (hourly + wage+commission) */}
+            {usesHours && (
+              <div className={styles.followUp}>
+                <span className={styles.followUpLabel}>
+                  {payModel === 'wage_share' ? 'What is the hourly base wage?' : 'What is the hourly rate?'}
+                </span>
+                <span className={styles.inlineControl}>
+                  <input
+                    type="number" min={0} step="0.25"
+                    className={styles.numInput}
+                    value={hourlyRate}
+                    onChange={(e) => setHourlyRate(e.target.value)}
+                    aria-label="Hourly rate in euro"
+                  />
+                  <span className={styles.suffix}>€ / hour — hours come from each driver&apos;s shifts</span>
+                </span>
+              </div>
+            )}
+
+            {/* Fixed weekly wage */}
+            {usesFixed && (
+              <div className={styles.followUp}>
+                <span className={styles.followUpLabel}>How much is the fixed weekly wage?</span>
+                <span className={styles.inlineControl}>
+                  <input
+                    type="number" min={0} step="10"
+                    className={styles.numInput}
+                    value={fixedWage}
+                    onChange={(e) => setFixedWage(e.target.value)}
+                    aria-label="Fixed weekly wage in euro"
+                  />
+                  <span className={styles.suffix}>€ / week</span>
+                </span>
+              </div>
+            )}
+
+            {/* Weekly rent (share model only) */}
+            {payModel === 'share' && (
+              <div className={styles.followUp}>
+                <label className={styles.defaultCheck}>
+                  <input type="checkbox" checked={hasRent} onChange={(e) => setHasRent(e.target.checked)} />
+                  <span>Drivers also pay a weekly vehicle rent</span>
+                </label>
+                {hasRent && (
+                  <span className={styles.inlineControl} style={{ marginTop: 8 }}>
+                    <input
+                      type="number" min={0} step="5"
+                      className={styles.numInput}
+                      value={rentWeekly}
+                      onChange={(e) => setRentWeekly(e.target.value)}
+                      aria-label="Weekly rent in euro"
+                    />
+                    <span className={styles.suffix}>€ / week — deducted from every settlement</span>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Per-driver variation (share-based) */}
+            {shareBased && (
+              <div className={styles.followUp}>
+                <label className={styles.defaultCheck}>
+                  <input type="checkbox" checked={splitVaries} onChange={(e) => setSplitVaries(e.target.checked)} />
+                  <span>The deal isn&apos;t the same for every driver</span>
+                </label>
+                {splitVaries && (
+                  <span className={styles.hint}>
+                    No problem — set your most common deal here as the default, then we&apos;ll show you how to
+                    give specific drivers their own preset at the end.
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Platforms (share-based only) ── */}
         {step === 'platforms' && (
           <>
             <h1 className={styles.stepTitle}>Which platforms do your drivers work on?</h1>
@@ -490,100 +770,28 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
           </>
         )}
 
-        {/* ── Pay model ── */}
-        {step === 'pay' && (
-          <>
-            <h1 className={styles.stepTitle}>How do you pay your drivers?</h1>
-            <p className={styles.stepDesc}>Pick the option closest to your deal — you can fine-tune the numbers right after.</p>
-            <div className={styles.optionGrid}>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${payModel === 'split' ? styles.optionCardActive : ''}`}
-                onClick={() => { setPayModel('split'); setError(''); }}
-              >
-                <div className={styles.optionTitle}>Commission split</div>
-                <div className={styles.optionDesc}>The driver keeps a percentage of what they earn; the fleet keeps the rest. The classic 50/50 deal.</div>
-              </button>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${payModel === 'rent' ? styles.optionCardActive : ''}`}
-                onClick={() => { setPayModel('rent'); setError(''); }}
-              >
-                <div className={styles.optionTitle}>Rent-a-car</div>
-                <div className={styles.optionDesc}>The driver keeps 100% of earnings and pays you a fixed weekly rent for the vehicle.</div>
-              </button>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${payModel === 'split_rent' ? styles.optionCardActive : ''}`}
-                onClick={() => { setPayModel('split_rent'); setError(''); }}
-              >
-                <div className={styles.optionTitle}>Split + rent</div>
-                <div className={styles.optionDesc}>A percentage split and a weekly vehicle rent on top.</div>
-              </button>
-            </div>
-
-            {(payModel === 'split' || payModel === 'split_rent') && (
-              <div className={styles.followUp}>
-                <span className={styles.followUpLabel}>What percentage does the driver keep?</span>
-                <div className={styles.quickPicks}>
-                  {SHARE_QUICK_PICKS.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`${styles.quickPick} ${sharePct === p ? styles.quickPickActive : ''}`}
-                      onClick={() => setSharePct(p)}
-                    >
-                      {p}/{100 - Number(p)}
-                    </button>
-                  ))}
-                  <span className={styles.inlineControl}>
-                    <input
-                      type="number" min={1} max={100} step="0.5"
-                      className={styles.numInput}
-                      value={sharePct}
-                      onChange={(e) => setSharePct(e.target.value)}
-                      aria-label="Driver share percent"
-                    />
-                    <span className={styles.suffix}>% to driver</span>
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {(payModel === 'rent' || payModel === 'split_rent') && (
-              <div className={styles.followUp}>
-                <span className={styles.followUpLabel}>How much is the weekly vehicle rent?</span>
-                <span className={styles.inlineControl}>
-                  <input
-                    type="number" min={0} step="5"
-                    className={styles.numInput}
-                    value={rentWeekly}
-                    onChange={(e) => setRentWeekly(e.target.value)}
-                    aria-label="Weekly rent in euro"
-                  />
-                  <span className={styles.suffix}>€ / week — deducted from every settlement</span>
-                </span>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── Tips, campaigns, platform fee ── */}
+        {/* ── Extras: tips (all models) + campaigns/fee (share-based) ── */}
         {step === 'extras' && (
           <>
-            <h1 className={styles.stepTitle}>Tips, bonuses &amp; platform fees</h1>
-            <p className={styles.stepDesc}>Most fleets let drivers keep tips and bonuses in full — change it here if your deal differs.</p>
+            <h1 className={styles.stepTitle}>{shareBased ? 'Tips, bonuses & platform fees' : 'What about tips?'}</h1>
+            <p className={styles.stepDesc}>
+              {shareBased
+                ? 'Most fleets let drivers keep tips and bonuses in full — change it here if your deal differs.'
+                : 'Your drivers are on a wage. Do they also keep any tips logged in the app?'}
+            </p>
 
             <div className={styles.subQuestion}>
-              <div className={styles.subQuestionLabel}>Do drivers keep 100% of their tips?</div>
+              <div className={styles.subQuestionLabel}>
+                {shareBased ? 'Do drivers keep 100% of their tips?' : 'Do drivers keep their tips?'}
+              </div>
               <div className={styles.pillRow}>
                 <button type="button" className={`${styles.quickPick} ${tipsAll ? styles.quickPickActive : ''}`} onClick={() => setTipsAll(true)}>
-                  Yes, all tips
+                  {shareBased ? 'Yes, all tips' : 'Yes, they keep tips'}
                 </button>
                 <button type="button" className={`${styles.quickPick} ${!tipsAll ? styles.quickPickActive : ''}`} onClick={() => setTipsAll(false)}>
-                  No, a share
+                  {shareBased ? 'No, a share' : 'No tips line'}
                 </button>
-                {!tipsAll && (
+                {shareBased && !tipsAll && (
                   <span className={styles.inlineControl}>
                     <input
                       type="number" min={0} max={100} step="0.5"
@@ -598,46 +806,50 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
               </div>
             </div>
 
-            <div className={styles.subQuestion}>
-              <div className={styles.subQuestionLabel}>Do drivers keep 100% of campaign bonuses?</div>
-              <div className={styles.subQuestionHint}>Campaigns are promo payouts from the platforms (quests, surge guarantees, referral bonuses).</div>
-              <div className={styles.pillRow}>
-                <button type="button" className={`${styles.quickPick} ${campaignsAll ? styles.quickPickActive : ''}`} onClick={() => setCampaignsAll(true)}>
-                  Yes, all bonuses
-                </button>
-                <button type="button" className={`${styles.quickPick} ${!campaignsAll ? styles.quickPickActive : ''}`} onClick={() => setCampaignsAll(false)}>
-                  No, a share
-                </button>
-                {!campaignsAll && (
-                  <span className={styles.inlineControl}>
-                    <input
-                      type="number" min={0} max={100} step="0.5"
-                      className={styles.numInput}
-                      value={campaignsPct}
-                      onChange={(e) => setCampaignsPct(e.target.value)}
-                      aria-label="Campaigns percent to driver"
-                    />
-                    <span className={styles.suffix}>% of bonuses go to the driver</span>
-                  </span>
-                )}
-              </div>
-            </div>
+            {shareBased && (
+              <>
+                <div className={styles.subQuestion}>
+                  <div className={styles.subQuestionLabel}>Do drivers keep 100% of campaign bonuses?</div>
+                  <div className={styles.subQuestionHint}>Campaigns are promo payouts from the platforms (quests, surge guarantees, referral bonuses).</div>
+                  <div className={styles.pillRow}>
+                    <button type="button" className={`${styles.quickPick} ${campaignsAll ? styles.quickPickActive : ''}`} onClick={() => setCampaignsAll(true)}>
+                      Yes, all bonuses
+                    </button>
+                    <button type="button" className={`${styles.quickPick} ${!campaignsAll ? styles.quickPickActive : ''}`} onClick={() => setCampaignsAll(false)}>
+                      No, a share
+                    </button>
+                    {!campaignsAll && (
+                      <span className={styles.inlineControl}>
+                        <input
+                          type="number" min={0} max={100} step="0.5"
+                          className={styles.numInput}
+                          value={campaignsPct}
+                          onChange={(e) => setCampaignsPct(e.target.value)}
+                          aria-label="Campaigns percent to driver"
+                        />
+                        <span className={styles.suffix}>% of bonuses go to the driver</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-            <div className={styles.subQuestion}>
-              <div className={styles.subQuestionLabel}>Who absorbs the platform commission?</div>
-              <div className={styles.subQuestionHint}>The cut Bolt/Uber take from each fare — someone has to carry it.</div>
-              <div className={styles.pillRow}>
-                <button type="button" className={`${styles.quickPick} ${feeWho === 'driver' ? styles.quickPickActive : ''}`} onClick={() => setFeeWho('driver')}>
-                  The driver
-                </button>
-                <button type="button" className={`${styles.quickPick} ${feeWho === 'fleet' ? styles.quickPickActive : ''}`} onClick={() => setFeeWho('fleet')}>
-                  The fleet
-                </button>
-                <button type="button" className={`${styles.quickPick} ${feeWho === 'split' ? styles.quickPickActive : ''}`} onClick={() => setFeeWho('split')}>
-                  Split 50/50
-                </button>
-              </div>
-            </div>
+                <div className={styles.subQuestion}>
+                  <div className={styles.subQuestionLabel}>Who absorbs the platform commission?</div>
+                  <div className={styles.subQuestionHint}>The cut Bolt/Uber take from each fare — someone has to carry it.</div>
+                  <div className={styles.pillRow}>
+                    <button type="button" className={`${styles.quickPick} ${feeWho === 'driver' ? styles.quickPickActive : ''}`} onClick={() => setFeeWho('driver')}>
+                      The driver
+                    </button>
+                    <button type="button" className={`${styles.quickPick} ${feeWho === 'fleet' ? styles.quickPickActive : ''}`} onClick={() => setFeeWho('fleet')}>
+                      The fleet
+                    </button>
+                    <button type="button" className={`${styles.quickPick} ${feeWho === 'split' ? styles.quickPickActive : ''}`} onClick={() => setFeeWho('split')}>
+                      Split 50/50
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
 
@@ -703,8 +915,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
             <h1 className={styles.stepTitle}>Any standing weekly charges or bonuses?</h1>
             <p className={styles.stepDesc}>
               Things every driver gets charged (or paid) automatically each week — insurance
-              contribution, cleaning fee, loyalty bonus. Skip this if there are none; vehicle rent
-              is already covered.
+              contribution, cleaning fee, loyalty bonus. Skip this if there are none{payModel === 'share' && hasRent ? '; vehicle rent is already covered' : ''}.
             </p>
 
             {charges.length > 0 && (
@@ -766,11 +977,11 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
           </>
         )}
 
-        {/* ── Review ── */}
+        {/* ── Review (with live example) ── */}
         {step === 'review' && (
           <>
             <h1 className={styles.stepTitle}>Does this look right?</h1>
-            <p className={styles.stepDesc}>Here&apos;s your setup in plain English. Go back to change anything — nothing is saved yet.</p>
+            <p className={styles.stepDesc}>Here&apos;s your setup in plain English, with a worked example. Go back to change anything — nothing is saved yet.</p>
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewLabel}>Your settlement rules</div>
@@ -781,6 +992,67 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     <span>{line}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Live example — run through the real settlement engine */}
+            <div className={styles.reviewSection}>
+              <div className={styles.reviewLabel}>Example payslip</div>
+              <div className={styles.exampleCard}>
+                <div className={styles.exampleIntro}>
+                  A driver who{shareBased ? ` earned ${formatCurrency(SAMPLE_GROSS)} in fares` : ''}
+                  {usesHours ? `${shareBased ? ',' : ''} worked ${SAMPLE_HOURS} hours` : ''}
+                  {' '}and got {formatCurrency(SAMPLE_TIPS)} in tips this week would take home:
+                </div>
+                <div className={styles.exampleRows}>
+                  {components.share && (
+                    <div className={styles.exampleRow}>
+                      <span>Share of fares ({fmtNum(effectiveShare)}%)</span>
+                      <span>{formatCurrency(example.calc.totalFiftyPercent)}</span>
+                    </div>
+                  )}
+                  {components.fee && (
+                    <div className={styles.exampleRow}>
+                      <span>Platform fee</span>
+                      <span className={styles.exampleNeg}>-{formatCurrency(example.calc.totalFee)}</span>
+                    </div>
+                  )}
+                  {components.hours && (
+                    <div className={styles.exampleRow}>
+                      <span>Hourly wage ({SAMPLE_HOURS}h × {formatCurrency(effectiveHourly)})</span>
+                      <span className={styles.examplePos}>+{formatCurrency(round2(SAMPLE_HOURS * effectiveHourly))}</span>
+                    </div>
+                  )}
+                  {components.fixed && (
+                    <div className={styles.exampleRow}>
+                      <span>Fixed weekly wage</span>
+                      <span className={styles.examplePos}>+{formatCurrency(effectiveFixed)}</span>
+                    </div>
+                  )}
+                  {components.tips && (
+                    <div className={styles.exampleRow}>
+                      <span>Tips{shareBased && !tipsAll ? ` (${tipsPct}%)` : ''}</span>
+                      <span className={styles.examplePos}>+{formatCurrency(example.calc.totalTips > 0 ? round2(SAMPLE_TIPS * (scheme.tipsDriverPct / 100)) : 0)}</span>
+                    </div>
+                  )}
+                  {components.rent && (
+                    <div className={styles.exampleRow}>
+                      <span>Vehicle rent</span>
+                      <span className={styles.exampleNeg}>-{formatCurrency(example.calc.rent)}</span>
+                    </div>
+                  )}
+                  {components.tax && (
+                    <div className={styles.exampleRow}>
+                      <span>FSS / Tax{taxChoice === 'percent' ? ` (${taxValue}%)` : ''}</span>
+                      <span className={styles.exampleNeg}>-{formatCurrency(example.taxVal)}</span>
+                    </div>
+                  )}
+                  <div className={`${styles.exampleRow} ${styles.exampleFinal}`}>
+                    <span>Driver takes home</span>
+                    <span className={example.final >= 0 ? styles.examplePos : styles.exampleNeg}>{formatCurrency(example.final)}</span>
+                  </div>
+                </div>
+                <div className={styles.exampleHint}>Illustrative figures — real settlements use each driver&apos;s actual earnings, hours and tips.</div>
               </div>
             </div>
 
@@ -817,12 +1089,15 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                   ? ` and all ${driverCount} of your drivers now follow it.`
                   : ' and new drivers will follow it automatically.'
                 : '.'}{' '}
-              You can fine-tune everything — or assign a different preset to specific drivers — in
-              Settlement Rules.
+              {splitVaries
+                ? 'For drivers on a different deal, create another preset and assign it to them in Settlement Rules.'
+                : 'You can fine-tune everything — or assign a different preset to specific drivers — in Settlement Rules.'}
             </p>
             <div className={styles.doneActions}>
               <Link href="/fleet/settlements" className="btn btn-primary">Go to Settlements</Link>
-              <Link href="/fleet/settlements/settings" className="btn btn-secondary">Review Settlement Rules</Link>
+              <Link href="/fleet/settlements/settings" className="btn btn-secondary">
+                {splitVaries ? 'Set per-driver presets' : 'Review Settlement Rules'}
+              </Link>
             </div>
           </div>
         )}

@@ -158,6 +158,12 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
               <span>Your Net</span>
               <span>{formatCurrency(latestSettlement.total_net)}</span>
             </div>
+            {(latestSettlement.wage_amount ?? 0) > 0 && (
+              <div className={styles.breakdownItem}>
+                <span>Wage{(latestSettlement.hours_worked ?? 0) > 0 ? ` (${latestSettlement.hours_worked}h)` : ''}</span>
+                <span>+{formatCurrency(latestSettlement.wage_amount)}</span>
+              </div>
+            )}
             <div className={styles.breakdownItem}>
               <span>FSS/Tax</span>
               <span>-{formatCurrency(latestSettlement.fss_tax)}</span>
@@ -352,6 +358,12 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
                       settlement.settlement_platforms.reduce((sum, p) => sum + (p.campaigns || 0), 0)
                     )}</span>
                   </div>
+                  {(settlement.wage_amount ?? 0) > 0 && (
+                    <div className={styles.summaryRow}>
+                      <span>Wage{(settlement.hours_worked ?? 0) > 0 ? ` (${settlement.hours_worked}h)` : ''}</span>
+                      <span>+{formatCurrency(settlement.wage_amount)}</span>
+                    </div>
+                  )}
                   <div className={styles.summaryRow}>
                     <span>FSS/Tax</span>
                     <span>-{formatCurrency(settlement.fss_tax)}</span>

@@ -5,6 +5,7 @@ import { resolvePlatforms } from '@/lib/config/settlements';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import SettlementsWorkspace from './SettlementsWorkspace';
+import SettlementsSetupPrompt from './SettlementsSetupPrompt';
 
 type FleetUser = Awaited<ReturnType<typeof requireRole>>;
 
@@ -40,10 +41,22 @@ async function SettlementsContent({ user }: { user: FleetUser }) {
     .select('*')
     .order('created_at');
 
+  // First-visit gate: a fleet with no presets has never configured how it pays
+  // drivers. Invite them into the guided pay interview instead of an empty
+  // workspace. (Existing fleets were seeded a "Standard" preset by migration, so
+  // this only ever shows for a brand-new fleet.)
+  if (!presets || presets.length === 0) {
+    return <SettlementsSetupPrompt isAdmin={isAdmin} />;
+  }
+
   // Active platforms for the entry form (falls back to the classic three).
+  // Scope to the ACTIVE org explicitly: RLS only narrows to orgs the user is a
+  // member of, so a multi-fleet account would otherwise get every fleet's
+  // platforms merged (duplicate bolt/uber/ecabs slugs).
   const { data: platformRows } = await supabase
     .from('org_platforms')
     .select('key, name, default_fee_pct, icon, color')
+    .eq('organization_id', user.organization_id)
     .eq('is_active', true)
     .order('sort_order');
   const platforms = resolvePlatforms(platformRows);

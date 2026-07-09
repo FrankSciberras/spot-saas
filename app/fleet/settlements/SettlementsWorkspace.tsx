@@ -6,7 +6,16 @@ import Link from 'next/link';
 import DatePicker from '@/components/shared/DatePicker';
 import AddDriverModal from '@/components/fleet/AddDriverModal';
 import SettlementImportModal, { type StagedImport, type ImportedFigures } from './SettlementImportModal';
-import { getDefaultFssTax, DEFAULT_SCHEME, schemeFromPreset, presetFlatTax, type PlatformConfig } from '@/lib/config/settlements';
+import {
+  getDefaultFssTax,
+  DEFAULT_SCHEME,
+  DEFAULT_COMPONENTS,
+  resolveComponents,
+  schemeFromPreset,
+  presetFlatTax,
+  type PlatformConfig,
+  type SettlementComponents,
+} from '@/lib/config/settlements';
 import {
   calculateSettlement,
   formatCurrency,
@@ -69,10 +78,26 @@ export default function SettlementsWorkspace({
   orgDriverSharePct,
   presets,
   orgDefaultPresetId,
-  platforms,
+  platforms: platformsProp,
 }: SettlementsWorkspaceProps) {
   const router = useRouter();
-  
+
+  // Fleet platforms for the entry form, deduped by id. A user who belongs to
+  // more than one fleet can receive org_platforms rows for EACH of their orgs
+  // (the active org is resolved in the app layer, not in RLS), so the same slug
+  // — bolt / uber / ecabs — could otherwise appear twice and collide as
+  // duplicate React keys in the table (and duplicate <option>s in the import
+  // modal). The page query is now scoped to the active org; this dedupe keeps
+  // the rows unique regardless of what the caller passes. First occurrence wins.
+  const platforms = useMemo(() => {
+    const seen = new Set<string>();
+    return platformsProp.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [platformsProp]);
+
   // Navigation state - Year > Month > Week hierarchy
   // Use lazy initialization to avoid hydration mismatch
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
@@ -104,6 +129,9 @@ export default function SettlementsWorkspace({
   // When set, FSS/tax auto-derives as this % of the balance before tax (from a
   // percent-tax preset). Cleared the moment the operator edits the tax field.
   const [taxAutoPct, setTaxAutoPct] = useState<number | null>(null);
+  // Hours worked (wage presets): prefilled from the driver's clocked shifts,
+  // editable before saving.
+  const [hoursWorked, setHoursWorked] = useState('0');
 
   // CSV import: staged figures per driver/platform (nothing saved until the
   // operator creates drafts or saves a prefilled form).
@@ -499,6 +527,9 @@ export default function SettlementsWorkspace({
         totalBalanceBeforeTax: s.total_balance_before_tax,
         fssTax: s.fss_tax,
         finalBalance: s.final_balance,
+        wageAmount: s.wage_amount ?? 0,
+        hoursWorked: s.hours_worked ?? 0,
+        rentAmount: s.rent_amount ?? 0,
         driverAdjustments,
         driverAdjustmentsNet,
         status: s.status,
@@ -601,6 +632,25 @@ export default function SettlementsWorkspace({
       const driverScheme = preset
         ? schemeFromPreset(preset)
         : { ...DEFAULT_SCHEME, driverSharePct: driver?.settlement_driver_share_pct ?? orgDriverSharePct };
+
+      // Wage presets: prefill the hours from clocked shifts so imported drafts
+      // price the wage line too (still editable per settlement afterwards).
+      const driverComponents = preset ? resolveComponents(preset.components) : DEFAULT_COMPONENTS;
+      let driverHours = 0;
+      if (driverComponents.hours) {
+        try {
+          const from = dateOnly(currentPeriod.startISO);
+          const to = dateOnly(currentPeriod.endISO);
+          const hoursRes = await fetch(
+            `/api/shifts/hours?driver_id=${encodeURIComponent(driverId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+          );
+          const hoursJson = await hoursRes.json();
+          if (hoursRes.ok && typeof hoursJson.hours === 'number') driverHours = hoursJson.hours;
+        } catch {
+          // 0 hours — the operator can fix it when reviewing the draft
+        }
+      }
+
       const base = calculateSettlement(
         platformsPayload.map(p => ({
           platformId: p.platform_id,
@@ -612,10 +662,18 @@ export default function SettlementsWorkspace({
         })),
         0,
         driverScheme,
-        0
+        0,
+        {
+          components: driverComponents,
+          hoursWorked: driverHours,
+          hourlyRate: Number(preset?.hourly_rate) || 0,
+          fixedWageWeekly: Number(preset?.fixed_wage_weekly) || 0,
+        }
       );
       let tax: number;
-      if (preset && preset.tax_type === 'percent') {
+      if (!driverComponents.tax) {
+        tax = 0;
+      } else if (preset && preset.tax_type === 'percent') {
         tax = round2(Math.max(0, base.totalBalanceBeforeTax) * (preset.tax_value / 100));
       } else if (preset) {
         tax = presetFlatTax(preset, driver?.employment_type) ?? 0;
@@ -635,6 +693,7 @@ export default function SettlementsWorkspace({
             period_name: currentPeriod.periodName || null,
             settlement_month: settlementMonth || null,
             fss_tax: tax,
+            hours_worked: driverHours,
             notes: null,
             status: 'draft',
             platforms: platformsPayload,
@@ -756,6 +815,7 @@ export default function SettlementsWorkspace({
       setPeriodName(existing.period_name || currentPeriod.periodName || '');
       setFssTax(existing.fss_tax.toString());
       setTaxAutoPct(null); // editing: the stored tax is the source of truth
+      setHoursWorked(String(existing.hours_worked ?? 0));
       setNotes(existing.notes || '');
       // Current platforms first, then any snapshot platforms no longer in the
       // fleet's list (deactivated/deleted) so their saved figures stay visible.
@@ -808,6 +868,9 @@ export default function SettlementsWorkspace({
         const defaultFss = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
         setFssTax(defaultFss.toString());
       }
+      // Reset hours; the effect below prefills them from clocked shifts when
+      // the driver's preset pays by the hour.
+      setHoursWorked('0');
       setNotes('');
       // Prefill from CSV-imported staged figures when we have them.
       const staged = stagedImport[driverId];
@@ -871,6 +934,60 @@ export default function SettlementsWorkspace({
     ? (existingSettlement.rent_amount ?? 0)
     : (currentPreset?.rent_weekly ?? 0);
 
+  // Component toggles ("which columns count"): frozen snapshot when editing,
+  // else from the driver's preset. {} / no preset = the classic split lines.
+  const components: SettlementComponents = useMemo(() => {
+    if (existingSettlement) return resolveComponents(existingSettlement.components);
+    if (currentPreset) return resolveComponents(currentPreset.components);
+    return DEFAULT_COMPONENTS;
+  }, [existingSettlement, currentPreset]);
+
+  // Wage rates: frozen snapshot when editing (fixed part = wage − rate×hours),
+  // else from the preset.
+  const hourlyRate = existingSettlement
+    ? Number(existingSettlement.hourly_rate) || 0
+    : Number(currentPreset?.hourly_rate) || 0;
+  const fixedWageWeekly = existingSettlement
+    ? Math.max(
+        0,
+        round2(
+          (Number(existingSettlement.wage_amount) || 0) -
+            round2((Number(existingSettlement.hourly_rate) || 0) * (Number(existingSettlement.hours_worked) || 0))
+        )
+      )
+    : Number(currentPreset?.fixed_wage_weekly) || 0;
+
+  // The platform table only matters when at least one platform-based line counts
+  // (a pure-wage preset hides it entirely).
+  const showPlatformTable =
+    components.share || components.fee || components.cash || components.tips || components.campaigns;
+
+  // Prefill hours from the driver's clocked shifts for NEW hourly settlements.
+  useEffect(() => {
+    if (!selectedDriverId || !currentPeriod || existingSettlement) return;
+    if (!components.hours) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const from = dateOnly(currentPeriod.startISO);
+        const to = dateOnly(currentPeriod.endISO);
+        const res = await fetch(
+          `/api/shifts/hours?driver_id=${encodeURIComponent(selectedDriverId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+        );
+        const json = await res.json();
+        if (!cancelled && res.ok && typeof json.hours === 'number') {
+          setHoursWorked(String(json.hours));
+        }
+      } catch {
+        // keep the manual 0 — the operator can type the hours
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDriverId, currentPeriod?.startISO, existingSettlement?.id, components.hours]);
+
   // Calculate settlement in real-time. When the preset uses percent tax and the
   // operator hasn't overridden it (taxAutoPct set), the tax derives live from
   // the balance before tax instead of the input field.
@@ -883,17 +1000,24 @@ export default function SettlementsWorkspace({
       tips: parseFloat(p.tips) || 0,
       campaigns: parseFloat(p.campaigns) || 0,
     }));
-    const base = calculateSettlement(inputs, 0, scheme, 0);
+    const base = calculateSettlement(inputs, 0, scheme, 0, {
+      components,
+      hoursWorked: parseFloat(hoursWorked) || 0,
+      hourlyRate,
+      fixedWageWeekly,
+    });
     const effTax = taxAutoPct !== null
       ? round2(Math.max(0, base.totalBalanceBeforeTax) * (taxAutoPct / 100))
       : parseFloat(fssTax) || 0;
+    const effTaxApplied = components.tax ? effTax : 0;
+    const effRent = components.rent ? rentAmount : 0;
     return {
       ...base,
-      fssTax: round2(effTax),
-      rent: round2(rentAmount),
-      finalBalance: round2(base.totalBalanceBeforeTax - effTax - rentAmount),
+      fssTax: round2(effTaxApplied),
+      rent: round2(effRent),
+      finalBalance: round2(base.totalBalanceBeforeTax - effTaxApplied - effRent),
     };
-  }, [platformData, fssTax, scheme, taxAutoPct, rentAmount]);
+  }, [platformData, fssTax, scheme, taxAutoPct, rentAmount, components, hoursWorked, hourlyRate, fixedWageWeekly]);
 
   // Save settlement
   const handleSave = async (status: 'draft' | 'finalized' = 'draft') => {
@@ -923,6 +1047,7 @@ export default function SettlementsWorkspace({
         settlement_month: settlementMonth || null,
         // Effective tax: auto-derived (% presets) or the manual field value.
         fss_tax: calculation.fssTax,
+        hours_worked: parseFloat(hoursWorked) || 0,
         notes: notes || null,
         status,
         platforms: platformData.map(p => ({
@@ -1748,20 +1873,21 @@ export default function SettlementsWorkspace({
               {error && <div className={styles.errorAlert}>{error}</div>}
               {successMessage && <div className={styles.successAlert}>{successMessage}</div>}
 
-              {/* Platform Table */}
+              {/* Platform Table — only the columns this driver's preset calculates */}
+              {showPlatformTable && (
               <div className={styles.platformTableWrapper}>
                 <table className={styles.platformTable}>
                   <thead>
                     <tr>
                       <th>Platform</th>
                       <th>Gross</th>
-                      <th>Share {currentSharePct}%</th>
-                      <th>Fee %</th>
-                      <th>Fee</th>
-                      <th>Net</th>
-                      <th>Cash</th>
-                      <th>Tips</th>
-                      <th>Campaigns</th>
+                      {components.share && <th>Share {currentSharePct}%</th>}
+                      {components.fee && <th>Fee %</th>}
+                      {components.fee && <th>Fee</th>}
+                      {(components.share || components.fee) && <th>Net</th>}
+                      {components.cash && <th>Cash</th>}
+                      {components.tips && <th>Tips</th>}
+                      {components.campaigns && <th>Campaigns</th>}
                       <th>Balance</th>
                     </tr>
                   </thead>
@@ -1769,7 +1895,7 @@ export default function SettlementsWorkspace({
                     {platformData.map((platform, index) => {
                       const calc = calculation.platforms[index];
                       const platformConfig = platforms.find(p => p.id === platform.platformId);
-                      
+
                       return (
                         <tr key={platform.platformId}>
                           <td>
@@ -1788,57 +1914,71 @@ export default function SettlementsWorkspace({
                               disabled={!isAdmin}
                             />
                           </td>
-                          <td className={styles.calculatedValue}>
-                            {formatCurrency(calc.fiftyPercent)}
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="100"
-                              value={platform.platformFeePercent}
-                              onChange={(e) => handlePlatformChange(index, 'platformFeePercent', e.target.value)}
-                              disabled={!isAdmin}
-                              style={{ width: '50px' }}
-                            />
-                          </td>
-                          <td className={styles.calculatedValue}>
-                            {formatCurrency(calc.fee)}
-                          </td>
-                          <td className={styles.calculatedValue}>
-                            {formatCurrency(calc.net)}
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={platform.cashRide}
-                              onChange={(e) => handlePlatformChange(index, 'cashRide', e.target.value)}
-                              disabled={!isAdmin}
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={platform.tips}
-                              onChange={(e) => handlePlatformChange(index, 'tips', e.target.value)}
-                              disabled={!isAdmin}
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={platform.campaigns}
-                              onChange={(e) => handlePlatformChange(index, 'campaigns', e.target.value)}
-                              disabled={!isAdmin}
-                            />
-                          </td>
+                          {components.share && (
+                            <td className={styles.calculatedValue}>
+                              {formatCurrency(calc.fiftyPercent)}
+                            </td>
+                          )}
+                          {components.fee && (
+                            <td>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                value={platform.platformFeePercent}
+                                onChange={(e) => handlePlatformChange(index, 'platformFeePercent', e.target.value)}
+                                disabled={!isAdmin}
+                                style={{ width: '50px' }}
+                              />
+                            </td>
+                          )}
+                          {components.fee && (
+                            <td className={styles.calculatedValue}>
+                              {formatCurrency(calc.fee)}
+                            </td>
+                          )}
+                          {(components.share || components.fee) && (
+                            <td className={styles.calculatedValue}>
+                              {formatCurrency(calc.net)}
+                            </td>
+                          )}
+                          {components.cash && (
+                            <td>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={platform.cashRide}
+                                onChange={(e) => handlePlatformChange(index, 'cashRide', e.target.value)}
+                                disabled={!isAdmin}
+                              />
+                            </td>
+                          )}
+                          {components.tips && (
+                            <td>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={platform.tips}
+                                onChange={(e) => handlePlatformChange(index, 'tips', e.target.value)}
+                                disabled={!isAdmin}
+                              />
+                            </td>
+                          )}
+                          {components.campaigns && (
+                            <td>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={platform.campaigns}
+                                onChange={(e) => handlePlatformChange(index, 'campaigns', e.target.value)}
+                                disabled={!isAdmin}
+                              />
+                            </td>
+                          )}
                           <td className={`${styles.balanceValue} ${calc.balance >= 0 ? styles.balancePositive : styles.balanceNegative}`}>
                             {formatCurrency(calc.balance)}
                           </td>
@@ -1848,25 +1988,61 @@ export default function SettlementsWorkspace({
                   </tbody>
                 </table>
               </div>
+              )}
 
-              {/* Totals Summary */}
+              {/* Totals Summary — only the lines this preset calculates */}
               <div className={styles.totalsCompact}>
-                <div className={styles.totalItem}>
-                  <span>Total Net</span>
-                  <span>{formatCurrency(calculation.totalNet)}</span>
-                </div>
-                <div className={styles.totalItem}>
-                  <span>Cash</span>
-                  <span>-{formatCurrency(calculation.totalCashRide)}</span>
-                </div>
-                <div className={styles.totalItem}>
-                  <span>Tips</span>
-                  <span>+{formatCurrency(calculation.totalTips)}</span>
-                </div>
-                <div className={styles.totalItem}>
-                  <span>Campaigns</span>
-                  <span>+{formatCurrency(calculation.totalCampaigns)}</span>
-                </div>
+                {(components.share || components.fee) && (
+                  <div className={styles.totalItem}>
+                    <span>Total Net</span>
+                    <span>{formatCurrency(calculation.totalNet)}</span>
+                  </div>
+                )}
+                {components.cash && (
+                  <div className={styles.totalItem}>
+                    <span>Cash</span>
+                    <span>-{formatCurrency(calculation.totalCashRide)}</span>
+                  </div>
+                )}
+                {components.tips && (
+                  <div className={styles.totalItem}>
+                    <span>Tips</span>
+                    <span>+{formatCurrency(calculation.totalTips)}</span>
+                  </div>
+                )}
+                {components.campaigns && (
+                  <div className={styles.totalItem}>
+                    <span>Campaigns</span>
+                    <span>+{formatCurrency(calculation.totalCampaigns)}</span>
+                  </div>
+                )}
+                {components.hours && (
+                  <div className={styles.fssTaxCompact}>
+                    <span>Hours worked (auto from shifts)</span>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      value={hoursWorked}
+                      onChange={(e) => setHoursWorked(e.target.value)}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                )}
+                {components.hours && (
+                  <div className={styles.totalItem}>
+                    <span>Hourly wage ({parseFloat(hoursWorked) || 0}h × {formatCurrency(hourlyRate)})</span>
+                    <span className={styles.balancePositive}>
+                      +{formatCurrency(round2((parseFloat(hoursWorked) || 0) * hourlyRate))}
+                    </span>
+                  </div>
+                )}
+                {components.fixed && (
+                  <div className={styles.totalItem}>
+                    <span>Fixed wage</span>
+                    <span className={styles.balancePositive}>+{formatCurrency(fixedWageWeekly)}</span>
+                  </div>
+                )}
                 <div className={styles.totalItem}>
                   <span>Adjustments</span>
                   <span className={selectedDriverAdjustmentsNet >= 0 ? styles.balancePositive : styles.balanceNegative}>
@@ -1879,20 +2055,22 @@ export default function SettlementsWorkspace({
                     <span className={styles.balanceNegative}>-{formatCurrency(calculation.rent)}</span>
                   </div>
                 )}
-                <div className={styles.fssTaxCompact}>
-                  <span>FSS/Tax{taxAutoPct !== null ? ` (auto ${taxAutoPct}%)` : ''}</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={taxAutoPct !== null ? calculation.fssTax : fssTax}
-                    onChange={(e) => {
-                      setTaxAutoPct(null);
-                      setFssTax(e.target.value);
-                    }}
-                    disabled={!isAdmin}
-                  />
-                </div>
+                {components.tax && (
+                  <div className={styles.fssTaxCompact}>
+                    <span>FSS/Tax{taxAutoPct !== null ? ` (auto ${taxAutoPct}%)` : ''}</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={taxAutoPct !== null ? calculation.fssTax : fssTax}
+                      onChange={(e) => {
+                        setTaxAutoPct(null);
+                        setFssTax(e.target.value);
+                      }}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                )}
                 <div className={styles.finalBalanceCompact}>
                   <span>Payable Balance</span>
                   <span className={(calculation.finalBalance + selectedDriverAdjustmentsNet) >= 0 ? styles.balancePositive : styles.balanceNegative}>
