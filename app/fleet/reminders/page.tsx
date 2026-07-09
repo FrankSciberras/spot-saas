@@ -38,6 +38,8 @@ async function RemindersContent({ user, permissions }: { user: FleetUser; permis
       creator:created_by (full_name, email),
       assignee:assigned_to (full_name, email)
     `)
+    // Admin client bypasses RLS — scope to THIS fleet or it leaks every fleet's reminders.
+    .eq('organization_id', user.organization_id)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
 
@@ -47,11 +49,18 @@ async function RemindersContent({ user, permissions }: { user: FleetUser; permis
 
   const { data: reminders } = await remindersQuery;
 
+  // Assignable users must be THIS fleet's members only (admin client bypasses
+  // RLS, so an unscoped users query exposes every fleet's admin/staff directory).
   const shouldLoadAssignableUsers = permissions.can_create || permissions.can_edit;
-  const { data: users } = shouldLoadAssignableUsers
+  const { data: orgMembers } = shouldLoadAssignableUsers
+    ? await supabase.from('memberships').select('user_id').eq('organization_id', user.organization_id)
+    : { data: [] };
+  const memberIds = ((orgMembers || []) as { user_id: string }[]).map((m) => m.user_id);
+  const { data: users } = shouldLoadAssignableUsers && memberIds.length > 0
     ? await supabase
         .from('users')
         .select('id, full_name, email, role, also_staff')
+        .in('id', memberIds)
         .or('role.eq.admin,role.eq.staff,also_staff.eq.true')
         .order('full_name')
     : { data: [] };

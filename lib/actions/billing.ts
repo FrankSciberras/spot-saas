@@ -17,7 +17,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { getActiveOrgId } from '@/lib/auth/org-context';
+import { requireRole } from '@/lib/auth/session';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import { getPlans } from '@/lib/billing/plans-data';
 import { planRank, getPlanDef, hasStripeTarget, type PaidPlan } from '@/lib/billing/plans';
@@ -33,8 +33,8 @@ import { createPlanCheckoutSession, createBillingPortalSession } from '@/lib/bil
 export async function activatePlanAction(
   plan: PaidPlan
 ): Promise<{ error: string } | { url: string } | void> {
-  const orgId = await getActiveOrgId();
-  if (!orgId) redirect('/login');
+  const session = await requireRole(['admin']);
+  const orgId = session.organization_id;
 
   // Don't let a fleet pick a plan too small for its current usage.
   const [plans, billing] = await Promise.all([getPlans(), getFleetBilling(orgId)]);
@@ -48,13 +48,12 @@ export async function activatePlanAction(
   if (!planDef) return { error: 'Unknown plan.' };
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   // Real payment path.
   if (isStripeEnabled() && hasStripeTarget(planDef)) {
     return createPlanCheckoutSession({
       orgId,
-      email: user?.email ?? null,
+      email: session.email ?? null,
       plan: planDef,
     });
   }
@@ -79,8 +78,8 @@ export async function activatePlanAction(
  * plan, update their card or cancel. Returns a portal `url` to redirect to.
  */
 export async function openBillingPortalAction(): Promise<{ error: string } | { url: string }> {
-  const orgId = await getActiveOrgId();
-  if (!orgId) return { error: 'Not signed in.' };
+  const user = await requireRole(['admin']);
+  const orgId = user.organization_id;
   if (!isStripeEnabled()) return { error: 'Billing portal is not available yet.' };
   return createBillingPortalSession(orgId);
 }

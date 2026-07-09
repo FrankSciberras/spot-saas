@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(['admin']);
+    const user = await requireRole(['admin']);
     const supabase = await createClient();
     const body = await request.json();
 
@@ -21,11 +21,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update all settlements for this week with the new month
+    if (settlementMonth && !/^\d{4}-\d{2}-\d{2}$/.test(settlementMonth)) {
+      return NextResponse.json(
+        { error: 'settlementMonth must be a YYYY-MM-DD date' },
+        { status: 400 }
+      );
+    }
+
+    // Update all settlements for this week — scoped to the caller's active fleet
+    // (defense-in-depth alongside RLS) so a multi-fleet admin can't touch others.
     const { error, count } = await supabase
       .from('driver_settlements')
       .update({ settlement_month: settlementMonth || null })
-      .eq('week_start', weekStart);
+      .eq('week_start', weekStart)
+      .eq('organization_id', user.organization_id);
 
     if (error) {
       console.error('Supabase error:', error);

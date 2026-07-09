@@ -8,7 +8,9 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const type = requestUrl.searchParams.get('type');
-  const next = requestUrl.searchParams.get('next') || '/';
+  const nextParam = requestUrl.searchParams.get('next') || '/';
+  // Only allow internal paths — block open-redirect via absolute/protocol-relative URLs.
+  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/';
 
   if (code) {
     const supabase = await createClient();

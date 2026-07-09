@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
+import { getSession } from '@/lib/auth/session';
 
 /**
  * POST /api/shifts/check-service
@@ -53,6 +54,13 @@ export async function POST(request: Request) {
         { error: 'Vehicle not found' },
         { status: 404 }
       );
+    }
+
+    // Tenant guard: the admin client bypasses RLS, so confirm the caller is
+    // acting within the vehicle's fleet before touching its rules/notifications.
+    const session = await getSession();
+    if (!session || vehicle.organization_id !== session.organization_id) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
 
     // Check if the service_due notification rule is active FOR THIS ORG.

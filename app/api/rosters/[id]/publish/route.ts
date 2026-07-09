@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
-import { getSession } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
@@ -25,16 +25,20 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-
-  if (!hasStaffDashboardAccess(actor)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Authorize on the caller's MEMBERSHIP role in the active fleet, not the
+  // deprecated global users.role — a driver-member with a stale global
+  // admin/staff role must not be able to publish another fleet's roster.
+  if (!isAdminOrStaff(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Actor is audit metadata only.
+  const actor = await getAuditActor(user.id);
 
   // Parse request body for republish flag
   let republish = false;
