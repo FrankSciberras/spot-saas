@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
+import { PaperclipIcon, DocumentIcon } from '@/components/shared/DocIcons';
 import type { DriverStatus, EmploymentType } from '@/lib/types/database';
 import styles from './AdminForms.module.css';
 
@@ -460,14 +461,14 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
                 disabled={!driver?.id || uploadingType === 'ID_CARD'}
                 title={!driver?.id ? 'Save driver first to upload' : 'Upload ID Card'}
               >
-                {uploadingType === 'ID_CARD' ? '...' : '📎'}
+                {uploadingType === 'ID_CARD' ? '…' : <PaperclipIcon size={17} />}
               </button>
             </div>
             {uploadedFiles.ID_CARD?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.ID_CARD.map(file => (
                   <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
-                    📄 {file.file_name || 'View Document'}
+                    <DocumentIcon size={14} /> {file.file_name || 'View Document'}
                   </a>
                 ))}
               </div>
@@ -508,14 +509,14 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
                 disabled={!driver?.id || uploadingType === 'DRIVING_LICENSE'}
                 title={!driver?.id ? 'Save driver first to upload' : 'Upload Driving License'}
               >
-                {uploadingType === 'DRIVING_LICENSE' ? '...' : '📎'}
+                {uploadingType === 'DRIVING_LICENSE' ? '…' : <PaperclipIcon size={17} />}
               </button>
             </div>
             {uploadedFiles.DRIVING_LICENSE?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.DRIVING_LICENSE.map(file => (
                   <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
-                    📄 {file.file_name || 'View Document'}
+                    <DocumentIcon size={14} /> {file.file_name || 'View Document'}
                   </a>
                 ))}
               </div>
@@ -544,14 +545,14 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
                 disabled={!driver?.id || uploadingType === 'POLICE_CONDUCT'}
                 title={!driver?.id ? 'Save driver first to upload' : 'Upload Police Conduct'}
               >
-                {uploadingType === 'POLICE_CONDUCT' ? '...' : '📎'}
+                {uploadingType === 'POLICE_CONDUCT' ? '…' : <PaperclipIcon size={17} />}
               </button>
             </div>
             {uploadedFiles.POLICE_CONDUCT?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.POLICE_CONDUCT.map(file => (
                   <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
-                    📄 {file.file_name || 'View Document'}
+                    <DocumentIcon size={14} /> {file.file_name || 'View Document'}
                   </a>
                 ))}
               </div>
@@ -580,14 +581,14 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
                 disabled={!driver?.id || uploadingType === 'TAG_LICENSE'}
                 title={!driver?.id ? 'Save driver first to upload' : 'Upload TAG License'}
               >
-                {uploadingType === 'TAG_LICENSE' ? '...' : '📎'}
+                {uploadingType === 'TAG_LICENSE' ? '…' : <PaperclipIcon size={17} />}
               </button>
             </div>
             {uploadedFiles.TAG_LICENSE?.length > 0 && (
               <div className={styles.fileList}>
                 {uploadedFiles.TAG_LICENSE.map(file => (
                   <a key={file.id} href={`/api/files/${file.id}/view`} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
-                    📄 {file.file_name || 'View Document'}
+                    <DocumentIcon size={14} /> {file.file_name || 'View Document'}
                   </a>
                 ))}
               </div>

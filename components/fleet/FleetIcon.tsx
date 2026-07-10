@@ -37,6 +37,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
     case 'wrench':
       return <svg {...props}><path d="M14.5 3a5 5 0 0 0-4.2 7.6l-7.1 7.1a1.5 1.5 0 0 0 2.1 2.1l7.1-7.1A5 5 0 1 0 14.5 3z" /></svg>;
+    case 'box':
+      return <svg {...props}><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" /><path d="M12 12l8-4.5M12 12L4 7.5M12 12v9" /></svg>;
     case 'damage':
       return <svg {...props}><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></svg>;
     case 'book':

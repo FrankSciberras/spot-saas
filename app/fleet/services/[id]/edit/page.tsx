@@ -39,7 +39,7 @@ export default async function EditServicePage({ params }: PageProps) {
   return (
     <FleetShell user={user} title="Edit Service">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>Edit Service</h2>
           <span className={styles.subtitle}>
             Update service record details

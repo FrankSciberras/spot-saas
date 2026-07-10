@@ -15,6 +15,7 @@ export default async function DriverVehiclesPage() {
   const { data: vehicles, error } = await supabase
     .from('vehicles')
     .select('*')
+    .eq('organization_id', user.organization_id)
     .order('registration_number');
 
   const isExpiringSoon = (dateStr: string | null): boolean => {

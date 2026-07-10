@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import type { PlanDef } from '@/lib/billing/plans';
 import { monthlyPriceFor, planAllowsVehicles } from '@/lib/billing/plans';
@@ -13,19 +13,76 @@ const Check = () => (
 );
 
 const MIN_V = 1;
-const MAX_V = 60;
+const MAX_V = 80;
+
+// Feature comparison matrix. Cell values are keyed by plan id
+// ('starter' | 'growth' | 'scale' | 'enterprise'): true = tick, an absent key
+// (or false) = not included, a string = a value shown in the cell. Only real,
+// shipped features are listed — new capabilities get a row when they ship.
+type CmpVal = boolean | string;
+const COMPARE: { group: string; rows: { label: string; vals: Record<string, CmpVal> }[] }[] = [
+  {
+    group: 'Vehicles & team',
+    rows: [
+      { label: 'Vehicles included', vals: { starter: '3', growth: '10', scale: '30', enterprise: 'Custom' } },
+      { label: 'Price per extra vehicle', vals: { starter: '€4', growth: '€3', scale: '€2', enterprise: 'Volume' } },
+      { label: 'Vehicle limit', vals: { starter: '6', growth: '40', scale: '75', enterprise: 'Unlimited' } },
+      { label: 'Team members', vals: { starter: 'Unlimited', growth: 'Unlimited', scale: 'Unlimited', enterprise: 'Unlimited' } },
+      { label: 'Free driver app', vals: { starter: true, growth: true, scale: true, enterprise: true } },
+    ],
+  },
+  {
+    group: 'Tracking & operations',
+    rows: [
+      { label: 'Live GPS map', vals: { starter: 'Basic', growth: 'Full', scale: 'Full', enterprise: 'Full' } },
+      { label: 'Zones, speed & route playback', vals: { growth: true, scale: true, enterprise: true } },
+      { label: 'Speeding & lost-signal alerts', vals: { growth: true, scale: true, enterprise: true } },
+      { label: 'Shifts & weekly rosters', vals: { starter: true, growth: true, scale: true, enterprise: true } },
+      { label: 'Pre-shift vehicle inspections', vals: { starter: true, growth: true, scale: true, enterprise: true } },
+      { label: 'Service, damage & maintenance logs', vals: { starter: true, growth: true, scale: true, enterprise: true } },
+    ],
+  },
+  {
+    group: 'Driver pay & money',
+    rows: [
+      { label: 'Driver settlements & weekly pay', vals: { growth: true, scale: true, enterprise: true } },
+      { label: 'Uber / Bolt / eCabs CSV import', vals: { growth: true, scale: true, enterprise: true } },
+      { label: 'Financials & bookkeeping', vals: { growth: true, scale: true, enterprise: true } },
+      { label: 'Document-expiry alerts', vals: { starter: 'Basic', growth: 'Full', scale: 'Full', enterprise: 'Full' } },
+    ],
+  },
+  {
+    group: 'Support & onboarding',
+    rows: [
+      { label: 'Support', vals: { starter: 'Email', growth: 'Priority', scale: 'Priority', enterprise: 'Dedicated' } },
+      { label: 'We import your data', vals: { scale: true, enterprise: true } },
+      { label: 'Onboarding', vals: { starter: 'Self-serve', growth: 'Self-serve', scale: 'Guided', enterprise: 'White-glove' } },
+    ],
+  },
+];
+
+function Cell({ v }: { v: CmpVal | undefined }) {
+  if (v === true) return <span className="cmp-yes"><Check /></span>;
+  if (v == null || v === false) return <span className="cmp-no" aria-label="Not included">–</span>;
+  return <span className="cmp-val">{v}</span>;
+}
 
 /**
  * Interactive pricing — an operator drags/steps the vehicle count and every
- * plan's monthly price updates live (base + per-vehicle add-on). The plan that
- * fits the chosen count for the lowest price is flagged "Best value".
+ * self-serve plan's monthly price updates live (base + per-vehicle add-on). The
+ * plan that fits the chosen count for the lowest price is flagged "Best value".
+ * Custom-priced tiers (Enterprise) render as a contact band below the grid, and
+ * a full feature comparison table sits underneath.
  */
 export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
   const [vehicles, setVehicles] = useState(8);
 
-  // Lowest-priced plan whose hard cap allows this many vehicles.
-  const eligible = plans
-    .filter((p) => !p.isCustom && planAllowsVehicles(p, vehicles))
+  const cardPlans = plans.filter((p) => !p.isCustom);
+  const customPlans = plans.filter((p) => p.isCustom);
+
+  // Lowest-priced self-serve plan whose hard cap allows this many vehicles.
+  const eligible = cardPlans
+    .filter((p) => planAllowsVehicles(p, vehicles))
     .map((p) => ({ id: p.id, price: monthlyPriceFor(p, vehicles) }))
     .sort((a, b) => a.price - b.price);
   const bestValueId = eligible[0]?.id ?? null;
@@ -56,14 +113,14 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
       </div>
 
       <div className="price-grid reveal-stagger">
-        {plans.map((plan) => {
+        {cardPlans.map((plan) => {
           const allowed = planAllowsVehicles(plan, vehicles);
           const price = monthlyPriceFor(plan, vehicles);
           const extra = plan.includedVehicles != null && plan.perVehiclePrice != null
             ? Math.max(0, vehicles - plan.includedVehicles)
             : 0;
           const isBest = plan.id === bestValueId;
-          const ctaLabel = plan.ctaLabel ?? (plan.isCustom ? 'Book a demo' : 'Start free trial');
+          const ctaLabel = plan.ctaLabel ?? 'Start free trial';
           const ctaClass = `btn ${plan.isPopular ? 'btn-primary' : 'btn-ghost'}`;
           return (
             <div key={plan.id} className={`plan${plan.isPopular ? ' feat' : ''}${!allowed ? ' plan-na' : ''}`}>
@@ -73,9 +130,7 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
               {plan.blurb && <div className="pdesc">{plan.blurb}</div>}
 
               <div className="pprice">
-                {plan.isCustom ? (
-                  <span className="amt">{plan.priceLabel}</span>
-                ) : allowed ? (
+                {allowed ? (
                   <><span className="amt">€{price}</span><span className="per">/ mo</span></>
                 ) : (
                   <span className="amt amt-na">Too many cars</span>
@@ -83,18 +138,18 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
               </div>
 
               {/* Live breakdown of how the price was reached. */}
-              {!plan.isCustom && allowed && (
+              {allowed && (
                 <div className="pbreak">
                   {extra > 0 ? (
                     <>€{plan.priceAmount} base + {extra} × €{plan.perVehiclePrice}</>
                   ) : plan.includedVehicles != null ? (
                     <>{plan.includedVehicles} vehicles included</>
                   ) : (
-                    <>flat — unlimited vehicles</>
+                    <>{plan.billingNote}</>
                   )}
                 </div>
               )}
-              {!plan.isCustom && !allowed && (
+              {!allowed && (
                 <div className="pbreak pbreak-na">Caps at {plan.maxVehicles} vehicles — size up</div>
               )}
 
@@ -112,6 +167,56 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
             </div>
           );
         })}
+      </div>
+
+      {customPlans.map((plan) => (
+        <div className="ent-band reveal" key={plan.id}>
+          <div className="ent-main">
+            <div className="ent-name">{plan.name}</div>
+            {plan.blurb && <div className="ent-desc">{plan.blurb}</div>}
+            <ul className="ent-feat">
+              {plan.features.map((f) => (
+                <li key={f}><span className="tick"><Check /></span> {f}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="ent-cta">
+            <div className="ent-price">{plan.priceLabel}</div>
+            {plan.capLabel && <div className="ent-cap">{plan.capLabel}</div>}
+            <a className="btn btn-primary" href={plan.ctaHref ?? '/contact'}>{plan.ctaLabel ?? 'Talk to us'}</a>
+          </div>
+        </div>
+      ))}
+
+      <div className="cmp-wrap reveal">
+        <div className="cmp-title">Compare every plan</div>
+        <div className="cmp-scroll">
+          <table className="cmp">
+            <thead>
+              <tr>
+                <th className="cmp-feat-h">Features</th>
+                {plans.map((p) => (
+                  <th key={p.id} className={p.isPopular ? 'cmp-pop' : ''}>{p.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARE.map((grp) => (
+                <Fragment key={grp.group}>
+                  <tr className="cmp-grp"><td colSpan={plans.length + 1}>{grp.group}</td></tr>
+                  {grp.rows.map((row) => (
+                    <tr key={row.label}>
+                      <td className="cmp-feat">{row.label}</td>
+                      {plans.map((p) => (
+                        <td key={p.id} className={p.isPopular ? 'cmp-pop' : ''}><Cell v={row.vals[p.id]} /></td>
+                      ))}
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

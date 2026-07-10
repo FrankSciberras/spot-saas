@@ -36,7 +36,7 @@ export default async function NewServicePage({ searchParams }: PageProps) {
   return (
     <FleetShell user={user} title="Add Service">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>Add Service Record</h2>
           <span className={styles.subtitle}>
             {preselectedVehicle 

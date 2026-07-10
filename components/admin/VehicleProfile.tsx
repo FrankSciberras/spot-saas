@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DeleteVehicleButton from './DeleteVehicleButton';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import styles from './VehicleProfile.module.css';
 
 /* ─── Types ─── */
@@ -68,35 +69,8 @@ interface VehicleProfileProps {
 }
 
 /* ─── SVG Icons ─── */
-const CarIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M19 17h2l.44-2.56a3 3 0 00-1.44-3.11l-1.75-1.09A3 3 0 0016.67 10H7.33a3 3 0 00-1.58.44L4 11.53a3 3 0 00-1.44 3.11L3 17h2" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></svg>
-);
-const InfoIcon = () => (
-  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-);
-const ShieldIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-);
-const FileIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-);
-const WrenchIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>
-);
-const UserIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-);
-const ClockIcon = () => (
-  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-);
-const NoteIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-);
 const UploadIcon = () => (
   <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" /></svg>
-);
-const AlertIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
 );
 
 /* ─── Helpers ─── */
@@ -146,11 +120,13 @@ interface EditableFieldProps {
   expiryDate?: string | null;
   suffix?: string;
   className?: string;
+  /** Skip thousands grouping for number fields (e.g. a year — 2023, not 2,023). */
+  plain?: boolean;
 }
 
 function EditableField({
   label, value, fieldName, type = 'text', options, onSave,
-  placeholder = 'Not set', readOnly, expiryDate, suffix, className,
+  placeholder = 'Not set', readOnly, expiryDate, suffix, className, plain,
 }: EditableFieldProps) {
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState(value?.toString() || '');
@@ -199,8 +175,10 @@ function EditableField({
   let displayVal: string | null = null;
   if (type === 'select' && options) displayVal = options.find(o => o.value === (value?.toString() || ''))?.label || value?.toString() || null;
   else if (type === 'date' && value) displayVal = formatDate(value.toString());
-  else if (type === 'number' && value) displayVal = Number(value).toLocaleString() + (suffix || '');
+  else if (type === 'number' && value) displayVal = (plain ? String(value) : Number(value).toLocaleString()) + (suffix || '');
   else displayVal = value?.toString() || null;
+
+  const numClass = type === 'number' || type === 'date' ? 'mono tnum' : '';
 
   return (
     <div className={`${styles.field} ${className || ''}`} onClick={startEdit} role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} onKeyDown={e => { if (!readOnly && e.key === 'Enter') startEdit(); }}>
@@ -208,7 +186,7 @@ function EditableField({
       <div className={styles.fieldValue}>
         {displayVal ? (
           <>
-            <span className={expiryStatus === 'danger' ? styles.expiryDanger : expiryStatus === 'warning' ? styles.expiryWarning : undefined}>
+            <span className={[numClass, expiryStatus === 'danger' ? styles.expiryDanger : expiryStatus === 'warning' ? styles.expiryWarning : ''].filter(Boolean).join(' ') || undefined}>
               {displayVal}{suffix && type !== 'number' ? ` ${suffix}` : ''}
             </span>
             {expiryText && (
@@ -273,6 +251,20 @@ function DocCard({ title, subtitle, docType, files, onUpload, onDelete, uploadin
           {isUploading ? 'Uploading...' : files.length > 0 ? 'Upload another' : 'Upload file'}
         </span>
       </div>
+    </div>
+  );
+}
+
+/* ─── Stat Card (dashboard-style: icon chip + tabular number) ─── */
+function StatCard({ icon, label, value, sub, accent }: {
+  icon: string; label: string; value: React.ReactNode; sub?: string; accent: string;
+}) {
+  return (
+    <div className={styles.statCard}>
+      <div className={styles.statIcon} style={{ color: accent }}><FleetIcon name={icon} size={15} /></div>
+      <div className={`${styles.statValue} mono tnum`} style={{ color: accent }}>{value}</div>
+      <div className={styles.statLabel}>{label}</div>
+      {sub && <div className={styles.statSub}>{sub}</div>}
     </div>
   );
 }
@@ -375,6 +367,20 @@ export default function VehicleProfile({
     ? nextServiceDue.next_service_mileage - vehicle.mileage
     : null;
 
+  // Stat-card figures (chosen to complement the hero + info grid, not repeat them).
+  const driverCount = assignedDrivers.length || (vehicle.drivers ? 1 : 0);
+  const docCount = Object.values(uploadedFiles).reduce((sum, arr) => sum + arr.length, 0);
+  let nextServiceValue = '—', nextServiceSub = 'Not scheduled', nextServiceColor = 'var(--text-3)';
+  if (kmUntilService !== null) {
+    if (kmUntilService <= 0) {
+      nextServiceValue = `${Math.abs(kmUntilService).toLocaleString()} km`;
+      nextServiceSub = 'Overdue'; nextServiceColor = 'var(--neg)';
+    } else {
+      nextServiceValue = `${kmUntilService.toLocaleString()} km`;
+      nextServiceSub = 'Remaining'; nextServiceColor = kmUntilService <= 2000 ? 'var(--warn)' : 'var(--accent)';
+    }
+  }
+
   /* ═══════════════════════════════════════════════════════════════════════
      RENDER
      ═══════════════════════════════════════════════════════════════════════ */
@@ -389,9 +395,12 @@ export default function VehicleProfile({
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/fleet/vehicles" className={styles.backBtn} aria-label="Back to vehicles">←</Link>
+        <Link href="/fleet/vehicles" className={styles.backLink}>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+          Back to vehicles
+        </Link>
         <div className={styles.heroCard}>
-          <div className={styles.avatar}><CarIcon /></div>
+          <div className={styles.avatar}><FleetIcon name="vehicle" size={26} /></div>
           <div className={styles.heroInfo}>
             <h1 className={styles.heroName}>{vehicle.registration_number}</h1>
             <span className={styles.heroSub}>{vehicle.make} {vehicle.model}{vehicle.year ? ` (${vehicle.year})` : ''}</span>
@@ -411,28 +420,16 @@ export default function VehicleProfile({
 
       {/* ── Stats Row ── */}
       <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Mileage</div>
-          <div className={styles.statValue}>{vehicle.mileage?.toLocaleString() || 0} km</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Year</div>
-          <div className={styles.statValue}>{vehicle.year || '—'}</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Status</div>
-          <div className={styles.statValue}>{statusLabel(vehicle.status)}</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Drivers</div>
-          <div className={styles.statValue}>{assignedDrivers.length}</div>
-        </div>
+        <StatCard icon="vehicle" label="Mileage" value={`${vehicle.mileage?.toLocaleString() || 0} km`} accent="var(--text-1)" />
+        <StatCard icon="wrench" label="Next service" value={nextServiceValue} sub={nextServiceSub} accent={nextServiceColor} />
+        <StatCard icon="driver" label="Assigned drivers" value={driverCount} accent="var(--text-1)" />
+        <StatCard icon="doc" label="Documents" value={docCount} accent="var(--text-1)" />
       </div>
 
       {/* ── Vehicle Information ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><InfoIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><FleetIcon name="vehicle" size={16} /></div>
           <h3 className={styles.sectionTitle}>Vehicle Information</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -440,7 +437,7 @@ export default function VehicleProfile({
             <EditableField label="Registration Number" value={vehicle.registration_number} fieldName="registration_number" onSave={handleSave} readOnly={!isAdmin} />
             <EditableField label="Make" value={vehicle.make} fieldName="make" onSave={handleSave} readOnly={!isAdmin} />
             <EditableField label="Model" value={vehicle.model} fieldName="model" onSave={handleSave} readOnly={!isAdmin} />
-            <EditableField label="Year" value={vehicle.year?.toString()} fieldName="year" type="number" onSave={handleSave} readOnly={!isAdmin} />
+            <EditableField label="Year" value={vehicle.year?.toString()} fieldName="year" type="number" plain onSave={handleSave} readOnly={!isAdmin} />
             <EditableField label="Color" value={vehicle.color} fieldName="color" onSave={handleSave} readOnly={!isAdmin} />
             <EditableField label="Mileage" value={vehicle.mileage?.toString()} fieldName="mileage" type="number" onSave={handleSave} suffix=" km" readOnly={!isAdmin} />
             <EditableField
@@ -455,6 +452,7 @@ export default function VehicleProfile({
               ]}
               onSave={handleSave}
               readOnly={!isAdmin}
+              className={styles.fieldFull}
             />
           </div>
         </div>
@@ -463,7 +461,7 @@ export default function VehicleProfile({
       {/* ── Documents & Expiry ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGreen}`}><ShieldIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGreen}`}><FleetIcon name="book" size={16} /></div>
           <h3 className={styles.sectionTitle}>Documents &amp; Expiry</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -485,7 +483,7 @@ export default function VehicleProfile({
       {/* ── Service & Maintenance ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconOrange}`}><WrenchIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconOrange}`}><FleetIcon name="wrench" size={16} /></div>
           <h3 className={styles.sectionTitle}>Service &amp; Maintenance</h3>
           <div className={styles.sectionHeaderActions}>
             <Link href={`/fleet/services/new?vehicle=${vehicle.id}`} className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}>
@@ -498,14 +496,14 @@ export default function VehicleProfile({
           {kmUntilService !== null && (
             <div className={`${styles.serviceAlert} ${kmUntilService <= 500 ? styles.serviceAlertRed : kmUntilService <= 2000 ? styles.serviceAlertOrange : styles.serviceAlertGreen}`}>
               <div>
-                <div className={styles.serviceAlertLabel} style={{ color: kmUntilService <= 500 ? '#dc2626' : kmUntilService <= 2000 ? '#d97706' : '#16a34a' }}>
+                <div className={styles.serviceAlertLabel} style={{ color: kmUntilService <= 500 ? 'var(--neg)' : kmUntilService <= 2000 ? 'var(--warn)' : 'var(--pos)' }}>
                   Next Service Due
                 </div>
-                <div className={styles.serviceAlertSub}>
+                <div className={`${styles.serviceAlertSub} mono tnum`}>
                   at {nextServiceDue?.next_service_mileage?.toLocaleString()} km
                 </div>
               </div>
-              <span className={styles.serviceAlertValue} style={{ color: kmUntilService <= 500 ? '#dc2626' : kmUntilService <= 2000 ? '#d97706' : '#16a34a' }}>
+              <span className={`${styles.serviceAlertValue} mono tnum`} style={{ color: kmUntilService <= 500 ? 'var(--neg)' : kmUntilService <= 2000 ? 'var(--warn)' : 'var(--pos)' }}>
                 {kmUntilService <= 0
                   ? `${Math.abs(kmUntilService).toLocaleString()} km overdue`
                   : `${kmUntilService.toLocaleString()} km remaining`
@@ -521,11 +519,11 @@ export default function VehicleProfile({
               </div>
               {serviceHistory.map(s => (
                 <div key={s.id} className={`${styles.listRow} ${styles.serviceRow}`}>
-                  <span className={styles.listDate}>{formatDate(s.service_date)}</span>
+                  <span className={`${styles.listDate} mono tnum`}>{formatDate(s.service_date)}</span>
                   <span className={styles.listText}>{SERVICE_TYPE_LABELS[s.service_type] || s.service_type}</span>
-                  <span className={styles.listText}>{s.mileage_at_service.toLocaleString()} km</span>
-                  <span className={styles.listText}>{s.next_service_mileage ? `${s.next_service_mileage.toLocaleString()} km` : '—'}</span>
-                  <span className={styles.listText}>{s.cost ? `${s.currency} ${s.cost.toFixed(2)}` : '—'}</span>
+                  <span className={`${styles.listText} mono tnum`}>{s.mileage_at_service.toLocaleString()} km</span>
+                  <span className={`${styles.listText} mono tnum`}>{s.next_service_mileage ? `${s.next_service_mileage.toLocaleString()} km` : '—'}</span>
+                  <span className={`${styles.listText} mono tnum`}>{s.cost ? `${s.currency} ${s.cost.toFixed(2)}` : '—'}</span>
                   <Link href={`/fleet/services/${s.id}`} className={styles.listLink}>View</Link>
                 </div>
               ))}
@@ -542,7 +540,7 @@ export default function VehicleProfile({
       {/* ── Assigned Drivers ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><UserIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><FleetIcon name="driver" size={16} /></div>
           <h3 className={styles.sectionTitle}>Assigned Drivers</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -575,7 +573,7 @@ export default function VehicleProfile({
       {/* ── Recent Shifts ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><ClockIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><FleetIcon name="shift" size={16} /></div>
           <h3 className={styles.sectionTitle}>Recent Shifts</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -586,16 +584,16 @@ export default function VehicleProfile({
               </div>
               {recentShifts.map(shift => (
                 <div key={shift.id} className={`${styles.listRow} ${styles.shiftRow}`}>
-                  <span className={styles.listDate}>{new Date(shift.start_time).toLocaleDateString('en-GB')}</span>
+                  <span className={`${styles.listDate} mono tnum`}>{new Date(shift.start_time).toLocaleDateString('en-GB')}</span>
                   <span className={styles.listText}>{(shift.drivers as unknown as { full_name: string } | null)?.full_name || '—'}</span>
-                  <span className={styles.listText}>{new Date(shift.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className={styles.listText}>
+                  <span className={`${styles.listText} mono tnum`}>{new Date(shift.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className={`${styles.listText} mono tnum`}>
                     {shift.end_time
                       ? new Date(shift.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
                       : <span className="badge badge-success">Active</span>
                     }
                   </span>
-                  <span className={styles.listText}>{shift.starting_mileage.toLocaleString()} km</span>
+                  <span className={`${styles.listText} mono tnum`}>{shift.starting_mileage.toLocaleString()} km</span>
                 </div>
               ))}
             </div>
@@ -608,7 +606,7 @@ export default function VehicleProfile({
       {/* ── Notes ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><NoteIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="doc" size={16} /></div>
           <h3 className={styles.sectionTitle}>Notes</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -628,7 +626,7 @@ export default function VehicleProfile({
       {/* ── Record Information ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><InfoIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="audit" size={16} /></div>
           <h3 className={styles.sectionTitle}>Record Information</h3>
         </div>
         <div className={styles.sectionBody}>

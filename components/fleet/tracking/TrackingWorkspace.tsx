@@ -152,6 +152,7 @@ export default function TrackingWorkspace({
   // Init Leaflet map (client-only, so import dynamically inside the effect).
   useEffect(() => {
     let cancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
     (async () => {
       const L = await import('leaflet');
       if (cancelled || !mapDivRef.current || mapRef.current) return;
@@ -174,10 +175,19 @@ export default function TrackingWorkspace({
         setPicking(false);
       });
       mapRef.current = map;
+      // Leaflet only reads the container size once — keep tiles filling the
+      // card when the responsive layout (mobile stack / rotation) resizes it.
+      if (typeof ResizeObserver !== 'undefined' && mapDivRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          mapRef.current?.invalidateSize();
+        });
+        resizeObserver.observe(mapDivRef.current);
+      }
       setNow(Date.now()); // trigger marker sync now that the map exists
     })();
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
       markersRef.current.clear();
@@ -596,10 +606,10 @@ export default function TrackingWorkspace({
   };
 
   return (
-    <div style={st.wrap}>
+    <div style={st.wrap} className="trkWrap">
       <style>{markerCss}</style>
 
-      <div style={st.panel}>
+      <div style={st.panel} className="trkPanel">
         <div style={st.tabs}>
           {(['drivers', 'zones', 'activity'] as Tab[]).map((t) => (
             <button
@@ -825,7 +835,7 @@ export default function TrackingWorkspace({
         )}
       </div>
 
-      <div style={st.mapCard}>
+      <div style={st.mapCard} className="trkMapCard">
         <div ref={mapDivRef} style={st.map} />
         {picking && <div style={st.mapHint}>Click anywhere on the map to place the zone centre</div>}
       </div>
@@ -853,6 +863,27 @@ const markerCss = `
 }
 .leaflet-container { font-family: inherit; }
 .leaflet-tooltip { font-size: 12px; line-height: 1.45; }
+
+/* Mobile: stack map (hero, on top) above the panel instead of a side-by-side
+   split that squeezed the map into a sliver. Inline styles need !important. */
+@media (max-width: 860px) {
+  .trkWrap {
+    flex-direction: column-reverse !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .trkMapCard {
+    flex: none !important;
+    width: 100% !important;
+    height: 46vh !important;
+    min-height: 300px !important;
+  }
+  .trkPanel {
+    width: 100% !important;
+    flex-shrink: 1 !important;
+    max-height: 48vh !important;
+  }
+}
 `;
 
 const st: Record<string, CSSProperties> = {

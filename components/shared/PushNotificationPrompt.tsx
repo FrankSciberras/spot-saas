@@ -28,6 +28,11 @@ export default function PushNotificationPrompt({ variant, role }: PushNotificati
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Fleet operators found this nudge annoying on the dashboard — never show it
+    // on the admin/staff (fleet) side. Drivers keep it (they have their own
+    // per-fleet opt-out below, controlled by the operator).
+    if (variant === 'admin') return;
+
     // Only show once between login/logout cycles
     if (sessionStorage.getItem(STORAGE_KEY)) return;
 

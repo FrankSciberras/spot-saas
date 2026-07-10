@@ -18,10 +18,18 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
   const user = await requireRole(['admin']);
   const supabase = await createClient();
 
+  // Scope to THIS fleet's members (users has no organization_id — join via memberships).
+  const { data: orgMembers } = await supabase
+    .from('memberships')
+    .select('user_id')
+    .eq('organization_id', user.organization_id);
+  const memberIds = (orgMembers || []).map((m) => m.user_id);
+
   const { data: staff, error } = await supabase
     .from('users')
     .select('*')
     .eq('id', id)
+    .in('id', memberIds)
     .or('role.eq.staff,also_staff.eq.true')
     .single();
 

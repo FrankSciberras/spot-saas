@@ -79,10 +79,11 @@ export default async function FleetIntegrationsPage() {
               <FleetIcon name="plug" size={20} stroke={1.7} />
             </div>
             <div>
-              <strong>A marketplace is on the way.</strong>
+              <strong>The marketplace is growing.</strong>
               <p>
-                Every connection below is in active development. Tap <em>Notify me</em> on the ones
-                you need and we&rsquo;ll email you the moment they go live &mdash; or{' '}
+                Connections marked <em>Live</em> work today. The rest are in active development
+                &mdash; tap <em>Notify me</em> on the ones you need and we&rsquo;ll email you the
+                moment they go live, or{' '}
                 <a href={REQUEST_INTEGRATION_MAILTO}>request one we haven&rsquo;t listed</a>.
               </p>
             </div>
@@ -105,17 +106,29 @@ export default async function FleetIntegrationsPage() {
                       >
                         {it.mark}
                       </div>
-                      <span className={styles.soon}>Coming soon</span>
+                      {it.status === 'live' ? (
+                        <span className={styles.live}>Live</span>
+                      ) : (
+                        <span className={styles.soon}>Coming soon</span>
+                      )}
                     </div>
                     <div className={styles.name}>{it.name}</div>
                     <p className={styles.desc}>{it.desc}</p>
                     <div className={styles.actions}>
-                      <button className={styles.connectBtn} type="button" disabled>
-                        Connect
-                      </button>
-                      <a className={styles.notify} href={notifyMailto(it.name)}>
-                        Notify me
-                      </a>
+                      {it.status === 'live' ? (
+                        <a className={styles.openBtn} href={it.href ?? '/fleet'}>
+                          Open
+                        </a>
+                      ) : (
+                        <>
+                          <button className={styles.connectBtn} type="button" disabled>
+                            Connect
+                          </button>
+                          <a className={styles.notify} href={notifyMailto(it.name)}>
+                            Notify me
+                          </a>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -158,10 +158,20 @@
 }
 
 .optionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-1);
   margin-bottom: 4px;
+}
+
+.optionIcon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--accent);
 }
 
 .optionDesc {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import styles from './DriverProfile.module.css';
 
 /* ─── Types ─── */
@@ -62,27 +63,6 @@ interface DriverProfileProps {
 }
 
 /* ─── SVG Icons ─── */
-const UserIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-);
-const FileIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-);
-const TruckIcon = () => (
-  <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
-);
-const ClockIcon = () => (
-  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-);
-const ShieldIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-);
-const NoteIcon = () => (
-  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-);
-const InfoIcon = () => (
-  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-);
 const UploadIcon = () => (
   <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" /></svg>
 );
@@ -197,13 +177,15 @@ function EditableField({
     ? options.find(o => o.value === (value || ''))?.label || value || placeholder
     : type === 'date' && value ? formatDate(value) : value;
 
+  const numClass = type === 'date' ? 'mono tnum' : '';
+
   return (
     <div className={`${styles.field} ${className || ''}`} onClick={startEdit} role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} onKeyDown={e => { if (!readOnly && e.key === 'Enter') startEdit(); }}>
       <span className={styles.fieldLabel}>{label}</span>
       <div className={styles.fieldValue}>
         {displayVal ? (
           <>
-            <span className={expiryStatus === 'danger' ? styles.expiryDanger : expiryStatus === 'warning' ? styles.expiryWarning : undefined}>{displayVal}</span>
+            <span className={[numClass, expiryStatus === 'danger' ? styles.expiryDanger : expiryStatus === 'warning' ? styles.expiryWarning : ''].filter(Boolean).join(' ') || undefined}>{displayVal}</span>
             {expiryText && (
               <span className={`${styles.expiryBadge} ${expiryStatus === 'danger' ? styles.expiryBadgeDanger : expiryStatus === 'warning' ? styles.expiryBadgeWarning : styles.expiryBadgeOk}`}>
                 {expiryText}
@@ -282,6 +264,20 @@ function DocCard({ title, subtitle, slots, files, driverId, onUpload, onDelete, 
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ─── Stat Card (dashboard-style: icon chip + tabular number) ─── */
+function StatCard({ icon, label, value, sub, accent }: {
+  icon: string; label: string; value: React.ReactNode; sub?: string; accent: string;
+}) {
+  return (
+    <div className={styles.statCard}>
+      <div className={styles.statIcon} style={{ color: accent }}><FleetIcon name={icon} size={15} /></div>
+      <div className={`${styles.statValue} mono tnum`} style={{ color: accent }}>{value}</div>
+      <div className={styles.statLabel}>{label}</div>
+      {sub && <div className={styles.statSub}>{sub}</div>}
     </div>
   );
 }
@@ -471,6 +467,24 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
 
   const vehicleLabelById = new Map(vehicles.map(v => [v.id, `${v.registration_number} — ${v.make} ${v.model}`]));
 
+  // Stat-card figures (mirror the vehicle page: icon chips + one colour-coded card).
+  const vehicleCount = assignedVehicleIds.length;
+  const docCount = Object.values(uploadedFiles).reduce((sum, arr) => sum + arr.length, 0);
+  const docExpiries = [
+    { label: 'ID card', date: driver.id_card_expiry_date },
+    { label: 'Licence', date: driver.driving_license_expiry_date },
+    { label: 'Police conduct', date: driver.police_conduct_expiry_date },
+    { label: 'TAG licence', date: driver.tag_license_expiry_date },
+  ].filter((d): d is { label: string; date: string } => !!d.date)
+    .sort((a, b) => +new Date(a.date) - +new Date(b.date));
+  let expiryValue = '—', expirySub = 'None on file', expiryColor = 'var(--text-3)';
+  if (docExpiries[0]) {
+    const days = Math.ceil((+new Date(docExpiries[0].date) - Date.now()) / 86_400_000);
+    expirySub = docExpiries[0].label;
+    if (days < 0) { expiryValue = 'Expired'; expiryColor = 'var(--neg)'; }
+    else { expiryValue = `${days} day${days === 1 ? '' : 's'}`; expiryColor = days <= 30 ? 'var(--warn)' : 'var(--accent)'; }
+  }
+
   /* ═══════════════════════════════════════════════════════════════════════
      RENDER
      ═══════════════════════════════════════════════════════════════════════ */
@@ -485,7 +499,10 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/fleet/drivers" className={styles.backBtn} aria-label="Back to drivers">←</Link>
+        <Link href="/fleet/drivers" className={styles.backLink}>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+          Back to drivers
+        </Link>
         <div className={styles.heroCard}>
           <div className={styles.avatar}>{getInitials(driver.full_name)}</div>
           <div className={styles.heroInfo}>
@@ -502,28 +519,16 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
 
       {/* ── Stats Row ── */}
       <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Status</div>
-          <div className={styles.statValue}>{driver.status === 'active' ? 'Active' : 'Inactive'}</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Vehicle</div>
-          <div className={styles.statValue}>{driver.vehicles?.registration_number || '—'}</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Member Since</div>
-          <div className={styles.statValue}>{formatDate(driver.created_at)}</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Shifts</div>
-          <div className={styles.statValue}>{recentShifts.length}</div>
-        </div>
+        <StatCard icon="vehicle" label="Vehicles" value={vehicleCount} accent="var(--text-1)" />
+        <StatCard icon="book" label="Next doc expiry" value={expiryValue} sub={expirySub} accent={expiryColor} />
+        <StatCard icon="doc" label="Documents" value={docCount} accent="var(--text-1)" />
+        <StatCard icon="shift" label="Recent shifts" value={recentShifts.length} accent="var(--text-1)" />
       </div>
 
       {/* ── Personal Information ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><UserIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><FleetIcon name="driver" size={16} /></div>
           <h3 className={styles.sectionTitle}>Personal Information</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -560,7 +565,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {/* ── ID & License ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGreen}`}><ShieldIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGreen}`}><FleetIcon name="doc" size={16} /></div>
           <h3 className={styles.sectionTitle}>ID &amp; License</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -578,7 +583,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {/* ── Documents ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><FileIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><FleetIcon name="book" size={16} /></div>
           <h3 className={styles.sectionTitle}>Documents &amp; Attachments</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -658,7 +663,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {/* ── Assigned Vehicles ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconOrange}`}><TruckIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconOrange}`}><FleetIcon name="vehicle" size={16} /></div>
           <h3 className={styles.sectionTitle}>Assigned Vehicles</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -708,7 +713,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {/* ── Recent Shifts ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><ClockIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><FleetIcon name="shift" size={16} /></div>
           <h3 className={styles.sectionTitle}>Recent Shifts</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -740,7 +745,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {/* ── Notes ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><NoteIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="doc" size={16} /></div>
           <h3 className={styles.sectionTitle}>Notes</h3>
         </div>
         <div className={styles.sectionBody}>
@@ -760,7 +765,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {isAdmin && driver.user_id && (
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><ShieldIcon /></div>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><FleetIcon name="staff" size={16} /></div>
             <h3 className={styles.sectionTitle}>Staff Access</h3>
           </div>
           <div className={styles.sectionBody}>
@@ -791,7 +796,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {isAdmin && driver.user_id && (
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <div className={`${styles.sectionIcon} ${styles.sectionIconRed}`}><ShieldIcon /></div>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconRed}`}><FleetIcon name="adjust" size={16} /></div>
             <h3 className={styles.sectionTitle}>Account Security</h3>
           </div>
           <div className={styles.sectionBody}>
@@ -830,7 +835,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
       {/* ── Record Information ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><InfoIcon /></div>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="audit" size={16} /></div>
           <h3 className={styles.sectionTitle}>Record Information</h3>
         </div>
         <div className={styles.sectionBody}>

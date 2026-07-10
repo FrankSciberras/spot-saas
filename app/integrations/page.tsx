@@ -66,8 +66,9 @@ export default function IntegrationsPage() {
             <span className="kicker">On the roadmap · {INTEGRATION_COUNT} connections</span>
             <h2 className="sec-title">Everything your fleet talks to, in one place</h2>
             <p className="sec-desc">
-              We&rsquo;re building each of these as a first-class connection inside Rovora. They&rsquo;re
-              landing soon — tell us which you need first and we&rsquo;ll prioritise it.
+              We&rsquo;re building each of these as a first-class connection inside Rovora. The ones
+              marked <em>Live</em> work today; the rest are landing soon — tell us which you need
+              first and we&rsquo;ll prioritise it.
             </p>
           </div>
 
@@ -80,7 +81,9 @@ export default function IntegrationsPage() {
               <div className="integ-grid">
                 {cat.items.map((it) => (
                   <div className="integ" key={it.name}>
-                    <span className="integ-soon">Coming soon</span>
+                    <span className={it.status === 'live' ? 'integ-live' : 'integ-soon'}>
+                      {it.status === 'live' ? 'Live' : 'Coming soon'}
+                    </span>
                     <div
                       className="integ-logo"
                       style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}

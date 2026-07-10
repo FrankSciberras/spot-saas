@@ -38,6 +38,40 @@ import {
 import { calculateSettlement, formatCurrency, round2 } from '@/lib/utils/settlementCalculations';
 import styles from './setup-wizard.module.css';
 
+// Pay-model icons — plain stroke SVGs (no emojis) matching the app's icon style.
+function ShareIcon() {
+  return (
+    <svg className={styles.optionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15.5A9 9 0 1 1 8.5 3" />
+      <path d="M15.5 2.8A9 9 0 0 1 21.2 8.5H15.5V2.8z" />
+    </svg>
+  );
+}
+function HourlyIcon() {
+  return (
+    <svg className={styles.optionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5l3 2" />
+    </svg>
+  );
+}
+function FixedWeeklyIcon() {
+  return (
+    <svg className={styles.optionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+      <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+    </svg>
+  );
+}
+function WageCommissionIcon() {
+  return (
+    <svg className={styles.optionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
 interface Props {
   platforms: OrgPlatform[];
   /** Whether the fleet already has a default preset (affects the checkbox). */
@@ -571,7 +605,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                 className={`${styles.optionCard} ${payModel === 'share' ? styles.optionCardActive : ''}`}
                 onClick={() => { setPayModel('share'); setError(''); }}
               >
-                <div className={styles.optionTitle}>💶 Share of earnings</div>
+                <div className={styles.optionTitle}><ShareIcon /><span>Share of earnings</span></div>
                 <div className={styles.optionDesc}>The driver keeps a percentage of what they earn; the fleet keeps the rest. The classic split (and rent-a-car).</div>
               </button>
               <button
@@ -579,7 +613,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                 className={`${styles.optionCard} ${payModel === 'hourly' ? styles.optionCardActive : ''}`}
                 onClick={() => { setPayModel('hourly'); setError(''); }}
               >
-                <div className={styles.optionTitle}>⏱️ Hourly wage</div>
+                <div className={styles.optionTitle}><HourlyIcon /><span>Hourly wage</span></div>
                 <div className={styles.optionDesc}>Paid for the hours they work. Hours fill in automatically from their clocked shifts.</div>
               </button>
               <button
@@ -587,7 +621,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                 className={`${styles.optionCard} ${payModel === 'fixed' ? styles.optionCardActive : ''}`}
                 onClick={() => { setPayModel('fixed'); setError(''); }}
               >
-                <div className={styles.optionTitle}>📅 Fixed weekly wage</div>
+                <div className={styles.optionTitle}><FixedWeeklyIcon /><span>Fixed weekly wage</span></div>
                 <div className={styles.optionDesc}>A flat amount every week, whatever they earn on the road.</div>
               </button>
               <button
@@ -595,7 +629,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                 className={`${styles.optionCard} ${payModel === 'wage_share' ? styles.optionCardActive : ''}`}
                 onClick={() => { setPayModel('wage_share'); setError(''); }}
               >
-                <div className={styles.optionTitle}>➕ Wage + commission</div>
+                <div className={styles.optionTitle}><WageCommissionIcon /><span>Wage + commission</span></div>
                 <div className={styles.optionDesc}>An hourly base wage plus a percentage of the fares they bring in.</div>
               </button>
             </div>

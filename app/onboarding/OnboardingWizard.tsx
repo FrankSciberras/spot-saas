@@ -310,14 +310,20 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
                         </li>
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      className={`${styles.cardBtn} ${isRec ? styles.cardBtnPrimary : ''}`}
-                      disabled={isPending}
-                      onClick={() => finish(plan.id)}
-                    >
-                      {loading ? 'Setting up…' : `Choose ${plan.name}`}
-                    </button>
+                    {plan.isCustom ? (
+                      <a className={styles.cardBtn} href={plan.ctaHref ?? '/contact'}>
+                        {plan.ctaLabel ?? 'Talk to us'}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${styles.cardBtn} ${isRec ? styles.cardBtnPrimary : ''}`}
+                        disabled={isPending}
+                        onClick={() => finish(plan.id)}
+                      >
+                        {loading ? 'Setting up…' : `Choose ${plan.name}`}
+                      </button>
+                    )}
                   </div>
                 );
               })}

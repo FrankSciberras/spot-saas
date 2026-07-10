@@ -18,6 +18,8 @@ export interface Integration {
   /** One-line description of what the connection does. */
   desc: string;
   status: IntegrationStatus;
+  /** Where a LIVE integration opens inside the dashboard (e.g. '/fleet/financials'). */
+  href?: string;
 }
 
 export interface IntegrationCategory {
@@ -183,8 +185,9 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         mark: 'CSV',
         bg: '#64748b',
         fg: '#ffffff',
-        desc: 'One-click CSV of settlements and expenses for your accountant.',
-        status: 'coming-soon',
+        desc: 'One-click QuickBooks & Xero-ready CSV of your income, expenses and driver pay.',
+        status: 'live',
+        href: '/fleet/financials',
       },
     ],
   },

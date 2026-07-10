@@ -48,7 +48,7 @@ export default async function EditSettlementPage({ params }: PageProps) {
   return (
     <FleetShell user={user} title="Edit Settlement">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>Edit Settlement</h2>
           <p className={styles.pageSubtitle}>
             {driverName} • {settlement.week_label}

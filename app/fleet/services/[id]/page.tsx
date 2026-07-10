@@ -69,7 +69,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
   return (
     <FleetShell user={user} title="Service Details">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>{SERVICE_TYPE_LABELS[service.service_type] || service.service_type}</h2>
           <span className={styles.subtitle}>
             {service.vehicles?.registration_number} • {formatDate(service.service_date)}

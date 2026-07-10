@@ -8,6 +8,7 @@ import RovoraSupportChat from './RovoraSupportChat';
 import MarketingNav from './MarketingNav';
 import MarketingFooter from './MarketingFooter';
 import PricingPlans from './PricingPlans';
+import LiteYouTube from './LiteYouTube';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import { Icon, type IconName } from './feature/icons';
 import { markFontSize } from '@/lib/integrations/catalog';
@@ -47,11 +48,12 @@ const INTEGRATIONS: {
   bg: string;
   fg: string;
   desc: string;
+  live?: boolean;
 }[] = [
+  { name: 'Accountant CSV export', mark: 'CSV', bg: '#64748b', fg: '#ffffff', desc: 'QuickBooks & Xero-ready CSV of your books, one click.', live: true },
   { name: 'Wialon', mark: 'W', bg: '#f26722', fg: '#ffffff', desc: 'Import GPS positions & trips from your trackers.' },
   { name: 'Uber', mark: 'U', bg: '#000000', fg: '#ffffff', desc: 'Auto-import trips & weekly earnings.' },
   { name: 'WhatsApp', mark: 'WA', bg: '#25d366', fg: '#06341c', desc: 'Send shift reminders straight to drivers.' },
-  { name: 'Xero', mark: 'X', bg: '#13b5ea', fg: '#ffffff', desc: 'Push settlements & expenses to your books.' },
 ];
 
 /** Quick "everything Rovora does" overview grid on the homepage. */
@@ -93,8 +95,8 @@ export const LANDING_FAQ: { q: string; a: string }[] = [
     a: 'Your data is encrypted in transit and at rest, hosted in the EU, and only ever visible to your team. You can export everything at any time, and we never sell or share your data.',
   },
   {
-    q: 'What if I run more than 50 vehicles?',
-    a: "The Fleet plan is built for larger operators, with volume per-vehicle pricing, guided onboarding and a dedicated account manager. Book a demo and we'll tailor it to your operation.",
+    q: 'What if I run more than 75 vehicles?',
+    a: "Up to 75 vehicles you're self-serve on the Fleet plan, priced by the car. Above that, our Enterprise plan adds custom volume pricing, white-glove onboarding and a dedicated account manager — get in touch and we'll tailor it to your operation.",
   },
 ];
 
@@ -232,6 +234,21 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               <div className="stat"><div className="num mono">100<span style={{ fontSize: 24 }}>%</span></div><div className="lbl">document &amp; service compliance</div></div>
               <div className="stat"><div className="num mono">1</div><div className="lbl">dashboard for your whole fleet</div></div>
               <div className="stat"><div className="num mono">€0</div><div className="lbl">spent on GPS tracking hardware</div></div>
+            </div>
+          </div>
+        </section>
+
+        {/* SEE IT IN ACTION */}
+        <section className="sec-pad" id="demo">
+          <div className="container">
+            <div className="sec-head center reveal">
+              <span className="kicker">Watch</span>
+              <h2 className="sec-title">See Rovora in action</h2>
+              <p className="sec-desc">A quick tour of the dashboard — vehicles, drivers, live GPS tracking, weekly driver pay and the books, all in one place.</p>
+            </div>
+            <div className="shot reveal">
+              <ShotBar path="dashboard" />
+              <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" />
             </div>
           </div>
         </section>
@@ -496,7 +513,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
             <div className="integ-grid reveal-stagger">
               {INTEGRATIONS.map((it) => (
                 <div className="integ" key={it.name}>
-                  <span className="integ-soon">Coming soon</span>
+                  <span className={it.live ? 'integ-live' : 'integ-soon'}>{it.live ? 'Live' : 'Coming soon'}</span>
                   <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.mark}</div>
                   <div className="integ-name">{it.name}</div>
                   <p className="integ-desc">{it.desc}</p>

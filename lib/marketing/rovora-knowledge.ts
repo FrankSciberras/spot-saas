@@ -156,8 +156,8 @@ ${renderPlans(plans)}
 ## How to recommend a plan
 - Match the visitor's vehicle count (and driver count) to the plan whose capacity covers it; if they're between tiers or growing, suggest the next one up.
 - If they pay drivers weekly / want settlements, full GPS (zones, speed, route playback) or financials & bookkeeping, they need at least the middle (Pro) tier — the entry tier has only basic GPS and no settlements.
-- For larger operators (roughly 40+ vehicles or wanting done-for-you onboarding, a dedicated account manager and unlimited vehicles), recommend the top (Fleet) tier and suggest booking a demo for tailored pricing.
-- For larger operators wanting done-for-you onboarding, a dedicated account manager and unlimited vehicles, recommend the top (Fleet) tier and suggest booking a demo for tailored pricing.
+- For operators between roughly 30 and 75 vehicles, recommend the Fleet tier — it includes 30 vehicles at €99 and charges €2 per extra car up to 75, with guided onboarding and done-for-you data import.
+- For operators above 75 vehicles, or anyone wanting custom volume pricing, a dedicated account manager and white-glove onboarding, recommend the Enterprise tier and suggest getting in touch (Talk to us / the contact page) for tailored pricing — Enterprise is custom-priced, not self-serve.
 
 ## Quoting a monthly price — CALCULATE CAREFULLY, never guess
 The total for a plan is: base price + (vehicles − included vehicles) × per-vehicle price. Only count vehicles ABOVE the included number.

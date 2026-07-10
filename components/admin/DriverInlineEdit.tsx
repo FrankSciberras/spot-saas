@@ -6,6 +6,7 @@ import Link from 'next/link';
 import InlineEditField from './InlineEditField';
 import styles from './AdminForms.module.css';
 import inlineStyles from './InlineEdit.module.css';
+import { PaperclipIcon, DocumentIcon } from '@/components/shared/DocIcons';
 
 interface PartialVehicle {
   id: string;
@@ -289,7 +290,7 @@ export default function DriverInlineEdit({
         disabled={uploadingType === docType}
         title="Upload document"
       >
-        {uploadingType === docType ? '...' : '📎'}
+        {uploadingType === docType ? '…' : <PaperclipIcon size={16} />}
       </button>
     </>
   );
@@ -307,7 +308,7 @@ export default function DriverInlineEdit({
             rel="noopener noreferrer" 
             className={inlineStyles.fileLink}
           >
-            📄 {file.file_name || 'View'}
+            <DocumentIcon size={14} /> {file.file_name || 'View'}
           </a>
         ))}
       </div>

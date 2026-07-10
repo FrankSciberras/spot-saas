@@ -116,6 +116,19 @@ export const FLEET_MODULES: FleetModule[] = [
     routePrefixes: ['/fleet/services', '/fleet/damages'],
   },
   {
+    key: 'parts',
+    name: 'Parts & Inventory',
+    tagline: 'Track stock & usage',
+    description:
+      'Keep a stock list of spare parts with low-stock alerts, and log usage against vehicles and services.',
+    icon: 'box',
+    category: 'Operations',
+    status: 'available',
+    defaultEnabled: true,
+    navIds: ['parts'],
+    routePrefixes: ['/fleet/parts'],
+  },
+  {
     key: 'reminders',
     name: 'Reminders',
     tagline: 'Renewals & notifications',
