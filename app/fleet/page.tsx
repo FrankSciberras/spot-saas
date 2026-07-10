@@ -34,14 +34,25 @@ export default async function FleetDashboardPage() {
 async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: boolean }) {
   const supabase = await createClient();
 
-  const [driversResult, vehiclesResult, shiftsResult] = await Promise.all([
-    supabase.from('drivers').select('id, status'),
-    supabase.from('vehicles').select('id, status'),
+  // Onboarding signals (admin only): whether pay is configured (any preset) and
+  // whether a first settlement exists. `head + count` keeps these near-free.
+  const onboardingProbe = isAdmin
+    ? Promise.all([
+        supabase.from('settlement_presets').select('id', { count: 'exact', head: true }).eq('organization_id', user.organization_id),
+        supabase.from('driver_settlements').select('id', { count: 'exact', head: true }).eq('organization_id', user.organization_id),
+      ])
+    : Promise.resolve([{ count: 1 }, { count: 1 }] as { count: number | null }[]);
+
+  const [driversResult, vehiclesResult, shiftsResult, [presetProbe, settlementProbe]] = await Promise.all([
+    supabase.from('drivers').select('id, status').eq('organization_id', user.organization_id),
+    supabase.from('vehicles').select('id, status').eq('organization_id', user.organization_id),
     supabase
       .from('driver_shifts')
       .select('id, start_time, driver_id, drivers(full_name), vehicles(registration_number)')
+      .eq('organization_id', user.organization_id)
       .order('start_time', { ascending: false })
       .limit(6),
+    onboardingProbe,
   ]);
 
   const drivers = driversResult.data || [];
@@ -74,11 +85,13 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
     supabase
       .from('drivers')
       .select('id, full_name, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date')
+      .eq('organization_id', user.organization_id)
       .or(`id_card_expiry_date.lte.${expiryDate},police_conduct_expiry_date.lte.${expiryDate},driving_license_expiry_date.lte.${expiryDate}`)
       .limit(20),
     supabase
       .from('vehicles')
       .select('id, registration_number, make, model, insurance_expiry_date, road_license_expiry_date')
+      .eq('organization_id', user.organization_id)
       .or(`insurance_expiry_date.lte.${expiryDate},road_license_expiry_date.lte.${expiryDate}`)
       .limit(20),
   ]);
@@ -118,6 +131,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
     ? await supabase
         .from('weekly_bookkeeping')
         .select('week_start, week_label, total_income, total_expenses, net_profit, employees, repairs, insurance, investments, vat, rent, employee_tax, other_expenses')
+        .eq('organization_id', user.organization_id)
         .order('week_start', { ascending: true })
     : { data: [] as any[] };
   const bookkeepingEntries = bookkeepingEntriesResult.data || [];
@@ -171,6 +185,15 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
 
   const userName = user.full_name?.split(' ')[0] || 'there';
 
+  const onboarding = isAdmin
+    ? {
+        hasDrivers: totalDrivers > 0,
+        hasVehicles: totalVehicles > 0,
+        hasPay: (presetProbe.count ?? 0) > 0,
+        hasSettlement: (settlementProbe.count ?? 0) > 0,
+      }
+    : undefined;
+
   return (
     <FleetDashboard
       userName={userName}
@@ -189,6 +212,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
       expenseBreakdown={expenseBreakdown}
       expiringDocs={topExpiringDocs}
       recentShifts={recentShifts}
+      onboarding={onboarding}
     />
   );
 }

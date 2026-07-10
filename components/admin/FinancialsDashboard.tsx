@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, WeeklyBookkeeping } from '@/lib/types/database';
+import { buildBookkeepingTxns, toQuickBooksCsv, toXeroCsv } from '@/lib/utils/accountingExport';
 import DatePicker from '@/components/shared/DatePicker';
 import styles from './FinancialsDashboard.module.css';
 import {
@@ -1042,6 +1043,15 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     downloadTextFile(`journal_${selectedPeriod.start}_to_${selectedPeriod.end}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
   };
 
+  // QuickBooks / Xero-ready transaction export over the whole filtered range —
+  // one signed line per bookkeeping category, ready to import as a bank CSV.
+  const exportAccountingCsv = (flavor: 'quickbooks' | 'xero') => {
+    const txns = buildBookkeepingTxns(filteredEntries);
+    if (txns.length === 0) return;
+    const csv = flavor === 'xero' ? toXeroCsv(txns) : toQuickBooksCsv(txns);
+    downloadTextFile(`accounting_${flavor}_${startDate}_to_${endDate}.csv`, csv, 'text/csv;charset=utf-8');
+  };
+
   const exportDriverRankingsCsv = () => {
     if (mode !== 'drivers' || selectedDriverId !== 'all') return;
     const rows = driverRankings.map((r) => ({
@@ -1112,9 +1122,27 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 Export Summary CSV
               </button>
               {mode === 'fleet' ? (
-                <button className={styles.actionBtnSecondary} onClick={exportJournalCsv} disabled={!selectedPeriod}>
-                  Export Journal CSV
-                </button>
+                <>
+                  <button className={styles.actionBtnSecondary} onClick={exportJournalCsv} disabled={!selectedPeriod}>
+                    Export Journal CSV
+                  </button>
+                  <button
+                    className={styles.actionBtnSecondary}
+                    onClick={() => exportAccountingCsv('quickbooks')}
+                    disabled={filteredEntries.length === 0}
+                    title="Bank-format CSV ready to import into QuickBooks Online"
+                  >
+                    QuickBooks CSV
+                  </button>
+                  <button
+                    className={styles.actionBtnSecondary}
+                    onClick={() => exportAccountingCsv('xero')}
+                    disabled={filteredEntries.length === 0}
+                    title="Bank statement CSV ready to import into Xero"
+                  >
+                    Xero CSV
+                  </button>
+                </>
               ) : (
                 <button
                   className={styles.actionBtnSecondary}

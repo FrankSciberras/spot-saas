@@ -24,6 +24,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
       drivers:assigned_driver_id (id, full_name, phone)
     `)
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !vehicle) {

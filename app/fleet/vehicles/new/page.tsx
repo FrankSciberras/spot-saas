@@ -16,13 +16,14 @@ export default async function NewVehiclePage() {
   const { data: drivers } = await supabase
     .from('drivers')
     .select('id, full_name, phone, assigned_vehicle_id')
+    .eq('organization_id', user.organization_id)
     .eq('status', 'active')
     .order('full_name');
 
   return (
     <FleetShell user={user} title="Add New Vehicle">
       <div className={`${styles.pageHeader} header-mobile-row`}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <div className={styles.breadcrumb}>Operations / Vehicles / New</div>
           <h2>Add New Vehicle</h2>
           <span className={styles.subtitle}>Register a new vehicle to your fleet</span>

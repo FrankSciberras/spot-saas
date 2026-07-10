@@ -55,9 +55,12 @@ export default async function DriverEarningsPage() {
     .order('week_start', { ascending: false });
 
   // Fleet's platforms for icons/colors in the breakdown (members can read).
+  // Scope to the active org: RLS allows every org the user belongs to, so a
+  // multi-fleet account would otherwise merge each fleet's platform list.
   const { data: platformRows } = await supabase
     .from('org_platforms')
     .select('key, name, default_fee_pct, icon, color')
+    .eq('organization_id', user.organization_id)
     .order('sort_order');
   const platforms = resolvePlatforms(platformRows);
 

@@ -34,21 +34,26 @@ async function VehiclesContent({ user }: { user: FleetUser }) {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 7);
 
+  const orgId = user.organization_id;
   const [vehiclesResult, assignmentsResult, shiftsResult, damagesResult] = await Promise.all([
     supabase
       .from('vehicles')
       .select('id, registration_number, make, model, year, mileage, status, drivers:assigned_driver_id (full_name)')
+      .eq('organization_id', orgId)
       .order('registration_number'),
     supabase
       .from('driver_vehicle_assignments')
-      .select('vehicle_id, drivers:driver_id (full_name)'),
+      .select('vehicle_id, drivers:driver_id (full_name)')
+      .eq('organization_id', orgId),
     supabase
       .from('driver_shifts')
       .select('vehicle_id, start_time')
+      .eq('organization_id', orgId)
       .gte('start_time', weekStart.toISOString()),
     supabase
       .from('vehicle_damages')
-      .select('vehicle_id, severity, status'),
+      .select('vehicle_id, severity, status')
+      .eq('organization_id', orgId),
   ]);
 
   const vehicleRows = (vehiclesResult.data || []) as any[];

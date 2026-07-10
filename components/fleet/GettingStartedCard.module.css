@@ -1,0 +1,149 @@
+/* =============================================================================
+   Getting-started checklist card (fleet dashboard). Fleet tokens → dark/light.
+   ============================================================================= */
+
+.card {
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+
+.sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.dismiss {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+
+.dismiss:hover {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.progressTrack {
+  height: 5px;
+  background: var(--bg-3);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  transition: border-color 0.14s;
+}
+
+.stepNext {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.stepDone {
+  opacity: 0.7;
+}
+
+.check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-3);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: transparent;
+}
+
+.checkDone {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.stepText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stepLabel {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.stepDone .stepLabel {
+  text-decoration: line-through;
+  color: var(--text-2);
+}
+
+.stepHint {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.step :global(.btn) {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+@media (max-width: 560px) {
+  .step {
+    flex-wrap: wrap;
+  }
+  .step :global(.btn) {
+    width: 100%;
+    margin-top: 4px;
+  }
+}

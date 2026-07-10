@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { completeOnboardingAction } from '@/lib/actions/org';
+import { FLEET_MODULES } from '@/lib/modules/catalog';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import { requiredPlanFor, type Plan, type PaidPlan, type PlanDef } from '@/lib/billing/plans';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import styles from './onboarding.module.css';
@@ -27,15 +29,23 @@ const Check = () => (
   </svg>
 );
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
-const TITLES = ['Set up your fleet', 'How many drivers?', 'How many vehicles?', 'Pick a plan'];
+const TITLES = [
+  'Set up your fleet',
+  'How many drivers?',
+  'How many vehicles?',
+  'Choose your tools',
+  'Pick a plan',
+];
 
 export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [drivers, setDrivers] = useState<Range | null>(null);
   const [vehicles, setVehicles] = useState<Range | null>(null);
+  // Modules default ON; this set holds the ones the operator switched OFF.
+  const [disabledModules, setDisabledModules] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [pendingChoice, setPendingChoice] = useState<Plan | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -62,7 +72,7 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
     setError('');
     setPendingChoice(plan);
     startTransition(async () => {
-      const result = await completeOnboardingAction(name, plan);
+      const result = await completeOnboardingAction(name, plan, Array.from(disabledModules));
       if (result && 'url' in result && result.url) {
         // Paid plan → hand off to Stripe Checkout.
         window.location.assign(result.url);
@@ -90,7 +100,9 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
             {step === 1 &&
               'Roughly how many drivers will you manage? This just helps us suggest the right plan — you can change it any time.'}
             {step === 2 && 'And how many vehicles are in your fleet?'}
-            {step === 3 && (
+            {step === 3 &&
+              'Pick the tools you want to start with. You can add or remove any of these later from Integrations — nothing is locked in.'}
+            {step === 4 && (
               <>
                 Based on your fleet size we suggest <strong>{recommendedName ?? 'a plan'}</strong>.
                 Start free for 30 days — no card needed — or choose a plan now.
@@ -225,8 +237,58 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
           </div>
         )}
 
-        {/* Step 4 — plan recommendation + trial */}
+        {/* Step 4 — choose modules */}
         {step === 3 && (
+          <div className={styles.step}>
+            <div className={styles.formWrap} style={{ maxWidth: 640 }}>
+              <div className={styles.modGrid}>
+                {FLEET_MODULES.map((m) => {
+                  const comingSoon = m.status !== 'available';
+                  const on = !comingSoon && !disabledModules.has(m.key);
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      disabled={comingSoon}
+                      aria-pressed={on}
+                      className={`${styles.modCard} ${on ? styles.modCardOn : ''} ${comingSoon ? styles.modCardSoon : ''}`}
+                      onClick={() => {
+                        if (comingSoon) return;
+                        setDisabledModules((prev) => {
+                          const s = new Set(prev);
+                          if (s.has(m.key)) s.delete(m.key);
+                          else s.add(m.key);
+                          return s;
+                        });
+                      }}
+                    >
+                      <span className={styles.modIcon} aria-hidden>
+                        <FleetIcon name={m.icon} size={22} stroke={1.7} />
+                      </span>
+                      <span className={styles.modText}>
+                        <span className={styles.modName}>
+                          {m.name}
+                          {comingSoon && <span className={styles.modSoon}>Coming soon</span>}
+                        </span>
+                        <span className={styles.modTagline}>{m.tagline}</span>
+                      </span>
+                      <span className={styles.modCheck} aria-hidden>✓</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className={styles.navRow}>
+                <button type="button" className={styles.btn} onClick={back}>Back</button>
+                <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={next}>
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5 — plan recommendation + trial */}
+        {step === 4 && (
           <div className={styles.step}>
             <div className={styles.grid}>
               {plans.map((plan) => {
@@ -248,14 +310,20 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
                         </li>
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      className={`${styles.cardBtn} ${isRec ? styles.cardBtnPrimary : ''}`}
-                      disabled={isPending}
-                      onClick={() => finish(plan.id)}
-                    >
-                      {loading ? 'Setting up…' : `Choose ${plan.name}`}
-                    </button>
+                    {plan.isCustom ? (
+                      <a className={styles.cardBtn} href={plan.ctaHref ?? '/contact'}>
+                        {plan.ctaLabel ?? 'Talk to us'}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${styles.cardBtn} ${isRec ? styles.cardBtnPrimary : ''}`}
+                        disabled={isPending}
+                        onClick={() => finish(plan.id)}
+                      >
+                        {loading ? 'Setting up…' : `Choose ${plan.name}`}
+                      </button>
+                    )}
                   </div>
                 );
               })}

@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import type { UpdateSettlementInput } from '@/lib/types/database';
-import { calculateSettlement, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
-import type { SettlementScheme } from '@/lib/config/settlements';
+import { calculateSettlement, round2, type PlatformEarningsInput, type WageOptions } from '@/lib/utils/settlementCalculations';
+import { resolveComponents, type SettlementScheme } from '@/lib/config/settlements';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 
 interface RouteParams {
@@ -80,7 +80,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // never the fleet's current (possibly since-changed) preset.
     const { data: existing } = await supabase
       .from('driver_settlements')
-      .select('id, status, driver_id, week_start, week_end, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, rent_amount')
+      .select('id, status, driver_id, week_start, week_end, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, rent_amount, hours_worked, hourly_rate, wage_amount, components')
       .eq('id', id)
       .single();
 
@@ -95,6 +95,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
       feeDriverPct: existing.fee_driver_pct,
     };
     const frozenRent = existing.rent_amount ?? 0;
+    // Frozen wage snapshot: edits re-price with the components + hourly rate
+    // this settlement was created under. Only the hours can change (the frozen
+    // fixed-wage part is wage_amount − rate × hours).
+    const frozenComponents = resolveComponents(existing.components);
+    const frozenHourlyRate = Math.max(0, Number(existing.hourly_rate) || 0);
+    const frozenHours = Math.max(0, Number(existing.hours_worked) || 0);
+    const frozenFixedWage = Math.max(
+      0,
+      round2((Number(existing.wage_amount) || 0) - round2(frozenHourlyRate * frozenHours))
+    );
 
     // Re-freeze adjustments: release any currently linked to this settlement,
     // then re-capture the driver's unattached adjustments in this period. This
@@ -151,6 +161,17 @@ export async function PUT(request: Request, { params }: RouteParams) {
       updateData.paid_at = body.paid_at;
     }
 
+    // Wage inputs for re-pricing: frozen components/rate/fixed part, with the
+    // hours editable per settlement (falls back to the stored hours).
+    const wage: WageOptions = {
+      components: frozenComponents,
+      hoursWorked: body.hours_worked !== undefined
+        ? Math.max(0, Number(body.hours_worked) || 0)
+        : frozenHours,
+      hourlyRate: frozenHourlyRate,
+      fixedWageWeekly: frozenFixedWage,
+    };
+
     if (body.platforms !== undefined) {
       const platformInputs: PlatformEarningsInput[] = body.platforms.map(p => ({
         platformId: p.platform_id,
@@ -162,11 +183,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }));
 
       const fssTax = body.fss_tax ?? 0;
-      const calculation = calculateSettlement(platformInputs, fssTax, scheme, frozenRent);
+      const calculation = calculateSettlement(platformInputs, fssTax, scheme, frozenRent, wage);
 
       updateData = {
         ...updateData,
         fss_tax: calculation.fssTax,
+        hours_worked: calculation.hoursWorked,
+        wage_amount: calculation.wageAmount,
         total_gross_fare: calculation.totalGrossFare,
         total_net: calculation.totalNet,
         total_balance_before_tax: calculation.totalBalanceBeforeTax,
@@ -204,8 +227,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
           return NextResponse.json({ error: platformError.message }, { status: 500 });
         }
       }
-    } else if (body.fss_tax !== undefined) {
-      // Just update FSS/Tax without recalculating platforms
+    } else if (body.fss_tax !== undefined || body.hours_worked !== undefined) {
+      // Just update FSS/Tax and/or hours without new platform figures
       const { data: platforms } = await supabase
         .from('settlement_platforms')
         .select('*')
@@ -220,11 +243,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
         campaigns: p.campaigns || 0,
       }));
 
-      const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme, frozenRent);
+      // Keep the stored tax when only the hours changed.
+      const { data: taxRow } = body.fss_tax === undefined
+        ? await supabase.from('driver_settlements').select('fss_tax').eq('id', id).single()
+        : { data: null };
+      const effTax = body.fss_tax ?? taxRow?.fss_tax ?? 0;
+
+      const calculation = calculateSettlement(platformInputs, effTax, scheme, frozenRent, wage);
 
       updateData = {
         ...updateData,
         fss_tax: calculation.fssTax,
+        hours_worked: calculation.hoursWorked,
+        wage_amount: calculation.wageAmount,
+        total_balance_before_tax: calculation.totalBalanceBeforeTax,
         final_balance: calculation.finalBalance,
       };
     }

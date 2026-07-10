@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import styles from '@/components/admin/AdminForms.module.css';
@@ -33,6 +34,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
 export default async function ServiceDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'maintenance');
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
@@ -44,6 +46,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
       users:created_by (full_name, email)
     `)
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !service) {
@@ -66,7 +69,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
   return (
     <FleetShell user={user} title="Service Details">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>{SERVICE_TYPE_LABELS[service.service_type] || service.service_type}</h2>
           <span className={styles.subtitle}>
             {service.vehicles?.registration_number} • {formatDate(service.service_date)}

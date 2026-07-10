@@ -33,6 +33,13 @@ import {
   deleteRecurringAdjustmentAction,
   type RecurringAdjustmentInput,
 } from '@/lib/actions/recurring-adjustments';
+import {
+  COMPONENT_META,
+  DEFAULT_COMPONENTS,
+  resolveComponents,
+  type SettlementComponentKey,
+  type SettlementComponents,
+} from '@/lib/config/settlements';
 import styles from './settlements-settings.module.css';
 
 export interface DriverPresetRow {
@@ -59,6 +66,10 @@ interface PresetForm {
   taxType: SettlementTaxType;
   taxValue: string;
   rentWeekly: string;
+  hourlyRate: string;
+  fixedWageWeekly: string;
+  /** Which settlement components (columns) this preset calculates. */
+  components: SettlementComponents;
 }
 
 const EMPTY_FORM: PresetForm = {
@@ -70,7 +81,50 @@ const EMPTY_FORM: PresetForm = {
   taxType: 'flat',
   taxValue: '22',
   rentWeekly: '0',
+  hourlyRate: '0',
+  fixedWageWeekly: '0',
+  components: { ...DEFAULT_COMPONENTS },
 };
+
+/**
+ * Quick templates: one click sets the component checkboxes to a common pay
+ * model. Everything stays editable afterwards — the checkboxes are the truth.
+ */
+const PAY_TEMPLATES: { id: string; label: string; hint: string; components: SettlementComponents }[] = [
+  {
+    id: 'split',
+    label: 'Revenue split',
+    hint: 'Driver keeps a % of fares (the classic model)',
+    components: { ...DEFAULT_COMPONENTS },
+  },
+  {
+    id: 'hourly',
+    label: 'Hourly wage',
+    hint: 'Hours worked × hourly rate, plus tips',
+    components: {
+      share: false, fee: false, cash: true, tips: true, campaigns: false,
+      hours: true, fixed: false, tax: true, rent: false,
+    },
+  },
+  {
+    id: 'fixed',
+    label: 'Fixed wage',
+    hint: 'A flat weekly amount, plus tips',
+    components: {
+      share: false, fee: false, cash: true, tips: true, campaigns: false,
+      hours: false, fixed: true, tax: true, rent: false,
+    },
+  },
+  {
+    id: 'hybrid',
+    label: 'Wage + share',
+    hint: 'Base wage plus a % of fares',
+    components: {
+      share: true, fee: true, cash: true, tips: true, campaigns: true,
+      hours: true, fixed: false, tax: true, rent: false,
+    },
+  },
+];
 
 function fmtNum(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
@@ -86,6 +140,9 @@ function formFromPreset(p: SettlementPreset): PresetForm {
     taxType: p.tax_type,
     taxValue: fmtNum(p.tax_value),
     rentWeekly: fmtNum(p.rent_weekly),
+    hourlyRate: fmtNum(Number(p.hourly_rate) || 0),
+    fixedWageWeekly: fmtNum(Number(p.fixed_wage_weekly) || 0),
+    components: resolveComponents(p.components),
   };
 }
 
@@ -99,17 +156,30 @@ function inputFromForm(f: PresetForm): PresetInput {
     tax_type: f.taxType,
     tax_value: parseFloat(f.taxValue) || 0,
     rent_weekly: parseFloat(f.rentWeekly) || 0,
+    hourly_rate: parseFloat(f.hourlyRate) || 0,
+    fixed_wage_weekly: parseFloat(f.fixedWageWeekly) || 0,
+    components: f.components,
   };
 }
 
 /** Human summary chips for a preset card. */
 function presetChips(p: SettlementPreset): string[] {
-  const chips = [`Driver keeps ${fmtNum(p.driver_share_pct)}% of fares`];
-  if (p.tips_driver_pct !== 100) chips.push(`Tips ${fmtNum(p.tips_driver_pct)}% to driver`);
-  if (p.campaigns_driver_pct !== 100) chips.push(`Campaigns ${fmtNum(p.campaigns_driver_pct)}% to driver`);
-  if (p.fee_driver_pct !== 100) chips.push(`Driver pays ${fmtNum(p.fee_driver_pct)}% of platform fee`);
-  chips.push(p.tax_type === 'percent' ? `Tax ${fmtNum(p.tax_value)}% of balance` : `Tax €${fmtNum(p.tax_value)} flat`);
-  if (p.rent_weekly > 0) chips.push(`Rent €${fmtNum(p.rent_weekly)}/week`);
+  const c = resolveComponents(p.components);
+  const chips: string[] = [];
+  if (c.share) chips.push(`Driver keeps ${fmtNum(p.driver_share_pct)}% of fares`);
+  if (c.hours) chips.push(`Hourly wage €${fmtNum(Number(p.hourly_rate) || 0)}/h`);
+  if (c.fixed) chips.push(`Fixed wage €${fmtNum(Number(p.fixed_wage_weekly) || 0)}/week`);
+  if (!c.share && !c.hours && !c.fixed) chips.push('No pay lines enabled');
+  if (c.share && c.tips && p.tips_driver_pct !== 100) chips.push(`Tips ${fmtNum(p.tips_driver_pct)}% to driver`);
+  if (!c.tips) chips.push('No tips line');
+  if (c.share && c.campaigns && p.campaigns_driver_pct !== 100) chips.push(`Campaigns ${fmtNum(p.campaigns_driver_pct)}% to driver`);
+  if (c.share && c.fee && p.fee_driver_pct !== 100) chips.push(`Driver pays ${fmtNum(p.fee_driver_pct)}% of platform fee`);
+  if (c.tax) {
+    chips.push(p.tax_type === 'percent' ? `Tax ${fmtNum(p.tax_value)}% of balance` : `Tax €${fmtNum(p.tax_value)} flat`);
+  } else {
+    chips.push('No tax line');
+  }
+  if (c.rent && p.rent_weekly > 0) chips.push(`Rent €${fmtNum(p.rent_weekly)}/week`);
   return chips;
 }
 
@@ -148,6 +218,15 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
 
   const set = (field: keyof PresetForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const toggleComponent = (key: SettlementComponentKey) =>
+    setForm((prev) => ({
+      ...prev,
+      components: { ...prev.components, [key]: !prev.components[key] },
+    }));
+
+  const applyTemplate = (components: SettlementComponents) =>
+    setForm((prev) => ({ ...prev, components: { ...components } }));
 
   const savePreset = () => {
     setError('');
@@ -273,6 +352,8 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
                   key={p.id}
                   form={form}
                   set={set}
+                  toggleComponent={toggleComponent}
+                  applyTemplate={applyTemplate}
                   showAdvanced={showAdvanced}
                   setShowAdvanced={setShowAdvanced}
                   saving={saving}
@@ -330,6 +411,8 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
             <PresetEditor
               form={form}
               set={set}
+              toggleComponent={toggleComponent}
+              applyTemplate={applyTemplate}
               showAdvanced={showAdvanced}
               setShowAdvanced={setShowAdvanced}
               saving={saving}
@@ -418,6 +501,8 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
 interface EditorProps {
   form: PresetForm;
   set: (field: keyof PresetForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  toggleComponent: (key: SettlementComponentKey) => void;
+  applyTemplate: (components: SettlementComponents) => void;
   showAdvanced: boolean;
   setShowAdvanced: (v: boolean) => void;
   saving: boolean;
@@ -425,7 +510,25 @@ interface EditorProps {
   onCancel: () => void;
 }
 
-function PresetEditor({ form, set, showAdvanced, setShowAdvanced, saving, onSave, onCancel }: EditorProps) {
+/** Does the current component set match a template exactly? (highlights the chip) */
+function matchesTemplate(components: SettlementComponents, tpl: SettlementComponents): boolean {
+  return (Object.keys(tpl) as SettlementComponentKey[]).every((k) => components[k] === tpl[k]);
+}
+
+function PresetEditor({
+  form,
+  set,
+  toggleComponent,
+  applyTemplate,
+  showAdvanced,
+  setShowAdvanced,
+  saving,
+  onSave,
+  onCancel,
+}: EditorProps) {
+  const c = form.components;
+  const hasAdvanced = c.share && (c.tips || c.campaigns || c.fee);
+
   return (
     <div className={styles.editorCard}>
       <div className={styles.editorGrid}>
@@ -435,109 +538,208 @@ function PresetEditor({ form, set, showAdvanced, setShowAdvanced, saving, onSave
             type="text"
             value={form.name}
             onChange={set('name')}
-            placeholder="e.g. Standard 50/50, Fixed rent…"
+            placeholder="e.g. Standard 50/50, Hourly crew, Fixed rent…"
             className={styles.textInput}
             maxLength={60}
           />
         </label>
-
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Driver share of fares</span>
-          <span className={styles.fieldControl}>
-            <input
-              type="number" min={0} max={100} step="0.5"
-              value={form.driverSharePct}
-              onChange={set('driverSharePct')}
-              className={styles.pctInput}
-            />
-            <span className={styles.pctSuffix}>% to driver</span>
-          </span>
-          <span className={styles.fieldHint}>100% + a weekly rent below = rent-a-car model.</span>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>FSS / Tax</span>
-          <span className={styles.fieldControl}>
-            <select value={form.taxType} onChange={set('taxType')} className={styles.typeSelect}>
-              <option value="flat">Flat €</option>
-              <option value="percent">% of balance</option>
-            </select>
-            <input
-              type="number" min={0} step="0.5"
-              max={form.taxType === 'percent' ? 100 : undefined}
-              value={form.taxValue}
-              onChange={set('taxValue')}
-              className={styles.pctInput}
-            />
-            <span className={styles.pctSuffix}>{form.taxType === 'percent' ? '%' : '€ / week'}</span>
-          </span>
-          <span className={styles.fieldHint}>
-            Prefills the tax field on new settlements (flat tax applies to full-time drivers only).
-            Still editable per settlement.
-          </span>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Weekly vehicle rent</span>
-          <span className={styles.fieldControl}>
-            <input
-              type="number" min={0} step="1"
-              value={form.rentWeekly}
-              onChange={set('rentWeekly')}
-              className={styles.pctInput}
-            />
-            <span className={styles.pctSuffix}>€ / week (0 = none)</span>
-          </span>
-          <span className={styles.fieldHint}>Deducted from every settlement under this preset.</span>
-        </label>
       </div>
 
-      <button
-        type="button"
-        className={styles.advancedToggle}
-        onClick={() => setShowAdvanced(!showAdvanced)}
-      >
-        {showAdvanced ? '▾' : '▸'} Advanced: tips, campaigns &amp; platform fee
-      </button>
+      {/* Pay-model templates: one click sets the checkboxes below */}
+      <div className={styles.templateRow}>
+        <span className={styles.templateLabel}>Start from:</span>
+        {PAY_TEMPLATES.map((tpl) => (
+          <button
+            key={tpl.id}
+            type="button"
+            className={`${styles.templateBtn} ${matchesTemplate(c, tpl.components) ? styles.templateActive : ''}`}
+            title={tpl.hint}
+            onClick={() => applyTemplate(tpl.components)}
+          >
+            {tpl.label}
+          </button>
+        ))}
+      </div>
 
-      {showAdvanced && (
+      {/* Component toggles — which columns this preset calculates */}
+      <div className={styles.compSection}>
+        <div className={styles.compSectionTitle}>What counts in this settlement</div>
+        <div className={styles.compSectionHint}>
+          Tick the lines that apply to how these drivers are paid. Anything unticked disappears
+          from the settlement form and is left out of the maths.
+        </div>
+        <div className={styles.compGroups}>
+          {(['earnings', 'deductions'] as const).map((group) => (
+            <div key={group} className={styles.compGroup}>
+              <div className={styles.compGroupTitle}>
+                {group === 'earnings' ? 'Driver earns' : 'Deducted from pay'}
+              </div>
+              {COMPONENT_META.filter((m) => m.group === group).map((m) => (
+                <label key={m.key} className={styles.compItem}>
+                  <input
+                    type="checkbox"
+                    checked={c[m.key]}
+                    onChange={() => toggleComponent(m.key)}
+                  />
+                  <span className={styles.compText}>
+                    <span className={styles.compLabel}>{m.label}</span>
+                    <span className={styles.compHint}>{m.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Amounts for the enabled components */}
+      <div className={styles.editorGrid}>
+        {c.share && (
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Driver share of fares</span>
+            <span className={styles.fieldControl}>
+              <input
+                type="number" min={0} max={100} step="0.5"
+                value={form.driverSharePct}
+                onChange={set('driverSharePct')}
+                className={styles.pctInput}
+              />
+              <span className={styles.pctSuffix}>% to driver</span>
+            </span>
+            <span className={styles.fieldHint}>100% + a weekly rent below = rent-a-car model.</span>
+          </label>
+        )}
+
+        {c.hours && (
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Hourly rate</span>
+            <span className={styles.fieldControl}>
+              <input
+                type="number" min={0} step="0.5"
+                value={form.hourlyRate}
+                onChange={set('hourlyRate')}
+                className={styles.pctInput}
+              />
+              <span className={styles.pctSuffix}>€ / hour</span>
+            </span>
+            <span className={styles.fieldHint}>
+              Hours prefill automatically from the driver&apos;s clocked shifts — editable on each
+              settlement before saving.
+            </span>
+          </label>
+        )}
+
+        {c.fixed && (
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Fixed weekly wage</span>
+            <span className={styles.fieldControl}>
+              <input
+                type="number" min={0} step="1"
+                value={form.fixedWageWeekly}
+                onChange={set('fixedWageWeekly')}
+                className={styles.pctInput}
+              />
+              <span className={styles.pctSuffix}>€ / week</span>
+            </span>
+            <span className={styles.fieldHint}>Added to every settlement under this preset.</span>
+          </label>
+        )}
+
+        {c.tax && (
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>FSS / Tax</span>
+            <span className={styles.fieldControl}>
+              <select value={form.taxType} onChange={set('taxType')} className={styles.typeSelect}>
+                <option value="flat">Flat €</option>
+                <option value="percent">% of balance</option>
+              </select>
+              <input
+                type="number" min={0} step="0.5"
+                max={form.taxType === 'percent' ? 100 : undefined}
+                value={form.taxValue}
+                onChange={set('taxValue')}
+                className={styles.pctInput}
+              />
+              <span className={styles.pctSuffix}>{form.taxType === 'percent' ? '%' : '€ / week'}</span>
+            </span>
+            <span className={styles.fieldHint}>
+              Prefills the tax field on new settlements (flat tax applies to full-time drivers only).
+              Still editable per settlement.
+            </span>
+          </label>
+        )}
+
+        {c.rent && (
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Weekly vehicle rent</span>
+            <span className={styles.fieldControl}>
+              <input
+                type="number" min={0} step="1"
+                value={form.rentWeekly}
+                onChange={set('rentWeekly')}
+                className={styles.pctInput}
+              />
+              <span className={styles.pctSuffix}>€ / week (0 = none)</span>
+            </span>
+            <span className={styles.fieldHint}>Deducted from every settlement under this preset.</span>
+          </label>
+        )}
+      </div>
+
+      {hasAdvanced && (
+        <button
+          type="button"
+          className={styles.advancedToggle}
+          onClick={() => setShowAdvanced(!showAdvanced)}
+        >
+          {showAdvanced ? '▾' : '▸'} Advanced: tips, campaigns &amp; platform fee splits
+        </button>
+      )}
+
+      {hasAdvanced && showAdvanced && (
         <div className={styles.editorGrid}>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Tips to driver</span>
-            <span className={styles.fieldControl}>
-              <input
-                type="number" min={0} max={100} step="0.5"
-                value={form.tipsPct}
-                onChange={set('tipsPct')}
-                className={styles.pctInput}
-              />
-              <span className={styles.pctSuffix}>% (100 = driver keeps all tips)</span>
-            </span>
-          </label>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Campaigns to driver</span>
-            <span className={styles.fieldControl}>
-              <input
-                type="number" min={0} max={100} step="0.5"
-                value={form.campaignsPct}
-                onChange={set('campaignsPct')}
-                className={styles.pctInput}
-              />
-              <span className={styles.pctSuffix}>% (100 = driver keeps all bonuses)</span>
-            </span>
-          </label>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Platform fee borne by driver</span>
-            <span className={styles.fieldControl}>
-              <input
-                type="number" min={0} max={100} step="0.5"
-                value={form.feePct}
-                onChange={set('feePct')}
-                className={styles.pctInput}
-              />
-              <span className={styles.pctSuffix}>% (100 = driver absorbs the full fee)</span>
-            </span>
-          </label>
+          {c.tips && (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Tips to driver</span>
+              <span className={styles.fieldControl}>
+                <input
+                  type="number" min={0} max={100} step="0.5"
+                  value={form.tipsPct}
+                  onChange={set('tipsPct')}
+                  className={styles.pctInput}
+                />
+                <span className={styles.pctSuffix}>% (100 = driver keeps all tips)</span>
+              </span>
+            </label>
+          )}
+          {c.campaigns && (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Campaigns to driver</span>
+              <span className={styles.fieldControl}>
+                <input
+                  type="number" min={0} max={100} step="0.5"
+                  value={form.campaignsPct}
+                  onChange={set('campaignsPct')}
+                  className={styles.pctInput}
+                />
+                <span className={styles.pctSuffix}>% (100 = driver keeps all bonuses)</span>
+              </span>
+            </label>
+          )}
+          {c.fee && (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Platform fee borne by driver</span>
+              <span className={styles.fieldControl}>
+                <input
+                  type="number" min={0} max={100} step="0.5"
+                  value={form.feePct}
+                  onChange={set('feePct')}
+                  className={styles.pctInput}
+                />
+                <span className={styles.pctSuffix}>% (100 = driver absorbs the full fee)</span>
+              </span>
+            </label>
+          )}
         </div>
       )}
 

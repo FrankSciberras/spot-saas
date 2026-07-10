@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
+import { DocumentIcon, ShieldIcon, RoadLicenseIcon, LogbookIcon, FolderIcon } from '@/components/shared/DocIcons';
 import type { VehicleStatus } from '@/lib/types/database';
 import styles from './AdminForms.module.css';
 
@@ -419,7 +420,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         {/* Insurance */}
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>🛡️ Vehicle Insurance</span>
+            <span className={styles.documentLabel}><ShieldIcon size={16} />Vehicle Insurance</span>
             <div className={styles.formGroup}>
               <label htmlFor="insurance_expiry_date">Expiry Date</label>
               <DatePicker
@@ -455,7 +456,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
                 >
-                  📄 {file.file_name || 'Insurance Document'}
+                  <DocumentIcon size={14} /> {file.file_name || 'Insurance Document'}
                 </a>
                 {mode === 'edit' && (
                   <button
@@ -476,7 +477,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         {/* Road License */}
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>📋 Road License</span>
+            <span className={styles.documentLabel}><RoadLicenseIcon size={16} />Road License</span>
             <div className={styles.formGroup}>
               <label htmlFor="road_license_expiry_date">Expiry Date</label>
               <DatePicker
@@ -512,7 +513,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
                 >
-                  📄 {file.file_name || 'Road License'}
+                  <DocumentIcon size={14} /> {file.file_name || 'Road License'}
                 </a>
                 {mode === 'edit' && (
                   <button
@@ -533,7 +534,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         {/* Logbook */}
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>📖 Logbook</span>
+            <span className={styles.documentLabel}><LogbookIcon size={16} />Logbook</span>
             <p className={styles.documentHint}>Vehicle registration logbook</p>
           </div>
           <div className={styles.documentUpload}>
@@ -562,7 +563,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
                 >
-                  📄 {file.file_name || 'Logbook'}
+                  <DocumentIcon size={14} /> {file.file_name || 'Logbook'}
                 </a>
                 {mode === 'edit' && (
                   <button
@@ -583,7 +584,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
         {/* Other Documents */}
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>📁 Other Documents</span>
+            <span className={styles.documentLabel}><FolderIcon size={16} />Other Documents</span>
             <p className={styles.documentHint}>Upload any other vehicle-related documents</p>
           </div>
           <div className={styles.documentUpload}>
@@ -612,7 +613,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
                   rel="noopener noreferrer"
                   className={styles.uploadedFile}
                 >
-                  📄 {file.file_name || 'Document'}
+                  <DocumentIcon size={14} /> {file.file_name || 'Document'}
                 </a>
                 {mode === 'edit' && (
                   <button

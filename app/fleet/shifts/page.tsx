@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -16,16 +17,17 @@ function initialsOf(name: string): string {
 
 export default async function ShiftsPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'rostering');
   return (
     <FleetShell user={user} title="Driver Shifts">
       <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
-        <ShiftsContent />
+        <ShiftsContent orgId={user.organization_id} />
       </Suspense>
     </FleetShell>
   );
 }
 
-async function ShiftsContent() {
+async function ShiftsContent({ orgId }: { orgId: string }) {
   const supabase = await createClient();
   const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 
@@ -35,6 +37,7 @@ async function ShiftsContent() {
   const { data } = await supabase
     .from('driver_shifts')
     .select('id, start_time, end_time, starting_mileage, dashcam_checked, car_internal_checked, drivers:driver_id (full_name), vehicles:vehicle_id (registration_number)')
+    .eq('organization_id', orgId)
     .gte('start_time', cutoff.toISOString())
     .order('start_time', { ascending: false })
     .limit(200);

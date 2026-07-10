@@ -12,9 +12,17 @@ export default async function NewStaffPage() {
   const user = await requireRole(['admin']);
   const supabase = await createClient();
 
+  // Only this fleet's members (users has no organization_id — join via memberships).
+  const { data: orgMembers } = await supabase
+    .from('memberships')
+    .select('user_id')
+    .eq('organization_id', user.organization_id);
+  const memberIds = (orgMembers || []).map((m) => m.user_id);
+
   const { data: existingAccounts } = await supabase
     .from('users')
     .select('id, email, full_name, role')
+    .in('id', memberIds)
     .eq('role', 'driver')
     .eq('also_staff', false)
     .order('full_name');
@@ -22,7 +30,7 @@ export default async function NewStaffPage() {
   return (
     <FleetShell user={user} title="Add New Staff">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>Add New Staff</h2>
           <span className={styles.subtitle}>Create a new account or grant staff access to an existing driver</span>
         </div>

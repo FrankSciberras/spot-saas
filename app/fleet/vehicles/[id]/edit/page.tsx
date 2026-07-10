@@ -23,6 +23,7 @@ export default async function EditVehiclePage({ params }: PageProps) {
     .from('vehicles')
     .select('*')
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !vehicle) {
@@ -33,6 +34,7 @@ export default async function EditVehiclePage({ params }: PageProps) {
   const { data: drivers } = await supabase
     .from('drivers')
     .select('id, full_name, phone, assigned_vehicle_id')
+    .eq('organization_id', user.organization_id)
     .eq('status', 'active')
     .order('full_name');
 
@@ -47,7 +49,7 @@ export default async function EditVehiclePage({ params }: PageProps) {
   return (
     <FleetShell user={user} title={`Edit: ${vehicle.registration_number}`}>
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>Edit Vehicle</h2>
           <span className={styles.subtitle}>
             Updating: {vehicle.registration_number} - {vehicle.make} {vehicle.model}

@@ -1,0 +1,97 @@
+/* =============================================================================
+   First-visit settlement setup prompt. Uses the fleet design tokens so it
+   matches the dark/light toggle and the rest of /fleet.
+   ============================================================================= */
+
+.wrap {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.card {
+  max-width: 560px;
+  width: 100%;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  padding: 36px 32px;
+  text-align: center;
+}
+
+.icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.desc {
+  margin: 0 auto 24px;
+  max-width: 460px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.points {
+  list-style: none;
+  margin: 0 auto 28px;
+  padding: 0;
+  max-width: 420px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.point {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.pointIco {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.secondaryLink {
+  font-size: 13px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+
+.secondaryLink:hover {
+  color: var(--text-2);
+  text-decoration: underline;
+}
+
+.staffNote {
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}

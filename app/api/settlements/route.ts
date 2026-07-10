@@ -3,14 +3,14 @@ import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import type { CreateSettlementInput } from '@/lib/types/database';
 import { calculateSettlement, round2, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
-import { resolveScheme, schemeFromPreset, type PresetLike } from '@/lib/config/settlements';
+import { resolveComponents, resolveScheme, schemeFromPreset, type PresetLike } from '@/lib/config/settlements';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 import type { AdjustmentType, RecurringAmountType } from '@/lib/types/database';
 
 const SCHEME_COLUMNS =
   'settlement_driver_share_pct, settlement_tips_driver_pct, settlement_campaigns_driver_pct, settlement_fee_driver_pct';
 const PRESET_COLUMNS =
-  'driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, tax_type, tax_value, rent_weekly';
+  'driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, tax_type, tax_value, rent_weekly, hourly_rate, fixed_wage_weekly, components';
 
 /**
  * GET /api/settlements - List settlements
@@ -160,6 +160,16 @@ export async function POST(request: Request) {
 
     const scheme = preset ? schemeFromPreset(preset) : resolveScheme(orgDefaults, driverRow);
     const rent = preset ? Math.max(0, preset.rent_weekly || 0) : 0;
+    // Component toggles + wage rates from the preset ({} / no preset = legacy
+    // split, wage lines off). Hours come from the client (prefilled from
+    // shifts, editable by the operator).
+    const components = resolveComponents(preset?.components);
+    const wage = {
+      components,
+      hoursWorked: Math.max(0, Number(body.hours_worked) || 0),
+      hourlyRate: preset ? Math.max(0, Number(preset.hourly_rate) || 0) : 0,
+      fixedWageWeekly: preset ? Math.max(0, Number(preset.fixed_wage_weekly) || 0) : 0,
+    };
 
     // Calculate totals from platform data
     const platformInputs: PlatformEarningsInput[] = (body.platforms || []).map(p => ({
@@ -171,7 +181,7 @@ export async function POST(request: Request) {
       campaigns: p.campaigns || 0,
     }));
 
-    const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme, rent);
+    const calculation = calculateSettlement(platformInputs, body.fss_tax, scheme, rent, wage);
 
     // Materialize recurring adjustment rules into real driver_adjustments rows
     // for this driver+period, so they're frozen alongside any manual ones below.
@@ -254,6 +264,12 @@ export async function POST(request: Request) {
         campaigns_driver_pct: scheme.campaignsDriverPct,
         fee_driver_pct: scheme.feeDriverPct,
         rent_amount: calculation.rent,
+        // Frozen wage snapshot: the fully-resolved component set + the numbers
+        // this settlement was actually priced with.
+        hours_worked: calculation.hoursWorked,
+        hourly_rate: calculation.hourlyRate,
+        wage_amount: calculation.wageAmount,
+        components,
         total_adjustments: totalAdjustments,
         total_gross_fare: calculation.totalGrossFare,
         total_net: calculation.totalNet,

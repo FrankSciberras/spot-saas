@@ -80,6 +80,21 @@ export interface OrgPlatform {
   updated_at: string;
 }
 
+/**
+ * A per-fleet module on/off OVERRIDE (the "apps" / plugins system). The master
+ * list of modules lives in lib/modules/catalog.ts; a row here exists only when a
+ * fleet has flipped a module away from its catalog default. `module_key` is the
+ * stable slug from that catalog.
+ */
+export interface OrgModule {
+  id: string;
+  organization_id: string;
+  module_key: string;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 /** How a preset's tax_value is interpreted. */
 export type SettlementTaxType = 'flat' | 'percent';
 
@@ -101,6 +116,12 @@ export interface SettlementPreset {
   tax_value: number;
   /** Fixed weekly vehicle-rent deduction (EUR). 0 = none. */
   rent_weekly: number;
+  /** Hourly wage rate (EUR/h), used when the 'hours' component is on. */
+  hourly_rate: number;
+  /** Fixed weekly wage (EUR), used when the 'fixed' component is on. */
+  fixed_wage_weekly: number;
+  /** Component toggles {key: bool}; missing keys use code defaults ({} = legacy split). */
+  components: Record<string, boolean> | null;
   created_at: string;
   updated_at: string;
 }
@@ -600,6 +621,14 @@ export interface DriverSettlement {
   fee_driver_pct: number;
   /** Frozen snapshot of the weekly rent deducted in this settlement. */
   rent_amount: number;
+  /** Frozen hours worked used to price this settlement (prefilled from shifts, editable). */
+  hours_worked: number;
+  /** Frozen hourly rate this settlement was priced with. */
+  hourly_rate: number;
+  /** Frozen wage line (hourly_rate × hours_worked + fixed weekly wage). */
+  wage_amount: number;
+  /** Frozen, fully-resolved component toggles this settlement was priced with. */
+  components: Record<string, boolean> | null;
   /** Frozen net of driver adjustments linked to this settlement. Owed = final_balance + total_adjustments. */
   total_adjustments: number;
   total_gross_fare: number;
@@ -644,6 +673,8 @@ export interface CreateSettlementInput {
   period_name?: string;
   settlement_month?: string;
   fss_tax: number;
+  /** Hours worked in the period (wage presets; prefilled from shifts, editable). */
+  hours_worked?: number;
   platforms: {
     platform_id: string;
     platform_name: string;
@@ -661,6 +692,8 @@ export interface UpdateSettlementInput {
   period_name?: string;
   settlement_month?: string;
   fss_tax?: number;
+  /** Hours worked in the period (wage settlements; recomputes the wage with the frozen rate). */
+  hours_worked?: number;
   platforms?: {
     platform_id: string;
     platform_name: string;

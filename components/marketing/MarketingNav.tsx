@@ -25,7 +25,7 @@ export default async function MarketingNav({ onHome = false }: { onHome?: boolea
         )}
         <nav className="nav-links">
           <FeaturesMenu sectionHref={h('features')} />
-          <a href={h('integrations')}>Integrations</a>
+          <Link href="/integrations">Integrations</Link>
           <a href={h('pricing')}>Pricing</a>
           <a href={h('faq')}>FAQ</a>
           <Link href="/blog">Blog</Link>

@@ -41,6 +41,7 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
     .from('vehicles')
     .select('id, registration_number, make, model, year, vehicle_model_id')
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (vehicleError || !vehicle) {

@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -14,6 +15,7 @@ type FleetUser = Awaited<ReturnType<typeof requireRole>>;
  */
 export default async function SettlementSettingsPage() {
   const user = await requireRole(['admin']);
+  await requireModule(user.organization_id, 'settlements');
   return (
     <FleetShell user={user} title="Settlement Rules">
       <Suspense fallback={<FleetPageSkeleton variant="form" />}>

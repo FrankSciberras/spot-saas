@@ -1,0 +1,332 @@
+/* =============================================================================
+   Integrations marketplace — Rovora Fleet flat aesthetic.
+   Uses the fleet design tokens (--bg-1/2/3, --line-1/2/3, --text-1/2/3,
+   --accent, --warn*, --radius*) so it matches the other /fleet pages and the
+   dark/light toggle. FleetShell already pads the page, so .container adds none.
+   ============================================================================= */
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header (breadcrumb + title, matches other admin pages) ─── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+  max-width: 640px;
+}
+
+/* ─── Intro info banner ─── */
+.intro {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-lg);
+  margin-bottom: 28px;
+}
+
+.introIcon {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.intro strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.intro p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.intro a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.intro a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Category sections ─── */
+.category {
+  margin-bottom: 30px;
+}
+
+.category:last-of-type {
+  margin-bottom: 0;
+}
+
+.categoryHead {
+  margin-bottom: 14px;
+}
+
+.categoryTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+
+.categoryBlurb {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
+  max-width: 640px;
+}
+
+/* ─── Card grid ─── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.card:hover {
+  border-color: var(--line-3);
+  transform: translateY(-2px);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.soon {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-soft);
+  white-space: nowrap;
+}
+
+.live {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--pos);
+  background: var(--pos-soft);
+  border: 1px solid var(--pos-soft);
+  white-space: nowrap;
+}
+
+.openBtn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.openBtn:hover {
+  filter: brightness(1.06);
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+
+.desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* ─── Card actions ─── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.connectBtn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+
+.notify {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.notify:hover {
+  text-decoration: underline;
+}
+
+/* ─── "Always included" core-feature chips ─── */
+.coreRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.coreLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-4);
+  margin-right: 2px;
+}
+
+.coreChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* ─── Module on/off switch ─── */
+.switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--line-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease;
+}
+
+.switch:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.switchOn {
+  background: var(--accent);
+}
+
+.switchKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s ease;
+}
+
+.switchOn .switchKnob {
+  transform: translateX(18px);
+}
+
+.moduleError {
+  font-size: 12.5px;
+  color: var(--neg, #e5484d);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-soft);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  margin-bottom: 14px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

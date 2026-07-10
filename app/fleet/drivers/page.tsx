@@ -57,22 +57,27 @@ async function DriversContent({ user }: { user: FleetUser }) {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 7);
 
+  const orgId = user.organization_id;
   const [driversResult, assignmentsResult, shiftsResult, earningsResult] = await Promise.all([
     supabase
       .from('drivers')
       .select('id, full_name, phone, status, assigned_vehicle_id, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date, vehicles:assigned_vehicle_id (registration_number)')
+      .eq('organization_id', orgId)
       .order('full_name'),
     supabase
       .from('driver_vehicle_assignments')
-      .select('driver_id, vehicles:vehicle_id (registration_number)'),
+      .select('driver_id, vehicles:vehicle_id (registration_number)')
+      .eq('organization_id', orgId),
     supabase
       .from('driver_shifts')
       .select('driver_id, start_time, end_time')
+      .eq('organization_id', orgId)
       .gte('start_time', weekStart.toISOString())
       .order('start_time', { ascending: false }),
     supabase
       .from('earnings')
       .select('driver_id, amount, period_start')
+      .eq('organization_id', orgId)
       .gte('period_start', weekStart.toISOString().split('T')[0]),
   ]);
 

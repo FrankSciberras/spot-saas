@@ -4,7 +4,12 @@
 // Centralized calculation logic for driver settlements.
 // All formulas are defined here for consistency across the application.
 
-import { DEFAULT_SCHEME, type SettlementScheme } from '@/lib/config/settlements';
+import {
+  DEFAULT_COMPONENTS,
+  DEFAULT_SCHEME,
+  type SettlementComponents,
+  type SettlementScheme,
+} from '@/lib/config/settlements';
 
 /**
  * Platform earnings input data
@@ -29,6 +34,22 @@ export interface PlatformEarningsCalculated extends PlatformEarningsInput {
 }
 
 /**
+ * Wage inputs for wage-based pay models. All optional: omitting them (or using
+ * DEFAULT_COMPONENTS, where the wage components are off) reproduces the
+ * classic revenue-split behaviour exactly.
+ */
+export interface WageOptions {
+  /** Component toggles; disabled components are excluded from the math. */
+  components?: SettlementComponents;
+  /** Hours worked in the period (used when components.hours is on). */
+  hoursWorked?: number;
+  /** Hourly wage rate, EUR/h (used when components.hours is on). */
+  hourlyRate?: number;
+  /** Fixed weekly wage, EUR (used when components.fixed is on). */
+  fixedWageWeekly?: number;
+}
+
+/**
  * Full settlement calculation result
  */
 export interface SettlementCalculation {
@@ -40,6 +61,13 @@ export interface SettlementCalculation {
   totalCashRide: number;
   totalTips: number;
   totalCampaigns: number;
+  /** Hours worked used for the wage line (0 when wage components are off). */
+  hoursWorked: number;
+  /** Hourly rate the wage line was priced with. */
+  hourlyRate: number;
+  /** Wage line: hourly_rate × hours (if on) + fixed weekly wage (if on). */
+  wageAmount: number;
+  /** Platform balances + wage — the base a percent tax applies to. */
   totalBalanceBeforeTax: number;
   fssTax: number;
   /** Fixed weekly rent deduction (0 when the scheme has no rent). */
@@ -88,7 +116,8 @@ export function formatCurrency(value: number, symbol = '€'): string {
  */
 export function calculatePlatformEarnings(
   input: PlatformEarningsInput,
-  scheme: SettlementScheme = DEFAULT_SCHEME
+  scheme: SettlementScheme = DEFAULT_SCHEME,
+  components: SettlementComponents = DEFAULT_COMPONENTS
 ): PlatformEarningsCalculated {
   const grossFare = safeNumber(input.grossFare);
   const platformFeePercent = safeNumber(input.platformFeePercent);
@@ -96,12 +125,18 @@ export function calculatePlatformEarnings(
   const tips = safeNumber(input.tips);
   const campaigns = safeNumber(input.campaigns);
 
-  const fiftyPercent = round2(grossFare * (scheme.driverSharePct / 100));
-  const fee = round2(grossFare * (platformFeePercent / 100) * (scheme.feeDriverPct / 100));
+  // A switched-off component contributes nothing, whatever was typed/stored.
+  const fiftyPercent = components.share ? round2(grossFare * (scheme.driverSharePct / 100)) : 0;
+  const fee = components.fee
+    ? round2(grossFare * (platformFeePercent / 100) * (scheme.feeDriverPct / 100))
+    : 0;
   const net = round2(fiftyPercent - fee);
-  const tipsToDriver = round2(tips * (scheme.tipsDriverPct / 100));
-  const campaignsToDriver = round2(campaigns * (scheme.campaignsDriverPct / 100));
-  const balance = round2(net - cashRide + tipsToDriver + campaignsToDriver);
+  const tipsToDriver = components.tips ? round2(tips * (scheme.tipsDriverPct / 100)) : 0;
+  const campaignsToDriver = components.campaigns
+    ? round2(campaigns * (scheme.campaignsDriverPct / 100))
+    : 0;
+  const cashDeducted = components.cash ? cashRide : 0;
+  const balance = round2(net - cashDeducted + tipsToDriver + campaignsToDriver);
 
   return {
     platformId: input.platformId,
@@ -122,21 +157,33 @@ export function calculatePlatformEarnings(
  *
  * Formulas:
  * - Total Net = sum of net for all platforms
- * - Total Balance Before Tax = sum of balance for all platforms
+ * - Wage = hourly_rate × hours worked (hours component) + fixed weekly wage (fixed component)
+ * - Total Balance Before Tax = sum of platform balances + Wage
  * - Final Balance = Total Balance Before Tax - FSS/Tax - Rent
  *
  * `rent` is the fixed weekly vehicle-rent deduction from the driver's
- * settlement preset (0 = none, which reproduces the old formula exactly).
+ * settlement preset (0 = none). `wage` carries the component toggles and wage
+ * inputs; omitting it reproduces the classic revenue-split formula exactly.
+ * Disabled components (tax, rent, wage lines, and the per-platform lines) are
+ * excluded from the math no matter what values are passed.
  */
 export function calculateSettlement(
   platformInputs: PlatformEarningsInput[],
   fssTax: number,
   scheme: SettlementScheme = DEFAULT_SCHEME,
-  rent: number = 0
+  rent: number = 0,
+  wage: WageOptions = {}
 ): SettlementCalculation {
-  const platforms = platformInputs.map(p => calculatePlatformEarnings(p, scheme));
-  const safeFssTax = safeNumber(fssTax);
-  const safeRent = Math.max(0, safeNumber(rent));
+  const components = wage.components ?? DEFAULT_COMPONENTS;
+  const platforms = platformInputs.map(p => calculatePlatformEarnings(p, scheme, components));
+  const safeFssTax = components.tax ? safeNumber(fssTax) : 0;
+  const safeRent = components.rent ? Math.max(0, safeNumber(rent)) : 0;
+
+  const hoursWorked = components.hours ? Math.max(0, safeNumber(wage.hoursWorked)) : 0;
+  const hourlyRate = Math.max(0, safeNumber(wage.hourlyRate));
+  const hourlyWage = components.hours ? round2(hoursWorked * hourlyRate) : 0;
+  const fixedWage = components.fixed ? Math.max(0, safeNumber(wage.fixedWageWeekly)) : 0;
+  const wageAmount = round2(hourlyWage + fixedWage);
 
   const totalGrossFare = round2(platforms.reduce((sum, p) => sum + p.grossFare, 0));
   const totalFiftyPercent = round2(platforms.reduce((sum, p) => sum + p.fiftyPercent, 0));
@@ -145,7 +192,9 @@ export function calculateSettlement(
   const totalCashRide = round2(platforms.reduce((sum, p) => sum + p.cashRide, 0));
   const totalTips = round2(platforms.reduce((sum, p) => sum + p.tips, 0));
   const totalCampaigns = round2(platforms.reduce((sum, p) => sum + p.campaigns, 0));
-  const totalBalanceBeforeTax = round2(platforms.reduce((sum, p) => sum + p.balance, 0));
+  const totalBalanceBeforeTax = round2(
+    platforms.reduce((sum, p) => sum + p.balance, 0) + wageAmount
+  );
   const finalBalance = round2(totalBalanceBeforeTax - safeFssTax - safeRent);
 
   return {
@@ -157,6 +206,9 @@ export function calculateSettlement(
     totalCashRide,
     totalTips,
     totalCampaigns,
+    hoursWorked: round2(hoursWorked),
+    hourlyRate: round2(hourlyRate),
+    wageAmount,
     totalBalanceBeforeTax,
     fssTax: round2(safeFssTax),
     rent: round2(safeRent),

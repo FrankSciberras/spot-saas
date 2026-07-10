@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import ServiceForm from '@/components/admin/ServiceForm';
@@ -13,6 +14,7 @@ interface PageProps {
 export default async function EditServicePage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin']);
+  await requireModule(user.organization_id, 'maintenance');
   const supabase = await createClient();
 
   // Get the service
@@ -20,6 +22,7 @@ export default async function EditServicePage({ params }: PageProps) {
     .from('vehicle_services')
     .select('*')
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !service) {
@@ -30,12 +33,13 @@ export default async function EditServicePage({ params }: PageProps) {
   const { data: vehicles } = await supabase
     .from('vehicles')
     .select('id, registration_number, make, model, mileage')
+    .eq('organization_id', user.organization_id)
     .order('registration_number');
 
   return (
     <FleetShell user={user} title="Edit Service">
       <div className={styles.pageHeader}>
-        <div className={styles.pageTitle}>
+        <div className={styles.pageTitleMain}>
           <h2>Edit Service</h2>
           <span className={styles.subtitle}>
             Update service record details

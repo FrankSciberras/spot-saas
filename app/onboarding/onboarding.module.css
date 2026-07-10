@@ -400,6 +400,101 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Module picker ("Choose your tools") ── */
+.modGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.modCard {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  padding: 14px 15px;
+  background: #fff;
+  border: 1px solid #e3e8f1;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.modCard:hover:not(:disabled) {
+  border-color: #b9c6e2;
+}
+
+.modCardOn {
+  border-color: #1a8f5a;
+  box-shadow: 0 6px 26px rgba(26, 143, 90, 0.12);
+}
+
+.modCardSoon {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modIcon {
+  display: flex;
+  align-items: center;
+  color: #1a8f5a;
+  flex-shrink: 0;
+}
+
+.modText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.modName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modTagline {
+  font-size: 12.5px;
+  color: #5b667d;
+}
+
+.modSoon {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7a8499;
+  background: #eef1f7;
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.modCheck {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: #1a8f5a;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.modCardOn .modCheck {
+  opacity: 1;
+}
+
 @media (max-width: 720px) {
   .grid {
     grid-template-columns: 1fr;

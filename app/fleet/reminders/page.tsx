@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -12,6 +13,7 @@ type ReminderPerms = Awaited<ReturnType<typeof getResourcePermissionsForUser>>;
 
 export default async function RemindersPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'reminders');
   const permissions = await getResourcePermissionsForUser(user, 'reminders');
 
   if (!permissions.can_view) {

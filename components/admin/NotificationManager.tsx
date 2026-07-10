@@ -627,19 +627,33 @@ export default function NotificationManager({
               )}
 
               {ruleForm.trigger_type === 'service_due' && (
-                <div className={styles.formGroup}>
-                  <label>KM Threshold</label>
-                  <input
-                    type="number"
-                    value={(ruleForm.trigger_config.km_threshold as number) || 2000}
-                    onChange={e => setRuleForm({ 
-                      ...ruleForm, 
-                      trigger_config: { ...ruleForm.trigger_config, km_threshold: parseInt(e.target.value) }
-                    })}
-                    min="100"
-                    step="100"
-                  />
-                </div>
+                <>
+                  <div className={styles.formGroup}>
+                    <label>KM Threshold</label>
+                    <input
+                      type="number"
+                      value={(ruleForm.trigger_config.km_threshold as number) || 2000}
+                      onChange={e => setRuleForm({
+                        ...ruleForm,
+                        trigger_config: { ...ruleForm.trigger_config, km_threshold: parseInt(e.target.value) }
+                      })}
+                      min="100"
+                      step="100"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Days Before Due Date</label>
+                    <input
+                      type="number"
+                      value={(ruleForm.trigger_config.days_before as number) || 14}
+                      onChange={e => setRuleForm({
+                        ...ruleForm,
+                        trigger_config: { ...ruleForm.trigger_config, days_before: parseInt(e.target.value) }
+                      })}
+                      min="1"
+                    />
+                  </div>
+                </>
               )}
 
               <div className={styles.formGroup}>

@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
@@ -11,6 +12,7 @@ const PLATE_COLORS = ['#1e293b', '#0f172a', '#0c4a6e', '#7f1d1d', '#854d0e', '#1
 
 export default async function FleetDamagesPage() {
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'maintenance');
   return (
     <FleetShell user={user} title="Fleet Damages">
       <Suspense fallback={<FleetPageSkeleton variant="grid" stats={0} />}>
@@ -28,10 +30,12 @@ async function DamagesContent({ user }: { user: FleetUser }) {
     supabase
       .from('vehicles')
       .select('id, registration_number, make, model, year')
+      .eq('organization_id', user.organization_id)
       .order('registration_number'),
     supabase
       .from('vehicle_damages')
-      .select('vehicle_id, severity, status'),
+      .select('vehicle_id, severity, status')
+      .eq('organization_id', user.organization_id),
   ]);
 
   const vehicleRows = (vehiclesResult.data || []) as any[];

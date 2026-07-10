@@ -10,11 +10,12 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import {
   loadMemberships,
   setActiveOrgCookie,
 } from '@/lib/auth/org-context';
+import { FLEET_MODULES } from '@/lib/modules/catalog';
 import type { Plan } from '@/lib/billing/plans';
 import { getPlans } from '@/lib/billing/plans-data';
 import { getPlanDef, hasStripeTarget } from '@/lib/billing/plans';
@@ -54,7 +55,8 @@ export async function setActiveOrgAction(organizationId: string): Promise<void> 
  */
 export async function completeOnboardingAction(
   name: string,
-  plan: Plan = 'trial'
+  plan: Plan = 'trial',
+  disabledModules: string[] = []
 ): Promise<{ error: string } | { url: string } | void> {
   const trimmed = name?.trim();
   if (!trimmed) return { error: 'Fleet name is required' };
@@ -76,6 +78,27 @@ export async function completeOnboardingAction(
   }
 
   await setActiveOrgCookie(orgId as string);
+
+  // Persist the fleet's initial module choices from onboarding ("Choose your
+  // tools"). We only store OFF overrides — anything left on inherits the catalog
+  // default, so a brand-new fleet with no changes gets no rows at all.
+  const offKeys = disabledModules.filter((key) =>
+    FLEET_MODULES.some((m) => m.key === key && m.status === 'available')
+  );
+  if (offKeys.length > 0) {
+    const admin = createAdminClient();
+    const { error: modErr } = await admin.from('org_modules').upsert(
+      offKeys.map((key) => ({
+        organization_id: orgId as string,
+        module_key: key,
+        is_enabled: false,
+      })),
+      { onConflict: 'organization_id,module_key' }
+    );
+    if (modErr) {
+      console.error('completeOnboardingAction (modules) failed:', modErr);
+    }
+  }
 
   // Paid plan chosen during onboarding.
   if (plan !== 'trial') {

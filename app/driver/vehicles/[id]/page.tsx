@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import type { Vehicle, FileRecord } from '@/lib/types/database';
 import styles from '@/components/admin/AdminForms.module.css';
+import { DocumentIcon, ShieldIcon, RoadLicenseIcon, LogbookIcon, FolderIcon } from '@/components/shared/DocIcons';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -175,7 +176,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
 
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>🛡️ Vehicle Insurance</span>
+            <span className={styles.documentLabel}><ShieldIcon size={16} />Vehicle Insurance</span>
             <span className={`${styles.detailValue} ${getExpiryClass(vehicleData.insurance_expiry_date)}`}>
               Expires: {formatDate(vehicleData.insurance_expiry_date)}
               {getExpiryLabel(vehicleData.insurance_expiry_date)}
@@ -190,7 +191,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
               >
-                📄 {doc.file_name || 'Insurance Document'}
+                <DocumentIcon size={14} /> {doc.file_name || 'Insurance Document'}
                 {doc.expiry_date ? ` (File Expiry: ${formatDate(doc.expiry_date)})` : ''}
               </a>
             ))}
@@ -202,7 +203,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
 
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>📋 Road License</span>
+            <span className={styles.documentLabel}><RoadLicenseIcon size={16} />Road License</span>
             <span className={`${styles.detailValue} ${getExpiryClass(vehicleData.road_license_expiry_date)}`}>
               Expires: {formatDate(vehicleData.road_license_expiry_date)}
               {getExpiryLabel(vehicleData.road_license_expiry_date)}
@@ -217,7 +218,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
               >
-                📄 {doc.file_name || 'Road License'}
+                <DocumentIcon size={14} /> {doc.file_name || 'Road License'}
                 {doc.expiry_date ? ` (File Expiry: ${formatDate(doc.expiry_date)})` : ''}
               </a>
             ))}
@@ -229,7 +230,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
 
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>📖 Logbook</span>
+            <span className={styles.documentLabel}><LogbookIcon size={16} />Logbook</span>
             <span className={styles.documentHint}>Vehicle registration logbook</span>
           </div>
           <div className={styles.documentUpload}>
@@ -241,7 +242,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
               >
-                📄 {doc.file_name || 'Logbook'}
+                <DocumentIcon size={14} /> {doc.file_name || 'Logbook'}
                 {doc.expiry_date ? ` (File Expiry: ${formatDate(doc.expiry_date)})` : ''}
               </a>
             ))}
@@ -253,7 +254,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
 
         <div className={styles.documentRow}>
           <div className={styles.documentInfo}>
-            <span className={styles.documentLabel}>📁 Other Documents</span>
+            <span className={styles.documentLabel}><FolderIcon size={16} />Other Documents</span>
           </div>
           <div className={styles.documentUpload}>
             {groupedDocs.OTHER?.map((doc) => (
@@ -264,7 +265,7 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className={styles.uploadedFile}
               >
-                📄 {doc.file_name || 'Document'}
+                <DocumentIcon size={14} /> {doc.file_name || 'Document'}
                 {doc.expiry_date ? ` (File Expiry: ${formatDate(doc.expiry_date)})` : ''}
               </a>
             ))}

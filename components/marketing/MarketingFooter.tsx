@@ -31,7 +31,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
             <div className="foot-col">
               <h5>Product</h5>
               <a href={h('features')}>Features</a>
-              <a href={h('integrations')}>Integrations</a>
+              <Link href="/integrations">Integrations</Link>
               <a href={h('pricing')}>Pricing</a>
               <a href={h('faq')}>FAQ</a>
               <Link href={START_TRIAL}>Start free trial</Link>
@@ -58,10 +58,10 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
 
             <div className="foot-col">
               <h5>Integrations</h5>
-              <a href={h('integrations')}>Uber</a>
-              <a href={h('integrations')}>Bolt</a>
-              <a href={h('integrations')}>FreeNow</a>
-              <a href={h('integrations')}>Stripe</a>
+              <Link href="/integrations">GPS &amp; telematics</Link>
+              <Link href="/integrations">Ride-hail platforms</Link>
+              <Link href="/integrations">WhatsApp &amp; email</Link>
+              <Link href="/integrations">Xero &amp; QuickBooks</Link>
               <a href="mailto:hello@rovora.eu?subject=Integration%20request">Request an integration</a>
             </div>
 

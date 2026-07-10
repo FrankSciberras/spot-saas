@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from './FleetIcon';
 import { useFleetTheme } from './FleetThemeRoot';
+import { useEnabledModules } from './FleetModulesProvider';
 
 interface FleetTopbarProps {
   title: string;
@@ -19,25 +20,30 @@ interface NewAction {
   icon: string;
   href: string;
   adminOnly?: boolean;
+  /** Hidden when the fleet has this module switched off (undefined = always shown). */
+  module?: string;
 }
 
 /** Quick-create targets for the topbar "New" dropdown (existing /new routes). */
 const NEW_ACTIONS: NewAction[] = [
   { label: 'driver', hint: 'Add a driver & their documents', icon: 'driver', href: '/fleet/drivers/new' },
   { label: 'vehicle', hint: 'Register a car to the fleet', icon: 'vehicle', href: '/fleet/vehicles/new' },
-  { label: 'roster', hint: 'Plan a new weekly schedule', icon: 'roster', href: '/fleet/rosters/new' },
-  { label: 'service', hint: 'Log a service or repair', icon: 'wrench', href: '/fleet/services/new' },
+  { label: 'roster', hint: 'Plan a new weekly schedule', icon: 'roster', href: '/fleet/rosters/new', module: 'rostering' },
+  { label: 'service', hint: 'Log a service or repair', icon: 'wrench', href: '/fleet/services/new', module: 'maintenance' },
   { label: 'staff member', hint: 'Invite an operations user', icon: 'staff', href: '/fleet/staff/new', adminOnly: true },
 ];
 
 export default function FleetTopbar({ title, onMenuClick, isAdmin = false, variant = 'fleet' }: FleetTopbarProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useFleetTheme();
+  const enabledModules = useEnabledModules();
   const [now, setNow] = useState<Date | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const newRef = useRef<HTMLDivElement>(null);
 
-  const actions = NEW_ACTIONS.filter((a) => !a.adminOnly || isAdmin);
+  const actions = NEW_ACTIONS.filter(
+    (a) => (!a.adminOnly || isAdmin) && (!a.module || enabledModules.has(a.module)),
+  );
 
   useEffect(() => {
     setNow(new Date());

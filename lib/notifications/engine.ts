@@ -2,21 +2,28 @@
 // NOTIFICATION RULES ENGINE (server only) — automated, time-based alerts.
 // =============================================================================
 // Sweeps each org's ACTIVE notification_rules and fires the time-based ones that
-// match right now. First iteration covers two triggers:
+// match right now. Covers three triggers:
 //
-//   * document_expiry  — a driver document expiring within trigger_config
-//                        .days_before (default 30). Sources: the driver's own
-//                        *_expiry_date columns + driver-owned rows in `files`.
+//   * document_expiry  — a document expiring within trigger_config.days_before
+//                        (default 30). Sources: the driver's own *_expiry_date
+//                        columns + driver-owned rows in `files`, PLUS the
+//                        vehicles' insurance/road-licence expiry columns and
+//                        vehicle-owned files (those facts go to admins).
 //   * shift_reminder   — a shift starting within trigger_config.hours_before
 //                        (default 24).
+//   * service_due      — a vehicle approaching (or past) its next service, by
+//                        km (trigger_config.km_threshold, default 1000, against
+//                        the latest service's next_service_mileage) or by date
+//                        (trigger_config.days_before, default 14).
 //
 // Delivery reuses the existing senders (in-app insert + web-push + email) and
-// honours each rule's `channel` and `target_role`. Every fact is deduped via the
-// notification_dedup table so a daily run never re-sends the same alert.
+// honours each rule's `channel` and `target_role` — facts without a driver
+// (vehicle docs, service due) always route to admins. Every fact is deduped via
+// the notification_dedup table so a daily run never re-sends the same alert.
 //
 // Event-based triggers (roster_published / roster_updated) are NOT handled here —
-// those should fire inline when a roster is published. service_due / weekly_summary
-// are deferred to a later pass.
+// those should fire inline when a roster is published. weekly_summary is
+// deferred to a later pass.
 // =============================================================================
 
 import { createAdminClient } from '@/lib/supabase/server';
@@ -146,6 +153,141 @@ function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: { owner_id: str
   return facts;
 }
 
+interface VehicleRow {
+  id: string;
+  registration_number: string;
+  make: string | null;
+  model: string | null;
+  mileage: number | null;
+  insurance_expiry_date: string | null;
+  road_license_expiry_date: string | null;
+}
+
+const VEHICLE_DOC_LABELS: Record<string, string> = {
+  insurance_expiry_date: 'vehicle insurance',
+  road_license_expiry_date: 'road licence',
+};
+
+/** Vehicle documents (expiry columns + vehicle-owned files) — admin-facing. */
+function vehicleDocumentExpiryFacts(
+  rule: Rule,
+  vehicles: VehicleRow[],
+  vehicleFiles: { owner_id: string; type: string; expiry_date: string | null; file_name: string | null }[],
+  now: Date
+): Fact[] {
+  const daysBefore = asNumber(rule.trigger_config?.days_before, 30);
+  const horizon = new Date(now.getTime() + daysBefore * DAY);
+  const facts: Fact[] = [];
+
+  const within = (iso: string | null): boolean => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return !Number.isNaN(d.getTime()) && d >= now && d <= horizon;
+  };
+  const daysLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - now.getTime()) / DAY));
+  const regById = new Map(vehicles.map((v) => [v.id, v.registration_number]));
+
+  for (const v of vehicles) {
+    for (const [col, label] of Object.entries(VEHICLE_DOC_LABELS)) {
+      const iso = (v as unknown as Record<string, string | null>)[col];
+      if (!within(iso)) continue;
+      facts.push({
+        dedupKey: `docexp:vehicle:${v.id}:${col}:${iso}`,
+        vars: { driver_name: '', document_type: `${label} for ${v.registration_number}`, expiry_date: fmtDate(iso!), days_left: daysLeft(iso!), vehicle_reg: v.registration_number },
+      });
+    }
+  }
+
+  for (const f of vehicleFiles) {
+    if (!within(f.expiry_date)) continue;
+    const reg = regById.get(f.owner_id);
+    if (!reg) continue;
+    const label = FILE_TYPE_LABELS[f.type] || f.file_name || 'Document';
+    facts.push({
+      dedupKey: `docexp:vfile:${f.owner_id}:${f.type}:${f.expiry_date}`,
+      vars: { driver_name: '', document_type: `${label} for ${reg}`, expiry_date: fmtDate(f.expiry_date!), days_left: daysLeft(f.expiry_date!), vehicle_reg: reg },
+    });
+  }
+
+  return facts;
+}
+
+/**
+ * Vehicles approaching (or past) their next service — admin-facing. Uses the
+ * LATEST service record per vehicle that sets a next-service target. A vehicle
+ * fires when its mileage is within km_threshold of next_service_mileage, or
+ * next_service_date is within days_before (or already past).
+ */
+function serviceDueFacts(
+  rule: Rule,
+  vehicles: VehicleRow[],
+  latestServiceByVehicle: Map<string, { id: string; next_service_mileage: number | null; next_service_date: string | null }>,
+  now: Date
+): Fact[] {
+  const kmThreshold = asNumber(rule.trigger_config?.km_threshold, 1000);
+  const daysBefore = asNumber(rule.trigger_config?.days_before, 14);
+  const horizon = new Date(now.getTime() + daysBefore * DAY);
+  const facts: Fact[] = [];
+
+  for (const v of vehicles) {
+    const svc = latestServiceByVehicle.get(v.id);
+    if (!svc) continue;
+    const vehicleName = [v.make, v.model].filter(Boolean).join(' ');
+
+    // km-based: within threshold of (or past) the next service mileage.
+    if (svc.next_service_mileage != null && v.mileage != null) {
+      const kmLeft = svc.next_service_mileage - v.mileage;
+      if (kmLeft <= kmThreshold) {
+        const dueInfo = kmLeft >= 0
+          ? `in ~${kmLeft.toLocaleString('en-GB')} km (at ${svc.next_service_mileage.toLocaleString('en-GB')} km)`
+          : `overdue by ${Math.abs(kmLeft).toLocaleString('en-GB')} km (was due at ${svc.next_service_mileage.toLocaleString('en-GB')} km)`;
+        facts.push({
+          dedupKey: `svcdue:km:${v.id}:${svc.id}:${svc.next_service_mileage}`,
+          vars: {
+            vehicle_reg: v.registration_number,
+            vehicle_name: vehicleName,
+            next_service_mileage: svc.next_service_mileage,
+            current_mileage: v.mileage,
+            km_left: Math.max(0, kmLeft),
+            next_service_date: svc.next_service_date ? fmtDate(svc.next_service_date) : '',
+            days_left: '',
+            due_info: dueInfo,
+            driver_name: '',
+          },
+        });
+        continue; // one fact per vehicle per sweep is enough
+      }
+    }
+
+    // date-based: due within the window, or already overdue.
+    if (svc.next_service_date) {
+      const due = new Date(svc.next_service_date);
+      if (!Number.isNaN(due.getTime()) && due <= horizon) {
+        const days = Math.ceil((due.getTime() - now.getTime()) / DAY);
+        const dueInfo = days >= 0
+          ? `on ${fmtDate(svc.next_service_date)} (${days} day${days === 1 ? '' : 's'} left)`
+          : `overdue since ${fmtDate(svc.next_service_date)}`;
+        facts.push({
+          dedupKey: `svcdue:date:${v.id}:${svc.id}:${svc.next_service_date}`,
+          vars: {
+            vehicle_reg: v.registration_number,
+            vehicle_name: vehicleName,
+            next_service_mileage: svc.next_service_mileage ?? '',
+            current_mileage: v.mileage ?? '',
+            km_left: '',
+            next_service_date: fmtDate(svc.next_service_date),
+            days_left: Math.max(0, days),
+            due_info: dueInfo,
+            driver_name: '',
+          },
+        });
+      }
+    }
+  }
+
+  return facts;
+}
+
 function shiftReminderFacts(
   rule: Rule,
   ctx: OrgContext,
@@ -191,7 +333,7 @@ export async function evaluateNotificationRules(opts: { orgId?: string; now?: Da
     .from('notification_rules')
     .select('id, organization_id, trigger_type, channel, trigger_config, title_template, body_template, target_role')
     .eq('is_active', true)
-    .in('trigger_type', ['document_expiry', 'shift_reminder']);
+    .in('trigger_type', ['document_expiry', 'shift_reminder', 'service_due']);
   if (opts.orgId) ruleQuery = ruleQuery.eq('organization_id', opts.orgId);
 
   const { data: ruleRows, error: ruleErr } = await ruleQuery;
@@ -264,8 +406,10 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
 
   const needDocs = rules.some((r) => r.trigger_type === 'document_expiry');
   const needShifts = rules.some((r) => r.trigger_type === 'shift_reminder');
+  const needService = rules.some((r) => r.trigger_type === 'service_due');
 
   let files: { owner_id: string; type: string; expiry_date: string | null; file_name: string | null }[] = [];
+  let vehicleFiles: typeof files = [];
   if (needDocs) {
     const { data: fileRows } = await admin
       .from('files')
@@ -274,6 +418,40 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
       .eq('owner_type', 'driver')
       .not('expiry_date', 'is', null);
     files = (fileRows ?? []) as typeof files;
+
+    const { data: vFileRows } = await admin
+      .from('files')
+      .select('owner_id, type, expiry_date, file_name')
+      .eq('organization_id', orgId)
+      .eq('owner_type', 'vehicle')
+      .not('expiry_date', 'is', null);
+    vehicleFiles = (vFileRows ?? []) as typeof files;
+  }
+
+  // Vehicles power both the vehicle-document sweep and service-due checks.
+  let vehicles: VehicleRow[] = [];
+  if (needDocs || needService) {
+    const { data: vehicleRows } = await admin
+      .from('vehicles')
+      .select('id, registration_number, make, model, mileage, insurance_expiry_date, road_license_expiry_date')
+      .eq('organization_id', orgId);
+    vehicles = (vehicleRows ?? []) as VehicleRow[];
+  }
+
+  // Latest service per vehicle that sets a next-service target (km or date).
+  const latestServiceByVehicle = new Map<string, { id: string; next_service_mileage: number | null; next_service_date: string | null }>();
+  if (needService) {
+    const { data: svcRows } = await admin
+      .from('vehicle_services')
+      .select('id, vehicle_id, service_date, next_service_mileage, next_service_date')
+      .eq('organization_id', orgId)
+      .or('next_service_mileage.not.is.null,next_service_date.not.is.null')
+      .order('service_date', { ascending: false });
+    for (const s of (svcRows ?? []) as { id: string; vehicle_id: string; service_date: string; next_service_mileage: number | null; next_service_date: string | null }[]) {
+      if (!latestServiceByVehicle.has(s.vehicle_id)) {
+        latestServiceByVehicle.set(s.vehicle_id, { id: s.id, next_service_mileage: s.next_service_mileage, next_service_date: s.next_service_date });
+      }
+    }
   }
 
   let shifts: { id: string; driver_id: string; vehicle_id: string | null; name: string | null; start_time: string }[] = [];
@@ -299,10 +477,12 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
     report.rulesEvaluated++;
     const facts =
       rule.trigger_type === 'document_expiry'
-        ? documentExpiryFacts(rule, ctx, files, now)
+        ? [...documentExpiryFacts(rule, ctx, files, now), ...vehicleDocumentExpiryFacts(rule, vehicles, vehicleFiles, now)]
         : rule.trigger_type === 'shift_reminder'
           ? shiftReminderFacts(rule, ctx, shifts, vehicleReg, now)
-          : [];
+          : rule.trigger_type === 'service_due'
+            ? serviceDueFacts(rule, vehicles, latestServiceByVehicle, now)
+            : [];
     for (const fact of facts) candidates.push({ rule, fact });
   }
 
@@ -337,7 +517,9 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
     const body = render(rule.body_template, fact.vars);
     const role = rule.target_role ?? 'driver';
     const toDriver = (role === 'driver' || role === 'all') && !!fact.driver;
-    const toAdmin = role === 'admin' || role === 'all';
+    // Facts with no driver attached (vehicle documents, service due) can only
+    // meaningfully go to the fleet team, whatever the rule's target says.
+    const toAdmin = role === 'admin' || role === 'all' || !fact.driver;
 
     if (toDriver && fact.driver) {
       if (chans.includes('app')) {

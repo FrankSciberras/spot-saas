@@ -557,6 +557,12 @@ export default function MonthlySettlementsClient({
                             <span>Net</span>
                             <span>{formatCurrency(s.total_net)}</span>
                           </div>
+                          {(s.wage_amount ?? 0) > 0 && (
+                            <div className={styles.weekMiniStat}>
+                              <span>Wage{(s.hours_worked ?? 0) > 0 ? ` (${s.hours_worked}h)` : ''}</span>
+                              <span>+{formatCurrency(s.wage_amount)}</span>
+                            </div>
+                          )}
                           <div className={styles.weekMiniStat}>
                             <span>FSS/Tax</span>
                             <span>-{formatCurrency(s.fss_tax)}</span>

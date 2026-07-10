@@ -14,7 +14,7 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth/session';
-import { clampPercent, DEFAULT_SCHEME } from '@/lib/config/settlements';
+import { clampPercent, COMPONENT_KEYS, DEFAULT_SCHEME } from '@/lib/config/settlements';
 import type { SettlementTaxType } from '@/lib/types/database';
 
 type Result = { error?: string; ok?: boolean; id?: string };
@@ -28,6 +28,16 @@ export interface PresetInput {
   tax_type: SettlementTaxType;
   tax_value: number;
   rent_weekly: number;
+  /** Wage fields + component toggles. Optional: omitted = classic revenue split. */
+  hourly_rate?: number;
+  fixed_wage_weekly?: number;
+  components?: Record<string, boolean>;
+}
+
+/** Non-negative EUR amount, defaulting to 0 for anything unparseable. */
+function safeAmount(value: unknown): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.max(0, num) : 0;
 }
 
 function sanitizePreset(input: PresetInput): { error?: string; values?: Record<string, unknown> } {
@@ -37,10 +47,19 @@ function sanitizePreset(input: PresetInput): { error?: string; values?: Record<s
 
   const taxType: SettlementTaxType = input.tax_type === 'percent' ? 'percent' : 'flat';
   const taxValue =
-    taxType === 'percent'
-      ? clampPercent(input.tax_value, 0)
-      : Math.max(0, Number.isFinite(Number(input.tax_value)) ? Number(input.tax_value) : 0);
-  const rent = Math.max(0, Number.isFinite(Number(input.rent_weekly)) ? Number(input.rent_weekly) : 0);
+    taxType === 'percent' ? clampPercent(input.tax_value, 0) : safeAmount(input.tax_value);
+  const rent = safeAmount(input.rent_weekly);
+
+  // Component toggles: keep only known keys with real booleans. undefined =
+  // leave whatever the row already has (create inserts the '{}' column default).
+  let components: Record<string, boolean> | undefined;
+  if (input.components && typeof input.components === 'object') {
+    components = {};
+    for (const key of COMPONENT_KEYS) {
+      const v = input.components[key];
+      if (typeof v === 'boolean') components[key] = v;
+    }
+  }
 
   return {
     values: {
@@ -52,6 +71,13 @@ function sanitizePreset(input: PresetInput): { error?: string; values?: Record<s
       tax_type: taxType,
       tax_value: taxValue,
       rent_weekly: rent,
+      // Only touch wage fields the caller actually sent, so legacy callers
+      // (e.g. the setup wizard) can't zero out a preset's rates on update.
+      ...(input.hourly_rate !== undefined ? { hourly_rate: safeAmount(input.hourly_rate) } : {}),
+      ...(input.fixed_wage_weekly !== undefined
+        ? { fixed_wage_weekly: safeAmount(input.fixed_wage_weekly) }
+        : {}),
+      ...(components ? { components } : {}),
     },
   };
 }

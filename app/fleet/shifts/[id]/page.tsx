@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
+import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import ClickableImage from '@/components/shared/ClickableImage';
@@ -38,6 +39,7 @@ interface PageProps {
 export default async function ShiftDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin', 'staff']);
+  await requireModule(user.organization_id, 'rostering');
   const supabase = await createClient();
 
   const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
@@ -50,6 +52,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
       vehicles:vehicle_id (id, registration_number, make, model)
     `)
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !shift) {

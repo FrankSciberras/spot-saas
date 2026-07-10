@@ -28,6 +28,7 @@ export default async function EditDriverPage({ params }: PageProps) {
       vehicles:assigned_vehicle_id (id, registration_number, make, model)
     `)
     .eq('id', id)
+    .eq('organization_id', user.organization_id)
     .single();
 
   if (error || !driver) {
@@ -38,6 +39,7 @@ export default async function EditDriverPage({ params }: PageProps) {
   const { data: vehicles } = await supabase
     .from('vehicles')
     .select('id, registration_number, make, model, assigned_driver_id')
+    .eq('organization_id', user.organization_id)
     .order('registration_number');
 
   // Fetch documents for this driver

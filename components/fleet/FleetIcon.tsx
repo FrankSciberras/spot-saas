@@ -37,6 +37,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
     case 'wrench':
       return <svg {...props}><path d="M14.5 3a5 5 0 0 0-4.2 7.6l-7.1 7.1a1.5 1.5 0 0 0 2.1 2.1l7.1-7.1A5 5 0 1 0 14.5 3z" /></svg>;
+    case 'box':
+      return <svg {...props}><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" /><path d="M12 12l8-4.5M12 12L4 7.5M12 12v9" /></svg>;
     case 'damage':
       return <svg {...props}><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></svg>;
     case 'book':
@@ -77,6 +79,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>;
     case 'map':
       return <svg {...props}><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z" /><path d="M9 4v13M15 6.5v13" /></svg>;
+    case 'plug':
+      return <svg {...props}><path d="M12 22v-5" /><path d="M9 7V2" /><path d="M15 7V2" /><path d="M6 13V8h12v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4z" /></svg>;
     case 'pin':
       return <svg {...props}><path d="M12 21v-7" /><path d="M8 7l-1 7h10l-1-7M9 3h6v4H9z" /></svg>;
     case 'fuel':
