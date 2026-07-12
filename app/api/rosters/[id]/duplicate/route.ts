@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -13,8 +14,9 @@ interface RouteParams {
  * stop rebuilding identical weeks by hand.
  *
  * Everything runs on the RLS client, so the source roster is only readable if
- * it belongs to the caller's fleet, and organization_id is auto-stamped on the
- * new rows — no cross-tenant clone is possible.
+ * it belongs to the caller's fleet. The new rows are stamped with the source
+ * roster's organization_id (the DB auto-stamp trigger can't fill it for
+ * multi-fleet users) — no cross-tenant clone is possible.
  */
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
@@ -31,15 +33,18 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-  if (!hasStaffDashboardAccess(actor)) {
+  // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
+  // same thing RLS checks), not the legacy global users.role.
+  const session = await getSession();
+  if (!session || !isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  const actor = await getAuditActor(user.id);
 
   // RLS-scoped read → only the caller's own fleet's roster resolves.
   const { data: source, error: srcError } = await supabase
     .from('rosters')
-    .select('id, week_start, week_end, title, notes')
+    .select('id, week_start, week_end, title, notes, organization_id')
     .eq('id', id)
     .single();
 
@@ -50,10 +55,11 @@ export async function POST(request: Request, { params }: RouteParams) {
   const newWeekStart = addDays(source.week_start, 7);
   const newWeekEnd = source.week_end ? addDays(source.week_end, 7) : addDays(newWeekStart, 6);
 
-  // Create the new draft roster (organization_id auto-stamped).
+  // Create the new draft roster (organization_id copied from the source).
   const { data: newRoster, error: insertError } = await supabase
     .from('rosters')
     .insert({
+      organization_id: source.organization_id,
       week_start: newWeekStart,
       week_end: newWeekEnd,
       title: source.title ? `${source.title} (copy)` : null,
@@ -86,6 +92,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       day_of_week: number;
       notes: string | null;
     }) => ({
+      organization_id: source.organization_id,
       roster_id: newRoster.id,
       vehicle_id: a.vehicle_id,
       driver_id: a.driver_id,

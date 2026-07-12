@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import type { CreateDamageInput } from '@/lib/types/database';
 
 interface RouteParams {
@@ -52,27 +53,43 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const actor = await getAuditActor(user.id);
-
-    if (!hasStaffDashboardAccess(actor)) {
+    // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
+    // same thing RLS checks), not the legacy global users.role.
+    const session = await getSession();
+    if (!session || !isAdminOrStaff(session)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const actor = await getAuditActor(user.id);
+
     const body: CreateDamageInput = await request.json();
 
-    if (!body.zone || !body.description) {
+    if (!body.zone) {
       return NextResponse.json(
-        { error: 'zone and description are required' },
+        { error: 'zone is required' },
         { status: 400 }
       );
+    }
+
+    // A damage record belongs to the same fleet as its vehicle. Look that org up
+    // so we can stamp organization_id explicitly — the DB auto-stamp trigger
+    // leaves it NULL for multi-fleet users, which then fails RLS WITH CHECK.
+    const { data: vehicleOrg } = await supabase
+      .from('vehicles')
+      .select('organization_id')
+      .eq('id', id)
+      .single();
+    if (!vehicleOrg) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
 
     const { data: damage, error } = await supabase
       .from('vehicle_damages')
       .insert({
+        organization_id: vehicleOrg.organization_id,
         vehicle_id: id,
         zone: body.zone,
-        description: body.description,
+        description: body.description || '',
         severity: body.severity || 'minor',
         status: body.status || 'open',
         repair_cost: body.repair_cost || null,

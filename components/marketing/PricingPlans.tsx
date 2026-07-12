@@ -19,18 +19,35 @@ const MAX_V = 80;
 // ('starter' | 'growth' | 'scale' | 'enterprise'): true = tick, an absent key
 // (or false) = not included, a string = a value shown in the cell. Only real,
 // shipped features are listed — new capabilities get a row when they ship.
+//
+// The "Vehicles & team" group is NOT hardcoded — its included-vehicles, per-extra
+// price and vehicle-limit rows are derived from the live plan catalogue (same DB
+// rows that drive the price cards above) so an /admin price edit can never make
+// this table contradict the cards. The remaining groups describe feature
+// availability, which only changes on a code deploy.
 type CmpVal = boolean | string;
-const COMPARE: { group: string; rows: { label: string; vals: Record<string, CmpVal> }[] }[] = [
-  {
-    group: 'Vehicles & team',
-    rows: [
-      { label: 'Vehicles included', vals: { starter: '3', growth: '10', scale: '30', enterprise: 'Custom' } },
-      { label: 'Price per extra vehicle', vals: { starter: '€4', growth: '€3', scale: '€2', enterprise: 'Volume' } },
-      { label: 'Vehicle limit', vals: { starter: '6', growth: '40', scale: '75', enterprise: 'Unlimited' } },
-      { label: 'Team members', vals: { starter: 'Unlimited', growth: 'Unlimited', scale: 'Unlimited', enterprise: 'Unlimited' } },
-      { label: 'Free driver app', vals: { starter: true, growth: true, scale: true, enterprise: true } },
-    ],
-  },
+
+const fmtIncluded = (p: PlanDef): CmpVal =>
+  p.isCustom ? 'Custom' : p.includedVehicles == null ? '∞' : String(p.includedVehicles);
+const fmtPerVehicle = (p: PlanDef): CmpVal =>
+  p.isCustom ? 'Volume' : p.perVehiclePrice == null ? '—' : `€${p.perVehiclePrice}`;
+const fmtVehicleLimit = (p: PlanDef): CmpVal =>
+  p.isCustom || p.maxVehicles == null ? 'Unlimited' : String(p.maxVehicles);
+
+/** Rows whose values come straight from the catalogue, keyed by plan id. */
+function vehicleTeamRows(plans: PlanDef[]): { label: string; vals: Record<string, CmpVal> }[] {
+  const mk = (fn: (p: PlanDef) => CmpVal) => Object.fromEntries(plans.map((p) => [p.id, fn(p)]));
+  return [
+    { label: 'Vehicles included', vals: mk(fmtIncluded) },
+    { label: 'Price per extra vehicle', vals: mk(fmtPerVehicle) },
+    { label: 'Vehicle limit', vals: mk(fmtVehicleLimit) },
+    { label: 'Team members', vals: mk(() => 'Unlimited') },
+    { label: 'Free driver app', vals: mk(() => true) },
+  ];
+}
+
+// Feature-availability groups (not price/limit data) — static, keyed by plan id.
+const FEATURE_GROUPS: { group: string; rows: { label: string; vals: Record<string, CmpVal> }[] }[] = [
   {
     group: 'Tracking & operations',
     rows: [
@@ -61,6 +78,11 @@ const COMPARE: { group: string; rows: { label: string; vals: Record<string, CmpV
   },
 ];
 
+/** Full comparison matrix: catalogue-derived vehicle rows + static feature rows. */
+function buildCompare(plans: PlanDef[]) {
+  return [{ group: 'Vehicles & team', rows: vehicleTeamRows(plans) }, ...FEATURE_GROUPS];
+}
+
 function Cell({ v }: { v: CmpVal | undefined }) {
   if (v === true) return <span className="cmp-yes"><Check /></span>;
   if (v == null || v === false) return <span className="cmp-no" aria-label="Not included">–</span>;
@@ -75,7 +97,7 @@ function Cell({ v }: { v: CmpVal | undefined }) {
  * a full feature comparison table sits underneath.
  */
 export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
-  const [vehicles, setVehicles] = useState(8);
+  const [vehicles, setVehicles] = useState(1);
 
   const cardPlans = plans.filter((p) => !p.isCustom);
   const customPlans = plans.filter((p) => p.isCustom);
@@ -86,6 +108,7 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
     .map((p) => ({ id: p.id, price: monthlyPriceFor(p, vehicles) }))
     .sort((a, b) => a.price - b.price);
   const bestValueId = eligible[0]?.id ?? null;
+  const compare = buildCompare(plans);
 
   const clamp = (n: number) => Math.max(MIN_V, Math.min(MAX_V, n));
 
@@ -201,7 +224,7 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
               </tr>
             </thead>
             <tbody>
-              {COMPARE.map((grp) => (
+              {compare.map((grp) => (
                 <Fragment key={grp.group}>
                   <tr className="cmp-grp"><td colSpan={plans.length + 1}>{grp.group}</td></tr>
                   {grp.rows.map((row) => (

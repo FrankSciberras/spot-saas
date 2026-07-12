@@ -52,6 +52,7 @@ export async function POST(request: Request) {
   const { data: rule, error } = await supabase
     .from('notification_rules')
     .insert({
+      organization_id: session.organization_id,
       name: body.name,
       description: body.description,
       trigger_type: body.trigger_type,

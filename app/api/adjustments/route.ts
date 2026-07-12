@@ -145,6 +145,7 @@ export async function POST(request: Request) {
     const { data: adjustment, error: adjustmentError } = await supabase
       .from('driver_adjustments')
       .insert({
+        organization_id: session.organization_id,
         driver_id: body.driver_id,
         type: body.type,
         amount: body.amount,

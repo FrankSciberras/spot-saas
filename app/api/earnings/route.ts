@@ -140,6 +140,7 @@ export async function POST(request: Request) {
     const { data: earnings, error } = await supabase
       .from('monthly_earnings')
       .insert({
+        organization_id: session.organization_id,
         month: body.month,
         bolt_gross: body.bolt_gross || 0,
         uber_gross: body.uber_gross || 0,

@@ -117,6 +117,8 @@
 .rovora-site .nav-links { display: flex; align-items: center; gap: 30px; margin-left: 8px; }
 .rovora-site .nav-links a { color: var(--text-2); font-size: 14.5px; font-weight: 500; transition: color .15s; }
 .rovora-site .nav-links a:hover { color: var(--text-1); }
+.rovora-site .nav-links a.nav-ai { display: inline-flex; align-items: center; gap: 6px; }
+.rovora-site .nav-ai svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
 
 /* ── Features megamenu ── */
 .rovora-site .mm { position: relative; }

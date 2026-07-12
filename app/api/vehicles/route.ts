@@ -66,10 +66,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create vehicle
+    // Create vehicle. Stamp the caller's ACTIVE org explicitly — the DB
+    // auto-stamp trigger only fills organization_id for single-org users, so
+    // multi-fleet admins would otherwise get a NULL org and fail RLS.
     const { data: vehicle, error } = await supabase
       .from('vehicles')
       .insert({
+        organization_id: session.organization_id,
         registration_number: body.registration_number,
         make: body.make,
         model: body.model,
@@ -95,6 +98,7 @@ export async function POST(request: Request) {
       const records = driverIds.map((driverId) => ({
         driver_id: driverId,
         vehicle_id: vehicle.id,
+        organization_id: session.organization_id,
       }));
 
       const { error: insertError } = await supabase

@@ -201,13 +201,9 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
     setFormImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Save damage (create or update)
+  // Save damage (create or update). Description is optional — the zone +
+  // severity already identify the damage, so we don't block on it.
   const handleSave = async () => {
-    if (!formDescription.trim()) {
-      setError('Description is required');
-      return;
-    }
-
     setSaving(true);
     setError(null);
 
@@ -611,7 +607,7 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Description *</label>
+                <label className={styles.formLabel}>Description</label>
                 <textarea
                   className={styles.formTextarea}
                   value={formDescription}

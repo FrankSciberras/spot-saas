@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 /**
  * GET /api/rosters
@@ -14,8 +15,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-  const hasStaffAccess = hasStaffDashboardAccess(actor);
+  // Draft visibility follows the caller's role in their ACTIVE fleet
+  // (memberships.role — the same thing RLS checks), not the legacy global
+  // users.role, which can differ when someone belongs to several fleets.
+  const session = await getSession();
+  const hasStaffAccess = !!session && isAdminOrStaff(session);
 
   let query = supabase
     .from('rosters')
@@ -48,11 +52,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-
-  if (!hasStaffDashboardAccess(actor)) {
+  // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
+  // same thing RLS checks), not the legacy global users.role.
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'No active fleet' }, { status: 400 });
+  }
+  if (!isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const actor = await getAuditActor(user.id);
+
+  // Stamp the caller's active fleet explicitly — the DB auto-stamp trigger leaves
+  // organization_id NULL for multi-fleet users, which then fails RLS WITH CHECK.
+  const orgId = session.organization_id;
 
   const body = await request.json();
   const { week_start, title, notes } = body;
@@ -69,6 +83,7 @@ export async function POST(request: Request) {
   const { data: roster, error } = await supabase
     .from('rosters')
     .insert({
+      organization_id: orgId,
       week_start,
       week_end: endDate.toISOString().split('T')[0],
       title: title || generateRosterTitle(startDate, endDate),

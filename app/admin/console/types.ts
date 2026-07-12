@@ -74,6 +74,8 @@ export interface AdminMetrics {
   arpa: number;
   payingCount: number;
   pastDueMrr: number;
+  /** Monthly recurring revenue lost to churned (cancelled) operators, EUR. */
+  lostMrr: number;
 }
 
 export interface PackageDef {
@@ -87,17 +89,28 @@ export interface PackageDef {
   popular?: boolean;
 }
 
-export interface InvoiceRow {
+/**
+ * Real per-operator billing status, derived from the organizations table (plan,
+ * subscription_status, current_period_end). Actual invoices live in Stripe and
+ * are reached via `stripeUrl` — we deliberately don't fabricate invoice rows.
+ */
+export interface BillingRow {
+  /** Organization id. */
   id: string;
   operator: string;
   initials: string;
   color: string;
   plan: RealPlan;
+  /** Committed monthly amount, EUR. */
   amount: number;
-  /** Period label, e.g. "May 2026". */
-  period: string;
-  status: 'open' | 'paid' | 'failed';
-  due: string; // ISO
+  /** Simplified billing state for the pill. */
+  status: 'active' | 'past_due' | 'trialing' | 'canceled';
+  /** Raw Stripe subscription status mirror, if the operator checked out. */
+  subscriptionStatus: string | null;
+  /** Renewal / period-end ISO, or null. */
+  renewsAt: string | null;
+  /** Stripe dashboard deep-link for real invoices, or null (no Stripe customer). */
+  stripeUrl: string | null;
 }
 
 export interface AdminData {
@@ -107,7 +120,7 @@ export interface AdminData {
   trend: TrendPoint[];
   activity: ActivityItem[];
   packages: PackageDef[];
-  invoices: InvoiceRow[];
+  billing: BillingRow[];
   totals: { operators: number; users: number; drivers: number; vehicles: number };
   /** Month-over-month MRR growth %, from the trend tail. */
   momGrowth: number;

@@ -18,6 +18,7 @@ interface DriverInfo {
   id: string;
   full_name: string;
   assigned_vehicle_id: string | null;
+  organization_id: string;
 }
 
 /**
@@ -76,7 +77,7 @@ export default function GoOnlinePage() {
         // Get driver info
         const { data: driver } = await supabase
           .from('drivers')
-          .select('id, full_name, assigned_vehicle_id')
+          .select('id, full_name, assigned_vehicle_id, organization_id')
           .eq('user_id', user.id)
           .single();
 
@@ -253,6 +254,9 @@ export default function GoOnlinePage() {
       const { error: insertError } = await supabase
         .from('driver_shifts')
         .insert({
+          // Stamp the driver's fleet explicitly — the DB auto-stamp trigger
+          // leaves organization_id NULL for multi-fleet users, failing RLS.
+          organization_id: driverInfo.organization_id,
           driver_id: driverInfo.id,
           vehicle_id: vehicleId,
           name: name,
