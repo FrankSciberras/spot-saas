@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
+import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -20,6 +21,7 @@ import OperatorDetailModal from './OperatorDetailModal';
 import BroadcastCenter from './BroadcastCenter';
 import {
   type AdminData,
+  type BillingRow,
   type Operator,
   type OpStatus,
   type PlanMeta,
@@ -73,6 +75,14 @@ const OpAvatar = ({ initials, color, size = 30 }: { initials: string; color: str
     color: '#0a0c11', fontSize: size * 0.36, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '-0.01em',
   }}>{initials}</div>
+);
+
+// Operator identity as a link into the full detail page. Wraps the avatar + name
+// block; the `.op-name` span turns accent on hover (see the style tag at root).
+const OpLink = ({ id, children }: { id: string; children: ReactNode }) => (
+  <Link href={`/admin/operators/${id}`} className="op-link" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+    {children}
+  </Link>
 );
 
 const PlanBadge = ({ plan }: { plan: RealPlan }) => {
@@ -255,17 +265,17 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 );
 
 // ── nav ──
-type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'invoices' | 'trials' | 'churn' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
+type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
 
 function buildNav(data: AdminData) {
-  const openInvoices = data.invoices.filter((i) => i.status !== 'paid').length;
+  const pastDue = data.billing.filter((b) => b.status === 'past_due').length;
   return [
     { label: null as string | null, items: [{ id: 'overview' as PageId, name: 'Overview', icon: 'dashboard', badge: undefined as string | undefined, dot: false }] },
     { label: 'Revenue', items: [
       { id: 'operators' as PageId, name: 'Operators', icon: 'staff', badge: String(data.operators.filter((o) => o.status !== 'churned').length), dot: false },
       { id: 'packages' as PageId, name: 'Packages', icon: 'settle', badge: undefined, dot: false },
       { id: 'subscriptions' as PageId, name: 'Subscriptions', icon: 'book', badge: undefined, dot: false },
-      { id: 'invoices' as PageId, name: 'Invoices', icon: 'doc', badge: openInvoices ? String(openInvoices) : undefined, dot: openInvoices > 0 },
+      { id: 'billing' as PageId, name: 'Billing', icon: 'doc', badge: pastDue ? String(pastDue) : undefined, dot: pastDue > 0 },
     ]},
     { label: 'Growth', items: [
       { id: 'trials' as PageId, name: 'Trials', icon: 'shift', badge: String(data.metrics.trials), dot: false },
@@ -342,7 +352,10 @@ const AdminSidebar = ({ data, active, onSelect, isMobile, open, onClose }: {
   return <aside style={asb.sidebar}>{Body}</aside>;
 };
 
-const AdminTopbar = ({ title, subtitle, onMenuClick, right }: { title: string; subtitle?: string; onMenuClick: () => void; right?: ReactNode }) => (
+const AdminTopbar = ({ title, subtitle, onMenuClick, right, query, onQuery, onSearchFocus }: {
+  title: string; subtitle?: string; onMenuClick: () => void; right?: ReactNode;
+  query: string; onQuery: (v: string) => void; onSearchFocus: () => void;
+}) => (
   <div style={ap.topbar} className="topbar-mobile">
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
       <button onClick={onMenuClick} className="show-mobile-only" style={ap.menuBtn} aria-label="Open menu"><Icon name="menu" size={20} stroke={2} /></button>
@@ -355,8 +368,12 @@ const AdminTopbar = ({ title, subtitle, onMenuClick, right }: { title: string; s
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={ap.searchBox} className="hide-mobile">
         <Icon name="search" size={15} />
-        <input placeholder="Search operators, invoices…" style={ap.searchInput} />
-        <kbd style={ap.kbd}>⌘K</kbd>
+        <input placeholder="Search operators…" style={ap.searchInput} value={query}
+          onChange={(e) => onQuery(e.target.value)} onFocus={onSearchFocus}
+          onKeyDown={(e) => { if (e.key === 'Escape') onQuery(''); }} />
+        {query
+          ? <button onClick={() => onQuery('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', cursor: 'pointer', display: 'flex', padding: 0 }} aria-label="Clear search"><Icon name="close" size={13} /></button>
+          : <kbd style={ap.kbd}>↵</kbd>}
       </div>
       {right}
     </div>
@@ -380,13 +397,13 @@ const OperatorsTable = ({ rows, compact }: { rows: Operator[]; compact?: boolean
         {rows.map((o, i) => (
           <tr key={o.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
             <td style={ap.td}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+              <OpLink id={o.id}>
                 <OpAvatar initials={o.initials} color={o.color} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'nowrap' }}>{o.name}</div>
+                  <div className="op-name" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'nowrap' }}>{o.name}</div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{o.slug}</div>
                 </div>
-              </div>
+              </OpLink>
             </td>
             <td style={ap.td}><PlanBadge plan={o.plan} /></td>
             <td style={{ ...ap.td, textAlign: 'right' }}><span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)' }}>{o.vehicles}</span></td>
@@ -411,6 +428,9 @@ const OperatorsTable = ({ rows, compact }: { rows: Operator[]; compact?: boolean
 // ── Pages ──
 const OverviewPage = ({ data, onNavigate }: { data: AdminData; onNavigate: (id: PageId) => void }) => {
   const m = data.metrics;
+  // MRR-growth chart window (months). The hero segmented control drives it.
+  const [range, setRange] = useState<3 | 6 | 12>(12);
+  const shownTrend = range >= data.trend.length ? data.trend : data.trend.slice(-range);
   return (
     <div style={ap.scroll} className="pad-mobile">
       <div style={{ padding: '24px 0 16px' }}>
@@ -421,11 +441,10 @@ const OverviewPage = ({ data, onNavigate }: { data: AdminData; onNavigate: (id: 
               <span className="mono">{fmtEUR(m.mrr, { decimals: 0 })}</span> MRR · <span style={{ color: m.mrr >= 0 ? 'var(--pos)' : 'var(--neg)' }}>{data.momGrowth >= 0 ? '+' : ''}{data.momGrowth.toFixed(1)}%</span> this month
             </div>
           </div>
-          <div className="chips-scroll" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <button style={{ ...ap.chip, ...ap.chipActive }}>Live</button>
-            <button style={ap.chip}>30D</button>
-            <button style={ap.chip}>QTD</button>
-            <button style={ap.chip}>YTD</button>
+          <div className="chips-scroll" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} title="MRR growth window">
+            {([3, 6, 12] as const).map((r) => (
+              <button key={r} onClick={() => setRange(r)} style={{ ...ap.chip, ...(range === r ? ap.chipActive : {}) }}>{r}M</button>
+            ))}
           </div>
         </div>
         <div style={ap.kpiGrid} className="grid-4">
@@ -440,10 +459,10 @@ const OverviewPage = ({ data, onNavigate }: { data: AdminData; onNavigate: (id: 
 
       <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, marginBottom: 16 }}>
         <ACard>
-          <ACardHeader title="MRR growth" subtitle="Last 12 months · cumulative"
+          <ACardHeader title="MRR growth" subtitle={`Last ${shownTrend.length} months · cumulative`}
             right={<div style={ap.legendRow}><span className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)' }}>ARR</span><span className="mono" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{fmtEUR(m.arr, { compact: true, decimals: 0 })}</span></div>} />
           <div style={{ padding: '14px 18px 6px', borderTop: '1px solid var(--line-1)' }}>
-            <MrrAreaChart data={data.trend} />
+            <MrrAreaChart data={shownTrend} />
           </div>
         </ACard>
         <ACard>
@@ -568,7 +587,7 @@ const OperatorRowManage = ({ op }: { op: Operator }) => {
   );
 };
 
-const OperatorsPage = ({ data }: { data: AdminData }) => {
+const OperatorsPage = ({ data, query }: { data: AdminData; query: string }) => {
   const [filter, setFilter] = useState<'all' | OpStatus>('all');
   const counts = {
     all: data.operators.length,
@@ -577,7 +596,11 @@ const OperatorsPage = ({ data }: { data: AdminData }) => {
     past_due: data.operators.filter((o) => o.status === 'past_due').length,
     churned: data.operators.filter((o) => o.status === 'churned').length,
   };
-  const rows = [...data.operators].filter((o) => filter === 'all' ? true : o.status === filter).sort((a, b) => b.mrr - a.mrr);
+  const q = query.trim().toLowerCase();
+  const rows = [...data.operators]
+    .filter((o) => (filter === 'all' ? true : o.status === filter))
+    .filter((o) => !q || o.name.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q) || (o.ownerEmail ?? '').toLowerCase().includes(q))
+    .sort((a, b) => b.mrr - a.mrr);
   const tabs: [keyof typeof counts, string][] = [['all', 'All'], ['active', 'Active'], ['trial', 'Trials'], ['past_due', 'Past due'], ['churned', 'Churned']];
   return (
     <div style={ap.scroll} className="pad-mobile">
@@ -604,13 +627,13 @@ const OperatorsPage = ({ data }: { data: AdminData }) => {
               {rows.map((o, i) => (
                 <tr key={o.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
                   <td style={ap.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <OpLink id={o.id}>
                       <OpAvatar initials={o.initials} color={o.color} />
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'nowrap' }}>{o.name}</div>
+                        <div className="op-name" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'nowrap' }}>{o.name}</div>
                         <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{o.ownerEmail ?? o.slug}</div>
                       </div>
-                    </div>
+                    </OpLink>
                   </td>
                   <td style={ap.td}><PlanBadge plan={o.plan} /></td>
                   <td style={{ ...ap.td, textAlign: 'right' }}><span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)' }}>{o.vehicles}</span></td>
@@ -726,43 +749,57 @@ const SubscriptionsPage = ({ data }: { data: AdminData }) => {
   );
 };
 
-const InvoicesPage = ({ data }: { data: AdminData }) => {
-  const invs = data.invoices;
-  const open = invs.filter((i) => i.status !== 'paid');
+const BILL_STATUS: Record<BillingRow['status'], { label: string; color: string; bg: string }> = {
+  active: { label: 'Active', color: 'var(--pos)', bg: 'var(--pos-soft)' },
+  past_due: { label: 'Past due', color: 'var(--warn)', bg: 'var(--warn-soft)' },
+  trialing: { label: 'Trialing', color: 'var(--accent)', bg: 'var(--accent-soft)' },
+  canceled: { label: 'Canceled', color: 'var(--text-3)', bg: 'var(--bg-3)' },
+};
+
+const BillingPage = ({ data, query }: { data: AdminData; query: string }) => {
+  const q = query.trim().toLowerCase();
+  const rows = q ? data.billing.filter((b) => b.operator.toLowerCase().includes(q)) : data.billing;
+  const committed = rows.reduce((s, b) => s + b.amount, 0);
+  const pastDue = rows.filter((b) => b.status === 'past_due');
+  const noStripe = rows.filter((b) => !b.stripeUrl).length;
   return (
     <div style={ap.scroll} className="pad-mobile">
       <div style={{ padding: '20px 0 14px' }}>
         <div style={ap.kpiGrid} className="grid-4">
-          <MiniMetric label="This cycle" value={fmtEUR(invs.reduce((s, i) => s + i.amount, 0), { decimals: 0 })} sub={`${invs.length} invoices`} />
-          <MiniMetric label="Collected" value={fmtEUR(invs.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount, 0), { decimals: 0 })} sub="paid this cycle" />
-          <MiniMetric label="Outstanding" value={fmtEUR(open.reduce((s, i) => s + i.amount, 0), { decimals: 0 })} sub={`${open.length} open / failed`} />
-          <MiniMetric label="Failed" value={String(invs.filter((i) => i.status === 'failed').length)} sub="needs retry" />
+          <MiniMetric label="Committed MRR" value={fmtEUR(committed, { decimals: 0 })} sub={`${rows.length} subscription${rows.length === 1 ? '' : 's'}`} />
+          <MiniMetric label="Active" value={String(rows.filter((b) => b.status === 'active').length)} sub="billing normally" />
+          <MiniMetric label="Past due" value={String(pastDue.length)} sub={`${fmtEUR(pastDue.reduce((s, b) => s + b.amount, 0), { decimals: 0 })} at risk`} />
+          <MiniMetric label="Not on Stripe" value={String(noStripe)} sub="manual / no checkout" />
         </div>
       </div>
       <ACard>
-        <ACardHeader title="Invoices" subtitle="Current billing cycle" />
+        <ACardHeader title="Billing" subtitle="Live subscription status per operator — invoices open in Stripe" />
         <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
-            <thead><tr>{['Invoice', 'Operator', 'Plan', 'Period', 'Amount', 'Status'].map((h, i) => (
-              <th key={h} style={{ ...ap.th, textAlign: i === 4 ? 'right' : 'left' }}>{h}</th>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <thead><tr>{['Operator', 'Plan', 'Amount', 'Status', 'Renews', ''].map((h, i) => (
+              <th key={i} style={{ ...ap.th, textAlign: i === 2 ? 'right' : 'left' }}>{h}</th>
             ))}</tr></thead>
             <tbody>
-              {invs.length === 0 && <tr><td style={{ ...ap.td, color: 'var(--text-3)' }} colSpan={6}>No invoices this cycle.</td></tr>}
-              {invs.map((inv, i) => {
-                const sc = inv.status === 'paid' ? STATUS_STYLE.active : inv.status === 'failed' ? STATUS_STYLE.past_due : STATUS_STYLE.trial;
+              {rows.length === 0 && <tr><td style={{ ...ap.td, color: 'var(--text-3)' }} colSpan={6}>No paying subscriptions{q ? ' match your search' : ' yet'}.</td></tr>}
+              {rows.map((b, i) => {
+                const sc = BILL_STATUS[b.status];
                 return (
-                  <tr key={inv.id} style={{ borderBottom: i < invs.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
-                    <td style={ap.td}><span className="mono" style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{inv.id}</span></td>
+                  <tr key={b.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
                     <td style={ap.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <OpAvatar initials={inv.initials} color={inv.color} size={24} />
-                        <span style={{ fontSize: 13, color: 'var(--text-1)' }}>{inv.operator}</span>
-                      </div>
+                      <OpLink id={b.id}>
+                        <OpAvatar initials={b.initials} color={b.color} size={24} />
+                        <span className="op-name" style={{ fontSize: 13, color: 'var(--text-1)' }}>{b.operator}</span>
+                      </OpLink>
                     </td>
-                    <td style={ap.td}><PlanBadge plan={inv.plan} /></td>
-                    <td style={ap.td}><span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{inv.period}</span></td>
-                    <td style={{ ...ap.td, textAlign: 'right' }}><span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{fmtEUR(inv.amount, { decimals: 2 })}</span></td>
-                    <td style={ap.td}><span style={{ fontSize: 11, fontFamily: 'Geist Mono, monospace', color: sc.color, background: sc.bg, padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase' }}>{inv.status}</span></td>
+                    <td style={ap.td}><PlanBadge plan={b.plan} /></td>
+                    <td style={{ ...ap.td, textAlign: 'right' }}><span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{fmtEUR(b.amount, { decimals: 0 })}<span style={{ fontSize: 11, color: 'var(--text-3)' }}> /mo</span></span></td>
+                    <td style={ap.td}><span style={{ fontSize: 11, fontFamily: 'Geist Mono, monospace', color: sc.color, background: sc.bg, padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase' }}>{sc.label}</span></td>
+                    <td style={ap.td}><span className="mono tnum" style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtDate(b.renewsAt)}</span></td>
+                    <td style={{ ...ap.td, textAlign: 'right' }}>
+                      {b.stripeUrl
+                        ? <a style={ap.linkBtn} href={b.stripeUrl} target="_blank" rel="noreferrer">Stripe <Icon name="arrow-right" size={11} style={{ transform: 'rotate(-45deg)' }} /></a>
+                        : <span style={{ fontSize: 11.5, color: 'var(--text-4)' }}>—</span>}
+                    </td>
                   </tr>
                 );
               })}
@@ -798,10 +835,10 @@ const TrialsPage = ({ data }: { data: AdminData }) => {
               {trials.map((o, i) => (
                 <tr key={o.id} style={{ borderBottom: i < trials.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
                   <td style={ap.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <OpLink id={o.id}>
                       <OpAvatar initials={o.initials} color={o.color} />
-                      <div><div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{o.name}</div><div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{o.ownerEmail ?? o.slug}</div></div>
-                    </div>
+                      <div><div className="op-name" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{o.name}</div><div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{o.ownerEmail ?? o.slug}</div></div>
+                    </OpLink>
                   </td>
                   <td style={{ ...ap.td, textAlign: 'right' }}><span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)' }}>{o.vehicles}</span></td>
                   <td style={{ ...ap.td, textAlign: 'right' }}><span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-2)' }}>{o.drivers}</span></td>
@@ -821,7 +858,7 @@ const TrialsPage = ({ data }: { data: AdminData }) => {
 const ChurnPage = ({ data }: { data: AdminData }) => {
   const churned = data.operators.filter((o) => o.status === 'churned');
   const pastDue = data.operators.filter((o) => o.status === 'past_due');
-  const lostMrr = churned.reduce((s, o) => s + (o.plan !== 'trial' ? 0 : 0), 0);
+  const lostMrr = data.metrics.lostMrr;
   return (
     <div style={ap.scroll} className="pad-mobile">
       <div style={{ padding: '20px 0 14px' }}>
@@ -1001,14 +1038,29 @@ const ModelImageSlot = ({ model, view, onChanged }: { model: VModelRow; view: 's
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setErr(''); setBusy(true);
-    const fd = new FormData();
-    fd.set('modelId', model.id); fd.set('view', view); fd.set('image', file);
-    const res = await uploadModelImageAction(fd);
-    setBusy(false);
-    if (inputRef.current) inputRef.current.value = '';
-    if (res.error) { setErr(res.error); return; }
-    onChanged();
+    setErr('');
+    // Guard before uploading so an oversized file gives instant feedback instead
+    // of being rejected mid-flight by the Server Action body limit (which throws
+    // and would otherwise leave the button stuck on "Uploading…").
+    if (file.size > 5 * 1024 * 1024) {
+      setErr('Image must be 5 MB or smaller.');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.set('modelId', model.id); fd.set('view', view); fd.set('image', file);
+      const res = await uploadModelImageAction(fd);
+      if (res.error) { setErr(res.error); return; }
+      onChanged();
+    } catch (uploadErr) {
+      console.error('model image upload failed:', uploadErr);
+      setErr('Upload failed — the file may be too large. Try an image under 5 MB.');
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
   };
 
   return (
@@ -1025,6 +1077,13 @@ const ModelImageSlot = ({ model, view, onChanged }: { model: VModelRow; view: 's
       <span style={{ alignSelf: 'flex-start', fontSize: 10.5, fontFamily: 'Geist Mono, monospace', padding: '1px 7px', borderRadius: 5, color: zoneCount > 0 ? 'var(--pos)' : 'var(--text-4)', background: zoneCount > 0 ? 'var(--pos-soft)' : 'var(--bg-2)' }}>
         {zoneCount > 0 ? `${zoneCount} zones` : 'Not traced'}
       </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        onChange={onPick}
+        style={{ display: 'none' }}
+      />
       <div style={{ display: 'flex', gap: 6 }}>
         <button style={ap.miniBtn} disabled={busy} onClick={() => inputRef.current?.click()}>
           {busy ? 'Uploading…' : imageUrl ? 'Replace' : 'Upload'}
@@ -1100,7 +1159,7 @@ const VehicleModelsPage = () => {
 
   const load = async () => {
     try {
-      const res = await fetch('/api/admin/vehicle-models');
+      const res = await fetch('/api/admin/vehicle-models', { cache: 'no-store' });
       const json = await res.json();
       setModels(json.data || []);
     } catch { /* leave empty */ } finally { setLoading(false); }
@@ -1168,7 +1227,7 @@ const PAGE_META: Record<PageId, { title: string; subtitle: string }> = {
   operators: { title: 'Operators', subtitle: 'Every fleet on Rovora' },
   packages: { title: 'Packages', subtitle: 'Subscription plans' },
   subscriptions: { title: 'Subscriptions', subtitle: 'Active paying accounts' },
-  invoices: { title: 'Invoices', subtitle: 'Current billing cycle' },
+  billing: { title: 'Billing', subtitle: 'Subscription status & invoices' },
   trials: { title: 'Trials', subtitle: 'Operators evaluating Rovora' },
   churn: { title: 'Churn', subtitle: 'Retention & recovery' },
   broadcasts: { title: 'Broadcasts', subtitle: 'Message operators & drivers' },
@@ -1181,6 +1240,7 @@ export default function AdminConsole({ data }: { data: AdminData }) {
   const [active, setActive] = useState<PageId>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [vw, setVw] = useState(1280);
   useEffect(() => {
     const onResize = () => setVw(window.innerWidth);
@@ -1203,15 +1263,17 @@ export default function AdminConsole({ data }: { data: AdminData }) {
   return (
     <PlanMetaContext.Provider value={{ meta: data.planMeta, assignable: data.assignablePlans }}>
     <div className="fleetTheme fleetCanvas" data-fleet-theme="dark">
+      <style>{`.op-link:hover .op-name { color: var(--accent); } .op-link:hover { opacity: 0.95; }`}</style>
       <AdminSidebar data={data} active={active} onSelect={setActive} isMobile={isMobile} open={menuOpen} onClose={() => setMenuOpen(false)} />
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
         <AdminTopbar title={meta.title} subtitle={subtitle} onMenuClick={() => setMenuOpen((o) => !o)}
+          query={query} onQuery={setQuery} onSearchFocus={() => { if (active !== 'operators' && active !== 'billing') setActive('operators'); }}
           right={<button style={ap.primaryBtn} className="hide-mobile" onClick={() => setAddOpen(true)}><Icon name="plus" size={14} stroke={2} />Add operator</button>} />
         {active === 'overview' && <OverviewPage data={data} onNavigate={setActive} />}
-        {active === 'operators' && <OperatorsPage data={data} />}
+        {active === 'operators' && <OperatorsPage data={data} query={query} />}
         {active === 'packages' && <PackagesPage data={data} />}
         {active === 'subscriptions' && <SubscriptionsPage data={data} />}
-        {active === 'invoices' && <InvoicesPage data={data} />}
+        {active === 'billing' && <BillingPage data={data} query={query} />}
         {active === 'trials' && <TrialsPage data={data} />}
         {active === 'churn' && <ChurnPage data={data} />}
         {active === 'broadcasts' && (

@@ -32,6 +32,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <h5>Product</h5>
               <a href={h('features')}>Features</a>
               <Link href="/integrations">Integrations</Link>
+              <Link href="/ai">Rovora AI</Link>
               <a href={h('pricing')}>Pricing</a>
               <a href={h('faq')}>FAQ</a>
               <Link href={START_TRIAL}>Start free trial</Link>

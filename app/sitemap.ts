@@ -8,7 +8,7 @@ const SITE_URL = 'https://rovora.eu';
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  const staticRoutes = ['', '/integrations', '/about', '/contact', '/careers', '/privacy', '/terms', '/security', '/blog'];
+  const staticRoutes = ['', '/integrations', '/ai', '/about', '/contact', '/careers', '/privacy', '/terms', '/security', '/blog'];
 
   const featureRoutes = FEATURES.map((f) => featureHref(f.slug));
 

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
 import { getAllPlans } from '@/lib/billing/plans-data';
+import { stripeCustomerUrl } from '@/lib/billing/stripe-dashboard';
 import AdminConsole from './console/AdminConsole';
 import {
   type AdminData,
@@ -11,7 +12,7 @@ import {
   type PlanMixEntry,
   type TrendPoint,
   type ActivityItem,
-  type InvoiceRow,
+  type BillingRow,
   type PackageDef,
 } from './console/types';
 
@@ -68,6 +69,9 @@ interface OrgRow {
   trial_ends_at: string | null;
   plan_activated_at: string | null;
   created_at: string;
+  subscription_status: string | null;
+  current_period_end: string | null;
+  stripe_customer_id: string | null;
 }
 
 function mapStatus(rawStatus: string, plan: RealPlan, trialExpired: boolean): OpStatus {
@@ -94,7 +98,7 @@ export default async function PlatformOverviewPage() {
       getAllPlans(),
       admin
         .from('organizations')
-        .select('id, name, slug, status, plan, trial_ends_at, plan_activated_at, created_at')
+        .select('id, name, slug, status, plan, trial_ends_at, plan_activated_at, created_at, subscription_status, current_period_end, stripe_customer_id')
         .order('created_at', { ascending: true }),
       admin.from('memberships').select('organization_id, user_id, role'),
       admin.from('drivers').select('organization_id'),
@@ -182,6 +186,7 @@ export default async function PlatformOverviewPage() {
     arpa: paying.length ? mrr / paying.length : 0,
     payingCount: paying.length,
     pastDueMrr: operators.filter((o) => o.status === 'past_due').reduce((s, o) => s + priceOf(o.plan), 0),
+    lostMrr: operators.filter((o) => o.status === 'churned').reduce((s, o) => s + priceOf(o.plan), 0),
   };
 
   // Plan mix across paying accounts — one row per package in the catalogue.
@@ -257,19 +262,34 @@ export default async function PlatformOverviewPage() {
     .slice(0, 7)
     .map(({ ts: _ts, ...rest }) => rest);
 
-  // Current-cycle invoices — one open invoice per paying operator.
-  const periodLabel = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const invoices: InvoiceRow[] = paying.map((o, i) => ({
-    id: `INV-${String(2000 + i + 1)}`,
-    operator: o.name,
-    initials: o.initials,
-    color: o.color,
-    plan: o.plan,
-    amount: o.mrr,
-    period: periodLabel,
-    status: o.status === 'past_due' ? 'failed' : i % 4 === 0 ? 'open' : 'paid',
-    due: o.renews ?? now.toISOString(),
-  }));
+  // Real per-operator billing status, derived from the organizations table. Actual
+  // invoices live in Stripe and are reached per operator via `stripeUrl` — we do
+  // NOT fabricate invoice rows here.
+  const orgById = new Map(orgRows.map((o) => [o.id, o]));
+  const billing: BillingRow[] = paying.map((o) => {
+    const raw = orgById.get(o.id);
+    const rawSub = raw?.subscription_status ?? null;
+    const status: BillingRow['status'] =
+      o.status === 'past_due' || rawSub === 'past_due' || rawSub === 'unpaid'
+        ? 'past_due'
+        : rawSub === 'canceled'
+          ? 'canceled'
+          : rawSub === 'trialing'
+            ? 'trialing'
+            : 'active';
+    return {
+      id: o.id,
+      operator: o.name,
+      initials: o.initials,
+      color: o.color,
+      plan: o.plan,
+      amount: o.mrr,
+      status,
+      subscriptionStatus: rawSub,
+      renewsAt: raw?.current_period_end ?? o.renews,
+      stripeUrl: stripeCustomerUrl(raw?.stripe_customer_id ?? null),
+    };
+  });
 
   const packages: PackageDef[] = planRows.map((p) => ({
     id: p.key,
@@ -289,7 +309,7 @@ export default async function PlatformOverviewPage() {
     trend,
     activity,
     packages,
-    invoices,
+    billing,
     totals: {
       operators: operators.length,
       users: (users as unknown[])?.length ?? 0,

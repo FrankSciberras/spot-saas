@@ -53,6 +53,7 @@ interface VehicleData {
   road_license_expiry_date: string | null;
   color: string | null;
   notes: string | null;
+  vehicle_model_id: string | null;
   created_at: string;
   updated_at: string;
   drivers?: DriverInfo | null;
@@ -65,6 +66,8 @@ interface VehicleProfileProps {
   recentShifts: ShiftRecord[];
   serviceHistory: ServiceRecord[];
   nextServiceDue: { next_service_mileage: number; mileage_at_service: number } | null;
+  /** Published car-model diagram presets (id + name) for the "Car diagram" picker. */
+  vehicleModels: { id: string; name: string }[];
   isAdmin: boolean;
 }
 
@@ -275,7 +278,7 @@ function StatCard({ icon, label, value, sub, accent }: {
 export default function VehicleProfile({
   vehicle: initialVehicle, documents: initialDocuments,
   assignedDrivers, recentShifts, serviceHistory,
-  nextServiceDue, isAdmin,
+  nextServiceDue, vehicleModels, isAdmin,
 }: VehicleProfileProps) {
   const router = useRouter();
   const [vehicle, setVehicle] = useState(initialVehicle);
@@ -381,6 +384,12 @@ export default function VehicleProfile({
     }
   }
 
+  // Options for the inline "Car diagram" picker (admin-editable). "" = no diagram.
+  const diagramOptions = [
+    { value: '', label: '— No diagram —' },
+    ...vehicleModels.map((m) => ({ value: m.id, label: m.name })),
+  ];
+
   /* ═══════════════════════════════════════════════════════════════════════
      RENDER
      ═══════════════════════════════════════════════════════════════════════ */
@@ -440,6 +449,16 @@ export default function VehicleProfile({
             <EditableField label="Year" value={vehicle.year?.toString()} fieldName="year" type="number" plain onSave={handleSave} readOnly={!isAdmin} />
             <EditableField label="Color" value={vehicle.color} fieldName="color" onSave={handleSave} readOnly={!isAdmin} />
             <EditableField label="Mileage" value={vehicle.mileage?.toString()} fieldName="mileage" type="number" onSave={handleSave} suffix=" km" readOnly={!isAdmin} />
+            <EditableField
+              label="Car diagram"
+              value={vehicle.vehicle_model_id}
+              fieldName="vehicle_model_id"
+              type="select"
+              options={diagramOptions}
+              onSave={handleSave}
+              placeholder="— No diagram —"
+              readOnly={!isAdmin}
+            />
             <EditableField
               label="Status"
               value={vehicle.status}

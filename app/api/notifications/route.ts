@@ -95,6 +95,7 @@ export async function POST(request: Request) {
   }
 
   const notificationData: Record<string, unknown> = {
+    organization_id: session.organization_id,
     title,
     body: notificationBody,
     type: type || 'info',

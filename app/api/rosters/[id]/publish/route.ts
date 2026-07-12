@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
-import { getSession } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
@@ -25,16 +25,17 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-
-  if (!hasStaffDashboardAccess(actor)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
+  // same thing RLS checks), not the legacy global users.role.
+  if (!isAdminOrStaff(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const actor = await getAuditActor(user.id);
 
   // Parse request body for republish flag
   let republish = false;

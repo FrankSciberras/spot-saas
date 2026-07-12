@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/auth/session';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -68,18 +68,21 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-
-  if (!hasStaffDashboardAccess(actor)) {
+  // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
+  // same thing RLS checks), not the legacy global users.role.
+  const session = await getSession();
+  if (!session || !isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const actor = await getAuditActor(user.id);
 
   const body = await request.json();
   const { title, notes, status, assignments } = body;
 
   const { data: existingRoster } = await supabase
     .from('rosters')
-    .select('id, title, status')
+    .select('id, title, status, organization_id')
     .eq('id', id)
     .single();
 
@@ -122,6 +125,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
         assignment_date: string;
         day_of_week: number;
       }) => ({
+        // Stamp the parent roster's fleet explicitly — the DB auto-stamp trigger
+        // leaves organization_id NULL for multi-fleet users, failing RLS.
+        organization_id: existingRoster?.organization_id,
         roster_id: id,
         vehicle_id: a.vehicle_id,
         driver_id: a.driver_id || null,

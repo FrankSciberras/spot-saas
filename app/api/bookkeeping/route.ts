@@ -105,6 +105,7 @@ export async function POST(request: Request) {
     const { data: entry, error } = await supabase
       .from('weekly_bookkeeping')
       .insert({
+        organization_id: session.organization_id,
         week_start: body.week_start,
         week_end: body.week_end,
         week_label: body.week_label,

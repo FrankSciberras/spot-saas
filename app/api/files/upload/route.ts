@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const ownerTable = ownerType === 'driver' ? 'drivers' : 'vehicles';
     const { data: owner } = await supabase
       .from(ownerTable)
-      .select('id')
+      .select('id, organization_id')
       .eq('id', ownerId)
       .maybeSingle();
 
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
     const { data: fileRecord, error: dbError } = await supabase
       .from('files')
       .insert({
+        organization_id: owner.organization_id,
         owner_type: ownerType,
         owner_id: ownerId,
         type: docType,

@@ -84,6 +84,14 @@ export default async function VehicleDetailPage({ params }: PageProps) {
     .eq('owner_id', id)
     .order('uploaded_at', { ascending: false });
 
+  // Published car-model diagram presets (global, platform-admin managed) for the
+  // inline "Car diagram" picker. RLS lets any authenticated user read these.
+  const { data: vehicleModels } = await supabase
+    .from('vehicle_models')
+    .select('id, name')
+    .eq('is_published', true)
+    .order('name');
+
   return (
     <FleetShell user={user} title={vehicle.registration_number}>
       <VehicleProfile
@@ -93,6 +101,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
         recentShifts={(recentShifts || []) as any}
         serviceHistory={(serviceHistory || []) as any}
         nextServiceDue={latestServiceWithDue?.[0] || null}
+        vehicleModels={vehicleModels || []}
         isAdmin={isAdmin}
       />
     </FleetShell>

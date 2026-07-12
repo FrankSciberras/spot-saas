@@ -136,6 +136,12 @@ export async function POST(request: Request) {
       .eq('id', body.driver_id)
       .single();
 
+    // The settlement, its platform lines, and any generated recurring
+    // adjustments all belong to the driver's fleet. Stamp it explicitly so
+    // multi-fleet admins pass RLS WITH CHECK (the DB auto-stamp trigger leaves
+    // organization_id NULL for users who belong to more than one fleet).
+    const settlementOrgId = driverRow?.organization_id ?? session.organization_id;
+
     let orgDefaults: Record<string, unknown> | null = null;
     let presetId: string | null = driverRow?.settlement_preset_id ?? null;
     if (driverRow?.organization_id) {
@@ -218,6 +224,7 @@ export async function POST(request: Request) {
           })
           .filter(({ amount }) => amount > 0)
           .map(({ rule, amount }) => ({
+            organization_id: settlementOrgId,
             driver_id: body.driver_id,
             type: rule.type as AdjustmentType,
             amount,
@@ -252,6 +259,7 @@ export async function POST(request: Request) {
     const { data: settlement, error: settlementError } = await supabase
       .from('driver_settlements')
       .insert({
+        organization_id: settlementOrgId,
         driver_id: body.driver_id,
         week_start: body.week_start,
         week_end: body.week_end,
@@ -303,6 +311,7 @@ export async function POST(request: Request) {
     // Insert platform records
     if (body.platforms && body.platforms.length > 0) {
       const platformRecords = calculation.platforms.map((p, idx) => ({
+        organization_id: settlementOrgId,
         settlement_id: settlement.id,
         platform_id: p.platformId,
         platform_name: body.platforms[idx].platform_name,

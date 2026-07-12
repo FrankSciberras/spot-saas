@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 /**
  * GET /api/services
@@ -52,11 +53,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-
-  if (!hasStaffDashboardAccess(actor)) {
+  // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
+  // same thing RLS checks), not the legacy global users.role.
+  const session = await getSession();
+  if (!session || !isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const actor = await getAuditActor(user.id);
 
   const body = await request.json();
   const {
@@ -80,9 +84,23 @@ export async function POST(request: Request) {
     }, { status: 400 });
   }
 
+  // A service belongs to the same fleet as its vehicle. Look up that org so we
+  // can stamp organization_id explicitly — the DB auto-stamp trigger leaves it
+  // NULL for multi-fleet users, which then fails RLS WITH CHECK. This SELECT is
+  // also RLS-scoped, so it confirms the caller may touch this vehicle.
+  const { data: vehicleOrg } = await supabase
+    .from('vehicles')
+    .select('organization_id')
+    .eq('id', vehicle_id)
+    .single();
+  if (!vehicleOrg) {
+    return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+  }
+
   const { data: service, error } = await supabase
     .from('vehicle_services')
     .insert({
+      organization_id: vehicleOrg.organization_id,
       vehicle_id,
       service_date,
       service_type: service_type || 'other',

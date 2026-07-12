@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAuditLogEntry, getAuditActor, hasStaffDashboardAccess } from '@/lib/audit/log';
+import { getSession } from '@/lib/auth/session';
+import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 /**
  * DELETE /api/services/bulk
@@ -14,11 +15,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const actor = await getAuditActor(user.id);
-
-  if (!hasStaffDashboardAccess(actor)) {
+  // Deleting service records is ADMIN-only in RLS ("Admins delete services in
+  // org"), so gate on the caller's admin role in their ACTIVE fleet — otherwise
+  // staff would get a 200 while RLS silently deletes 0 rows.
+  const session = await getSession();
+  if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const actor = await getAuditActor(user.id);
 
   const body = await request.json();
   const { ids } = body;

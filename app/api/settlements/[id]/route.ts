@@ -80,7 +80,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // never the fleet's current (possibly since-changed) preset.
     const { data: existing } = await supabase
       .from('driver_settlements')
-      .select('id, status, driver_id, week_start, week_end, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, rent_amount, hours_worked, hourly_rate, wage_amount, components')
+      .select('id, organization_id, status, driver_id, week_start, week_end, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, rent_amount, hours_worked, hourly_rate, wage_amount, components')
       .eq('id', id)
       .single();
 
@@ -204,6 +204,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
       if (body.platforms.length > 0) {
         const platformRecords = calculation.platforms.map((p, idx) => ({
+          organization_id: existing.organization_id,
           settlement_id: id,
           platform_id: p.platformId,
           platform_name: body.platforms![idx].platform_name,

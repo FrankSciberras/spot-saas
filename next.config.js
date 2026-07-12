@@ -10,6 +10,15 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    // Server Actions default to a 1 MB request body, which silently rejects
+    // larger uploads (e.g. vehicle-model diagram SVGs/PNGs) before the action's
+    // own 5 MB check runs. Raise it to comfortably fit those uploads + multipart
+    // overhead. Keep the per-file cap in the action itself as the real limit.
+    serverActions: {
+      bodySizeLimit: '8mb',
+    },
+  },
   typescript: {
     ignoreBuildErrors: false
   }
