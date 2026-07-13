@@ -37,6 +37,27 @@ export default function DriverTrackingPage() {
   const lastPositionSentRef = useRef(0);
   const lastHistorySentRef = useRef(0);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const batteryRef = useRef<{ level: number; charging: boolean } | null>(null);
+
+  // Battery Status API is Chromium-only — ride along where available.
+  useEffect(() => {
+    const getBattery = (navigator as any).getBattery?.bind(navigator);
+    if (!getBattery) return;
+    let battery: any;
+    const sync = () => {
+      batteryRef.current = { level: battery.level, charging: battery.charging };
+    };
+    getBattery().then((b: any) => {
+      battery = b;
+      sync();
+      battery.addEventListener('levelchange', sync);
+      battery.addEventListener('chargingchange', sync);
+    }).catch(() => {});
+    return () => {
+      battery?.removeEventListener('levelchange', sync);
+      battery?.removeEventListener('chargingchange', sync);
+    };
+  }, []);
 
   // Native app mode: listen for tracking status from the shell.
   useEffect(() => {
@@ -113,9 +134,20 @@ export default function DriverTrackingPage() {
 
     if (now - lastPositionSentRef.current >= POSITION_INTERVAL_MS) {
       lastPositionSentRef.current = now;
+      // Battery only — GPS/permission health is reported by the native app;
+      // sending browser values here would trigger false "permission lost" alerts.
+      const battery = batteryRef.current;
       const { error: upsertError } = await supabase
         .from('driver_positions')
-        .upsert({ ...point, is_tracking: true }, { onConflict: 'driver_id' });
+        .upsert(
+          {
+            ...point,
+            is_tracking: true,
+            battery_pct: battery ? Math.round(battery.level * 100) : null,
+            battery_charging: battery ? battery.charging : null,
+          },
+          { onConflict: 'driver_id' }
+        );
       if (upsertError) {
         setError(`Failed to send location: ${upsertError.message}`);
         return;

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
     const { data: silent } = await supabase
       .from('driver_positions')
-      .select('driver_id, organization_id, shift_id, recorded_at, drivers:driver_id (full_name)')
+      .select('driver_id, organization_id, shift_id, recorded_at, battery_pct, drivers:driver_id (full_name)')
       .eq('is_tracking', true)
       .lt('recorded_at', cutoff);
 
@@ -64,11 +64,15 @@ export async function GET(request: Request) {
         hour: '2-digit',
         minute: '2-digit',
       });
+      const batteryHint =
+        row.battery_pct != null && row.battery_pct <= 20
+          ? ` Battery was at ${row.battery_pct}% — the phone may have died.`
+          : ' Phone may be off or out of coverage.';
       await supabase.from('notifications').insert({
         organization_id: row.organization_id,
         driver_id: null,
         title: 'Tracking signal lost',
-        body: `${name}'s location sharing went silent (last seen ${lastSeen}). Phone may be off or out of coverage.`,
+        body: `${name}'s location sharing went silent (last seen ${lastSeen}).${batteryHint}`,
         type: 'warning',
         action_url: '/fleet/tracking',
         target_role: 'admin',

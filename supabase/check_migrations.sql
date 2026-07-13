@@ -29,5 +29,13 @@ FROM (
   UNION ALL SELECT 17, '20260615_geofences_tracking_logs',to_regclass('public.geofences') IS NOT NULL
   UNION ALL SELECT 18, '20260616_tracking_intelligence',  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='organizations' AND column_name='speed_limit_kmh')
   UNION ALL SELECT 19, '20260617_plan_vehicle_addons',    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='plans' AND column_name='included_vehicles')
+  UNION ALL SELECT 20, '20260709_pay_models',             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='settlement_presets' AND column_name='hourly_rate')
+  UNION ALL SELECT 21, '20260710_org_modules',            to_regclass('public.org_modules') IS NOT NULL
+  UNION ALL SELECT 22, '20260711_pricing_enterprise_tier',EXISTS (SELECT 1 FROM public.plans WHERE key='enterprise')
+  UNION ALL SELECT 23, '20260712_service_due_engine',     EXISTS (SELECT 1 FROM pg_proc WHERE proname='seed_default_notification_rules' AND prosrc LIKE '%service_due%')
+  UNION ALL SELECT 24, '20260713_parts_inventory',        to_regclass('public.parts') IS NOT NULL
+  UNION ALL SELECT 25, '20260714_device_health',          EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='driver_positions' AND column_name='battery_pct')
+  UNION ALL SELECT 26, '20260715_trip_history',           to_regclass('public.driver_trip_segments') IS NOT NULL
+  UNION ALL SELECT 27, '20260716_driver_behaviour',       to_regclass('public.driver_behavior_events') IS NOT NULL
 ) t
 ORDER BY ord;

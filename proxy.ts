@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 // Routes that don't require authentication (exact match)
-const publicRoutes = ['/', '/login', '/auth/callback', '/offline', '/privacy', '/terms', '/security', '/integrations', '/ai'];
+const publicRoutes = ['/', '/login', '/auth/callback', '/offline', '/privacy', '/terms', '/security', '/integrations', '/ai', '/changelog'];
 
 // Public route prefixes — anything under these is open (marketing pages, etc.)
 const publicPrefixes = ['/features', '/about', '/careers', '/contact', '/blog'];

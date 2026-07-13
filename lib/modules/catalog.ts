@@ -94,13 +94,13 @@ export const FLEET_MODULES: FleetModule[] = [
     name: 'Live Tracking',
     tagline: 'See drivers on a map',
     description:
-      'Live GPS map of your fleet with driver locations and trip history.',
+      'Live GPS map with trip & stop history, driver safety scores and device health alerts.',
     icon: 'map',
     category: 'Operations',
     status: 'available',
     defaultEnabled: true,
-    navIds: ['tracking'],
-    routePrefixes: ['/fleet/tracking'],
+    navIds: ['tracking', 'trips', 'safety'],
+    routePrefixes: ['/fleet/tracking', '/fleet/trips', '/fleet/safety'],
   },
   {
     key: 'maintenance',

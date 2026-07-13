@@ -91,7 +91,10 @@ The pitch: most small fleets run on a patchwork of spreadsheets, paper logs and 
 ## Live operations & tracking (no hardware)
 - A live map of the whole fleet with no GPS boxes to buy. It uses the phone the driver already carries via the free driver app — switched on with one tap at shift start, off when the shift ends. Privacy built in: tracking only runs during shifts.
 - Shows live positions, speed and top speed per driver, distance (km) driven per shift, and route playback.
-- Draw zones on the map and get alerted when a driver enters or leaves (e.g. an airport).
+- Draw zones on the map and get alerted when a driver enters or leaves (e.g. an airport). Speeding alerts against a fleet-wide limit the admin sets.
+- Trip & location history: every journey (times, distance, top speed) and every stop (where, how long — named when inside a zone) compiled into a per-driver daily timeline. Use it to verify completed jobs, calculate mileage and spot unnecessary journeys or excessive waiting.
+- Driver behaviour & safety scores: the app's motion sensor detects harsh braking and rapid acceleration on the phone; combined with speeding these roll into a weekly 0–100 safety score per driver, plus a Monday-morning safety report for admins.
+- Device health alerts: admins are notified when a tracking phone's battery runs low, GPS is switched off, tracking permission is removed, or the phone stops reporting mid-shift.
 - Live shift status (on shift / off duty / running late) with hours ticking up in real time, and per-driver earnings building through the day.
 - Saves a 10-car fleet €1,000+ up front versus dedicated trackers — no devices, no installation, no SIM contracts.
 
