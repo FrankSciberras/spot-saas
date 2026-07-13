@@ -1,0 +1,236 @@
+/* Changelog timeline — lives inside the FeatureShell `.rovora-site` wrapper, so
+   every theme variable (--text-*, --bg-*, --line-*, --accent, --warn) cascades in
+   and dark mode works for free. Local class names avoid clashing with site styles. */
+
+/* Extra meta row under the hero (release count + last updated). */
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 26px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 100px;
+  background: var(--bg-1);
+}
+.pillDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Legend explaining the coloured chips. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 40px 0 4px;
+}
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* ── Timeline ── */
+.timeline {
+  --imp: #2563eb; /* "improved" hue — overridden in dark mode below */
+  position: relative;
+  padding: 20px 0 24px;
+}
+/* Continuous vertical thread running through the dots. */
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 155px;
+  top: 46px;
+  bottom: 90px;
+  width: 2px;
+  background: var(--line-2);
+}
+
+.release {
+  position: relative;
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  column-gap: 46px;
+  align-items: start;
+}
+.release + .release {
+  margin-top: 40px;
+}
+
+.rail {
+  text-align: right;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.date {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-1);
+  font-weight: 500;
+}
+.latestTag {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  padding: 3px 8px;
+  border-radius: 100px;
+}
+
+/* Dot sitting on the thread. */
+.dot {
+  position: absolute;
+  left: 149px;
+  top: 26px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--bg-0);
+  z-index: 1;
+}
+.release.featured .dot {
+  box-shadow: 0 0 0 4px var(--bg-0), 0 0 0 8px var(--accent-soft);
+}
+
+.card {
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  background: var(--bg-1);
+  padding: 24px 26px 22px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+.release.featured .card {
+  border-color: var(--accent-line);
+  background: linear-gradient(180deg, var(--accent-soft), var(--bg-1) 120px);
+}
+
+.title {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-1);
+  margin: 0;
+}
+.summary {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.items {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 13px 0;
+}
+.item + .item {
+  border-top: 1px solid var(--line-1);
+}
+
+/* Coloured type chip. `--c` is the chip's base colour; the soft fill and border
+   are mixed from it so light/dark both look right with no extra rules. */
+.tag {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+  color: var(--c, var(--text-2));
+  background: color-mix(in srgb, var(--c, var(--text-3)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c, var(--text-3)) 26%, transparent);
+}
+.new {
+  --c: var(--accent);
+}
+.improved {
+  --c: var(--imp);
+}
+.security {
+  --c: var(--warn);
+}
+.fixed {
+  --c: var(--text-3);
+  color: var(--text-2);
+}
+
+.body {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.area {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.area::after {
+  content: " — ";
+  color: var(--text-4);
+  font-weight: 400;
+}
+
+/* Dark-mode "improved" hue — brighter blue for contrast on dark cards. */
+:global(.rovora-site[data-theme="dark"]) .timeline {
+  --imp: #6ea8ff;
+}
+
+@media (max-width: 820px) {
+  .timeline::before,
+  .dot {
+    display: none;
+  }
+  .release {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+  .rail {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    padding-top: 0;
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

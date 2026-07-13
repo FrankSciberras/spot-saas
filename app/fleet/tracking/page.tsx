@@ -36,10 +36,10 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes, orgRes, distancesRes, speedingRes] = await Promise.all([
+  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes, orgRes, distancesRes, speedingRes, healthRes] = await Promise.all([
     supabase
       .from('driver_positions')
-      .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, drivers:driver_id (full_name)')
+      .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, battery_pct, battery_charging, gps_enabled, location_permission, drivers:driver_id (full_name)')
       .eq('organization_id', orgId)
       .order('recorded_at', { ascending: false }),
     supabase
@@ -68,6 +68,12 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       .eq('organization_id', orgId)
       .order('occurred_at', { ascending: false })
       .limit(20),
+    supabase
+      .from('device_health_events')
+      .select('id, event, detail, occurred_at, drivers:driver_id (full_name)')
+      .eq('organization_id', orgId)
+      .order('occurred_at', { ascending: false })
+      .limit(20),
   ]);
 
   const maxSpeedByDriver = new Map<string, number>(
@@ -93,6 +99,10 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       distanceToday: distanceByDriver.get(r.driver_id) ?? null,
       isTracking: !!r.is_tracking,
       recordedAt: r.recorded_at,
+      batteryPct: r.battery_pct ?? null,
+      batteryCharging: r.battery_charging ?? null,
+      gpsEnabled: r.gps_enabled ?? null,
+      locationPermission: r.location_permission ?? null,
     };
   });
 
@@ -135,6 +145,15 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       driverName: nameOf(e.drivers),
       zoneName: null,
       detail: `${e.speed_kmh} km/h (limit ${e.limit_kmh})`,
+      occurredAt: e.occurred_at as string,
+    })),
+    ...((healthRes.data || []) as any[]).map((e) => ({
+      id: `h-${e.id}`,
+      kind: 'health' as const,
+      event: e.event as string,
+      driverName: nameOf(e.drivers),
+      zoneName: null,
+      detail: (e.detail as string) ?? null,
       occurredAt: e.occurred_at as string,
     })),
   ]

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Linking, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
@@ -8,10 +8,12 @@ import {
   isTracking,
   lastSendError,
   lastSentAt,
+  reportDeviceHealth,
   startTracking,
   stopTracking,
   type TrackingContext,
 } from '../lib/locationTask';
+import { startMotionDetection } from '../lib/motionDetector';
 import { colors } from '../lib/theme';
 
 const PORTAL_URL = process.env.EXPO_PUBLIC_PORTAL_URL || 'https://rovora.eu/driver';
@@ -48,6 +50,27 @@ export default function PortalScreen() {
     }, 5_000);
     return () => clearInterval(interval);
   }, [sendStatus]);
+
+  // Device health: re-check GPS/permission whenever the app comes back to the
+  // foreground, and once a minute while tracking. Also (re)start harsh-driving
+  // detection — it doesn't survive an app restart on its own.
+  useEffect(() => {
+    const check = async () => {
+      if (await isTracking()) {
+        void reportDeviceHealth();
+        void startMotionDetection();
+      }
+    };
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void check();
+    });
+    const interval = setInterval(() => void check(), 60_000);
+    void check();
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
+  }, []);
 
   // Android hardware/gesture back navigates the portal history first.
   useEffect(() => {

@@ -15,6 +15,7 @@ import {
   setVehicleModelPublishedAction,
   deleteVehicleModelAction,
 } from '@/lib/actions/vehicle-models';
+import { setInquiryStatusAction, deleteInquiryAction } from '@/lib/actions/contact';
 import PackagesManager from './PackagesManager';
 import AddOperatorModal from './AddOperatorModal';
 import OperatorDetailModal from './OperatorDetailModal';
@@ -22,6 +23,8 @@ import BroadcastCenter from './BroadcastCenter';
 import {
   type AdminData,
   type BillingRow,
+  type Inquiry,
+  type InquiryStatus,
   type Operator,
   type OpStatus,
   type PlanMeta,
@@ -265,10 +268,11 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 );
 
 // ── nav ──
-type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
+type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'inquiries' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
 
 function buildNav(data: AdminData) {
   const pastDue = data.billing.filter((b) => b.status === 'past_due').length;
+  const newInquiries = data.inquiries.filter((i) => i.status === 'new').length;
   return [
     { label: null as string | null, items: [{ id: 'overview' as PageId, name: 'Overview', icon: 'dashboard', badge: undefined as string | undefined, dot: false }] },
     { label: 'Revenue', items: [
@@ -285,6 +289,7 @@ function buildNav(data: AdminData) {
       { id: 'vehicle-models' as PageId, name: 'Vehicle Models', icon: 'vehicle', badge: undefined, dot: false },
     ]},
     { label: 'Admin', items: [
+      { id: 'inquiries' as PageId, name: 'Inquiries', icon: 'audit', badge: newInquiries ? String(newInquiries) : undefined, dot: newInquiries > 0 },
       { id: 'broadcasts' as PageId, name: 'Broadcasts', icon: 'bell', badge: undefined, dot: false },
       { id: 'support' as PageId, name: 'Support', icon: 'staff', badge: undefined, dot: false },
       { id: 'settings' as PageId, name: 'Settings', icon: 'adjust', badge: undefined, dot: false },
@@ -914,6 +919,181 @@ const SupportPage = ({ data }: { data: AdminData }) => {
   );
 };
 
+// ── Inquiries (contact-form inbox) ──
+const INQ_STATUS: Record<InquiryStatus, { label: string; color: string; bg: string }> = {
+  new: { label: 'New', color: 'var(--accent)', bg: 'var(--accent-soft)' },
+  read: { label: 'Read', color: 'var(--text-2)', bg: 'var(--bg-3)' },
+  replied: { label: 'Replied', color: 'var(--pos)', bg: 'var(--pos-soft)' },
+  archived: { label: 'Archived', color: 'var(--text-3)', bg: 'var(--bg-3)' },
+};
+const TOPIC_LABEL: Record<string, string> = {
+  sales: 'Sales & demos',
+  support: 'Product support',
+  partnership: 'Partnership',
+  other: 'Other',
+};
+const fmtDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+const InqStatusPill = ({ status }: { status: InquiryStatus }) => {
+  const s = INQ_STATUS[status];
+  return (
+    <span style={{ fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: s.color, background: s.bg, padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+      {s.label}
+    </span>
+  );
+};
+
+const DetailField = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div style={{ minWidth: 0 }}>
+    <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-4)', marginBottom: 3 }}>{label}</div>
+    <div style={{ fontSize: 13, color: 'var(--text-1)', wordBreak: 'break-word' }}>{children}</div>
+  </div>
+);
+
+const InquiryRowCard = ({ inq, open, onToggle }: { inq: Inquiry; open: boolean; onToggle: () => void }) => {
+  const [isPending, startTransition] = useTransition();
+  const [err, setErr] = useState('');
+  const markedRef = useRef(false);
+  const initial = (inq.name.trim()[0] || '?').toUpperCase();
+
+  // Opening a NEW inquiry marks it read (once), so the unread badge clears as you triage.
+  useEffect(() => {
+    if (open && inq.status === 'new' && !markedRef.current) {
+      markedRef.current = true;
+      startTransition(async () => { await setInquiryStatusAction(inq.id, 'read'); });
+    }
+  }, [open, inq.status, inq.id]);
+
+  const run = (fn: () => Promise<{ error?: string; ok?: boolean }>) => {
+    setErr('');
+    startTransition(async () => {
+      const r = await fn();
+      if (r?.error) setErr(r.error);
+    });
+  };
+  const setStatus = (s: InquiryStatus) => run(() => setInquiryStatusAction(inq.id, s));
+  const remove = () => {
+    if (!window.confirm(`Delete this inquiry from ${inq.name}? This can’t be undone.`)) return;
+    run(() => deleteInquiryAction(inq.id));
+  };
+  const mailto = `mailto:${inq.email}?subject=${encodeURIComponent(`Re: your message to Rovora`)}`;
+  const snippet = inq.message.length > 96 ? `${inq.message.slice(0, 96)}…` : inq.message;
+
+  return (
+    <ACard style={{ opacity: isPending ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+      {/* Header — click to expand */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer' }}
+      >
+        <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: 'var(--bg-3)', color: 'var(--text-2)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {initial}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13.5, fontWeight: inq.status === 'new' ? 600 : 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inq.name}</span>
+            {inq.company && <span style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {inq.company}</span>}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{snippet}</div>
+        </div>
+        <span className="hide-mobile" style={{ fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: 'var(--text-3)', background: 'var(--bg-2)', padding: '2px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>{TOPIC_LABEL[inq.topic] ?? inq.topic}</span>
+        <InqStatusPill status={inq.status} />
+        <span style={{ fontSize: 11.5, color: 'var(--text-4)', whiteSpace: 'nowrap', minWidth: 58, textAlign: 'right' }} className="hide-mobile">{fmtDate(inq.createdAt)}</span>
+        <Icon name={open ? 'chevron-down' : 'chevron-right'} size={16} />
+      </div>
+
+      {/* Expanded detail */}
+      {open && (
+        <div style={{ borderTop: '1px solid var(--line-1)', padding: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 16 }}>
+            <DetailField label="Email"><a href={mailto} style={{ color: 'var(--accent)', textDecoration: 'none' }}>{inq.email}</a></DetailField>
+            <DetailField label="Phone">{inq.phone || <span style={{ color: 'var(--text-4)' }}>—</span>}</DetailField>
+            <DetailField label="Fleet / company">{inq.company || <span style={{ color: 'var(--text-4)' }}>—</span>}</DetailField>
+            <DetailField label="Fleet size">{inq.fleetSize || <span style={{ color: 'var(--text-4)' }}>—</span>}</DetailField>
+            <DetailField label="Topic">{TOPIC_LABEL[inq.topic] ?? inq.topic}</DetailField>
+            <DetailField label="Received">{fmtDateTime(inq.createdAt)}</DetailField>
+          </div>
+
+          <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-4)', marginBottom: 6 }}>Message</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-1)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: 'var(--bg-2)', border: '1px solid var(--line-1)', borderRadius: 9, padding: '12px 14px' }}>
+            {inq.message}
+          </div>
+
+          {err && <div style={{ fontSize: 12, color: 'var(--neg)', marginTop: 10 }}>{err}</div>}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16, alignItems: 'center' }}>
+            <a href={mailto} style={{ ...ap.primaryBtn, textDecoration: 'none' }}><Icon name="phone" size={13} />Reply by email</a>
+            {inq.status !== 'replied' && <button style={ap.ghostBtn2} disabled={isPending} onClick={() => setStatus('replied')}><Icon name="check" size={13} />Mark replied</button>}
+            {inq.status !== 'archived'
+              ? <button style={ap.ghostBtn2} disabled={isPending} onClick={() => setStatus('archived')}>Archive</button>
+              : <button style={ap.ghostBtn2} disabled={isPending} onClick={() => setStatus('read')}>Unarchive</button>}
+            <div style={{ flex: 1 }} />
+            <button style={{ ...ap.ghostBtn2, color: 'var(--neg)', borderColor: 'var(--neg-soft)' }} disabled={isPending} onClick={remove}>Delete</button>
+          </div>
+        </div>
+      )}
+    </ACard>
+  );
+};
+
+const InquiriesPage = ({ data }: { data: AdminData }) => {
+  const [filter, setFilter] = useState<'all' | InquiryStatus>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const counts = {
+    all: data.inquiries.length,
+    new: data.inquiries.filter((i) => i.status === 'new').length,
+    read: data.inquiries.filter((i) => i.status === 'read').length,
+    replied: data.inquiries.filter((i) => i.status === 'replied').length,
+    archived: data.inquiries.filter((i) => i.status === 'archived').length,
+  };
+  const rows = data.inquiries.filter((i) => (filter === 'all' ? true : i.status === filter));
+  const tabs: [keyof typeof counts, string][] = [
+    ['all', 'All'], ['new', 'New'], ['read', 'Read'], ['replied', 'Replied'], ['archived', 'Archived'],
+  ];
+
+  return (
+    <div style={ap.scroll} className="pad-mobile">
+      <div style={{ padding: '20px 0 14px', maxWidth: 620 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Contact form inbox</div>
+        <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Messages people sent from the website.</div>
+      </div>
+
+      <div className="chips-scroll" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => setFilter(id as 'all' | InquiryStatus)} style={{ ...ap.filterTab, ...(filter === id ? ap.filterTabActive : {}) }}>
+            {label} <span className="mono" style={{ fontSize: 11, opacity: 0.7, marginLeft: 3 }}>{counts[id]}</span>
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <ACard>
+          <div style={{ padding: '48px 18px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--text-4)', marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Icon name="audit" size={26} /></div>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 500 }}>{filter === 'all' ? 'No inquiries yet.' : `No ${filter} inquiries.`}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-4)', marginTop: 4 }}>Messages from the website contact form land here.</div>
+          </div>
+        </ACard>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {rows.map((inq) => (
+            <InquiryRowCard key={inq.id} inq={inq} open={openId === inq.id} onToggle={() => setOpenId((cur) => (cur === inq.id ? null : inq.id))} />
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }} className="mono">
+        {rows.length} {rows.length === 1 ? 'inquiry' : 'inquiries'}{counts.new > 0 ? ` · ${counts.new} new` : ''}
+      </div>
+    </div>
+  );
+};
+
 // ── Package update check (platform maintenance toggle, stored in app_settings) ──
 const PackageUpdateCard = () => {
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -1230,6 +1410,7 @@ const PAGE_META: Record<PageId, { title: string; subtitle: string }> = {
   billing: { title: 'Billing', subtitle: 'Subscription status & invoices' },
   trials: { title: 'Trials', subtitle: 'Operators evaluating Rovora' },
   churn: { title: 'Churn', subtitle: 'Retention & recovery' },
+  inquiries: { title: 'Inquiries', subtitle: 'Contact form inbox' },
   broadcasts: { title: 'Broadcasts', subtitle: 'Message operators & drivers' },
   support: { title: 'Support', subtitle: 'Operator directory' },
   settings: { title: 'Settings', subtitle: 'Platform configuration' },
@@ -1276,6 +1457,7 @@ export default function AdminConsole({ data }: { data: AdminData }) {
         {active === 'billing' && <BillingPage data={data} query={query} />}
         {active === 'trials' && <TrialsPage data={data} />}
         {active === 'churn' && <ChurnPage data={data} />}
+        {active === 'inquiries' && <InquiriesPage data={data} />}
         {active === 'broadcasts' && (
           <div style={ap.scroll} className="pad-mobile">
             <div style={{ padding: '24px 0 16px', maxWidth: 560 }}>

@@ -14,6 +14,8 @@ import {
   type ActivityItem,
   type BillingRow,
   type PackageDef,
+  type Inquiry,
+  type InquiryStatus,
 } from './console/types';
 
 export const dynamic = 'force-dynamic';
@@ -93,7 +95,7 @@ export default async function PlatformOverviewPage() {
   const adminUser = await requirePlatformAdmin();
   const admin = createAdminClient();
 
-  const [planRows, { data: orgs }, { data: members }, { data: drivers }, { data: vehicles }, { data: users }] =
+  const [planRows, { data: orgs }, { data: members }, { data: drivers }, { data: vehicles }, { data: users }, { data: inquiryRows }] =
     await Promise.all([
       getAllPlans(),
       admin
@@ -104,6 +106,13 @@ export default async function PlatformOverviewPage() {
       admin.from('drivers').select('organization_id'),
       admin.from('vehicles').select('organization_id'),
       admin.from('users').select('id, email'),
+      // Contact-form submissions. If the table doesn't exist yet (migration not
+      // applied), Supabase returns { data: null, error } — so `inquiryRows` is
+      // null and the inbox is simply empty; the page never fails.
+      admin
+        .from('contact_inquiries')
+        .select('id, name, email, phone, company, fleet_size, topic, message, status, source, created_at, handled_at')
+        .order('created_at', { ascending: false }),
     ]);
 
   // Catalogue-derived lookups (replace the old hardcoded PLAN_PRICE / PLAN_META).
@@ -291,6 +300,35 @@ export default async function PlatformOverviewPage() {
     };
   });
 
+  interface InquiryRow {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    company: string | null;
+    fleet_size: string | null;
+    topic: string;
+    message: string;
+    status: string;
+    source: string;
+    created_at: string;
+    handled_at: string | null;
+  }
+  const inquiries: Inquiry[] = ((inquiryRows as InquiryRow[] | null) ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    phone: r.phone,
+    company: r.company,
+    fleetSize: r.fleet_size,
+    topic: r.topic,
+    message: r.message,
+    status: (r.status as InquiryStatus) ?? 'new',
+    source: r.source,
+    createdAt: r.created_at,
+    handledAt: r.handled_at,
+  }));
+
   const packages: PackageDef[] = planRows.map((p) => ({
     id: p.key,
     name: p.name,
@@ -310,6 +348,7 @@ export default async function PlatformOverviewPage() {
     activity,
     packages,
     billing,
+    inquiries,
     totals: {
       operators: operators.length,
       users: (users as unknown[])?.length ?? 0,

@@ -1,5 +1,6 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { Icon } from '@/components/marketing/feature/icons';
+import ContactForm from '@/components/marketing/contact/ContactForm';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
@@ -73,6 +74,24 @@ export default function ContactPage() {
                 </a>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Inquiry form */}
+      <section className="sec-pad" id="form" style={{ paddingTop: 32 }}>
+        <div className="container">
+          <div className="reveal" style={{ textAlign: 'center', maxWidth: 560, margin: '0 auto 28px' }}>
+            <span className="eyebrow">Send a message</span>
+            <h2 style={{ fontSize: 'clamp(26px, 3.4vw, 36px)', letterSpacing: '-0.03em', fontWeight: 500, lineHeight: 1.1, margin: '12px 0 0' }}>
+              Tell us about your fleet.
+            </h2>
+            <p style={{ margin: '14px 0 0', fontSize: 16, lineHeight: 1.6, color: 'var(--text-2)' }}>
+              Fill this in and it lands straight with our team. Prefer email? Every inbox above works too.
+            </p>
+          </div>
+          <div className="reveal">
+            <ContactForm />
           </div>
         </div>
       </section>

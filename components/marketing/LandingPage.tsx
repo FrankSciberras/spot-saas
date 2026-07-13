@@ -430,11 +430,13 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
                 </div>
                 <h3>Everything a hardware tracker does. Nothing it costs.</h3>
-                <p>Live positions, speeds, distance driven, route playback and a full log of who shared when — streamed from the free driver app, with privacy built in: tracking only runs during shifts, started and stopped by the driver.</p>
+                <p>Live positions, trip and stop history, driver safety scores and phone-health alerts — streamed from the free driver app, with privacy built in: tracking only runs during shifts, started and stopped by the driver.</p>
                 <ul className="feat-list">
                   <li><span className="tick"><Check /></span> Live map with speed &amp; top speed per driver</li>
                   <li><span className="tick"><Check /></span> Draw zones — get alerted when a driver enters or leaves</li>
-                  <li><span className="tick"><Check /></span> Route playback &amp; km driven for every shift</li>
+                  <li><span className="tick"><Check /></span> Trip history — every journey, stop and waiting time, with route playback</li>
+                  <li><span className="tick"><Check /></span> Driver safety scores — speeding, harsh braking &amp; rapid acceleration</li>
+                  <li><span className="tick"><Check /></span> Device health alerts — low battery, GPS off or permission removed</li>
                   <li><span className="tick"><Check /></span> No devices, no installation, no SIM contracts <span className="t2">— a 10-car fleet saves €1,000+ up front</span></li>
                 </ul>
               </div>

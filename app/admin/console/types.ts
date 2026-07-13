@@ -113,6 +113,29 @@ export interface BillingRow {
   stripeUrl: string | null;
 }
 
+/** Triage state for a contact-form inquiry. */
+export type InquiryStatus = 'new' | 'read' | 'replied' | 'archived';
+
+/** A submission from the public /contact form, shown in the admin Inbox. */
+export interface Inquiry {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  /** Company / fleet name the sender typed. */
+  company: string | null;
+  fleetSize: string | null;
+  /** sales | support | partnership | other. */
+  topic: string;
+  message: string;
+  status: InquiryStatus;
+  source: string;
+  /** ISO created timestamp. */
+  createdAt: string;
+  /** ISO timestamp of the last admin action, or null. */
+  handledAt: string | null;
+}
+
 export interface AdminData {
   operators: Operator[];
   metrics: AdminMetrics;
@@ -121,6 +144,8 @@ export interface AdminData {
   activity: ActivityItem[];
   packages: PackageDef[];
   billing: BillingRow[];
+  /** Contact-form submissions, newest first. */
+  inquiries: Inquiry[];
   totals: { operators: number; users: number; drivers: number; vehicles: number };
   /** Month-over-month MRR growth %, from the trend tail. */
   momGrowth: number;

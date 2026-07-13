@@ -20,6 +20,10 @@ export interface PositionItem {
   distanceToday: number | null;
   isTracking: boolean;
   recordedAt: string;
+  batteryPct: number | null;
+  batteryCharging: boolean | null;
+  gpsEnabled: boolean | null;
+  locationPermission: string | null;
 }
 
 export interface ZoneItem {
@@ -34,7 +38,7 @@ export interface ZoneItem {
 
 export interface ActivityItem {
   id: string;
-  kind: 'tracking' | 'zone' | 'speed';
+  kind: 'tracking' | 'zone' | 'speed' | 'health';
   event: string;
   driverName: string;
   zoneName: string | null;
@@ -90,6 +94,20 @@ function initialsOf(name: string): string {
 
 function radiusLabel(m: number): string {
   return m >= 1000 ? `${(m / 1000).toFixed(m % 1000 === 0 ? 0 : 1)} km` : `${m} m`;
+}
+
+function batteryColor(p: PositionItem): string {
+  if (p.batteryCharging) return 'var(--text-3)';
+  if (p.batteryPct != null && p.batteryPct <= 10) return 'var(--neg, #f06464)';
+  if (p.batteryPct != null && p.batteryPct <= 20) return 'var(--warn, #f5b54a)';
+  return 'var(--text-3)';
+}
+
+function deviceIssue(p: PositionItem): string | null {
+  if (p.gpsEnabled === false) return 'GPS off';
+  if (p.locationPermission === 'denied') return 'No location access';
+  if (p.locationPermission === 'foreground_only') return 'Limited location';
+  return null;
 }
 
 const STATUS_COLOR: Record<LiveStatus, string> = {
@@ -235,6 +253,10 @@ export default function TrackingWorkspace({
               distanceToday: existing?.distanceToday ?? null,
               isTracking: !!row.is_tracking,
               recordedAt: (row.recorded_at as string) || new Date().toISOString(),
+              batteryPct: (row.battery_pct as number) ?? null,
+              batteryCharging: (row.battery_charging as boolean) ?? null,
+              gpsEnabled: (row.gps_enabled as boolean) ?? null,
+              locationPermission: (row.location_permission as string) ?? null,
             });
             return next;
           });
@@ -250,7 +272,7 @@ export default function TrackingWorkspace({
   }, [supabase, orgId]);
 
   const refetchActivity = useCallback(async () => {
-    const [trackingRes, zoneRes, speedRes] = await Promise.all([
+    const [trackingRes, zoneRes, speedRes, healthRes] = await Promise.all([
       supabase
         .from('driver_tracking_events')
         .select('id, event, occurred_at, drivers:driver_id (full_name)')
@@ -266,6 +288,12 @@ export default function TrackingWorkspace({
       supabase
         .from('speeding_events')
         .select('id, speed_kmh, limit_kmh, occurred_at, drivers:driver_id (full_name)')
+        .eq('organization_id', orgId)
+        .order('occurred_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('device_health_events')
+        .select('id, event, detail, occurred_at, drivers:driver_id (full_name)')
         .eq('organization_id', orgId)
         .order('occurred_at', { ascending: false })
         .limit(20),
@@ -300,6 +328,15 @@ export default function TrackingWorkspace({
         detail: `${e.speed_kmh} km/h (limit ${e.limit_kmh})`,
         occurredAt: e.occurred_at as string,
       })),
+      ...((healthRes.data || []) as any[]).map((e) => ({
+        id: `h-${e.id}`,
+        kind: 'health' as const,
+        event: e.event as string,
+        driverName: nameOf(e.drivers),
+        zoneName: null,
+        detail: (e.detail as string) ?? null,
+        occurredAt: e.occurred_at as string,
+      })),
     ]
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
       .slice(0, 40);
@@ -311,7 +348,7 @@ export default function TrackingWorkspace({
     const refetchPositions = async () => {
       const { data } = await supabase
         .from('driver_positions')
-        .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, drivers:driver_id (full_name)')
+        .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, battery_pct, battery_charging, gps_enabled, location_permission, drivers:driver_id (full_name)')
         .eq('organization_id', orgId);
       if (!data) return;
       setPositions((prev) => {
@@ -334,6 +371,10 @@ export default function TrackingWorkspace({
             distanceToday: existing?.distanceToday ?? null,
             isTracking: !!r.is_tracking,
             recordedAt: r.recorded_at,
+            batteryPct: r.battery_pct ?? null,
+            batteryCharging: r.battery_charging ?? null,
+            gpsEnabled: r.gps_enabled ?? null,
+            locationPermission: r.location_permission ?? null,
           });
         }
         return next;
@@ -374,7 +415,8 @@ export default function TrackingWorkspace({
       marker.bindTooltip(
         `<strong>${p.name}</strong><br/>${agoLabel(p.recordedAt, now)}` +
           (speedNow != null && status === 'live' ? `<br/>Speed: ${speedNow} km/h` : '') +
-          (speedMax != null ? `<br/>Top today: ${speedMax} km/h` : ''),
+          (speedMax != null ? `<br/>Top today: ${speedMax} km/h` : '') +
+          (p.batteryPct != null ? `<br/>Battery: ${p.batteryPct}%${p.batteryCharging ? ' (charging)' : ''}` : ''),
         { direction: 'top', offset: [0, -16] }
       );
     }
@@ -584,11 +626,13 @@ export default function TrackingWorkspace({
 
   const activityIcon = (a: ActivityItem) => {
     if (a.kind === 'speed') return '⚠';
+    if (a.kind === 'health') return a.event === 'low_battery' || a.event === 'battery_critical' ? '🔋' : '⚠';
     if (a.kind === 'tracking') return a.event === 'started' ? '▶' : a.event === 'lost' ? '⚡' : '⏹';
     return a.event === 'enter' ? '⊕' : '⊖';
   };
   const activityColor = (a: ActivityItem) => {
     if (a.kind === 'speed') return 'var(--neg, #f06464)';
+    if (a.kind === 'health') return a.event === 'low_battery' ? 'var(--warn, #f5b54a)' : 'var(--neg, #f06464)';
     if (a.kind === 'tracking') {
       if (a.event === 'started') return 'var(--pos, #2bbd7e)';
       if (a.event === 'lost') return 'var(--neg, #f06464)';
@@ -598,6 +642,14 @@ export default function TrackingWorkspace({
   };
   const activityText = (a: ActivityItem) => {
     if (a.kind === 'speed') return `${a.driverName} was speeding — ${a.detail}`;
+    if (a.kind === 'health') {
+      if (a.event === 'low_battery') return `${a.driverName}'s phone battery is low${a.detail ? ` (${a.detail})` : ''}`;
+      if (a.event === 'battery_critical') return `${a.driverName}'s phone battery is critical${a.detail ? ` (${a.detail})` : ''}`;
+      if (a.event === 'gps_off') return `${a.driverName} turned location services off`;
+      return a.detail === 'denied'
+        ? `${a.driverName} removed the app's location access`
+        : `${a.driverName} limited location to “while using the app”`;
+    }
     if (a.kind === 'tracking') {
       if (a.event === 'lost') return `${a.driverName}'s tracking signal was lost`;
       return `${a.driverName} ${a.event === 'started' ? 'started sharing' : 'stopped sharing'}`;
@@ -658,6 +710,23 @@ export default function TrackingWorkspace({
                         <span style={{ ...st.dot, background: STATUS_COLOR[status] }} />
                         {status === 'live' ? 'Live' : status === 'stale' ? 'Stale' : 'Offline'} · {agoLabel(p.recordedAt, now)}
                         {km != null && ` · ${km} km`}
+                        {p.batteryPct != null && (
+                          <span
+                            style={{
+                              color: batteryColor(p),
+                              fontWeight: !p.batteryCharging && p.batteryPct <= 20 ? 600 : 400,
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={`Battery ${p.batteryPct}%${p.batteryCharging ? ' — charging' : ''}`}
+                          >
+                            · {p.batteryPct}%{p.batteryCharging ? '⚡' : ''}
+                          </span>
+                        )}
+                        {deviceIssue(p) && (
+                          <span style={{ color: 'var(--neg, #f06464)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            · {deviceIssue(p)}
+                          </span>
+                        )}
                       </span>
                     </span>
                     {status === 'live' && speedNow != null && (
@@ -822,7 +891,7 @@ export default function TrackingWorkspace({
               <div key={a.id} style={st.activityRow}>
                 <span style={{ ...st.activityIcon, color: activityColor(a) }}>{activityIcon(a)}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ ...st.activityText, ...(a.kind === 'speed' || a.event === 'lost' ? { fontWeight: 600 } : {}) }}>
+                  <span style={{ ...st.activityText, ...(a.kind === 'speed' || a.kind === 'health' || a.event === 'lost' ? { fontWeight: 600 } : {}) }}>
                     {activityText(a)}
                   </span>
                   <span style={st.activityTime}>
