@@ -91,7 +91,10 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    // Not configured yet — still useful, just routes to a human.
+    // Not configured — the assistant can't answer, so route to a human. Logged
+    // (not silent) so a missing key in prod is obvious in the server logs. Set
+    // OPENAI_API_KEY in the deploy environment (Coolify) to enable live answers.
+    console.warn('support-chat: OPENAI_API_KEY is not set — returning human-handoff fallback.');
     return NextResponse.json({ reply: FALLBACK });
   }
 
