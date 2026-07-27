@@ -32,6 +32,35 @@ export async function createClient() {
 }
 
 /**
+ * Creates a Supabase client that never touches cookies, for reading data that
+ * is public by definition (e.g. the published package catalogue on the
+ * marketing site).
+ *
+ * Why this exists: `createClient()` awaits `cookies()`, and any server component
+ * that does so opts the whole route out of static rendering. That silently made
+ * every marketing page render per-request and uncacheable. Reading public data
+ * through this client keeps those pages prerenderable.
+ *
+ * Uses the anon key, so RLS still applies — this grants no extra access.
+ */
+export function createPublicClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {
+          /* No session to persist — this client is deliberately anonymous. */
+        },
+      },
+    }
+  );
+}
+
+/**
  * Creates a Supabase admin client with service role key.
  * Use this for operations that need to bypass RLS.
  * ONLY use in trusted server-side code.

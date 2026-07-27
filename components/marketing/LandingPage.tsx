@@ -113,6 +113,9 @@ function buildJsonLd(plans: PlanDef[]) {
 
   const organization = {
     '@type': 'Organization',
+    // Stable @id so other nodes (offers, video publisher) can reference this
+    // Organization instead of repeating it or emitting a dangling reference.
+    '@id': `${SITE_URL}/#organization`,
     name: 'Rovora',
     url: SITE_URL,
     logo: `${SITE_URL}/icons/apple-touch-icon.png`,
@@ -146,16 +149,43 @@ function buildJsonLd(plans: PlanDef[]) {
       .map((p) => ({
         '@type': 'Offer',
         name: p.name,
-        price: p.priceAmount,
         priceCurrency: 'EUR',
-        url: `${SITE_URL}/#pricing`,
+        // A bare `price` reads as a one-off charge, which contradicts the "/ mo"
+        // the page itself renders. UnitPriceSpecification states the billing
+        // period explicitly so the markup and the visible price agree.
+        priceSpecification: {
+          '@type': 'UnitPriceSpecification',
+          price: p.priceAmount,
+          priceCurrency: 'EUR',
+          billingIncrement: 1,
+          unitCode: 'MON',
+        },
+        url: `${SITE_URL}/pricing`,
         availability: 'https://schema.org/InStock',
+        seller: { '@id': `${SITE_URL}/#organization` },
       })),
+  };
+
+  // The homepage embeds a product demo (see <LiteYouTube id="LEqoWWGHekU" />).
+  // Without VideoObject the video is invisible to Google Video and cannot earn a
+  // video thumbnail in the SERP.
+  const video = {
+    '@type': 'VideoObject',
+    // Name and uploadDate mirror the actual YouTube entry so the markup cannot
+    // contradict the source.
+    name: 'Rovora Explainer',
+    description:
+      'A quick tour of the Rovora dashboard — vehicles, drivers, live GPS tracking, weekly driver pay and the books, all in one place.',
+    thumbnailUrl: 'https://i.ytimg.com/vi/LEqoWWGHekU/maxresdefault.jpg',
+    embedUrl: 'https://www.youtube.com/embed/LEqoWWGHekU',
+    contentUrl: 'https://www.youtube.com/watch?v=LEqoWWGHekU',
+    uploadDate: '2026-07-10T02:14:15-07:00',
+    publisher: { '@id': `${SITE_URL}/#organization` },
   };
 
   return {
     '@context': 'https://schema.org',
-    '@graph': [webSite, organization, faqPage, softwareApp],
+    '@graph': [webSite, organization, faqPage, softwareApp, video],
   };
 }
 
@@ -180,7 +210,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         <section className="hero" id="top">
           <div className="container reveal-stagger">
             <span className="eyebrow"><span className="live" /> Built for fleets of 1 to 100+ vehicles</span>
-            <h1 className="hero-title">Run your whole fleet from <span className="pos">one place</span>.</h1>
+            <h1 className="hero-title">Fleet management software for <span className="pos">taxi and rideshare fleets</span>.</h1>
             <p className="hero-sub">Vehicles, maintenance, damage, drivers, live GPS tracking and pay — Rovora keeps every part of your operation in a single dashboard, so nothing slips through the cracks.</p>
             <div className="hero-cta">
               <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>

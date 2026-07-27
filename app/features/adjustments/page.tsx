@@ -5,19 +5,31 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Adjustments, bonuses & deductions — Rovora',
+  title: 'Driver Deductions & Bonus Software for Fleets — Rovora',
   description:
-    'Add bonuses, expenses, reimbursements and deductions to any driver’s week. Rovora folds them straight into the settlement balance and onto the payslip — no manual maths.',
+    'Track every driver bonus, expense, reimbursement and deduction in one place. Rovora nets each one into the weekly settlement and onto the driver’s payslip.',
   path: '/features/adjustments',
-  keywords: ['driver bonuses and deductions', 'fleet expense adjustments', 'driver payslip software'],
+  keywords: [
+    'driver deductions software',
+    'driver rent and deductions tracking',
+    'driver bonuses and deductions',
+    'fleet driver expense reimbursement',
+    'driver payslip adjustments',
+    'taxi driver deduction tracking',
+  ],
 });
 
 export default function AdjustmentsFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Bonuses & deductions', path: '/features/adjustments' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Adjustments"
-        title="Bonuses and deductions,"
+        title="Driver bonuses and deductions,"
         accent="without the maths."
         sub="Real weeks are never clean. Add a fuel bonus, recover a damage excess, reimburse a car wash or apply a deduction — Rovora folds every adjustment straight into the driver’s settlement and onto their statement."
         visual={

@@ -5,20 +5,25 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Live Fleet Tracking Without Hardware — Rovora',
+  title: 'GPS Fleet Tracking Software Without Hardware — Rovora',
   description:
-    'Live GPS fleet tracking with no hardware to install — a live map of every driver, trip and stop history, driver safety scores and phone battery alerts, all from the free driver app.',
+    "Track every taxi or rideshare vehicle live from the driver's phone — no GPS boxes to fit. Trips, stops, zone alerts and weekly driver safety scores.",
   path: '/features/live-tracking',
-  keywords: ['fleet tracking', 'fleet tracking software', 'live fleet tracking', 'GPS fleet tracking without hardware', 'driver tracking app', 'taxi fleet tracking', 'trip history', 'driver safety scores', 'driver behaviour monitoring'],
+  keywords: ['gps fleet tracking without hardware', 'fleet tracking without hardware', 'fleet management software without hardware', 'phone based fleet tracking', 'live fleet tracking', 'taxi fleet gps tracking', 'driver safety score', 'driver behaviour monitoring', 'trip and stop history'],
 });
 
 export default function LiveTrackingFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Live tracking', path: '/features/live-tracking' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Live operations"
-        title="See who’s on the road,"
-        accent="as it happens."
+        title="Live fleet tracking,"
+        accent="without the GPS hardware."
         sub="A live GPS map of the fleet, every trip and stop on the record, driver safety scores and phone-health alerts — all from the free driver app, with no hardware to install."
         visual={
           <ShotFrame path="dashboard">

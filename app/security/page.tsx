@@ -2,10 +2,18 @@ import LegalLayout, { legalStyles as s } from '@/components/marketing/legal/Lega
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Security — Rovora',
+  title: 'GDPR Fleet Data Security & EU Hosting — Rovora',
   description:
-    'How Rovora keeps fleet data safe: EU hosting, encryption in transit and at rest, strict tenant isolation, role-based access, audit logging and responsible disclosure.',
+    'How Rovora protects fleet data: EU hosting, encryption in transit and at rest, row-level tenant isolation, role-based access, audit logs and GDPR duties.',
   path: '/security',
+  keywords: [
+    'GDPR compliant fleet software',
+    'EU hosted fleet management software',
+    'fleet data security',
+    'GDPR driver location tracking',
+    'EU data residency fleet software',
+    'fleet software encryption',
+  ],
 });
 
 const LAST_UPDATED = '8 June 2026';
@@ -14,7 +22,7 @@ export default function SecurityPage() {
   return (
     <LegalLayout
       eyebrow="Legal · Security"
-      title="Security at Rovora"
+      title="Your fleet's data: secured, GDPR-aligned, EU-hosted"
       lede="Fleets trust Rovora with their drivers’ documents and their weekly money. Here is how we protect it — the practices we follow and the architecture behind them."
       lastUpdated={LAST_UPDATED}
       sections={[

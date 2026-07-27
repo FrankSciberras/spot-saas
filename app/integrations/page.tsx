@@ -11,21 +11,18 @@ import {
 } from '@/lib/integrations/catalog';
 
 export const metadata = marketingMetadata({
-  title: 'Integrations — Connect Rovora to your fleet tools — Rovora',
+  title: 'Fleet Management Software Integrations — Rovora',
   description:
-    'The Rovora integrations marketplace — connect GPS & telematics (Wialon, Traccar, flespi, Teltonika), ride-hail platforms (Uber, Bolt, FreeNow), communication (WhatsApp, email) and accounting & payments (Xero, QuickBooks, Stripe, CSV export). Native connections, no manual copying.',
+    'Connect Rovora to the tools you already run. Export fleet expenses to QuickBooks or Xero by CSV today, with GPS, ride-hail and messaging links coming.',
   path: '/integrations',
   keywords: [
-    'fleet management integrations',
-    'GPS telematics integration',
-    'Wialon integration',
-    'Traccar integration',
-    'flespi integration',
-    'Teltonika integration',
-    'Xero fleet integration',
+    'fleet management software integrations',
     'QuickBooks fleet integration',
-    'Stripe driver payouts',
-    'WhatsApp driver notifications',
+    'Xero fleet integration',
+    'export fleet expenses to CSV',
+    'GPS telematics integration',
+    'Uber Bolt fleet integration',
+    'fleet software integrations marketplace',
   ],
 });
 
@@ -41,7 +38,7 @@ export default function IntegrationsPage() {
     <FeatureShell>
       <FeatureHero
         eyebrow="Integrations · Marketplace"
-        title="Connect Rovora to the tools"
+        title="Fleet integrations for the tools"
         accent="you already run."
         sub="A growing marketplace of native connections — GPS trackers, ride-hail platforms, messaging and your accountant's software. Stop copying trips and payouts by hand and let the data flow straight into Rovora."
         micro={[`${TRIAL_DAYS}-day free trial`, 'No card required', 'More integrations shipping every month']}

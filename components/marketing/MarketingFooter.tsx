@@ -33,7 +33,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <a href={h('features')}>Features</a>
               <Link href="/integrations">Integrations</Link>
               <Link href="/ai">Rovora AI</Link>
-              <a href={h('pricing')}>Pricing</a>
+              <Link href="/pricing">Pricing</Link>
               <a href={h('faq')}>FAQ</a>
               <Link href="/changelog">What&rsquo;s new</Link>
               <Link href={START_TRIAL}>Start free trial</Link>
@@ -55,7 +55,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href={featureHref('flexible-pay')}>Flexible pay</Link>
               <Link href={featureHref('adjustments')}>Adjustments</Link>
               <a href={h('features')}>Financials &amp; bookkeeping</a>
-              <a href={h('pricing')}>Plans &amp; billing</a>
+              <Link href="/pricing">Plans &amp; billing</Link>
             </div>
 
             <div className="foot-col">

@@ -4,10 +4,18 @@ import ContactForm from '@/components/marketing/contact/ContactForm';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Contact — Rovora',
+  title: 'Contact Us: Fleet Software Sales & Support — Rovora',
   description:
-    'Get in touch with Rovora — sales and demos, product support, partnerships, or anything else. We reply fast.',
+    'Contact Rovora for a demo, pricing questions, product support or partnerships. Email the right inbox or send us a message — we usually reply within hours.',
   path: '/contact',
+  keywords: [
+    'contact Rovora',
+    'Rovora support',
+    'book a fleet software demo',
+    'fleet management software demo',
+    'Rovora sales enquiry',
+    'taxi fleet software support',
+  ],
 });
 
 const METHODS: {
@@ -51,7 +59,7 @@ export default function ContactPage() {
       <section className="hero" id="top">
         <div className="container reveal-stagger">
           <span className="eyebrow"><span className="live" /> Contact</span>
-          <h1 className="hero-title">Talk to <span className="pos">us</span>.</h1>
+          <h1 className="hero-title">Contact the team behind your <span className="pos">fleet software</span>.</h1>
           <p className="hero-sub">
             Whether you’re sizing up Rovora for your fleet or already running on it, we’d love to hear from you.
             Pick the inbox that fits and we’ll get back to you fast — usually within a few hours on business days.

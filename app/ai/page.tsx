@@ -6,19 +6,19 @@ import { START_TRIAL } from '@/components/marketing/links';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Rovora AI — The paperwork does itself — Rovora',
+  title: 'AI Fleet Management, Coming Soon — Rovora',
   description:
-    'Rovora AI is coming: snap a receipt and it becomes a logged expense, drop in an Uber or Bolt statement and settlements fill themselves, ask your fleet anything in plain English, and get a second opinion on every repair quote. Join the early-access list.',
+    'Rovora AI is in development: receipts read for you, Uber and Bolt statements imported, repair quotes checked and plain-English answers. Join early access.',
   path: '/ai',
   keywords: [
     'AI fleet management',
-    'AI receipt scanning fleet',
-    'fleet AI assistant',
-    'AI invoice processing fleet',
+    'agentic AI fleet management',
+    'AI fleet assistant',
+    'AI receipt scanning for fleets',
     'Uber statement import',
     'Bolt statement import',
+    'AI repair quote checker',
     'taxi fleet AI',
-    'repair quote AI',
   ],
 });
 
@@ -43,7 +43,7 @@ export default function RovoraAiPage() {
       <section className="hero" id="top">
         <div className="container reveal-stagger">
           <span className="eyebrow"><span className="live" /> Rovora AI · In development</span>
-          <h1 className="hero-title">The paperwork does <span className="pos">itself.</span></h1>
+          <h1 className="hero-title">AI fleet management that does the <span className="pos">paperwork</span>.</h1>
           <p className="hero-sub">
             Rovora AI reads your receipts, imports your platform statements, gives a second
             opinion on repair bills and answers questions about your fleet in plain English.

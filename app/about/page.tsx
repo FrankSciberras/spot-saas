@@ -6,10 +6,18 @@ import { START_TRIAL } from '@/components/marketing/links';
 import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata = marketingMetadata({
-  title: 'About — Rovora',
+  title: 'About Rovora: EU Fleet Software for Taxi Fleets — Rovora',
   description:
-    'Rovora is fleet management built for small taxi & cab operators — drivers, vehicles, shifts and weekly settlements in one clean, EU-hosted dashboard.',
+    'Rovora is a small EU-based team building fleet software for taxi, rideshare and private-hire operators running 5 to 50 vehicles. Here is why we built it.',
   path: '/about',
+  keywords: [
+    'Rovora',
+    'about Rovora',
+    'fleet management software company',
+    'fleet software for small taxi fleets',
+    'EU-hosted fleet management software',
+    'taxi and rideshare fleet software',
+  ],
 });
 
 export default function AboutPage() {
@@ -19,7 +27,7 @@ export default function AboutPage() {
       <section className="hero" id="top">
         <div className="container reveal-stagger">
           <span className="eyebrow"><span className="live" /> About Rovora</span>
-          <h1 className="hero-title">Built for the people who keep <span className="pos">cars on the road</span>.</h1>
+          <h1 className="hero-title">Rovora builds fleet software for <span className="pos">small taxi fleets</span>.</h1>
           <p className="hero-sub">
             Rovora started with a simple frustration: running a taxi or cab fleet means living in spreadsheets,
             group chats and paperwork. We set out to pull the whole operation — drivers, vehicles, shifts,

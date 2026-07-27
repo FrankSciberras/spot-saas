@@ -7,17 +7,17 @@ import { RELEASES, RELEASE_COUNT, LATEST_UPDATED, type ChangeTag } from '@/compo
 import styles from '@/components/marketing/changelog/changelog.module.css';
 
 export const metadata = marketingMetadata({
-  title: 'What’s New — Rovora Changelog',
+  title: 'Changelog: New Fleet Software Features & Fixes — Rovora',
   description:
-    'Every update to Rovora fleet management software, in plain English. New features, improvements and fixes for live tracking, driver settlements, maintenance and more — shipped since December 2025.',
+    'Every Rovora release in plain English: new features, improvements and fixes for live tracking, driver pay, maintenance and compliance reminders.',
   path: '/changelog',
   keywords: [
     'Rovora changelog',
     'Rovora updates',
     'fleet management software updates',
-    'fleet software new features',
-    'product changelog',
-    "what's new Rovora",
+    'new fleet software features',
+    'Rovora release notes',
+    "what's new in Rovora",
   ],
 });
 
@@ -42,7 +42,7 @@ export default function ChangelogPage() {
       <header className={s.hero}>
         <div className="container">
           <span className={s.eyebrow}>Changelog</span>
-          <h1 className={s.title}>What&rsquo;s new in Rovora.</h1>
+          <h1 className={s.title}>Rovora changelog: what&#39;s new, release by release</h1>
           <p className={s.lede}>
             We ship improvements constantly — new features, refinements and fixes for the fleet
             operators who run their whole business on Rovora. Here&rsquo;s everything we&rsquo;ve

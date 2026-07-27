@@ -16,8 +16,29 @@ const figtree = Figtree({
 export const metadata: Metadata = {
   metadataBase: new URL('https://rovora.eu'),
   applicationName: 'Rovora',
-  title: 'Rovora Fleet Management',
-  description: 'Rovora is your true company overview of what happens on the road — drivers, vehicles, shifts, settlements and more, in one dashboard.',
+  // `template` brands every page that sets a bare title (and the whole signed-in
+  // app) without each one hand-appending " — Rovora"; `default` covers routes
+  // that set no title at all. Pages that need full control over the 60-char
+  // budget still set `title.absolute` via marketingMetadata().
+  title: {
+    default: 'Rovora — Fleet Management Software for Taxi & Rideshare',
+    template: '%s — Rovora',
+  },
+  description: 'Fleet management software for taxi and rideshare operators. Track vehicles, maintenance, damage, rosters and driver pay in one dashboard.',
+  authors: [{ name: 'Rovora', url: 'https://rovora.eu' }],
+  creator: 'Rovora',
+  publisher: 'Rovora',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
     type: 'website',
     siteName: 'Rovora',
@@ -54,28 +75,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <style dangerouslySetInnerHTML={{ __html: `
-          /* Inline critical splash styles to prevent FOUC — minimal, gradient-free.
-             Mirrors components/shared/SplashScreen.module.css. */
-          body { margin: 0; background: #0a0c11; }
-          .splash-fallback {
-            position: fixed; inset: 0; z-index: 9999;
-            display: flex; align-items: center; justify-content: center;
-            background: #0a0c11;
-          }
-          .splash-fallback::after {
-            content: ''; width: 184px; height: 3px; border-radius: 999px;
-            background:
-              linear-gradient(90deg, transparent 0 30%, #2bbd7e 30% 70%, transparent 70% 100%)
-              rgba(255,255,255,0.08);
-            background-size: 240% 100%;
-            animation: splashSweep 1.25s ease-in-out infinite;
-          }
-          @keyframes splashSweep { 0% { background-position: 130% 0; } 100% { background-position: -130% 0; } }
-          @media (prefers-reduced-motion: reduce) { .splash-fallback::after { animation: none; } }
-        `}} />
-      </head>
+      {/*
+        The inline <head> style block that used to live here is gone. It defined
+        a `.splash-fallback` class no component ever applied, and its
+        `body { background: #0a0c11 }` beat the theme-aware
+        `body { background: var(--bg-secondary) }` in globals.css purely because
+        Next emits inline styles after the stylesheet links — painting a dark
+        canvas behind the light marketing site. `margin: 0` is already covered by
+        the universal reset in globals.css.
+      */}
       <body className={figtree.className}>
         <ThemeProvider>
           <ServiceWorkerRegistration />

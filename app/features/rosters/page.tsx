@@ -5,20 +5,32 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Rosters & shift scheduling — Rovora',
+  title: 'Driver Scheduling Software & Shift Rosters — Rovora',
   description:
-    'Build the week’s roster — drivers, vehicles and days — and publish it to every driver with push and email in a click. Republish changes with a clear trail and no clashes.',
+    'Driver scheduling software for taxi and private-hire fleets. Build the week across drivers, vehicles and days, then publish it to everyone by push and email.',
   path: '/features/rosters',
-  keywords: ['driver scheduling software', 'shift roster app', 'taxi driver rosters', 'fleet shift planning'],
+  keywords: [
+    'driver scheduling software',
+    'taxi driver rota software',
+    'shift roster software',
+    'fleet shift scheduling',
+    'driver roster app',
+    'taxi driver shift planning',
+  ],
 });
 
 export default function RostersFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Rosters & shifts', path: '/features/rosters' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Scheduling"
-        title="Plan the week,"
-        accent="publish in a click."
+        title="Driver scheduling for the week,"
+        accent="published in a click."
         sub="Build a weekly roster across drivers, vehicles and days, then publish it to everyone at once with push and email. Drivers always know their shifts — and you always know your cover."
         visual={
           <ShotFrame path="rosters">

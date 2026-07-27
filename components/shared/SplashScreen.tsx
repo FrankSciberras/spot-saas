@@ -2,17 +2,25 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
+import { isAppRoute } from '@/lib/routes';
 import styles from './SplashScreen.module.css';
 
 interface SplashScreenProps {
   children: React.ReactNode;
 }
 
-/** Public marketing / auth routes that must render instantly, with no app splash. */
-function isPublicRoute(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return pathname === '/' || pathname === '/login' || pathname.startsWith('/login/');
-}
+/*
+ * ONLY the signed-in app gets the boot splash (see isAppRoute).
+ *
+ * This used to be the other way round — an allow-list naming just `/` and
+ * `/login` as "public". Every other marketing page (/about, /pricing,
+ * /features/*, /blog/*, …) therefore server-rendered its content inside
+ * `visibility:hidden; position:absolute` behind a full-screen spinner, and only
+ * revealed it after hydration + an /api/health round-trip + an artificial 800ms
+ * floor. That put the largest contentful paint of every landing page behind a
+ * network call, and showed visitors a loading screen on pages that are fully
+ * static. Marketing pages must paint immediately.
+ */
 
 type LoadingStatus = 'initializing' | 'service-worker' | 'backend' | 'ready' | 'error';
 
@@ -23,7 +31,7 @@ const MIN_SPLASH_TIME = 800; // Minimum time to show splash for smooth UX
 
 export default function SplashScreen({ children }: SplashScreenProps) {
   const pathname = usePathname();
-  const publicRoute = isPublicRoute(pathname);
+  const publicRoute = !isAppRoute(pathname);
   const [isReady, setIsReady] = useState(false);
   const [status, setStatus] = useState<LoadingStatus>('initializing');
   const [retryCount, setRetryCount] = useState(0);

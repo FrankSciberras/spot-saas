@@ -5,20 +5,32 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Flexible driver pay — Rovora',
+  title: 'Driver Pay Software: Fare Splits & Tips — Rovora',
   description:
-    'Set how each driver is paid — the split on fares, tips, campaigns and platform fees — fleet-wide or per driver. Rovora applies the right scheme to every settlement automatically.',
+    'Driver pay software that fits your deals: set the share of fares, tips, campaign bonuses and platform fees fleet-wide, or override it per driver.',
   path: '/features/flexible-pay',
-  keywords: ['driver pay splits', 'driver commission software', 'fleet driver pay schemes', 'rideshare fleet payroll'],
+  keywords: [
+    'driver pay software',
+    'driver commission split software',
+    'rideshare driver pay splits',
+    'taxi driver revenue share software',
+    'fleet driver payroll software',
+    'per-driver pay schemes',
+  ],
 });
 
 export default function FlexiblePayFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Driver pay', path: '/features/flexible-pay' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Flexible pay"
-        title="Pay every driver"
-        accent="on their own terms."
+        title="Driver pay software for"
+        accent="the deals you actually run."
         sub="No two arrangements are the same. Set the split on fares, tips, campaigns and platform fees — fleet-wide or per driver — and Rovora applies the right scheme to every weekly settlement, automatically."
         visual={
           <ShotFrame path="settings/pay-scheme">

@@ -1,32 +1,43 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { isAppRoute } from '@/lib/routes';
 
-// Routes that don't require authentication (exact match)
-const publicRoutes = ['/', '/login', '/auth/callback', '/offline', '/privacy', '/terms', '/security', '/integrations', '/ai', '/changelog'];
+/*
+ * Auth gate. Routes requiring a signed-in user come from APP_ROUTE_PREFIXES in
+ * lib/routes.ts — add new private sections there, not here.
+ *
+ * Anything not listed is treated as public and handed to Next. (Page server
+ * components still run their own requireAuth/role checks — this is the first
+ * gate, not the only one.)
+ *
+ * The previous version inverted this: everything not on a public allow-list was
+ * redirected to /login. That quietly broke SEO — every unknown or retired URL
+ * answered `200 OK` with the login page instead of a real 404, so Google saw
+ * soft-404s and dead URLs never dropped out of the index.
+ */
 
-// Public route prefixes — anything under these is open (marketing pages, etc.)
-const publicPrefixes = ['/features', '/about', '/careers', '/contact', '/blog'];
-
-// Route patterns for role-based access
-const adminRoutes = /^\/fleet/;
-const driverRoutes = /^\/driver/;
-const apiRoutes = /^\/api/;
+/** API routes authenticate themselves; middleware must not redirect them to HTML. */
+const isApiRoute = (pathname: string) => pathname.startsWith('/api');
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public routes and API routes (API routes handle their own auth)
-  const isPublic =
-    publicRoutes.includes(pathname) ||
-    publicPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
-    apiRoutes.test(pathname);
-  if (isPublic) {
-    const { supabaseResponse } = await updateSession(request);
-    return supabaseResponse;
+  // Public marketing pages and unknown paths: skip the Supabase session refresh
+  // entirely. Touching auth here added a network round-trip to every page view
+  // and marked the response uncacheable, so marketing pages could never be
+  // served from cache. Unknown paths fall through to Next's not-found (a real
+  // 404) instead of being redirected to /login.
+  if (!isAppRoute(pathname) && !isApiRoute(pathname)) {
+    return NextResponse.next();
   }
 
   // Update session and get user
   const { supabaseResponse, user } = await updateSession(request);
+
+  // API routes handle their own authorization; just keep the session fresh.
+  if (isApiRoute(pathname)) {
+    return supabaseResponse;
+  }
 
   // Redirect to login if not authenticated
   if (!user) {
@@ -39,7 +50,7 @@ export async function proxy(request: NextRequest) {
   // For authenticated users, we let the page handle role-based access
   // The actual role check happens in the page server components
   // This is because we need to query the users table to get the role
-  
+
   return supabaseResponse;
 }
 

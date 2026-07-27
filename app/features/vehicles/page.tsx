@@ -5,20 +5,25 @@ import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/comp
 import { TRIAL_DAYS } from '@/lib/billing/plans';
 
 export const metadata = marketingMetadata({
-  title: 'Vehicle management — Rovora',
+  title: 'Vehicle Management Software for Taxi Fleets — Rovora',
   description:
-    'Keep every vehicle you run in check — one profile per car for documents, live mileage, driver assignment and utilisation, with expiry alerts weeks before any licence, insurance or inspection lapses.',
+    'One profile per vehicle: documents with expiry alerts, live kilometres from every check-in, assigned drivers and utilisation — for taxi and PHV fleets.',
   path: '/features/vehicles',
-  keywords: ['fleet vehicle management software', 'vehicle document tracking', 'fleet compliance alerts', 'taxi fleet software'],
+  keywords: ['fleet vehicle management software', 'vehicle management software', 'vehicle document expiry reminder software', 'fleet document management software', 'taxi fleet management software', 'vehicle register software', 'fleet compliance alerts', 'vehicle utilisation tracking', 'road licence and insurance expiry reminders'],
 });
 
 export default function VehiclesFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Vehicle management', path: '/features/vehicles' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Vehicle management"
         title="Every vehicle you run,"
-        accent="in check."
+        accent="managed in one record."
         sub="One profile per car holds its documents, live mileage, assigned drivers and condition — so you always know what you own, where it is and what it needs next."
         visual={
           <ShotFrame path="vehicles">

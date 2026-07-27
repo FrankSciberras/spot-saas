@@ -5,20 +5,32 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Weekly driver settlements — Rovora',
+  title: 'Driver Settlement Software for Taxi Fleets — Rovora',
   description:
-    'Rovora reconciles every driver’s week — gross fares, platform fees, tips, campaigns, cash and tax — into one clean, payable amount. Review, approve and pay in a single pass.',
+    'Driver settlement software for taxi and private-hire fleets. Turn Bolt, Uber and cash earnings, fees, tips and deductions into one payable figure each week.',
   path: '/features/settlements',
-  keywords: ['driver settlement software', 'taxi driver pay reconciliation', 'rideshare driver settlements', 'Uber Bolt driver pay'],
+  keywords: [
+    'driver settlement software',
+    'taxi driver pay software',
+    'fleet driver payout software',
+    'weekly driver settlements',
+    'driver pay reconciliation',
+    'Bolt and Uber fleet earnings',
+  ],
 });
 
 export default function SettlementsFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Driver settlements', path: '/features/settlements' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Driver settlements"
-        title="Weekly driver pay,"
-        accent="reconciled in minutes."
+        title="Driver settlements,"
+        accent="reconciled and paid in minutes."
         sub="Rovora does the maths for every driver — gross splits, platform fees, tips, campaigns, cash drops and tax — then hands you a clean, payable amount. Review, approve and run payouts in one pass."
         visual={
           <ShotFrame path="settlements">

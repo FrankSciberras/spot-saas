@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import PasswordInput from '@/components/shared/PasswordInput';
 import styles from './reset-password.module.css';
 
 /**
@@ -194,9 +195,8 @@ export default function ResetPasswordPage() {
             <label htmlFor="newPassword" className="form-label">
               New Password
             </label>
-            <input
+            <PasswordInput
               id="newPassword"
-              type="password"
               className="form-input"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -211,9 +211,8 @@ export default function ResetPasswordPage() {
             <label htmlFor="confirmPassword" className="form-label">
               Confirm Password
             </label>
-            <input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
               className="form-input"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
