@@ -1,39 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
-import type { WeeklyBookkeepingInput } from '@/lib/types/database';
+import { syncPeriodEntries, validatePeriodDates, isPeriodType } from '@/lib/bookkeeping/entries';
+import type { BookkeepingPeriodInput } from '@/lib/types/database';
+
+const PERIOD_SELECT = '*, entries:bookkeeping_entries(*)';
 
 /**
- * Calculate totals from input data
- */
-function calculateTotals(data: Partial<WeeklyBookkeepingInput>) {
-  const uberEarnings = data.uber_earnings || 0;
-  const boltEarnings = data.bolt_earnings || 0;
-  const ecabsEarnings = data.ecabs_earnings || 0;
-  const otherEarnings = data.other_earnings || 0;
-  
-  const employees = data.employees || 0;
-  const repairs = data.repairs || 0;
-  const insurance = data.insurance || 0;
-  const investments = data.investments || 0;
-  const vat = data.vat || 0;
-  const rent = data.rent || 0;
-  const employeeTax = data.employee_tax || 0;
-  const otherExpenses = data.other_expenses || 0;
-  
-  const totalIncome = uberEarnings + boltEarnings + ecabsEarnings + otherEarnings;
-  const totalExpenses = employees + repairs + insurance + investments + vat + rent + employeeTax + otherExpenses;
-  const netProfit = totalIncome - totalExpenses;
-  
-  return {
-    total_income: Math.round(totalIncome * 100) / 100,
-    total_expenses: Math.round(totalExpenses * 100) / 100,
-    net_profit: Math.round(netProfit * 100) / 100,
-  };
-}
-
-/**
- * GET /api/bookkeeping/[id] - Get a single entry
+ * GET /api/bookkeeping/[id] - Get a single period with its entries
  */
 export async function GET(
   request: Request,
@@ -51,22 +25,23 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { data: entry, error } = await supabase
-      .from('weekly_bookkeeping')
-      .select('*')
+    const { data: period, error } = await supabase
+      .from('bookkeeping_periods')
+      .select(PERIOD_SELECT)
       .eq('id', id)
-      .single();
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
 
     if (error) {
-      console.error('Error fetching entry:', error);
+      console.error('Error fetching period:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    if (!entry) {
-      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    if (!period) {
+      return NextResponse.json({ error: 'Period not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: entry });
+    return NextResponse.json({ data: period });
   } catch (error) {
     console.error('Error in GET /api/bookkeeping/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -74,7 +49,7 @@ export async function GET(
 }
 
 /**
- * PUT /api/bookkeeping/[id] - Update an entry
+ * PUT /api/bookkeeping/[id] - Update a period and replace its entries
  */
 export async function PUT(
   request: Request,
@@ -92,69 +67,90 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body: Partial<WeeklyBookkeepingInput> = await request.json();
+    const body: Partial<BookkeepingPeriodInput> = await request.json();
 
-    // Get existing entry to merge values
     const { data: existing, error: fetchError } = await supabase
-      .from('weekly_bookkeeping')
+      .from('bookkeeping_periods')
       .select('*')
       .eq('id', id)
-      .single();
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
 
-    if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'Period not found' }, { status: 404 });
     }
 
-    // Merge existing with updates for calculation
-    const merged = {
-      uber_earnings: body.uber_earnings ?? existing.uber_earnings,
-      bolt_earnings: body.bolt_earnings ?? existing.bolt_earnings,
-      ecabs_earnings: body.ecabs_earnings ?? existing.ecabs_earnings,
-      other_earnings: body.other_earnings ?? existing.other_earnings,
-      employees: body.employees ?? existing.employees,
-      repairs: body.repairs ?? existing.repairs,
-      insurance: body.insurance ?? existing.insurance,
-      investments: body.investments ?? existing.investments,
-      vat: body.vat ?? existing.vat,
-      rent: body.rent ?? existing.rent,
-      employee_tax: body.employee_tax ?? existing.employee_tax,
-      other_expenses: body.other_expenses ?? existing.other_expenses,
-    };
+    const startDate = (body.start_date ?? existing.start_date).split('T')[0];
+    const endDate = (body.end_date ?? existing.end_date).split('T')[0];
 
-    const totals = calculateTotals(merged);
+    const dateError = validatePeriodDates(startDate, endDate);
+    if (dateError) {
+      return NextResponse.json({ error: dateError }, { status: 400 });
+    }
+    if (body.period_type && !isPeriodType(body.period_type)) {
+      return NextResponse.json({ error: 'period_type must be week, month or custom' }, { status: 400 });
+    }
 
-    const { data: entry, error } = await supabase
-      .from('weekly_bookkeeping')
+    // Moving a period onto another one's dates used to surface as a raw 500
+    // from the unique constraint; catch it here and say what actually happened.
+    if (startDate !== existing.start_date || endDate !== existing.end_date) {
+      const { data: clash } = await supabase
+        .from('bookkeeping_periods')
+        .select('id')
+        .eq('organization_id', session.organization_id)
+        .eq('start_date', startDate)
+        .eq('end_date', endDate)
+        .neq('id', id)
+        .maybeSingle();
+
+      if (clash) {
+        return NextResponse.json(
+          { error: 'Another period already covers this date range' },
+          { status: 409 }
+        );
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('bookkeeping_periods')
       .update({
-        week_start: body.week_start ?? existing.week_start,
-        week_end: body.week_end ?? existing.week_end,
-        week_label: body.week_label ?? existing.week_label,
-        period_name: body.period_name !== undefined ? body.period_name : existing.period_name,
-        uber_earnings: merged.uber_earnings,
-        bolt_earnings: merged.bolt_earnings,
-        ecabs_earnings: merged.ecabs_earnings,
-        other_earnings: merged.other_earnings,
-        employees: merged.employees,
-        repairs: merged.repairs,
-        insurance: merged.insurance,
-        investments: merged.investments,
-        vat: merged.vat,
-        rent: merged.rent,
-        employee_tax: merged.employee_tax,
-        other_expenses: merged.other_expenses,
+        period_type: body.period_type ?? existing.period_type,
+        start_date: startDate,
+        end_date: endDate,
+        label: body.label ?? existing.label,
+        name: body.name !== undefined ? body.name : existing.name,
         notes: body.notes !== undefined ? body.notes : existing.notes,
-        ...totals,
+        status: body.status ?? existing.status,
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
 
-    if (error) {
-      console.error('Error updating entry:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (updateError) {
+      console.error('Error updating period:', updateError);
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: entry });
+    if (body.amounts) {
+      const sync = await syncPeriodEntries(
+        supabase,
+        session.organization_id,
+        id,
+        body.amounts,
+      );
+      if (sync.error) {
+        return NextResponse.json({ error: sync.error }, { status: sync.status ?? 500 });
+      }
+    }
+
+    const { data: saved } = await supabase
+      .from('bookkeeping_periods')
+      .select(PERIOD_SELECT)
+      .eq('id', id)
+      .single();
+
+    return NextResponse.json({ data: saved });
   } catch (error) {
     console.error('Error in PUT /api/bookkeeping/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -162,7 +158,7 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/bookkeeping/[id] - Delete an entry
+ * DELETE /api/bookkeeping/[id] - Delete a period (entries cascade)
  */
 export async function DELETE(
   request: Request,
@@ -181,12 +177,13 @@ export async function DELETE(
     }
 
     const { error } = await supabase
-      .from('weekly_bookkeeping')
+      .from('bookkeeping_periods')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('organization_id', session.organization_id);
 
     if (error) {
-      console.error('Error deleting entry:', error);
+      console.error('Error deleting period:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 

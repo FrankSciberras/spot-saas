@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { OG_IMAGE } from '@/lib/seo';
-import { getPlans } from '@/lib/billing/plans-data';
+import { getPublicPlans } from '@/lib/billing/plans-data';
 import LandingPage from '@/components/marketing/LandingPage';
 
 // ISR: the page reads DB-backed plans, so revalidating hourly keeps marketing
@@ -8,34 +8,34 @@ import LandingPage from '@/components/marketing/LandingPage';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Taxi & Rideshare Fleet Management Software — Rovora',
+  title: 'Fleet Management Software for Taxi & Rideshare — Rovora',
   description:
-    'Rovora is all-in-one fleet management software for taxi & rideshare operators — manage vehicles, maintenance, damage, drivers, rosters, compliance and driver pay in one dashboard. Start a free trial — no card required.',
+    'All-in-one fleet management software for taxi and rideshare fleets: vehicles, maintenance, drivers, rosters, driver pay and tracking with no GPS hardware.',
   keywords: [
+    'fleet management software',
     'taxi fleet management software',
-    'rideshare fleet management',
-    'vehicle maintenance tracking',
-    'fleet damage reporting',
-    'driver settlements software',
-    'driver scheduling rosters',
-    'fleet compliance alerts',
-    'fleet management',
+    'rideshare fleet management software',
+    'fleet management software for small fleets',
+    'driver pay software',
+    'fleet tracking without hardware',
+    'vehicle maintenance tracking software',
+    'driver scheduling software',
   ],
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
-    title: 'Taxi & Rideshare Fleet Management Software — Rovora',
+    title: 'Fleet Management Software for Taxi & Rideshare — Rovora',
     description:
-      'Manage vehicles, maintenance, damage, drivers, rosters, compliance and driver pay — your whole fleet in one dashboard.',
+      'All-in-one fleet management software for taxi and rideshare fleets: vehicles, maintenance, drivers, rosters, driver pay and tracking with no GPS hardware.',
     url: '/',
     siteName: 'Rovora',
     images: [OG_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Taxi & Rideshare Fleet Management Software — Rovora',
+    title: 'Fleet Management Software for Taxi & Rideshare — Rovora',
     description:
-      'Manage vehicles, maintenance, damage, drivers, rosters, compliance and driver pay — your whole fleet in one dashboard.',
+      'All-in-one fleet management software for taxi and rideshare fleets: vehicles, maintenance, drivers, rosters, driver pay and tracking with no GPS hardware.',
     images: [OG_IMAGE.url],
   },
 };
@@ -46,6 +46,6 @@ export const metadata: Metadata = {
  * for an avatar that links to their dashboard (see MarketingNav / getNavViewer).
  */
 export default async function HomePage() {
-  const plans = await getPlans();
+  const plans = await getPublicPlans();
   return <LandingPage plans={plans} />;
 }

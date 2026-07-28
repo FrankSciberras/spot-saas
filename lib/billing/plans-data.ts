@@ -11,7 +11,7 @@
 // =============================================================================
 
 import { cache } from 'react';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient, createPublicClient } from '@/lib/supabase/server';
 import type { PlanRow } from '@/lib/types/database';
 import { type PlanDef, FALLBACK_PLANS } from './plans';
 
@@ -59,6 +59,32 @@ export const getPlans = cache(async (): Promise<PlanDef[]> => {
     return rows.map(mapRow);
   } catch (err) {
     console.error('getPlans failed, using fallback catalogue:', err);
+    return FALLBACK_PLANS;
+  }
+});
+
+/**
+ * Same published catalogue as {@link getPlans}, read WITHOUT touching cookies so
+ * the caller can still be statically prerendered.
+ *
+ * Use this on public marketing pages (home, /pricing). Use `getPlans()` inside
+ * the signed-in app, where the request is dynamic anyway and the cookie-bound
+ * client is the right one.
+ */
+export const getPublicPlans = cache(async (): Promise<PlanDef[]> => {
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from('plans')
+      .select('*')
+      .eq('is_published', true)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    const rows = (data as PlanRow[] | null) ?? [];
+    if (rows.length === 0) return FALLBACK_PLANS;
+    return rows.map(mapRow);
+  } catch (err) {
+    console.error('getPublicPlans failed, using fallback catalogue:', err);
     return FALLBACK_PLANS;
   }
 });

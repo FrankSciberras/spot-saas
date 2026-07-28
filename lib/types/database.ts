@@ -709,8 +709,116 @@ export interface UpdateSettlementInput {
 }
 
 // =============================================================================
-// Weekly Bookkeeping Types
+// Flexible Bookkeeping Types
 // =============================================================================
+// Categories, periods and entries — see 20260727_flexible_bookkeeping.sql.
+// These replace the fixed-column WeeklyBookkeeping shape below, which is kept
+// only until the old table is dropped.
+
+export type CategoryKind = 'income' | 'expense';
+export type PeriodType = 'week' | 'month' | 'custom';
+export type PeriodStatus = 'draft' | 'finalized';
+export type CostFrequency = 'weekly' | 'monthly' | 'yearly';
+
+export interface OrgFinanceCategory {
+  id: string;
+  organization_id: string;
+  key: string;
+  name: string;
+  kind: CategoryKind;
+  icon: string;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  /** The two "Other" catch-alls: renameable, but never removable. */
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookkeepingPeriod {
+  id: string;
+  organization_id: string;
+  period_type: PeriodType;
+  start_date: string;
+  end_date: string;
+  label: string;
+  name: string | null;
+  notes: string | null;
+  status: PeriodStatus;
+  /** Maintained by DB trigger from the entries — never written by the app. */
+  total_income: number;
+  total_expenses: number;
+  net_profit: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookkeepingEntry {
+  id: string;
+  organization_id: string;
+  period_id: string;
+  category_id: string;
+  /** Always positive; direction comes from the category's kind. */
+  amount: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A period with its entries joined, as the editor and dashboard consume it. */
+export interface BookkeepingPeriodWithEntries extends BookkeepingPeriod {
+  entries: BookkeepingEntry[];
+}
+
+export interface BookkeepingPeriodInput {
+  period_type: PeriodType;
+  start_date: string;
+  end_date: string;
+  label: string;
+  name?: string | null;
+  notes?: string | null;
+  status?: PeriodStatus;
+  /** Category id -> amount. Categories omitted are treated as 0. */
+  amounts: Record<string, number>;
+}
+
+export interface VehicleRecurringCost {
+  id: string;
+  organization_id: string;
+  /** null = a fleet-wide overhead rather than one vehicle's cost. */
+  vehicle_id: string | null;
+  category_id: string;
+  label: string;
+  amount: number;
+  frequency: CostFrequency;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleRecurringCostInput {
+  vehicle_id?: string | null;
+  category_id: string;
+  label: string;
+  amount: number;
+  frequency: CostFrequency;
+  start_date: string;
+  end_date?: string | null;
+  is_active?: boolean;
+  notes?: string | null;
+}
+
+// =============================================================================
+// Weekly Bookkeeping Types (LEGACY)
+// =============================================================================
+// Superseded by BookkeepingPeriod + BookkeepingEntry above. The weekly_bookkeeping
+// table is left in place, read-only, until the new tables have run in production
+// long enough to drop it.
 
 export interface WeeklyBookkeeping {
   id: string;

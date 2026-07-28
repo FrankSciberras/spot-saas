@@ -3,10 +3,18 @@ import { SecHead, IconGrid } from '@/components/marketing/feature/Sections';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Careers — Rovora',
+  title: 'Careers: Join a Small, Product-Led Team — Rovora',
   description:
-    'Join Rovora and help small taxi & cab fleets run smoothly. We’re a small, product-led team building software operators actually love.',
+    'Careers at Rovora: we are a small, product-led team building fleet software for taxi and rideshare operators. No roles open right now — introduce yourself.',
   path: '/careers',
+  keywords: [
+    'Rovora careers',
+    'jobs at Rovora',
+    'work at Rovora',
+    'fleet software jobs',
+    'product-led startup jobs',
+    'remote-friendly software team',
+  ],
 });
 
 const CAREERS_EMAIL = 'mailto:careers@rovora.eu?subject=Working%20at%20Rovora';
@@ -18,7 +26,7 @@ export default function CareersPage() {
       <section className="hero" id="top">
         <div className="container reveal-stagger">
           <span className="eyebrow"><span className="live" /> Careers</span>
-          <h1 className="hero-title">Help small fleets <span className="pos">run smoothly</span>.</h1>
+          <h1 className="hero-title">Careers at Rovora: help small fleets <span className="pos">run smoothly</span>.</h1>
           <p className="hero-sub">
             We’re a small, product-led team building the tools taxi & cab operators rely on every day. If you like
             shipping real things that save real people real time, you’ll feel at home here.

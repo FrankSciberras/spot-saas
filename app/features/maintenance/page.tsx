@@ -5,20 +5,25 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Maintenance & services — Rovora',
+  title: 'Vehicle Maintenance Tracking Software — Rovora',
   description:
-    'Schedule servicing by mileage and let Rovora predict what’s next. Get an alert the moment a vehicle hits its threshold at check-in, and keep a full cost and service history per car.',
+    'Schedule servicing by kilometres or date, get an alert when a car crosses its threshold, and keep MOT, VRT and NCT dates with costed history per car.',
   path: '/features/maintenance',
-  keywords: ['fleet maintenance software', 'vehicle service tracking', 'mileage-based servicing', 'fleet service history'],
+  keywords: ['vehicle maintenance tracking software', 'fleet maintenance software', 'fleet maintenance software for small business', 'MOT reminder software for fleets', 'VRT reminder software malta', 'vehicle service reminder software', 'service schedule by mileage', 'vehicle service history and costs', 'preventive maintenance for taxi fleets'],
 });
 
 export default function MaintenanceFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Maintenance & servicing', path: '/features/maintenance' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Vehicle care"
-        title="Never miss a service —"
-        accent="the mileage tells you."
+        title="Vehicle maintenance tracking"
+        accent="that never forgets."
         sub="Set a service interval and Rovora predicts when each car is due. The moment a driver checks in over the threshold, you get an alert — so a missed oil change never becomes a blown engine."
         visual={
           <ShotFrame path="services">
@@ -65,7 +70,7 @@ export default function MaintenanceFeaturePage() {
             bullets={[
               'Service intervals by mileage, not guesswork',
               'Next-due predicted from live odometer readings',
-              'Calendar items (NCT, tax) tracked alongside',
+              'Date-based tests tracked alongside — MOT, VRT, NCT and road tax',
             ]}
             visual={
               <ShotFrame path="services/schedule" tight>

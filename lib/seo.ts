@@ -11,6 +11,34 @@ export const OG_IMAGE = {
   alt: 'Rovora — fleet management software for taxi & rideshare operators',
 };
 
+/**
+ * BreadcrumbList JSON-LD for a nested marketing page.
+ *
+ * Feature pages shipped with no structured data at all, so Google had to infer
+ * the site's hierarchy from links alone and could not show a breadcrumb trail in
+ * the result. Pass the crumbs after Home, e.g.
+ * `breadcrumbJsonLd([{ name: 'Features', path: '/#features' }, { name: 'Vehicle management', path: '/features/vehicles' }])`.
+ */
+export function breadcrumbJsonLd(crumbs: { name: string; path: string }[]) {
+  return {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+      ...crumbs.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 2,
+        name: c.name,
+        item: `${SITE_URL}${c.path}`,
+      })),
+    ],
+  };
+}
+
+/** Renders a `@graph` of JSON-LD nodes into the page. */
+export function jsonLdGraph(nodes: object[]) {
+  return JSON.stringify({ '@context': 'https://schema.org', '@graph': nodes });
+}
+
 interface MarketingMeta {
   title: string;
   description: string;
@@ -26,7 +54,10 @@ interface MarketingMeta {
  */
 export function marketingMetadata({ title, description, path, keywords }: MarketingMeta): Metadata {
   return {
-    title,
+    // `absolute` opts out of the root layout's "%s — Rovora" template: these
+    // titles already carry the brand and are hand-tuned to fit Google's ~60-char
+    // display budget, so appending anything would truncate the keyword.
+    title: { absolute: title },
     description,
     ...(keywords ? { keywords } : {}),
     alternates: { canonical: path },

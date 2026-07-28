@@ -47,6 +47,16 @@ module.exports = withSentryConfig(module.exports, {
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
 
+  // Belt-and-braces with the dynamic Replay import in instrumentation-client.ts:
+  // strip the Replay sub-features and debug strings we never use at build time,
+  // so they cannot leak back into the shared client bundle.
+  bundleSizeOptimizations: {
+    excludeReplayShadowDom: true,
+    excludeReplayIframe: true,
+    excludeReplayWorker: true,
+    excludeDebugStatements: true,
+  },
+
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   // This can increase your server load as well as your hosting bill.
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-

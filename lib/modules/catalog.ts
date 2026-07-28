@@ -68,7 +68,7 @@ export const FLEET_MODULES: FleetModule[] = [
     name: 'Bookkeeping',
     tagline: 'Track income & expenses',
     description:
-      'Weekly bookkeeping plus the financial dashboard — income, expenses, profit and margins across your fleet.',
+      'Bookkeeping by week, month or custom period with your own income & expense categories, plus the financial dashboard — profit and margins across your fleet.',
     icon: 'book',
     category: 'Financial',
     status: 'available',

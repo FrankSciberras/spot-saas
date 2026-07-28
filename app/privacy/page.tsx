@@ -2,10 +2,18 @@ import LegalLayout, { legalStyles as s } from '@/components/marketing/legal/Lega
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Privacy Policy — Rovora',
+  title: 'Privacy Policy: GDPR & Driver Data — Rovora',
   description:
-    'How Rovora collects, uses, stores and protects personal data for fleet operators and their drivers. EU-hosted and aligned with the GDPR and Malta’s Data Protection Act.',
+    "Rovora's privacy policy: what personal data we handle for fleet operators and their drivers, why, how long we keep it, and your rights under the GDPR.",
   path: '/privacy',
+  keywords: [
+    'Rovora privacy policy',
+    'fleet software privacy policy',
+    'GDPR driver data',
+    'driver location data privacy',
+    'data processor fleet software',
+    'Malta Data Protection Act',
+  ],
 });
 
 const LAST_UPDATED = '11 June 2026';
@@ -14,7 +22,7 @@ export default function PrivacyPage() {
   return (
     <LegalLayout
       eyebrow="Legal · Privacy"
-      title="Privacy Policy"
+      title="Privacy policy: how we handle fleet and driver data"
       lede="Rovora is fleet-management software for taxi and cab operators. This policy explains what personal data we handle, why, how long we keep it, and the rights you have over it."
       lastUpdated={LAST_UPDATED}
       sections={[

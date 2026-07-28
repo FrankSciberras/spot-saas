@@ -2,10 +2,18 @@ import LegalLayout, { legalStyles as s } from '@/components/marketing/legal/Lega
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Terms of Service — Rovora',
+  title: 'Terms of Service: Subscriptions & Use — Rovora',
   description:
-    'The terms that govern use of Rovora’s fleet-management platform: subscriptions, trials, acceptable use, billing, liability and termination.',
+    "The terms governing use of Rovora's fleet platform: accounts, subscriptions and trials, billing, acceptable use, your data, liability and termination.",
   path: '/terms',
+  keywords: [
+    'Rovora terms of service',
+    'fleet software terms and conditions',
+    'Rovora subscription terms',
+    'free trial terms',
+    'acceptable use policy',
+    'fleet management software agreement',
+  ],
 });
 
 const LAST_UPDATED = '8 June 2026';
@@ -14,7 +22,7 @@ export default function TermsPage() {
   return (
     <LegalLayout
       eyebrow="Legal · Terms"
-      title="Terms of Service"
+      title="Terms of service for the Rovora fleet platform"
       lede="These terms are the agreement between you and Rovora for use of our fleet-management platform. By creating an account or using the service, you agree to them."
       lastUpdated={LAST_UPDATED}
       sections={[

@@ -17,6 +17,12 @@ export interface BlogPost {
   category: string;
   /** ISO date, e.g. '2026-07-04'. */
   datePublished: string;
+  /**
+   * ISO date of the last substantive edit. Feeds `dateModified` in the Article
+   * schema and `lastModified` in the sitemap — Google uses it to decide how
+   * fresh a guide is. Falls back to datePublished when a post is untouched.
+   */
+  dateModified?: string;
   /** Human date, e.g. '4 July 2026'. */
   dateHuman: string;
   readMinutes: number;
@@ -26,90 +32,106 @@ export interface BlogPost {
 export const BLOG_POSTS: BlogPost[] = [
   {
     slug: 'fleet-tracking-without-gps-hardware',
-    title: 'Fleet Tracking Without GPS Hardware: How It Works (2026)',
-    heading: 'Fleet tracking without GPS hardware: how it works',
+    title: 'Fleet Tracking Without GPS Hardware (2026)',
+    heading: 'Fleet tracking without GPS hardware or installers',
     description:
-      'You don’t need to wire a GPS box into every car to know where your fleet is. Here’s how hardware-free fleet tracking works, what it costs compared to traditional trackers, and when a hardwired unit still makes sense.',
+      'See how phone-based fleet tracking works without a GPS box in every car, what it saves against hardwired trackers, and when a wired unit still wins.',
     category: 'Live tracking',
     datePublished: '2026-07-04',
+    dateModified: '2026-07-26',
     dateHuman: '4 July 2026',
     readMinutes: 7,
     keywords: [
-      'fleet tracking',
-      'fleet tracking without hardware',
-      'fleet tracking software',
-      'GPS fleet tracking alternative',
+      'fleet tracking without GPS hardware',
+      'gps fleet tracking without hardware',
+      'fleet management software without hardware',
+      'phone based fleet tracking',
+      'smartphone fleet tracking app',
+      'no hardware vehicle tracking',
       'driver tracking app',
     ],
   },
   {
     slug: 'how-to-run-a-taxi-fleet',
-    title: 'How to Run a Taxi Fleet: A Complete Guide for Small Operators',
-    heading: 'How to run a taxi fleet: the complete guide',
+    title: 'How to Run a Taxi Fleet: 2026 Operator Guide',
+    heading: 'How to run a taxi fleet without the chaos',
     description:
-      'Vehicles, drivers, shifts, compliance and weekly pay — running a taxi or rideshare fleet is five businesses in one. This guide walks through each part and shows what good looks like for a 5–50 vehicle operation.',
+      'Running a taxi or rideshare fleet means juggling cars, drivers, shifts, compliance and weekly pay. A practical guide for 5–50 vehicle operators.',
     category: 'Operations',
     datePublished: '2026-07-04',
+    dateModified: '2026-07-26',
     dateHuman: '4 July 2026',
     readMinutes: 9,
     keywords: [
       'how to run a taxi fleet',
+      'how to manage a taxi fleet',
       'taxi fleet management',
+      'how to start a taxi business',
       'rideshare fleet operations',
-      'taxi fleet business guide',
+      'taxi fleet owner guide',
+      'small taxi fleet management',
     ],
   },
   {
     slug: 'spreadsheets-vs-fleet-management-software',
-    title: 'Spreadsheets vs Fleet Management Software: When to Switch',
-    heading: 'Spreadsheets vs fleet management software: when to switch',
+    title: 'Spreadsheets vs Fleet Management Software',
+    heading: 'When to swap spreadsheets for fleet management software',
     description:
-      'Every fleet starts in a spreadsheet — and most outgrow it without noticing. These are the signs the spreadsheet is now costing you money, and what switching to fleet management software actually changes.',
+      'Every fleet starts in a spreadsheet and most outgrow it quietly. Six signs yours is now costing money, and what fleet management software changes.',
     category: 'Operations',
     datePublished: '2026-07-04',
+    dateModified: '2026-07-26',
     dateHuman: '4 July 2026',
     readMinutes: 6,
     keywords: [
+      'spreadsheets vs fleet management software',
+      'fleet management software vs spreadsheets',
       'fleet management spreadsheet',
-      'fleet management software small fleet',
-      'spreadsheet vs fleet software',
+      'fleet management excel template',
       'when to buy fleet management software',
+      'fleet management software for small fleets',
     ],
   },
   {
     slug: 'driver-settlements-explained',
-    title: 'Driver Settlements Explained: Paying Uber & Bolt Drivers Right',
-    heading: 'Driver settlements explained: paying Uber & Bolt drivers right',
+    title: 'Driver Settlements Explained for Uber & Bolt',
+    heading: 'Driver settlements explained: one clear weekly number',
     description:
-      'Gross fares, platform fees, tips, campaigns, cash collected, fuel cards, rent — a driver’s week is a maths problem. Here’s how professional fleets reconcile it into one payable number without arguments.',
+      'Fares, platform commission, tips, cash, rent and deductions all land in one weekly number. How fleets calculate driver settlements without arguments.',
     category: 'Driver pay',
     datePublished: '2026-07-04',
+    dateModified: '2026-07-26',
     dateHuman: '4 July 2026',
     readMinutes: 8,
     keywords: [
       'driver settlements',
+      'what is a driver settlement',
       'how to pay Uber drivers fleet',
       'Bolt fleet driver pay',
       'taxi driver settlement calculation',
-      'rideshare fleet payroll',
+      'driver pay split vs rent',
+      'fleet driver payout',
     ],
   },
   {
     slug: 'fleet-management-software-malta',
-    title: 'Fleet Management Software in Malta: 2026 Buyer’s Guide',
-    heading: 'Choosing fleet management software in Malta',
+    title: 'Fleet Management Software in Malta (2026)',
+    heading: 'How to choose fleet management software in Malta',
     description:
-      'Malta’s ride-hailing boom has turned small cab garages into real fleet businesses. What local operators should look for in fleet software — from GDPR and EU hosting to Bolt and Uber settlement handling.',
+      'Malta’s ride-hailing boom turned cab garages into real fleet businesses. What local operators should check: EU hosting, GDPR, Bolt and Uber driver pay.',
     category: 'Guides',
     datePublished: '2026-07-04',
+    dateModified: '2026-07-26',
     dateHuman: '4 July 2026',
     readMinutes: 6,
     keywords: [
       'fleet management software Malta',
       'taxi fleet software Malta',
-      'Malta ride-hailing fleet',
+      'fleet management Malta',
       'Bolt fleet Malta',
+      'Uber fleet Malta',
       'Y plate fleet management',
+      'vehicle tracking Malta',
     ],
   },
 ];

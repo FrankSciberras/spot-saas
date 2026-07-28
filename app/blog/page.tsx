@@ -6,15 +6,18 @@ import { BLOG_POSTS, blogHref } from '@/components/marketing/blog/posts';
 import styles from '@/components/marketing/blog/blog.module.css';
 
 export const metadata = marketingMetadata({
-  title: 'Fleet Management Blog — Rovora',
+  title: 'Fleet Management Guides for Taxi Fleets — Rovora',
   description:
-    'Practical guides for taxi & rideshare fleet operators: fleet tracking, driver settlements, maintenance, compliance and running a tighter operation.',
+    'Practical guides on running a taxi or rideshare fleet: hardware-free tracking, driver pay and settlements, maintenance schedules, compliance and admin.',
   path: '/blog',
   keywords: [
-    'fleet management blog',
-    'taxi fleet guides',
-    'fleet tracking guides',
-    'driver settlement guides',
+    'fleet management guides',
+    'taxi fleet management guides',
+    'how to run a taxi fleet',
+    'how to start a taxi business',
+    'driver pay guides',
+    'fleet tracking without hardware',
+    'spreadsheets vs fleet management software',
   ],
 });
 
@@ -24,7 +27,7 @@ export default function BlogIndexPage() {
       <header className={s.hero}>
         <div className="container">
           <span className={s.eyebrow}>Blog</span>
-          <h1 className={s.title}>The fleet operator&rsquo;s playbook.</h1>
+          <h1 className={s.title}>Fleet management guides for taxi fleet owners</h1>
           <p className={s.lede}>
             Practical, no-fluff guides on running a taxi or rideshare fleet — tracking, driver pay,
             maintenance and the boring-but-vital admin in between.

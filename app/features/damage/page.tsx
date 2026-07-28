@@ -5,20 +5,25 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Damage & repairs — Rovora',
+  title: 'Vehicle Damage Report Software with Photos — Rovora',
   description:
-    'Log damage against any vehicle with photos and zones, track repair cost and status, and capture a four-side photo check at every clock-in — so unreported damage is on the driver, not you.',
+    'Log damage on a car-zone diagram with photos and severity, follow every repair from open to closed with its cost, and pin it to the right shift.',
   path: '/features/damage',
-  keywords: ['vehicle damage reporting software', 'fleet damage tracking', 'vehicle condition photo check', 'repair cost tracking'],
+  keywords: ['vehicle damage report software', 'fleet damage tracking software', 'vehicle damage inspection report app', 'vehicle inspection app', 'vehicle condition photo check', 'repair cost tracking software', 'pre-shift vehicle check app', 'taxi fleet damage log'],
 });
 
 export default function DamageFeaturePage() {
   return (
-    <FeatureShell>
+    <FeatureShell
+      breadcrumb={[
+        { name: 'Features', path: '/#features' },
+        { name: 'Damage & repairs', path: '/features/damage' },
+      ]}
+    >
       <FeatureHero
         eyebrow="Damage & repairs"
-        title="Every dent and scratch,"
-        accent="on the record."
+        title="Vehicle damage reports,"
+        accent="backed by photo proof."
         sub="Log damage against any car with photos and a pinpointed zone, track the repair from open to closed, and let pre-shift checks put unreported damage squarely on the driver."
         visual={
           <ShotFrame path="damages">

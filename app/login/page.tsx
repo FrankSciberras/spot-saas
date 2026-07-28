@@ -12,6 +12,7 @@ import {
 } from '@/lib/actions/auth-email';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
+import PasswordInput from '@/components/shared/PasswordInput';
 
 type Mode = 'login' | 'forgot' | 'signup' | 'confirm';
 
@@ -273,9 +274,8 @@ function LoginPageContent() {
               </div>
               <div className="field">
                 <label htmlFor="signup-password">Password</label>
-                <input
+                <PasswordInput
                   id="signup-password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Choose a password"
@@ -310,9 +310,8 @@ function LoginPageContent() {
               </div>
               <div className="field">
                 <label htmlFor="password">Password</label>
-                <input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"

@@ -24,7 +24,7 @@ function buildArticleJsonLd(post: BlogPost) {
         headline: post.title,
         description: post.description,
         datePublished: post.datePublished,
-        dateModified: post.datePublished,
+        dateModified: post.dateModified ?? post.datePublished,
         image: `${SITE_URL}${OG_IMAGE.url}`,
         mainEntityOfPage: `${SITE_URL}${blogHref(post.slug)}`,
         author: { '@type': 'Organization', name: 'Rovora', url: SITE_URL },
