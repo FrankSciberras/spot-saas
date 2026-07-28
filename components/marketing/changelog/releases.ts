@@ -35,13 +35,48 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-07-books',
+    date: '2026-07-27',
+    dateHuman: 'July 2026',
+    title: 'Bookkeeping your way — your categories, your periods',
+    summary:
+      'Books no longer have to be weekly, and no longer have to use our categories. Keep them monthly if that suits your accountant, add the expense lines your fleet actually has, and let vehicle costs fill themselves in.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Bookkeeping',
+        text: 'Choose how you keep your books: weekly, monthly, or any custom date range. Pick a month and the dates and title fill themselves in.',
+      },
+      {
+        tag: 'new',
+        area: 'Bookkeeping',
+        text: 'Your own income and expense categories. Add fuel, tolls, cleaning, licensing, parking fines or anything else — from a one-click list of common ones, or build your own with a name, icon and colour.',
+      },
+      {
+        tag: 'new',
+        area: 'Vehicle costs',
+        text: 'Record what each vehicle costs you to run — lease, finance, road tax, insurance — once. Every new period gets it added automatically, split by the number of days it covers.',
+      },
+      {
+        tag: 'improved',
+        area: 'Financials',
+        text: 'Charts, pie breakdowns, the accountant journal and the Xero & QuickBooks exports all follow your categories now, so anything you add shows up everywhere without extra setup.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Financials',
+        text: 'A period spanning the end of a month is now split across both months by day count. Before, a week running 29 June – 5 July counted entirely as June, overstating one month and understating the next.',
+      },
+    ],
+  },
+  {
     id: '2026-07',
     date: '2026-07-09',
     dateHuman: 'July 2026',
     title: 'A modular fleet, integrations & smarter driver pay',
     summary:
       'Rovora becomes modular — switch features on and off for each fleet — plus a brand-new integrations marketplace and a much smarter way to set up driver pay.',
-    highlight: true,
     items: [
       {
         tag: 'new',

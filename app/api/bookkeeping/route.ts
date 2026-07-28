@@ -1,39 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
-import type { WeeklyBookkeepingInput } from '@/lib/types/database';
+import { syncPeriodEntries, validatePeriodDates, isPeriodType } from '@/lib/bookkeeping/entries';
+import type { BookkeepingPeriodInput } from '@/lib/types/database';
 
 /**
- * Calculate totals from input data
- */
-function calculateTotals(data: WeeklyBookkeepingInput) {
-  const uberEarnings = data.uber_earnings || 0;
-  const boltEarnings = data.bolt_earnings || 0;
-  const ecabsEarnings = data.ecabs_earnings || 0;
-  const otherEarnings = data.other_earnings || 0;
-  
-  const employees = data.employees || 0;
-  const repairs = data.repairs || 0;
-  const insurance = data.insurance || 0;
-  const investments = data.investments || 0;
-  const vat = data.vat || 0;
-  const rent = data.rent || 0;
-  const employeeTax = data.employee_tax || 0;
-  const otherExpenses = data.other_expenses || 0;
-  
-  const totalIncome = uberEarnings + boltEarnings + ecabsEarnings + otherEarnings;
-  const totalExpenses = employees + repairs + insurance + investments + vat + rent + employeeTax + otherExpenses;
-  const netProfit = totalIncome - totalExpenses;
-  
-  return {
-    total_income: Math.round(totalIncome * 100) / 100,
-    total_expenses: Math.round(totalExpenses * 100) / 100,
-    net_profit: Math.round(netProfit * 100) / 100,
-  };
-}
-
-/**
- * GET /api/bookkeeping - Fetch all weekly bookkeeping entries
+ * GET /api/bookkeeping - Fetch all bookkeeping periods with their entries
  */
 export async function GET() {
   try {
@@ -47,17 +19,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { data: entries, error } = await supabase
-      .from('weekly_bookkeeping')
-      .select('*')
-      .order('week_start', { ascending: false });
+    const { data: periods, error } = await supabase
+      .from('bookkeeping_periods')
+      .select('*, entries:bookkeeping_entries(*)')
+      .eq('organization_id', session.organization_id)
+      .order('start_date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching bookkeeping:', error);
+      console.error('Error fetching bookkeeping periods:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: entries });
+    return NextResponse.json({ data: periods });
   } catch (error) {
     console.error('Error in GET /api/bookkeeping:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -65,7 +38,7 @@ export async function GET() {
 }
 
 /**
- * POST /api/bookkeeping - Create new weekly bookkeeping entry
+ * POST /api/bookkeeping - Create a bookkeeping period and its entries
  */
 export async function POST(request: Request) {
   try {
@@ -79,62 +52,80 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body: WeeklyBookkeepingInput = await request.json();
+    const body: BookkeepingPeriodInput = await request.json();
 
-    if (!body.week_start || !body.week_end || !body.week_label) {
-      return NextResponse.json({ error: 'week_start, week_end, and week_label are required' }, { status: 400 });
+    const dateError = validatePeriodDates(body.start_date, body.end_date);
+    if (dateError) {
+      return NextResponse.json({ error: dateError }, { status: 400 });
+    }
+    if (!body.label || typeof body.label !== 'string') {
+      return NextResponse.json({ error: 'label is required' }, { status: 400 });
+    }
+    if (body.period_type && !isPeriodType(body.period_type)) {
+      return NextResponse.json({ error: 'period_type must be week, month or custom' }, { status: 400 });
     }
 
-    // Check for existing record with same date range
+    const startDate = body.start_date.split('T')[0];
+    const endDate = body.end_date.split('T')[0];
+
+    // One period per exact date range, per fleet.
     const { data: existing } = await supabase
-      .from('weekly_bookkeeping')
+      .from('bookkeeping_periods')
       .select('id')
-      .eq('week_start', body.week_start)
-      .eq('week_end', body.week_end)
-      .single();
+      .eq('organization_id', session.organization_id)
+      .eq('start_date', startDate)
+      .eq('end_date', endDate)
+      .maybeSingle();
 
     if (existing) {
       return NextResponse.json(
-        { error: 'Entry already exists for this date range' },
+        { error: 'A period already exists for this date range' },
         { status: 409 }
       );
     }
 
-    const totals = calculateTotals(body);
-
-    const { data: entry, error } = await supabase
-      .from('weekly_bookkeeping')
+    const { data: period, error } = await supabase
+      .from('bookkeeping_periods')
       .insert({
         organization_id: session.organization_id,
-        week_start: body.week_start,
-        week_end: body.week_end,
-        week_label: body.week_label,
-        period_name: body.period_name || null,
-        uber_earnings: body.uber_earnings || 0,
-        bolt_earnings: body.bolt_earnings || 0,
-        ecabs_earnings: body.ecabs_earnings || 0,
-        other_earnings: body.other_earnings || 0,
-        employees: body.employees || 0,
-        repairs: body.repairs || 0,
-        insurance: body.insurance || 0,
-        investments: body.investments || 0,
-        vat: body.vat || 0,
-        rent: body.rent || 0,
-        employee_tax: body.employee_tax || 0,
-        other_expenses: body.other_expenses || 0,
+        period_type: body.period_type || 'week',
+        start_date: startDate,
+        end_date: endDate,
+        label: body.label,
+        name: body.name || null,
         notes: body.notes || null,
+        status: body.status === 'finalized' ? 'finalized' : 'draft',
         created_by: session.id,
-        ...totals,
       })
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating bookkeeping entry:', error);
+      console.error('Error creating bookkeeping period:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: entry }, { status: 201 });
+    const sync = await syncPeriodEntries(
+      supabase,
+      session.organization_id,
+      period.id,
+      body.amounts || {},
+    );
+
+    if (sync.error) {
+      // Don't leave a half-saved period behind.
+      await supabase.from('bookkeeping_periods').delete().eq('id', period.id);
+      return NextResponse.json({ error: sync.error }, { status: sync.status ?? 500 });
+    }
+
+    // Re-read so the caller gets the trigger-computed totals.
+    const { data: saved } = await supabase
+      .from('bookkeeping_periods')
+      .select('*, entries:bookkeeping_entries(*)')
+      .eq('id', period.id)
+      .single();
+
+    return NextResponse.json({ data: saved ?? period }, { status: 201 });
   } catch (error) {
     console.error('Error in POST /api/bookkeeping:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

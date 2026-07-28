@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, WeeklyBookkeeping } from '@/lib/types/database';
+import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, BookkeepingPeriodWithEntries } from '@/lib/types/database';
+import type { FinanceCategory } from '@/lib/config/financeCategories';
 import { buildBookkeepingTxns, toQuickBooksCsv, toXeroCsv } from '@/lib/utils/accountingExport';
+import { splitAcrossMonths } from '@/lib/utils/bookkeepingPeriods';
 import DatePicker from '@/components/shared/DatePicker';
 import styles from './FinancialsDashboard.module.css';
 import {
@@ -33,36 +35,28 @@ type SettlementWithRelations = DriverSettlement & {
 };
 
 interface FinancialsDashboardProps {
-  entries: WeeklyBookkeeping[];
+  periods: BookkeepingPeriodWithEntries[];
+  categories: FinanceCategory[];
   drivers: DriverListItem[];
   settlements: SettlementWithRelations[];
 }
 
-type IncomeBreakdown = {
-  uber_earnings: number;
-  bolt_earnings: number;
-  ecabs_earnings: number;
-  other_earnings: number;
-};
-
-type ExpenseBreakdown = {
-  employees: number;
-  repairs: number;
-  insurance: number;
-  investments: number;
-  vat: number;
-  rent: number;
-  employee_tax: number;
-  other_expenses: number;
-};
+/**
+ * Amounts keyed by finance-category id.
+ *
+ * This used to be two fixed-shape objects listing the twelve hardcoded
+ * columns, which meant every new category needed edits in eight places in this
+ * file alone. Categories are per-fleet data now, so the breakdowns are open.
+ */
+type CategoryTotals = Record<string, number>;
 
 interface AggregatedPeriod {
   key: string;
   label: string;
   start: string;
   end: string;
-  income: IncomeBreakdown;
-  expenses: ExpenseBreakdown;
+  income: CategoryTotals;
+  expenses: CategoryTotals;
   total_income: number;
   total_expenses: number;
   net_profit: number;
@@ -73,7 +67,7 @@ interface DriverAggregatedPeriod {
   label: string;
   start: string;
   end: string;
-  income: IncomeBreakdown;
+  income: CategoryTotals;
   total_gross: number;
   total_net: number;
   total_payout: number;
@@ -117,55 +111,60 @@ function formatShortDate(dateStr: string): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-function initIncome(): IncomeBreakdown {
-  return { uber_earnings: 0, bolt_earnings: 0, ecabs_earnings: 0, other_earnings: 0 };
+function initTotals(): CategoryTotals {
+  return {};
 }
 
-function initExpenses(): ExpenseBreakdown {
-  return {
-    employees: 0,
-    repairs: 0,
-    insurance: 0,
-    investments: 0,
-    vat: 0,
-    rent: 0,
-    employee_tax: 0,
-    other_expenses: 0,
-  };
+/** Add b into a, key by key. Missing keys count as zero. */
+function mergeTotals(a: CategoryTotals, b: CategoryTotals): CategoryTotals {
+  const out: CategoryTotals = { ...a };
+  for (const [key, value] of Object.entries(b)) {
+    out[key] = (out[key] || 0) + value;
+  }
+  return out;
 }
 
-function sumIncome(a: IncomeBreakdown, b: IncomeBreakdown): IncomeBreakdown {
-  return {
-    uber_earnings: a.uber_earnings + b.uber_earnings,
-    bolt_earnings: a.bolt_earnings + b.bolt_earnings,
-    ecabs_earnings: a.ecabs_earnings + b.ecabs_earnings,
-    other_earnings: a.other_earnings + b.other_earnings,
-  };
+/** Add one amount to a single category, tolerating an unknown key. */
+function addTo(totals: CategoryTotals, categoryId: string | null | undefined, value: number): CategoryTotals {
+  if (!categoryId || !value) return totals;
+  return { ...totals, [categoryId]: (totals[categoryId] || 0) + value };
 }
 
-function addPlatformIncome(
-  current: IncomeBreakdown,
-  platformId: string | null | undefined,
-  value: number
-): IncomeBreakdown {
-  if (!value) return current;
-  const key = (platformId || '').toLowerCase();
-  if (key === 'uber') return { ...current, uber_earnings: current.uber_earnings + value };
-  if (key === 'bolt') return { ...current, bolt_earnings: current.bolt_earnings + value };
-  if (key === 'ecabs') return { ...current, ecabs_earnings: current.ecabs_earnings + value };
-  return { ...current, other_earnings: current.other_earnings + value };
+/** Scale every line — used to weight a period across the months it spans. */
+function scaleTotals(totals: CategoryTotals, factor: number): CategoryTotals {
+  if (factor === 1) return totals;
+  const out: CategoryTotals = {};
+  for (const [key, value] of Object.entries(totals)) {
+    out[key] = value * factor;
+  }
+  return out;
 }
 
-function sumExpenses(a: ExpenseBreakdown, b: ExpenseBreakdown): ExpenseBreakdown {
-  return {
-    employees: a.employees + b.employees,
-    repairs: a.repairs + b.repairs,
-    insurance: a.insurance + b.insurance,
-    investments: a.investments + b.investments,
-    vat: a.vat + b.vat,
-    rent: a.rent + b.rent,
-    employee_tax: a.employee_tax + b.employee_tax,
-    other_expenses: a.other_expenses + b.other_expenses,
+/**
+ * Map a settlement's platform_id onto an income category.
+ *
+ * Driver-mode income comes from settlement_platforms, whose platform_id is a
+ * per-fleet slug ('uber'), while the seeded income categories use the old
+ * column names ('uber_earnings'). Try both, then fall back to the "Other"
+ * income catch-all so a custom platform's money is never silently dropped.
+ */
+function buildPlatformCategoryMap(categories: FinanceCategory[]): (platformId: string | null | undefined) => string | null {
+  const incomeByKey = new Map<string, string>();
+  let fallback: string | null = null;
+
+  for (const category of categories) {
+    if (category.kind !== 'income') continue;
+    incomeByKey.set(category.key.toLowerCase(), category.id);
+    if (category.isSystem) fallback = category.id;
+  }
+  if (!fallback) {
+    fallback = categories.find((c) => c.kind === 'income')?.id ?? null;
+  }
+
+  return (platformId) => {
+    const key = (platformId || '').toLowerCase();
+    if (!key) return fallback;
+    return incomeByKey.get(key) ?? incomeByKey.get(`${key}_earnings`) ?? fallback;
   };
 }
 
@@ -214,14 +213,29 @@ function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
   return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, Number(adj.amount) || 0), 0);
 }
 
-export default function FinancialsDashboard({ entries, drivers, settlements }: FinancialsDashboardProps) {
+export default function FinancialsDashboard({ periods, categories, drivers, settlements }: FinancialsDashboardProps) {
   const [mode, setMode] = useState<DashboardMode>('fleet');
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
 
+  const incomeCategories = useMemo(
+    () => categories.filter((c) => c.kind === 'income').sort((a, b) => a.sortOrder - b.sortOrder),
+    [categories],
+  );
+  const expenseCategories = useMemo(
+    () => categories.filter((c) => c.kind === 'expense').sort((a, b) => a.sortOrder - b.sortOrder),
+    [categories],
+  );
+  const categoryById = useMemo(() => {
+    const map = new Map<string, FinanceCategory>();
+    categories.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [categories]);
+  const platformToCategory = useMemo(() => buildPlatformCategoryMap(categories), [categories]);
+
   const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) => parseISO(a.week_start).getTime() - parseISO(b.week_start).getTime());
-  }, [entries]);
+    return [...periods].sort((a, b) => parseISO(a.start_date).getTime() - parseISO(b.start_date).getTime());
+  }, [periods]);
 
   const sortedSettlements = useMemo(() => {
     return [...settlements].sort((a, b) => parseISO(a.week_start).getTime() - parseISO(b.week_start).getTime());
@@ -232,8 +246,8 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     const end = safeIso(today);
     const start = safeIso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 365));
 
-    const first = sortedEntries[0]?.week_start?.split('T')[0];
-    const last = sortedEntries[sortedEntries.length - 1]?.week_end?.split('T')[0];
+    const first = sortedEntries[0]?.start_date?.split('T')[0];
+    const last = sortedEntries[sortedEntries.length - 1]?.end_date?.split('T')[0];
 
     return {
       start: first ?? start,
@@ -309,8 +323,8 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     const end = parseISO(endDate);
 
     return sortedEntries.filter((e) => {
-      const s = parseISO(e.week_start);
-      const ed = parseISO(e.week_end);
+      const s = parseISO(e.start_date);
+      const ed = parseISO(e.end_date);
       return ed >= start && s <= end;
     });
   }, [groupBy, sortedEntries, startDate, endDate]);
@@ -333,20 +347,28 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     if (groupBy === 'all_time') return [{ key: 'all_time', label: 'All time', start: bookkeepingRange.start, end: bookkeepingRange.end }];
     const map = new Map<string, { key: string; label: string; start: string; end: string }>();
     for (const e of sortedEntries) {
-      const weekStart = parseISO(e.week_start.split('T')[0]);
+      const weekStart = parseISO(e.start_date.split('T')[0]);
       let key: string, label: string, start: string, end: string;
       if (groupBy === 'weekly') {
         key = e.id;
-        start = e.week_start.split('T')[0];
-        end = e.week_end.split('T')[0];
+        start = e.start_date.split('T')[0];
+        end = e.end_date.split('T')[0];
         label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
       } else if (groupBy === 'monthly') {
-        const mStart = startOfMonth(weekStart);
-        const mEnd = endOfMonth(weekStart);
-        key = `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`;
-        label = mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-        start = safeIso(mStart);
-        end = safeIso(mEnd);
+        // A period can span two months; offer both as selectable options.
+        for (const slice of splitAcrossMonths(e.start_date.split('T')[0], e.end_date.split('T')[0])) {
+          const mStart = parseISO(slice.month);
+          const monthKey = `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`;
+          if (!map.has(monthKey)) {
+            map.set(monthKey, {
+              key: monthKey,
+              label: mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+              start: safeIso(startOfMonth(mStart)),
+              end: safeIso(endOfMonth(mStart)),
+            });
+          }
+        }
+        continue;
       } else if (groupBy === 'quarterly') {
         const q = getQuarter(weekStart);
         key = `${weekStart.getFullYear()}-Q${q}`;
@@ -407,9 +429,80 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
   const aggregated = useMemo<AggregatedPeriod[]>(() => {
     const map = new Map<string, AggregatedPeriod>();
 
+    /** Fold one period's figures (optionally weighted) into a bucket. */
+    const addToBucket = (
+      bucket: { key: string; label: string; start: string; end: string },
+      income: CategoryTotals,
+      expenses: CategoryTotals,
+      totalIncome: number,
+      totalExpenses: number,
+    ) => {
+      const existing = map.get(bucket.key);
+      if (!existing) {
+        map.set(bucket.key, {
+          ...bucket,
+          income,
+          expenses,
+          total_income: totalIncome,
+          total_expenses: totalExpenses,
+          net_profit: totalIncome - totalExpenses,
+        });
+        return;
+      }
+      map.set(bucket.key, {
+        ...existing,
+        start: parseISO(bucket.start).getTime() < parseISO(existing.start).getTime() ? bucket.start : existing.start,
+        end: parseISO(bucket.end).getTime() > parseISO(existing.end).getTime() ? bucket.end : existing.end,
+        income: mergeTotals(existing.income, income),
+        expenses: mergeTotals(existing.expenses, expenses),
+        total_income: existing.total_income + totalIncome,
+        total_expenses: existing.total_expenses + totalExpenses,
+        net_profit: existing.net_profit + (totalIncome - totalExpenses),
+      });
+    };
+
     for (const e of filteredEntries) {
-      const weekStart = parseISO(e.week_start.split('T')[0]);
-      const weekEnd = parseISO(e.week_end.split('T')[0]);
+      const periodStart = e.start_date.split('T')[0];
+      const periodEnd = e.end_date.split('T')[0];
+      const weekStart = parseISO(periodStart);
+
+      // Split the entries into income and expense sides by their category.
+      let income = initTotals();
+      let expenses = initTotals();
+      for (const entry of e.entries || []) {
+        const category = categoryById.get(entry.category_id);
+        const amount = Number(entry.amount) || 0;
+        if (!category || amount === 0) continue;
+        if (category.kind === 'income') income = addTo(income, entry.category_id, amount);
+        else expenses = addTo(expenses, entry.category_id, amount);
+      }
+
+      const totalIncome = Number(e.total_income) || 0;
+      const totalExpenses = Number(e.total_expenses) || 0;
+
+      if (groupBy === 'monthly') {
+        // A period that straddles a month boundary is split by day count, so
+        // each month gets its actual share. Bucketing the whole period by its
+        // start date — as this did before — put every day of a 29 Jun–5 Jul
+        // week into June, which quietly overstated one month's accounts and
+        // understated the next.
+        for (const slice of splitAcrossMonths(periodStart, periodEnd)) {
+          const mStart = parseISO(slice.month);
+          addToBucket(
+            {
+              key: `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`,
+              label: mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+              start: safeIso(startOfMonth(mStart)),
+              end: safeIso(endOfMonth(mStart)),
+            },
+            scaleTotals(income, slice.weight),
+            scaleTotals(expenses, slice.weight),
+            totalIncome * slice.weight,
+            totalExpenses * slice.weight,
+          );
+        }
+        continue;
+      }
 
       let key: string;
       let label: string;
@@ -423,77 +516,23 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
         label = 'All time';
       } else if (groupBy === 'weekly') {
         key = e.id;
-        start = e.week_start.split('T')[0];
-        end = e.week_end.split('T')[0];
+        start = periodStart;
+        end = periodEnd;
         label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
-      } else if (groupBy === 'monthly') {
-        const mStart = startOfMonth(weekStart);
-        const mEnd = endOfMonth(weekStart);
-        key = `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`;
-        label = mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-        start = safeIso(mStart);
-        end = safeIso(mEnd);
       } else if (groupBy === 'quarterly') {
         const q = getQuarter(weekStart);
         key = `${weekStart.getFullYear()}-Q${q}`;
         label = `${weekStart.getFullYear()} Q${q}`;
-        const qStart = new Date(weekStart.getFullYear(), (q - 1) * 3, 1);
-        const qEnd = new Date(weekStart.getFullYear(), q * 3, 0);
-        start = safeIso(qStart);
-        end = safeIso(qEnd);
+        start = safeIso(new Date(weekStart.getFullYear(), (q - 1) * 3, 1));
+        end = safeIso(new Date(weekStart.getFullYear(), q * 3, 0));
       } else {
         key = String(weekStart.getFullYear());
         label = key;
-        const yStart = new Date(weekStart.getFullYear(), 0, 1);
-        const yEnd = new Date(weekStart.getFullYear(), 11, 31);
-        start = safeIso(yStart);
-        end = safeIso(yEnd);
+        start = safeIso(new Date(weekStart.getFullYear(), 0, 1));
+        end = safeIso(new Date(weekStart.getFullYear(), 11, 31));
       }
 
-      const income: IncomeBreakdown = {
-        uber_earnings: e.uber_earnings,
-        bolt_earnings: e.bolt_earnings,
-        ecabs_earnings: e.ecabs_earnings,
-        other_earnings: e.other_earnings,
-      };
-
-      const expenses: ExpenseBreakdown = {
-        employees: e.employees,
-        repairs: e.repairs,
-        insurance: e.insurance,
-        investments: e.investments,
-        vat: e.vat,
-        rent: e.rent,
-        employee_tax: e.employee_tax,
-        other_expenses: e.other_expenses,
-      };
-
-      const existing = map.get(key);
-      if (!existing) {
-        map.set(key, {
-          key,
-          label,
-          start,
-          end,
-          income,
-          expenses,
-          total_income: e.total_income,
-          total_expenses: e.total_expenses,
-          net_profit: e.net_profit,
-        });
-        continue;
-      }
-
-      map.set(key, {
-        ...existing,
-        start: parseISO(start).getTime() < parseISO(existing.start).getTime() ? start : existing.start,
-        end: parseISO(end).getTime() > parseISO(existing.end).getTime() ? end : existing.end,
-        income: sumIncome(existing.income, income),
-        expenses: sumExpenses(existing.expenses, expenses),
-        total_income: existing.total_income + e.total_income,
-        total_expenses: existing.total_expenses + e.total_expenses,
-        net_profit: existing.net_profit + e.net_profit,
-      });
+      addToBucket({ key, label, start, end }, income, expenses, totalIncome, totalExpenses);
     }
 
     const arr = Array.from(map.values());
@@ -552,14 +591,15 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
         end = safeIso(yEnd);
       }
 
-      let income = initIncome();
+      let income = initTotals();
       const platforms = s.settlement_platforms || [];
       if (platforms.length > 0) {
         for (const p of platforms) {
-          income = addPlatformIncome(income, p.platform_id, p.gross_fare);
+          income = addTo(income, platformToCategory(p.platform_id), p.gross_fare);
         }
       } else {
-        income = { ...income, other_earnings: income.other_earnings + (s.total_gross_fare || 0) };
+        // No platform rows — book the whole gross to the "Other" catch-all.
+        income = addTo(income, platformToCategory(null), s.total_gross_fare || 0);
       }
 
       const existing = map.get(key);
@@ -583,7 +623,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
         ...existing,
         start: parseISO(start).getTime() < parseISO(existing.start).getTime() ? start : existing.start,
         end: parseISO(end).getTime() > parseISO(existing.end).getTime() ? end : existing.end,
-        income: sumIncome(existing.income, income),
+        income: mergeTotals(existing.income, income),
         total_gross: existing.total_gross + (s.total_gross_fare || 0),
         total_net: existing.total_net + (s.total_net || 0),
         total_payout: existing.total_payout + (s.final_balance || 0),
@@ -609,8 +649,8 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     const totalExpenses = aggregated.reduce((acc, p) => acc + p.total_expenses, 0);
     const netProfit = aggregated.reduce((acc, p) => acc + p.net_profit, 0);
 
-    const income = aggregated.reduce((acc, p) => sumIncome(acc, p.income), initIncome());
-    const expenses = aggregated.reduce((acc, p) => sumExpenses(acc, p.expenses), initExpenses());
+    const income = aggregated.reduce((acc, p) => mergeTotals(acc, p.income), initTotals());
+    const expenses = aggregated.reduce((acc, p) => mergeTotals(acc, p.expenses), initTotals());
 
     const profitMargin = totalIncome > 0 ? netProfit / totalIncome : 0;
 
@@ -641,7 +681,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     const totalNet = driverAggregated.reduce((acc, p) => acc + p.total_net, 0);
     const totalPayout = driverAggregated.reduce((acc, p) => acc + p.total_payout, 0);
     const totalTax = driverAggregated.reduce((acc, p) => acc + p.total_fss_tax, 0);
-    const income = driverAggregated.reduce((acc, p) => sumIncome(acc, p.income), initIncome());
+    const income = driverAggregated.reduce((acc, p) => mergeTotals(acc, p.income), initTotals());
     const settlementCount = driverAggregated.reduce((acc, p) => acc + p.settlement_count, 0);
 
     const payoutMargin = totalGross > 0 ? totalPayout / totalGross : 0;
@@ -675,12 +715,12 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     const unpaidPayout = unpaid.reduce((acc, s) => acc + (s.final_balance || 0), 0);
     const unpaidGross = unpaid.reduce((acc, s) => acc + (s.total_gross_fare || 0), 0);
 
-    let unpaidIncome = initIncome();
+    let unpaidIncome = initTotals();
     for (const s of unpaid) {
       const platforms = s.settlement_platforms || [];
       if (platforms.length > 0) {
         for (const p of platforms) {
-          unpaidIncome = addPlatformIncome(unpaidIncome, p.platform_id, p.gross_fare);
+          unpaidIncome = addTo(unpaidIncome, platformToCategory(p.platform_id), p.gross_fare);
         }
       } else {
         unpaidIncome = { ...unpaidIncome, other_earnings: unpaidIncome.other_earnings + (s.total_gross_fare || 0) };
@@ -831,79 +871,84 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
     return { grossDelta, payoutDelta, marginDelta };
   }, [driverAggregated]);
 
+  /**
+   * Chart series are one key per category, so the stacked bars widen with the
+   * fleet's own chart of accounts. The category id is the dataKey; the label
+   * and colour come from the category itself.
+   */
+  const incomeSeries = useMemo(
+    () => incomeCategories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    [incomeCategories],
+  );
+  const expenseSeries = useMemo(
+    () => expenseCategories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    [expenseCategories],
+  );
+
   const chartData = useMemo(() => {
-    return aggregated.map((p) => ({
-      label: p.label,
-      total_income: p.total_income,
-      total_expenses: p.total_expenses,
-      net_profit: p.net_profit,
-      profit_margin: p.total_income > 0 ? p.net_profit / p.total_income : 0,
-      uber_earnings: p.income.uber_earnings,
-      bolt_earnings: p.income.bolt_earnings,
-      ecabs_earnings: p.income.ecabs_earnings,
-      other_earnings: p.income.other_earnings,
-      employees: p.expenses.employees,
-      repairs: p.expenses.repairs,
-      insurance: p.expenses.insurance,
-      investments: p.expenses.investments,
-      vat: p.expenses.vat,
-      rent: p.expenses.rent,
-      employee_tax: p.expenses.employee_tax,
-      other_expenses: p.expenses.other_expenses,
-    }));
-  }, [aggregated]);
+    return aggregated.map((p) => {
+      const row: Record<string, string | number> = {
+        label: p.label,
+        total_income: p.total_income,
+        total_expenses: p.total_expenses,
+        net_profit: p.net_profit,
+        profit_margin: p.total_income > 0 ? p.net_profit / p.total_income : 0,
+      };
+      for (const s of incomeSeries) row[s.id] = p.income[s.id] || 0;
+      for (const s of expenseSeries) row[s.id] = p.expenses[s.id] || 0;
+      return row;
+    });
+  }, [aggregated, incomeSeries, expenseSeries]);
 
   const driverChartData = useMemo(() => {
-    return driverAggregated.map((p) => ({
-      label: p.label,
-      total_gross: p.total_gross,
-      total_net: p.total_net,
-      total_payout: p.total_payout,
-      payout_margin: p.total_gross > 0 ? p.total_payout / p.total_gross : 0,
-      uber_earnings: p.income.uber_earnings,
-      bolt_earnings: p.income.bolt_earnings,
-      ecabs_earnings: p.income.ecabs_earnings,
-      other_earnings: p.income.other_earnings,
-    }));
-  }, [driverAggregated]);
+    return driverAggregated.map((p) => {
+      const row: Record<string, string | number> = {
+        label: p.label,
+        total_gross: p.total_gross,
+        total_net: p.total_net,
+        total_payout: p.total_payout,
+        payout_margin: p.total_gross > 0 ? p.total_payout / p.total_gross : 0,
+      };
+      for (const s of incomeSeries) row[s.id] = p.income[s.id] || 0;
+      return row;
+    });
+  }, [driverAggregated, incomeSeries]);
 
-  const incomePie = useMemo(() => {
-    const rows = [
-      { name: 'Uber', value: totals.income.uber_earnings },
-      { name: 'Bolt', value: totals.income.bolt_earnings },
-      { name: 'eCabs', value: totals.income.ecabs_earnings },
-      { name: 'Other', value: totals.income.other_earnings },
-    ].filter((r) => r.value > 0);
+  /** Pie rows built from whatever categories carry a figure. */
+  const buildPie = (totalsByCategory: CategoryTotals, series: { id: string; name: string; color: string }[]) =>
+    series
+      .map((s) => ({ name: s.name, value: totalsByCategory[s.id] || 0, color: s.color }))
+      .filter((r) => r.value > 0);
 
-    return rows;
-  }, [totals.income]);
+  /**
+   * The two biggest earning platforms, for the pair of driver-mode KPI tiles.
+   * These used to be hardcoded to Uber and Bolt, which showed a fleet working
+   * with neither two permanently empty cards.
+   */
+  const topDriverPlatforms = useMemo(
+    () =>
+      [...incomeSeries]
+        .sort((a, b) => (driverTotals.income[b.id] || 0) - (driverTotals.income[a.id] || 0))
+        .slice(0, 2),
+    [incomeSeries, driverTotals.income],
+  );
 
-  const driverIncomePie = useMemo(() => {
-    const rows = [
-      { name: 'Uber', value: driverTotals.income.uber_earnings },
-      { name: 'Bolt', value: driverTotals.income.bolt_earnings },
-      { name: 'eCabs', value: driverTotals.income.ecabs_earnings },
-      { name: 'Other', value: driverTotals.income.other_earnings },
-    ].filter((r) => r.value > 0);
+  const incomePie = useMemo(
+    () => buildPie(totals.income, incomeSeries),
+    [totals.income, incomeSeries],
+  );
 
-    return rows;
-  }, [driverTotals.income]);
+  const driverIncomePie = useMemo(
+    () => buildPie(driverTotals.income, incomeSeries),
+    [driverTotals.income, incomeSeries],
+  );
 
-  const expensePie = useMemo(() => {
-    const rows = [
-      { name: 'Employees', value: totals.expenses.employees },
-      { name: 'Repairs', value: totals.expenses.repairs },
-      { name: 'Insurance', value: totals.expenses.insurance },
-      { name: 'Investments', value: totals.expenses.investments },
-      { name: 'VAT', value: totals.expenses.vat },
-      { name: 'Rent', value: totals.expenses.rent },
-      { name: 'Employee Tax', value: totals.expenses.employee_tax },
-      { name: 'Other', value: totals.expenses.other_expenses },
-    ].filter((r) => r.value > 0);
+  const expensePie = useMemo(
+    () => buildPie(totals.expenses, expenseSeries),
+    [totals.expenses, expenseSeries],
+  );
 
-    return rows;
-  }, [totals.expenses]);
-
+  // Fallback only — pie slices now carry their category's own colour.
   const palette = {
     income: ['#14784a', '#0ea5e9', '#8b5cf6', '#64748b'],
     expenses: ['#f59e0b', '#ef4444', '#0ea5e9', '#8b5cf6', '#10b981', '#64748b', '#f97316', '#a1a1b5'],
@@ -945,21 +990,17 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
 
     if (incomeTotal > 0) {
       lines.push({ account: 'Bank / Cash (Income received)', debit: incomeTotal, credit: 0 });
-      if (selectedPeriod.income.uber_earnings) lines.push({ account: 'Revenue: Uber', debit: 0, credit: selectedPeriod.income.uber_earnings });
-      if (selectedPeriod.income.bolt_earnings) lines.push({ account: 'Revenue: Bolt', debit: 0, credit: selectedPeriod.income.bolt_earnings });
-      if (selectedPeriod.income.ecabs_earnings) lines.push({ account: 'Revenue: eCabs', debit: 0, credit: selectedPeriod.income.ecabs_earnings });
-      if (selectedPeriod.income.other_earnings) lines.push({ account: 'Revenue: Other', debit: 0, credit: selectedPeriod.income.other_earnings });
+      for (const s of incomeSeries) {
+        const value = selectedPeriod.income[s.id] || 0;
+        if (value) lines.push({ account: `Revenue: ${s.name}`, debit: 0, credit: value });
+      }
     }
 
     if (expenseTotal > 0) {
-      if (selectedPeriod.expenses.employees) lines.push({ account: 'Expense: Employees', debit: selectedPeriod.expenses.employees, credit: 0 });
-      if (selectedPeriod.expenses.repairs) lines.push({ account: 'Expense: Repairs', debit: selectedPeriod.expenses.repairs, credit: 0 });
-      if (selectedPeriod.expenses.insurance) lines.push({ account: 'Expense: Insurance', debit: selectedPeriod.expenses.insurance, credit: 0 });
-      if (selectedPeriod.expenses.investments) lines.push({ account: 'Expense: Investments', debit: selectedPeriod.expenses.investments, credit: 0 });
-      if (selectedPeriod.expenses.vat) lines.push({ account: 'Expense: VAT', debit: selectedPeriod.expenses.vat, credit: 0 });
-      if (selectedPeriod.expenses.rent) lines.push({ account: 'Expense: Rent', debit: selectedPeriod.expenses.rent, credit: 0 });
-      if (selectedPeriod.expenses.employee_tax) lines.push({ account: 'Expense: Employee Tax', debit: selectedPeriod.expenses.employee_tax, credit: 0 });
-      if (selectedPeriod.expenses.other_expenses) lines.push({ account: 'Expense: Other', debit: selectedPeriod.expenses.other_expenses, credit: 0 });
+      for (const s of expenseSeries) {
+        const value = selectedPeriod.expenses[s.id] || 0;
+        if (value) lines.push({ account: `Expense: ${s.name}`, debit: value, credit: 0 });
+      }
       lines.push({ account: 'Bank / Cash (Expenses paid)', debit: 0, credit: expenseTotal });
     }
 
@@ -980,50 +1021,50 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
       debit: Math.round(l.debit * 100) / 100,
       credit: Math.round(l.credit * 100) / 100,
     }));
-  }, [selectedPeriod]);
+  }, [selectedPeriod, incomeSeries, expenseSeries]);
 
   const exportSummaryCsv = () => {
     if (mode === 'fleet') {
-      const rows = aggregated.map((p) => ({
-        period: p.label,
-        start: p.start,
-        end: p.end,
-        total_income: Math.round(p.total_income * 100) / 100,
-        total_expenses: Math.round(p.total_expenses * 100) / 100,
-        net_profit: Math.round(p.net_profit * 100) / 100,
-        uber_earnings: Math.round(p.income.uber_earnings * 100) / 100,
-        bolt_earnings: Math.round(p.income.bolt_earnings * 100) / 100,
-        ecabs_earnings: Math.round(p.income.ecabs_earnings * 100) / 100,
-        other_earnings: Math.round(p.income.other_earnings * 100) / 100,
-        employees: Math.round(p.expenses.employees * 100) / 100,
-        repairs: Math.round(p.expenses.repairs * 100) / 100,
-        insurance: Math.round(p.expenses.insurance * 100) / 100,
-        investments: Math.round(p.expenses.investments * 100) / 100,
-        vat: Math.round(p.expenses.vat * 100) / 100,
-        rent: Math.round(p.expenses.rent * 100) / 100,
-        employee_tax: Math.round(p.expenses.employee_tax * 100) / 100,
-        other_expenses: Math.round(p.expenses.other_expenses * 100) / 100,
-      }));
+      // One column per category the fleet keeps, named after the category.
+      const rows = aggregated.map((p) => {
+        const row: Record<string, string | number> = {
+          period: p.label,
+          start: p.start,
+          end: p.end,
+          total_income: Math.round(p.total_income * 100) / 100,
+          total_expenses: Math.round(p.total_expenses * 100) / 100,
+          net_profit: Math.round(p.net_profit * 100) / 100,
+        };
+        for (const s of incomeSeries) {
+          row[`income_${s.name}`] = Math.round((p.income[s.id] || 0) * 100) / 100;
+        }
+        for (const s of expenseSeries) {
+          row[`expense_${s.name}`] = Math.round((p.expenses[s.id] || 0) * 100) / 100;
+        }
+        return row;
+      });
 
       downloadTextFile(`financials_fleet_${startDate}_to_${endDate}_${groupBy}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
       return;
     }
 
-    const rows = driverAggregated.map((p) => ({
-      period: p.label,
-      start: p.start,
-      end: p.end,
-      scope: selectedDriverId === 'all' ? 'all_drivers' : selectedDriverId,
-      total_gross: Math.round(p.total_gross * 100) / 100,
-      total_net: Math.round(p.total_net * 100) / 100,
-      total_payout: Math.round(p.total_payout * 100) / 100,
-      total_fss_tax: Math.round(p.total_fss_tax * 100) / 100,
-      settlement_count: p.settlement_count,
-      uber_gross: Math.round(p.income.uber_earnings * 100) / 100,
-      bolt_gross: Math.round(p.income.bolt_earnings * 100) / 100,
-      ecabs_gross: Math.round(p.income.ecabs_earnings * 100) / 100,
-      other_gross: Math.round(p.income.other_earnings * 100) / 100,
-    }));
+    const rows = driverAggregated.map((p) => {
+      const row: Record<string, string | number> = {
+        period: p.label,
+        start: p.start,
+        end: p.end,
+        scope: selectedDriverId === 'all' ? 'all_drivers' : selectedDriverId,
+        total_gross: Math.round(p.total_gross * 100) / 100,
+        total_net: Math.round(p.total_net * 100) / 100,
+        total_payout: Math.round(p.total_payout * 100) / 100,
+        total_fss_tax: Math.round(p.total_fss_tax * 100) / 100,
+        settlement_count: p.settlement_count,
+      };
+      for (const s of incomeSeries) {
+        row[`${s.name}_gross`] = Math.round((p.income[s.id] || 0) * 100) / 100;
+      }
+      return row;
+    });
 
     downloadTextFile(`financials_drivers_${startDate}_to_${endDate}_${groupBy}_${selectedDriverId}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
   };
@@ -1046,7 +1087,7 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
   // QuickBooks / Xero-ready transaction export over the whole filtered range —
   // one signed line per bookkeeping category, ready to import as a bank CSV.
   const exportAccountingCsv = (flavor: 'quickbooks' | 'xero') => {
-    const txns = buildBookkeepingTxns(filteredEntries);
+    const txns = buildBookkeepingTxns(filteredEntries, categories);
     if (txns.length === 0) return;
     const csv = flavor === 'xero' ? toXeroCsv(txns) : toQuickBooksCsv(txns);
     downloadTextFile(`accounting_${flavor}_${startDate}_to_${endDate}.csv`, csv, 'text/csv;charset=utf-8');
@@ -1385,10 +1426,9 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                       formatter={(value: unknown) => formatCurrencyEUR(Number(value))}
                     />
                     <Legend />
-                    <Bar dataKey="uber_earnings" name="Uber" stackId="income" fill={palette.income[0]} />
-                    <Bar dataKey="bolt_earnings" name="Bolt" stackId="income" fill={palette.income[1]} />
-                    <Bar dataKey="ecabs_earnings" name="eCabs" stackId="income" fill={palette.income[2]} />
-                    <Bar dataKey="other_earnings" name="Other" stackId="income" fill={palette.income[3]} />
+                    {incomeSeries.map((s, i) => (
+                      <Bar key={s.id} dataKey={s.id} name={s.name} stackId="income" fill={s.color || palette.income[i % palette.income.length]} />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1415,14 +1455,9 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                       formatter={(value: unknown) => formatCurrencyEUR(Number(value))}
                     />
                     <Legend />
-                    <Bar dataKey="employees" name="Employees" stackId="exp" fill={palette.expenses[0]} />
-                    <Bar dataKey="repairs" name="Repairs" stackId="exp" fill={palette.expenses[1]} />
-                    <Bar dataKey="insurance" name="Insurance" stackId="exp" fill={palette.expenses[2]} />
-                    <Bar dataKey="investments" name="Investments" stackId="exp" fill={palette.expenses[3]} />
-                    <Bar dataKey="vat" name="VAT" stackId="exp" fill={palette.expenses[4]} />
-                    <Bar dataKey="rent" name="Rent" stackId="exp" fill={palette.expenses[5]} />
-                    <Bar dataKey="employee_tax" name="Employee Tax" stackId="exp" fill={palette.expenses[6]} />
-                    <Bar dataKey="other_expenses" name="Other" stackId="exp" fill={palette.expenses[7]} />
+                    {expenseSeries.map((s, i) => (
+                      <Bar key={s.id} dataKey={s.id} name={s.name} stackId="exp" fill={s.color || palette.expenses[i % palette.expenses.length]} />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1449,8 +1484,8 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                     />
                     <Legend />
                     <Pie data={incomePie} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={2}>
-                      {incomePie.map((_, idx) => (
-                        <Cell key={idx} fill={palette.income[idx % palette.income.length]} />
+                      {incomePie.map((row, idx) => (
+                        <Cell key={idx} fill={row.color || palette.income[idx % palette.income.length]} />
                       ))}
                     </Pie>
                   </PieChart>
@@ -1477,8 +1512,8 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                     />
                     <Legend />
                     <Pie data={expensePie} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={2}>
-                      {expensePie.map((_, idx) => (
-                        <Cell key={idx} fill={palette.expenses[idx % palette.expenses.length]} />
+                      {expensePie.map((row, idx) => (
+                        <Cell key={idx} fill={row.color || palette.expenses[idx % palette.expenses.length]} />
                       ))}
                     </Pie>
                   </PieChart>
@@ -1625,24 +1660,17 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
               </div>
               <div className={styles.kpiMeta}>{(driverTotals.payoutMargin * 100).toFixed(1)}% of gross</div>
             </div>
-            <div className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>Uber Earnings</div>
-              <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.income.uber_earnings)}</div>
-              <div className={styles.kpiMeta}>
-                {driverTotals.totalGross > 0
-                  ? `${((driverTotals.income.uber_earnings / driverTotals.totalGross) * 100).toFixed(1)}% of gross`
-                  : '—'}
+            {topDriverPlatforms.map((s) => (
+              <div key={s.id} className={styles.kpiCard}>
+                <div className={styles.kpiLabel}>{s.name} Earnings</div>
+                <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.income[s.id] || 0)}</div>
+                <div className={styles.kpiMeta}>
+                  {driverTotals.totalGross > 0
+                    ? `${(((driverTotals.income[s.id] || 0) / driverTotals.totalGross) * 100).toFixed(1)}% of gross`
+                    : '—'}
+                </div>
               </div>
-            </div>
-            <div className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>Bolt Earnings</div>
-              <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.income.bolt_earnings)}</div>
-              <div className={styles.kpiMeta}>
-                {driverTotals.totalGross > 0
-                  ? `${((driverTotals.income.bolt_earnings / driverTotals.totalGross) * 100).toFixed(1)}% of gross`
-                  : '—'}
-              </div>
-            </div>
+            ))}
             <div className={styles.kpiCard}>
               <div className={styles.kpiLabel}>FSS / Tax</div>
               <div className={styles.kpiValue}>{formatCurrencyEUR(driverTotals.totalTax)}</div>
@@ -1668,20 +1696,14 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                   <span>Unpaid Gross</span>
                   <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidGross)}</span>
                 </div>
-                <div className={styles.summaryRow}>
-                  <span>Unpaid from Uber</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome.uber_earnings)}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Unpaid from Bolt</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome.bolt_earnings)}</span>
-                </div>
-                {unpaidTotals.unpaidIncome.ecabs_earnings > 0 ? (
-                  <div className={styles.summaryRow}>
-                    <span>Unpaid from eCabs</span>
-                    <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome.ecabs_earnings)}</span>
-                  </div>
-                ) : null}
+                {incomeSeries
+                  .filter((s) => (unpaidTotals.unpaidIncome[s.id] || 0) > 0)
+                  .map((s) => (
+                    <div key={s.id} className={styles.summaryRow}>
+                      <span>Unpaid from {s.name}</span>
+                      <span className={styles.mono}>{formatCurrencyEUR(unpaidTotals.unpaidIncome[s.id] || 0)}</span>
+                    </div>
+                  ))}
                 <div className={styles.summaryRow}>
                   <span>Paid so far</span>
                   <span className={`${styles.mono} ${styles.positive}`}>{formatCurrencyEUR(unpaidTotals.paidPayout)}</span>
@@ -1699,26 +1721,14 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                 <div className={styles.panelSubtitle}>Gross earnings by platform</div>
               </div>
               <div className={styles.summaryBox}>
-                <div className={styles.summaryRow}>
-                  <span>Uber</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.uber_earnings)}</span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Bolt</span>
-                  <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.bolt_earnings)}</span>
-                </div>
-                {driverTotals.income.ecabs_earnings > 0 ? (
-                  <div className={styles.summaryRow}>
-                    <span>eCabs</span>
-                    <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.ecabs_earnings)}</span>
-                  </div>
-                ) : null}
-                {driverTotals.income.other_earnings > 0 ? (
-                  <div className={styles.summaryRow}>
-                    <span>Other</span>
-                    <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income.other_earnings)}</span>
-                  </div>
-                ) : null}
+                {incomeSeries
+                  .filter((s) => (driverTotals.income[s.id] || 0) > 0)
+                  .map((s) => (
+                    <div key={s.id} className={styles.summaryRow}>
+                      <span>{s.name}</span>
+                      <span className={styles.mono}>{formatCurrencyEUR(driverTotals.income[s.id] || 0)}</span>
+                    </div>
+                  ))}
               </div>
               <div className={`${styles.summaryBox} ${styles.summaryBoxSecondary}`}>
                 <div className={styles.summaryRow}>
@@ -1905,10 +1915,9 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                       formatter={(value: unknown) => formatCurrencyEUR(Number(value))}
                     />
                     <Legend />
-                    <Bar dataKey="uber_earnings" name="Uber" stackId="gross" fill={palette.income[0]} />
-                    <Bar dataKey="bolt_earnings" name="Bolt" stackId="gross" fill={palette.income[1]} />
-                    <Bar dataKey="ecabs_earnings" name="eCabs" stackId="gross" fill={palette.income[2]} />
-                    <Bar dataKey="other_earnings" name="Other" stackId="gross" fill={palette.income[3]} />
+                    {incomeSeries.map((s, i) => (
+                      <Bar key={s.id} dataKey={s.id} name={s.name} stackId="gross" fill={s.color || palette.income[i % palette.income.length]} />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1935,8 +1944,8 @@ export default function FinancialsDashboard({ entries, drivers, settlements }: F
                     />
                     <Legend />
                     <Pie data={driverIncomePie} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={2}>
-                      {driverIncomePie.map((_, idx) => (
-                        <Cell key={idx} fill={palette.income[idx % palette.income.length]} />
+                      {driverIncomePie.map((row, idx) => (
+                        <Cell key={idx} fill={row.color || palette.income[idx % palette.income.length]} />
                       ))}
                     </Pie>
                   </PieChart>

@@ -126,18 +126,29 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
   expiringDocs.sort((a, b) => a.daysLeft - b.daysLeft);
   const topExpiringDocs = expiringDocs.slice(0, 8);
 
-  // Financials (admin only)
-  const bookkeepingEntriesResult = isAdmin
-    ? await supabase
-        .from('weekly_bookkeeping')
-        .select('week_start, week_label, total_income, total_expenses, net_profit, employees, repairs, insurance, investments, vat, rent, employee_tax, other_expenses')
-        .eq('organization_id', user.organization_id)
-        .order('week_start', { ascending: true })
-    : { data: [] as any[] };
-  const bookkeepingEntries = bookkeepingEntriesResult.data || [];
+  // Financials (admin only). Categories are per-fleet data, so the expense
+  // breakdown is built from whatever the fleet actually keeps books in rather
+  // than a hardcoded list of eight.
+  const [bookkeepingPeriodsResult, financeCategoriesResult] = isAdmin
+    ? await Promise.all([
+        supabase
+          .from('bookkeeping_periods')
+          .select('start_date, label, total_income, total_expenses, net_profit, entries:bookkeeping_entries(category_id, amount)')
+          .eq('organization_id', user.organization_id)
+          .order('start_date', { ascending: true }),
+        supabase
+          .from('org_finance_categories')
+          .select('id, name, kind, color, sort_order')
+          .eq('organization_id', user.organization_id)
+          .eq('kind', 'expense'),
+      ])
+    : [{ data: [] as any[] }, { data: [] as any[] }];
+
+  const bookkeepingEntries = bookkeepingPeriodsResult.data || [];
+  const expenseCategories = financeCategoriesResult.data || [];
 
   const financialSeries = bookkeepingEntries.map((b: any) => ({
-    label: String(b.week_label || ''),
+    label: String(b.label || ''),
     income: Number(b.total_income) || 0,
     expenses: Number(b.total_expenses) || 0,
     profit: Number(b.net_profit) || 0,
@@ -153,35 +164,26 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
     { income: 0, expenses: 0, profit: 0 }
   );
 
-  const expenseTotals = bookkeepingEntries.reduce(
-    (acc, b: any) => {
-      acc.employees += Number(b.employees) || 0;
-      acc.repairs += Number(b.repairs) || 0;
-      acc.insurance += Number(b.insurance) || 0;
-      acc.investments += Number(b.investments) || 0;
-      acc.vat += Number(b.vat) || 0;
-      acc.rent += Number(b.rent) || 0;
-      acc.employee_tax += Number(b.employee_tax) || 0;
-      acc.other += Number(b.other_expenses) || 0;
-      return acc;
-    },
-    { employees: 0, repairs: 0, insurance: 0, investments: 0, vat: 0, rent: 0, employee_tax: 0, other: 0 }
-  );
+  const expenseByCategory = new Map<string, number>();
+  for (const period of bookkeepingEntries as any[]) {
+    for (const entry of period.entries || []) {
+      const amount = Number(entry.amount) || 0;
+      if (amount > 0) {
+        expenseByCategory.set(entry.category_id, (expenseByCategory.get(entry.category_id) || 0) + amount);
+      }
+    }
+  }
 
   const expensePalette = ['#f06464', '#f5b54a', '#2bbd7e', '#a78bfa', '#22d3ee', '#3ecf8e', '#ec4899', '#94a3b8'];
-  const expenseBreakdown = [
-    { label: 'Employees', amount: expenseTotals.employees },
-    { label: 'Repairs', amount: expenseTotals.repairs },
-    { label: 'Insurance', amount: expenseTotals.insurance },
-    { label: 'Investments', amount: expenseTotals.investments },
-    { label: 'VAT', amount: expenseTotals.vat },
-    { label: 'Rent', amount: expenseTotals.rent },
-    { label: 'Employee tax', amount: expenseTotals.employee_tax },
-    { label: 'Other', amount: expenseTotals.other },
-  ]
+  const expenseBreakdown = expenseCategories
+    .map((c: any) => ({
+      label: String(c.name),
+      amount: expenseByCategory.get(c.id) || 0,
+      color: c.color as string,
+    }))
     .filter((e) => e.amount > 0)
     .sort((a, b) => b.amount - a.amount)
-    .map((e, i) => ({ ...e, color: expensePalette[i % expensePalette.length] }));
+    .map((e, i) => ({ ...e, color: e.color || expensePalette[i % expensePalette.length] }));
 
   const userName = user.full_name?.split(' ')[0] || 'there';
 
