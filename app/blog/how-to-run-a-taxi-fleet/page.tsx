@@ -17,7 +17,9 @@ export default function Page() {
             <>
               <p>
                 A taxi or rideshare fleet looks simple from the outside — cars pick people up, money
-                comes in. From the inside, an operator with 15 cars is simultaneously running:
+                comes in. Whether you call it a cab fleet, a private-hire operation or a fleet taxi
+                service, the shape is the same. From the inside, an operator with 15 cars is
+                simultaneously running:
               </p>
               <ul>
                 <li>a <strong>vehicle business</strong> — buying, insuring, maintaining and eventually replacing cars;</li>
@@ -29,6 +31,38 @@ export default function Page() {
               <p>
                 Most operators are excellent at one or two of these and improvise the rest. The guide
                 below goes through each, with the habits that separate calm fleets from chaotic ones.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: 'how-many-taxis',
+          heading: 'How many taxis should be in your fleet?',
+          body: (
+            <>
+              <p>
+                There is no magic number, but there are two thresholds that matter far more than the
+                total number of taxis in a fleet.
+              </p>
+              <p>
+                The first is <strong>around 5 vehicles</strong>. Below it you are a driver who owns
+                cars: you can hold the roster in your head and settle pay on a Sunday evening without
+                much pain. Above it, the admin stops scaling with your memory and starts scaling with
+                your systems.
+              </p>
+              <p>
+                The second is <strong>around 20 vehicles</strong>. This is where most operators either
+                hire an office person or accept that their own week is now fully consumed by
+                coordination. Fleet taxi companies that cross this line on spreadsheets are the ones
+                that plateau — not because demand ran out, but because the owner became the
+                bottleneck.
+              </p>
+              <p>
+                The more useful question is <em>utilisation</em>, not headcount. A 10-car fleet with
+                every vehicle on shift 12 hours a day earns more, and costs far less in insurance and
+                depreciation, than a 16-car fleet with five cars idle on the forecourt. Grow the fleet
+                when your existing cars are consistently booked and you are turning drivers away —
+                not when a good deal on a used Corolla appears.
               </p>
             </>
           ),

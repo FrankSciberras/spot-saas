@@ -12,22 +12,28 @@ export default function Page() {
       sections={[
         {
           id: 'why-hardware-ruled',
-          heading: 'Why GPS boxes ruled fleet tracking for so long',
+          heading: 'Why fleet GPS tracking meant a device in every car',
           body: (
             <>
               <p>
-                For two decades, &ldquo;fleet tracking&rdquo; meant one thing: a GPS unit hardwired
-                behind every dashboard, a SIM card in each one, and a monthly fee per vehicle to see
-                dots on a map. For haulage companies with 40-tonne trucks crossing borders, that made
-                sense — the asset is expensive, the routes are long, and theft is a real risk.
+                For two decades, <strong>fleet tracking</strong> meant one thing: a{' '}
+                <strong>fleet tracking device</strong> hardwired behind every dashboard, a SIM card in
+                each one, and a monthly fee per vehicle to see dots on a map. For haulage companies
+                with 40-tonne trucks crossing borders, that made sense — the asset is expensive, the
+                routes are long, and theft is a real risk.
               </p>
               <p>
                 But most taxi and rideshare fleets copied that model without asking whether it fits.
                 A 15-car cab fleet doesn&rsquo;t have a theft problem — it has a{' '}
                 <strong>visibility problem</strong>: who is on shift right now, which car are they
                 in, how long have they been out, and what did the car&rsquo;s mileage do this week?
+                That is fleet monitoring in the sense operators actually need it, and a dot on a map
+                answers only the first half of it.
               </p>
-              <p>Answering those questions with hardware is expensive overkill:</p>
+              <p>
+                Answering those questions with conventional <strong>fleet GPS tracking</strong> is
+                expensive overkill:
+              </p>
               <ul>
                 <li><strong>Purchase cost</strong> — €80–€250 per tracker, per car.</li>
                 <li><strong>Installation</strong> — €50–€100 per vehicle, plus a morning off the road.</li>
@@ -122,6 +128,47 @@ export default function Page() {
                 If you run taxis, chauffeur cars or rideshare vehicles with drivers you pay every
                 week, none of those usually apply. You&rsquo;re paying hardware prices for a software
                 problem.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: 'solutions-compared',
+          heading: 'The three fleet tracking solutions, compared',
+          body: (
+            <>
+              <p>
+                Strip the marketing away and there are only three <strong>fleet tracking solutions</strong>{' '}
+                on the market. Picking between them is mostly a question of what you need to know, not
+                how much you want to spend.
+              </p>
+              <ul>
+                <li>
+                  <strong>Hardwired trackers.</strong> A unit spliced into the loom, hidden and always
+                  on. Best-in-class for theft recovery and the only option for unmanned assets. Costs
+                  most, takes each car off the road to fit, and tells you nothing about who was
+                  driving or what they earned.
+                </li>
+                <li>
+                  <strong>OBD plug-in dongles.</strong> Cheaper and self-install, pulling engine data
+                  from the diagnostic port. The catch is that they are trivially unplugged, and on
+                  cars shared between drivers they often are. Good for engine diagnostics, weak as an
+                  attendance record.
+                </li>
+                <li>
+                  <strong>Shift-based tracking inside fleet tracking software.</strong> The driver
+                  clocks in on their phone and location follows the shift. No device to buy, and the
+                  location data arrives already attached to a driver, a vehicle and a pay period —
+                  which is what makes it useful on a Monday morning.
+                </li>
+              </ul>
+              <p>
+                For <strong>small fleet tracking</strong> — say 5 to 50 vehicles with drivers you pay
+                weekly — the third option wins on both cost and usefulness, because the question you
+                ask daily is &ldquo;who is working and what did they earn?&rdquo; rather than
+                &ldquo;where is my asset?&rdquo;. The trap is buying a{' '}
+                <strong>fleet tracking system</strong> that only answers the second question, then
+                still doing pay and maintenance by hand.
               </p>
             </>
           ),

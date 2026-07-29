@@ -6,35 +6,37 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.53.1",
-    "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.106.0",
+    "@sentry/nextjs": "^10.68.0",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "leaflet": "^1.9.4",
-    "next": "^16.2.6",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "recharts": "^3.8.1",
-    "resend": "^6.12.3",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
+    "resend": "^6.18.1",
     "stripe": "^18.5.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",
-    "@types/node": "^25.9.1",
-    "@types/react": "19.2.15",
+    "@types/node": "^25.9.5",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "eslint": "^10.4.0",
-    "eslint-config-next": "^16.2.6",
-    "sharp": "^0.34.5",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.12",
+    "sharp": "^0.35.3",
     "typescript": "^6.0.3"
   },
   "overrides": {
-    "@types/react": "19.2.15",
-    "@types/react-dom": "19.2.3"
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "postcss": "^8.5.24",
+    "sharp": "^0.35.3"
   }
 }
