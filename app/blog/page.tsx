@@ -12,12 +12,14 @@ export const metadata = marketingMetadata({
   path: '/blog',
   keywords: [
     'fleet management guides',
-    'taxi fleet management guides',
+    'fleet tracking',
+    'fleet management software',
+    'fleet maintenance software',
+    'taxi fleet',
     'how to run a taxi fleet',
-    'how to start a taxi business',
-    'driver pay guides',
-    'fleet tracking without hardware',
-    'spreadsheets vs fleet management software',
+    'driver pay',
+    'fleet monitoring',
+    'small fleet tracking',
   ],
 });
 

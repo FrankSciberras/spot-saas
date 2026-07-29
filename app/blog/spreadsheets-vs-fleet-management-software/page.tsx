@@ -78,7 +78,9 @@ export default function Page() {
             <>
               <p>
                 Fleet management software is not a prettier spreadsheet. The difference is that data
-                enters the system <strong>once, at the source, with context</strong>:
+                enters the system <strong>once, at the source, with context</strong>. That is also the
+                line between a sheet and a real <strong>fleet management system</strong>: a sheet
+                stores what you typed, a system knows where each number came from.
               </p>
               <ul>
                 <li>
@@ -94,7 +96,9 @@ export default function Page() {
                 </li>
                 <li>
                   Services trigger by mileage, automatically (
-                  <Link href="/features/maintenance">maintenance</Link>).
+                  <Link href="/features/maintenance">maintenance</Link>) — the part a sheet handles
+                  worst, covered in{' '}
+                  <Link href="/blog/fleet-maintenance-software">fleet maintenance software</Link>.
                 </li>
                 <li>
                   Weekly pay assembles itself from shifts, platform data and each driver&rsquo;s pay
@@ -121,7 +125,8 @@ export default function Page() {
                 Don&rsquo;t. Pick a Monday, start the new week in the new system, and keep the old
                 sheet as read-only archive. You need four things entered: vehicles with their
                 document dates, drivers, this week&rsquo;s roster, and each driver&rsquo;s pay
-                scheme. For a 15-car fleet that&rsquo;s an afternoon.
+                scheme. For a 15-car fleet that&rsquo;s an afternoon — and those four lists are the
+                whole of what a vehicle management system needs before it starts earning its keep.
               </p>
               <p>
                 Run one settlement cycle in parallel with the sheet if it calms your nerves — most
