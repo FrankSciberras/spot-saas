@@ -97,18 +97,20 @@ export default function StaffWorkspace({ members, roles, canManage }: Props) {
       <div style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Operations / Staff</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Staff</h1>
-            <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{counts.all}</span>
+          <div style={st.titleRow}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Staff</h1>
+              <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{counts.all}</span>
+            </div>
+            {canManage && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/staff/new')}>
+                  <FleetIcon name="plus" size={14} stroke={2.2} /> Invite member
+                </button>
+              </div>
+            )}
           </div>
         </div>
-        {canManage && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/staff/new')}>
-              <FleetIcon name="plus" size={14} stroke={2.2} /> Invite member
-            </button>
-          </div>
-        )}
       </div>
 
       <div style={st.statsRow} className="stats-row-mobile">
@@ -218,6 +220,7 @@ export default function StaffWorkspace({ members, roles, canManage }: Props) {
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px' },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },
   stat: { padding: '14px 16px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 10 },

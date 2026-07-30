@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import ClickableImage from '@/components/shared/ClickableImage';
 import { signStorageUrl } from '@/lib/storage/signed';
 import styles from '@/components/admin/AdminForms.module.css';
@@ -109,11 +110,9 @@ export default async function ShiftDetailPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title="Shift Details">
+      <FleetBackLink href="/fleet/shifts" label="Back to shifts" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href="/fleet/shifts" className={styles.backButton} aria-label="Back to shifts">
-            <span>←</span>
-          </Link>
           <div className={styles.pageTitleMain}>
             <h2>Shift Details</h2>
             <span className={styles.subtitle}>

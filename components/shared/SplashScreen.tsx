@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { isAppRoute } from '@/lib/routes';
 import styles from './SplashScreen.module.css';
@@ -27,16 +27,23 @@ type LoadingStatus = 'initializing' | 'service-worker' | 'backend' | 'ready' | '
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 const BACKEND_TIMEOUT = 8000;
-const MIN_SPLASH_TIME = 800; // Minimum time to show splash for smooth UX
+// Long enough for the logo reveal (1.05s in the stylesheet) to finish before the
+// splash starts fading out, plus a beat on the finished lockup. Shorten both
+// together, or the animation gets cut off mid-slide.
+const MIN_SPLASH_TIME = 1250;
 
 export default function SplashScreen({ children }: SplashScreenProps) {
   const pathname = usePathname();
   const publicRoute = !isAppRoute(pathname);
   const [isReady, setIsReady] = useState(false);
   const [status, setStatus] = useState<LoadingStatus>('initializing');
-  const [retryCount, setRetryCount] = useState(0);
   const [showRetryButton, setShowRetryButton] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
+
+  // Was the previous route inside the app? `null` = first render of this page
+  // load, which counts as arriving from outside. This is what makes the splash
+  // play on rovora.eu -> /dashboard but stay out of the way on /fleet -> /fleet/vehicles.
+  const cameFromApp = useRef<boolean | null>(null);
 
   // Check if service worker is ready
   const waitForServiceWorker = useCallback(async (): Promise<boolean> => {
@@ -107,8 +114,7 @@ export default function SplashScreen({ children }: SplashScreenProps) {
       
       if (!backendReady) {
         attempts++;
-        setRetryCount(attempts);
-        
+
         if (attempts < MAX_RETRIES) {
           // Wait before retry
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
@@ -136,44 +142,39 @@ export default function SplashScreen({ children }: SplashScreenProps) {
 
   // Handle manual retry
   const handleRetry = useCallback(() => {
-    setRetryCount(0);
     initialize();
   }, [initialize]);
 
-  // Start initialization on mount
+  /*
+   * Play the splash on every ENTRY into the app, not once per browser session.
+   *
+   * "Entry" means the previous route was outside the app: a cold page load
+   * straight to /dashboard, or a click through from the marketing site. Moving
+   * between two app pages (/fleet -> /fleet/vehicles) is not an entry and must
+   * not interrupt the user.
+   *
+   * This replaces a sessionStorage 'app_loaded' flag, which showed the splash
+   * exactly once and then never again for the life of the tab.
+   */
   useEffect(() => {
-    // Public marketing / auth pages never show the app splash.
     if (publicRoute) {
+      // Outside the app. Remember that, and clear any previous ready state so
+      // re-entering starts on the splash rather than flashing the app first.
+      cameFromApp.current = false;
+      setIsReady(false);
+      setFadeOut(false);
       return;
     }
 
-    // Check if we've already loaded successfully in this session
-    const hasLoaded = sessionStorage.getItem('app_loaded');
-    if (hasLoaded) {
+    if (cameFromApp.current) {
+      // App -> app navigation: stay out of the way.
       setIsReady(true);
       return;
     }
 
+    cameFromApp.current = true;
     initialize();
   }, [initialize, publicRoute]);
-
-  // Mark as loaded when ready
-  useEffect(() => {
-    if (isReady) {
-      sessionStorage.setItem('app_loaded', 'true');
-    }
-  }, [isReady]);
-
-  // Clear session flag on page unload for fresh check on next visit
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Only clear if navigating away, not refreshing
-      // This is handled by the service worker cache
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
 
   if (publicRoute || isReady) {
     return <>{children}</>;
@@ -181,16 +182,24 @@ export default function SplashScreen({ children }: SplashScreenProps) {
 
   return (
     <>
-      <div className={`${styles.splash} ${fadeOut ? styles.fadeOut : ''}`}>
+      <div
+        className={`${styles.splash} ${fadeOut ? styles.fadeOut : ''}`}
+        // The fading logo is the only loading affordance, so the announcement
+        // lives on the container rather than a (now removed) progress bar.
+        role={status === 'error' ? undefined : 'progressbar'}
+        aria-label={status === 'error' ? undefined : 'Loading Rovora'}
+      >
         <div className={styles.content}>
-          {/* Loading indicator — glowing conic-gradient ring spinner */}
-          {status !== 'error' && (
-            <div className={styles.loaderWrap} role="progressbar" aria-label="Loading">
-              <span className={styles.glow} />
-              <span className={styles.ring} />
-              <span className={styles.core} />
-            </div>
-          )}
+          {/* The mark alone, then the wordmark slides out from behind it — one
+              image, revealed by an animated clip. See the stylesheet. */}
+          <div className={styles.lockup}>
+            <img
+              src="/logo-full-white.png"
+              alt="Rovora"
+              className={styles.logo}
+              draggable={false}
+            />
+          </div>
 
           {/* Error state with retry button */}
           {showRetryButton && (

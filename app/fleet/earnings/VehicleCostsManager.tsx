@@ -318,11 +318,11 @@ export default function VehicleCostsManager({
 }
 
 const st: Record<string, CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 24, zIndex: 200, overflowY: 'auto' },
-  modal: { width: '100%', maxWidth: 620, background: 'var(--bg-0)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginTop: 24 },
-  modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 18px', gap: 12, borderBottom: '1px solid var(--line-1)' },
-  modalBody: { padding: 16, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' },
-  card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 200 },
+  modal: { width: '100%', maxWidth: 620, maxHeight: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-0)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
+  modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 18px', gap: 12, borderBottom: '1px solid var(--line-1)', flexShrink: 0 },
+  modalBody: { padding: 16, display: 'flex', flexDirection: 'column', gap: 14, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' },
+  card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', flexShrink: 0 },
   cardHeader: { padding: '12px 14px' },
   row: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--line-1)' },
   editRow: { display: 'flex', padding: '12px 14px', borderBottom: '1px solid var(--line-1)', background: 'var(--bg-2)' },
@@ -332,5 +332,5 @@ const st: Record<string, CSSProperties> = {
   miniBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' },
   savePrimary: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },
   linkBtn: { background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', padding: 0 },
-  alert: { padding: '10px 14px', borderRadius: 8, fontSize: 13 },
+  alert: { padding: '10px 14px', borderRadius: 8, fontSize: 13, flexShrink: 0 },
 };

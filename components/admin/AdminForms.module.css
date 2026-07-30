@@ -186,10 +186,15 @@
 }
 
 /* ─── Page header (breadcrumb + title) ─── */
+/* Title left, actions pinned to the right edge — same shape as the dashboard
+   and workspace headers. Back navigation is NOT an action: it belongs above the
+   title as a <FleetBackLink> chip, otherwise a short title leaves it stranded
+   mid-header. */
 .pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  flex-wrap: wrap;
   margin-bottom: 22px;
   gap: 16px;
 }

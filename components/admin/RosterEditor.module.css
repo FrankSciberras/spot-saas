@@ -24,30 +24,6 @@
   gap: var(--spacing-sm);
 }
 
-.backBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0.5rem 1rem;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.backBtn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.backBtn svg {
-  width: 16px;
-  height: 16px;
-}
-
 .saveBtn {
   padding: 0.6rem 1.25rem;
   background: var(--bg-secondary);
@@ -556,10 +532,6 @@
 }
 
 @media (max-width: 480px) {
-  .backBtn span {
-    display: none;
-  }
-
   .saveBtn,
   .publishBtn {
     padding: 0.5rem 1rem;

@@ -45,12 +45,12 @@ export default function FleetPageSkeleton({
 /* ───────────────────────── pieces ───────────────────────── */
 function Toolbar() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <Bar w={180} h={20} />
-        <Bar w={260} h={12} />
+        <Bar w={130} h={36} style={{ borderRadius: 8 }} />
       </div>
-      <Bar w={130} h={36} style={{ borderRadius: 8 }} />
+      <Bar w={260} h={12} />
     </div>
   );
 }

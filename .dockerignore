@@ -6,6 +6,9 @@ node_modules
 .gitignore
 mobile
 coverage
+# Agent scratch space — holds git worktrees with full stale copies of app/,
+# which would otherwise be COPY'd into the image by `COPY . .`.
+.claude
 .vercel
 .DS_Store
 *.log

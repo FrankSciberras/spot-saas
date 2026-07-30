@@ -412,39 +412,41 @@ export default function EarningsWorkspace({
       <div style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Financial / Bookkeeping</div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Bookkeeping</h1>
-          <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>Income &amp; expense tracking by week, month or custom period</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button style={st.ghostBtn} className="fleetHover" onClick={() => setShowVehicleCosts(true)}>
-            <FleetIcon name="vehicle" size={14} /> Vehicle costs
-          </button>
-          <button style={st.ghostBtn} className="fleetHover" onClick={() => setShowCategories(true)}>
-            <FleetIcon name="filter" size={14} /> Categories
-          </button>
-          {availableSettlementPeriods.length > 0 && (
-            <div style={st.selectWrap}>
-              <FleetIcon name="settle" size={14} />
-              <select
-                value=""
-                onChange={(e) => {
-                  const p = availableSettlementPeriods.find((x) => `${x.week_start}_${x.week_end}` === e.target.value);
-                  if (p) selectSettlementPeriod(p);
-                }}
-                style={st.select}
-              >
-                <option value="">Use a settlement period…</option>
-                {availableSettlementPeriods.map((p) => (
-                  <option key={`${p.week_start}_${p.week_end}`} value={`${p.week_start}_${p.week_end}`}>
-                    {p.week_label} ({formatPeriodRange(p.week_start, p.week_end)})
-                  </option>
-                ))}
-              </select>
+          <div style={st.titleRow}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Bookkeeping</h1>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button style={st.ghostBtn} className="fleetHover" onClick={() => setShowVehicleCosts(true)}>
+                <FleetIcon name="vehicle" size={14} /> Vehicle costs
+              </button>
+              <button style={st.ghostBtn} className="fleetHover" onClick={() => setShowCategories(true)}>
+                <FleetIcon name="filter" size={14} /> Categories
+              </button>
+              {availableSettlementPeriods.length > 0 && (
+                <div style={st.selectWrap}>
+                  <FleetIcon name="settle" size={14} />
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const p = availableSettlementPeriods.find((x) => `${x.week_start}_${x.week_end}` === e.target.value);
+                      if (p) selectSettlementPeriod(p);
+                    }}
+                    style={st.select}
+                  >
+                    <option value="">Use a settlement period…</option>
+                    {availableSettlementPeriods.map((p) => (
+                      <option key={`${p.week_start}_${p.week_end}`} value={`${p.week_start}_${p.week_end}`}>
+                        {p.week_label} ({formatPeriodRange(p.week_start, p.week_end)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <button style={st.primaryBtn} className="fleetHover" onClick={() => startNewPeriod('week')}>
+                <FleetIcon name="plus" size={14} stroke={2.2} /> New period
+              </button>
             </div>
-          )}
-          <button style={st.primaryBtn} className="fleetHover" onClick={() => startNewPeriod('week')}>
-            <FleetIcon name="plus" size={14} stroke={2.2} /> New period
-          </button>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>Income &amp; expense tracking by week, month or custom period</div>
         </div>
       </div>
 
@@ -723,6 +725,7 @@ export default function EarningsWorkspace({
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px', gap: 12 },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },
   ghostBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 7, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' },
   savePrimary: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },

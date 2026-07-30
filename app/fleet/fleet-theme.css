@@ -25,6 +25,10 @@
 /* ─── Tokens: dark (default) ─── */
 .fleetTheme,
 .fleetTheme[data-fleet-theme='dark'] {
+  /* Tell the browser to draw NATIVE widgets dark too. Without this, selects,
+     number spinners, checkboxes, date pickers, autofill and scrollbars keep
+     their light UA styling — black glyphs on our dark surfaces. */
+  color-scheme: dark;
   --bg-0: #0a0c11;
   --bg-1: #11141b;
   --bg-2: #161a23;
@@ -54,6 +58,7 @@
 
 /* ─── Tokens: light ─── */
 .fleetTheme[data-fleet-theme='light'] {
+  color-scheme: light;
   --bg-0: #f7f8fa;
   --bg-1: #ffffff;
   --bg-2: #f1f3f7;

@@ -34,7 +34,7 @@
   gap: 6px;
   padding: 8px 14px;
   background: var(--color-success);
-  color: white;
+  color: #fff;
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
@@ -44,7 +44,7 @@
 }
 
 .paidBtn:hover {
-  background: #047857;
+  filter: brightness(1.08);
 }
 
 .paidBtn svg {
@@ -58,7 +58,7 @@
   gap: 6px;
   padding: 8px 14px;
   background: var(--color-danger);
-  color: white;
+  color: #fff;
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
@@ -69,7 +69,7 @@
 }
 
 .deleteBtn:hover {
-  background: #b91c1c;
+  filter: brightness(1.08);
 }
 
 .deleteBtn svg {
@@ -114,8 +114,8 @@
 
 .error {
   padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--neg-soft, rgba(239, 68, 68, 0.1));
+  border: 1px solid var(--neg, rgba(239, 68, 68, 0.3));
   border-radius: var(--radius-md);
   color: var(--color-danger);
   font-size: var(--font-sm);
@@ -151,13 +151,13 @@
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
   font-weight: 500;
-  color: white;
+  color: #fff;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .confirmDeleteBtn:hover:not(:disabled) {
-  background: #b91c1c;
+  filter: brightness(1.08);
 }
 
 .confirmDeleteBtn:disabled,

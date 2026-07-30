@@ -39,7 +39,10 @@ function sanitize(input: PlatformInput): { error?: string; values?: Record<strin
   if (!name) return { error: 'Give the platform a name.' };
   if (name.length > 40) return { error: 'Platform name is too long (max 40 characters).' };
 
-  const icon = (input.icon || '').trim() || '🚗';
+  // Platforms are identified by colour + initial in the UI; the legacy `icon`
+  // column is still written so older rows/readers stay valid, but it is no
+  // longer surfaced and no longer defaults to an emoji.
+  const icon = (input.icon || '').trim();
   const color = /^#[0-9a-fA-F]{6}$/.test((input.color || '').trim()) ? input.color.trim() : '#2bbd7e';
 
   return {

@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import StaffForm from '@/components/admin/StaffForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -39,15 +39,11 @@ export default async function EditStaffPage({ params }: EditStaffPageProps) {
 
   return (
     <FleetShell user={user} title="Edit Staff">
+      <FleetBackLink href={`/fleet/staff/${staff.id}`} label="Back to staff member" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
           <h2>Edit Staff</h2>
           <span className={styles.subtitle}>Update staff member details</span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href={`/fleet/staff/${staff.id}`} className="btn btn-secondary">
-            ← Back to Details
-          </Link>
         </div>
       </div>
 

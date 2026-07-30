@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import type { PlatformConfig } from '@/lib/config/settlements';
 import { parseCsv, parseLocaleNumber, guessColumns, matchDriver, type ParsedCsv } from '@/lib/utils/csv';
 import { formatCurrency, round2 } from '@/lib/utils/settlementCalculations';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import styles from './settlement-import.module.css';
 
 export interface ImportedFigures {
@@ -180,7 +181,9 @@ export default function SettlementImportModal({ platforms, drivers, onApply, onC
               staged into this week&apos;s settlements — nothing is saved until you create the drafts.
             </p>
           </div>
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
+          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
+            <FleetIcon name="close" size={15} />
+          </button>
         </div>
 
         {/* Step 1: platform + file */}
@@ -189,7 +192,7 @@ export default function SettlementImportModal({ platforms, drivers, onApply, onC
             <span className={styles.mapLabel}>Platform</span>
             <select value={platformId} onChange={(e) => setPlatformId(e.target.value)} className={styles.select}>
               {platforms.map((p) => (
-                <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
           </label>

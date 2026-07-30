@@ -15,7 +15,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import type { PlatformConfig } from '@/lib/config/settlements';
+import { platformInitial, type PlatformConfig } from '@/lib/config/settlements';
 import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './earnings.module.css';
@@ -145,8 +145,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
       return {
         id,
         name: config?.name || platformNames[id] || id,
-        icon: config?.icon || '📊',
-        color: config?.color || '#8884d8',
+        color: config?.color || '#2bbd7e',
         total: platformTotals[id] || 0,
         percentage: totalNet > 0 ? ((platformTotals[id] || 0) / totalNet) * 100 : 0,
       };
@@ -196,9 +195,9 @@ export default function EarningsClient({ settlements: allSettlements, driverName
     ? ((currentWeekTotal - lastWeekTotal) / lastWeekTotal) * 100
     : 0;
 
-  // Get platform icon
-  const getPlatformIcon = (platformId: string) => {
-    return platforms.find(p => p.id === platformId)?.icon || '📊';
+  // Platforms read as their own colour rather than an emoji.
+  const getPlatformColor = (platformId: string) => {
+    return platforms.find(p => p.id === platformId)?.color || '#2bbd7e';
   };
 
   // Chart max for scaling
@@ -612,7 +611,13 @@ export default function EarningsClient({ settlements: allSettlements, driverName
                 {stats.platformBreakdown.map(platform => (
                   <div key={platform.id} className={styles.platformCard}>
                     <div className={styles.platformHeader}>
-                      <span className={styles.platformIcon}>{platform.icon}</span>
+                      <span
+                        className={styles.platformIcon}
+                        style={{ background: platform.color }}
+                        aria-hidden
+                      >
+                        {platformInitial(platform.name)}
+                      </span>
                       <span className={styles.platformName}>{platform.name}</span>
                     </div>
                     <div className={styles.platformAmount}>
@@ -676,7 +681,8 @@ export default function EarningsClient({ settlements: allSettlements, driverName
           <div className={styles.bestWeekBreakdown}>
             {stats.bestWeek.settlement_platforms.map(p => (
               <span key={p.id} className={styles.bestWeekPlatform}>
-                {getPlatformIcon(p.platform_id)} {formatCurrency(p.net)}
+                <span className={styles.platformSwatch} style={{ background: getPlatformColor(p.platform_id) }} aria-hidden />
+                {formatCurrency(p.net)}
               </span>
             ))}
           </div>
@@ -731,7 +737,8 @@ export default function EarningsClient({ settlements: allSettlements, driverName
                   <div className={styles.platformTags}>
                     {settlement.settlement_platforms.map(p => (
                       <span key={p.id} className={styles.platformTag}>
-                        {getPlatformIcon(p.platform_id)} {formatCurrency(p.net)}
+                        <span className={styles.platformSwatch} style={{ background: getPlatformColor(p.platform_id) }} aria-hidden />
+                        {formatCurrency(p.net)}
                       </span>
                     ))}
                   </div>

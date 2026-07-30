@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import VehicleForm from '@/components/admin/VehicleForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -48,17 +48,13 @@ export default async function EditVehiclePage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title={`Edit: ${vehicle.registration_number}`}>
+      <FleetBackLink href={`/fleet/vehicles/${id}`} label="Back to vehicle" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
           <h2>Edit Vehicle</h2>
           <span className={styles.subtitle}>
             Updating: {vehicle.registration_number} - {vehicle.make} {vehicle.model}
           </span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href={`/fleet/vehicles/${id}`} className="btn btn-secondary">
-            ← Back to Vehicle
-          </Link>
         </div>
       </div>
 

@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import VehicleDamageTracker from '@/components/admin/VehicleDamageTracker';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -98,11 +98,9 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
       user={user}
       title={`Damages - ${vehicle.registration_number}`}
     >
+      <FleetBackLink href={`/fleet/vehicles/${id}`} label="Back to vehicle" />
       <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitle}>
-          <Link href={`/fleet/vehicles/${id}`} className={styles.backButton} aria-label="Back to vehicle">
-            <span>←</span>
-          </Link>
           <div className={styles.pageTitleMain}>
             <div className={styles.breadcrumb}>Vehicles / {vehicle.registration_number} / Damages</div>
             <h2>Vehicle Damages</h2>
@@ -110,11 +108,6 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
               {vehicle.registration_number} · {vehicle.make} {vehicle.model} {vehicle.year && `(${vehicle.year})`}
             </span>
           </div>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href={`/fleet/vehicles/${id}`} className="btn btn-secondary">
-            ← Back to Vehicle
-          </Link>
         </div>
       </div>
 

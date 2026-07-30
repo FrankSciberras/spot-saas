@@ -1356,7 +1356,7 @@ const VehicleModelsPage = () => {
 
   return (
     <div style={ap.scroll} className="pad-mobile">
-      <div style={{ padding: '20px 0 14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ padding: '20px 0 14px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ maxWidth: 560 }}>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Shared across every fleet</div>
           <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Car diagram presets operators pick from.</div>

@@ -30,6 +30,22 @@ export interface OrgPlatformLike {
 }
 
 /**
+ * Swatches offered when picking a platform's colour. A platform is identified in
+ * the UI by its colour + initial, not by an emoji — emoji render inconsistently
+ * across phones/desktops and can't inherit the fleet light/dark palette.
+ */
+export const PLATFORM_COLORS: string[] = [
+  '#2bbd7e', '#34d399', '#0ea5e9', '#38bdf8', '#6366f1', '#8b5cf6',
+  '#a78bfa', '#ec4899', '#f472b6', '#ef4444', '#f97316', '#f59e0b',
+  '#eab308', '#84cc16', '#14b8a6', '#64748b',
+];
+
+/** First letter of a platform name, for the coloured identity chip. */
+export function platformInitial(name: string): string {
+  return (name.trim().charAt(0) || '?').toUpperCase();
+}
+
+/**
  * Resolve the platform list for a fleet: its org_platforms rows when any
  * exist, otherwise the hardcoded defaults.
  */
@@ -39,32 +55,38 @@ export function resolvePlatforms(rows: OrgPlatformLike[] | null | undefined): Pl
     id: r.key,
     name: r.name,
     defaultFeePercent: clampPercent(r.default_fee_pct, 10),
-    icon: r.icon || '🚗',
+    icon: r.icon || '',
     color: r.color || '#2bbd7e',
   }));
 }
 
+/**
+ * `icon` is intentionally blank: platforms are drawn as a coloured circle with
+ * the platform's initial. The field is kept on the type because the
+ * org_platforms column still exists, but nothing renders it.
+ */
 export const PLATFORMS: PlatformConfig[] = [
-  { 
-    id: 'bolt', 
-    name: 'Bolt', 
-    defaultFeePercent: 10, 
-    icon: '⚡', 
-    color: '#34D186' 
+  {
+    id: 'bolt',
+    name: 'Bolt',
+    defaultFeePercent: 10,
+    icon: '',
+    color: '#34d186',
   },
-  { 
-    id: 'uber', 
-    name: 'Uber', 
-    defaultFeePercent: 10, 
-    icon: '🚗', 
-    color: '#000000' 
+  {
+    id: 'uber',
+    name: 'Uber',
+    defaultFeePercent: 10,
+    icon: '',
+    // Uber's black reads as a hole on the dark fleet theme — use a neutral slate.
+    color: '#64748b',
   },
-  { 
-    id: 'ecabs', 
-    name: 'Ecabs', 
-    defaultFeePercent: 10, 
-    icon: '🚕', 
-    color: '#FFB800' 
+  {
+    id: 'ecabs',
+    name: 'Ecabs',
+    defaultFeePercent: 10,
+    icon: '',
+    color: '#f59e0b',
   },
 ];
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { PLATFORMS } from '@/lib/config/settlements';
+import { PLATFORMS, platformInitial } from '@/lib/config/settlements';
 import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './driver-settlements.module.css';
@@ -91,7 +91,7 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
     const startDate = getMonday(firstDay);
     
     const weeks: { dates: Date[]; settlement: SettlementWithPlatforms | null }[] = [];
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     
     // Generate 6 weeks max
     for (let w = 0; w < 6; w++) {
@@ -121,9 +121,9 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
     setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  // Get platform icon
-  const getPlatformIcon = (platformId: string) => {
-    return PLATFORMS.find(p => p.id === platformId)?.icon || '📊';
+  // A platform is shown as its own colour, not an emoji.
+  const getPlatformColor = (platformId: string) => {
+    return PLATFORMS.find(p => p.id === platformId)?.color || '#2bbd7e';
   };
 
   // Get the most recent settlement for the balance card
@@ -317,8 +317,12 @@ export default function SettlementsClient({ settlements: allSettlements }: Settl
                   {settlement.settlement_platforms.map(platform => (
                     <div key={platform.id} className={styles.platformRow}>
                       <span className={styles.platformName}>
-                        <span className={styles.platformIcon}>
-                          {getPlatformIcon(platform.platform_id)}
+                        <span
+                          className={styles.platformIcon}
+                          style={{ background: getPlatformColor(platform.platform_id) }}
+                          aria-hidden
+                        >
+                          {platformInitial(platform.platform_name)}
                         </span>
                         {platform.platform_name}
                       </span>

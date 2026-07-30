@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import VehicleForm from '@/components/admin/VehicleForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -22,16 +22,12 @@ export default async function NewVehiclePage() {
 
   return (
     <FleetShell user={user} title="Add New Vehicle">
+      <FleetBackLink href="/fleet/vehicles" label="Back to vehicles" />
       <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitleMain}>
           <div className={styles.breadcrumb}>Operations / Vehicles / New</div>
           <h2>Add New Vehicle</h2>
           <span className={styles.subtitle}>Register a new vehicle to your fleet</span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href="/fleet/vehicles" className="btn btn-secondary">
-            ← Back to Vehicles
-          </Link>
         </div>
       </div>
 

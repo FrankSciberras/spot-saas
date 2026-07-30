@@ -6,6 +6,7 @@ import type { FinanceCategory } from '@/lib/config/financeCategories';
 import { buildBookkeepingTxns, toQuickBooksCsv, toXeroCsv } from '@/lib/utils/accountingExport';
 import { splitAcrossMonths } from '@/lib/utils/bookkeepingPeriods';
 import DatePicker from '@/components/shared/DatePicker';
+import WeekMultiSelect, { type WeekOption } from './WeekMultiSelect';
 import styles from './FinancialsDashboard.module.css';
 import {
   ResponsiveContainer,
@@ -109,6 +110,11 @@ function getQuarter(d: Date): 1 | 2 | 3 | 4 {
 function formatShortDate(dateStr: string): string {
   const d = parseISO(dateStr);
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+
+/** The key a settlement gets in the weekly period list — must match it exactly. */
+function settlementWeekKey(s: Pick<DriverSettlement, 'week_start' | 'week_end'>): string {
+  return `${s.week_start.split('T')[0]}_${s.week_end.split('T')[0]}`;
 }
 
 function initTotals(): CategoryTotals {
@@ -275,6 +281,26 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
   const [startDate, setStartDate] = useState<string>(activeRange.start);
   const [endDate, setEndDate] = useState<string>(activeRange.end);
 
+  /**
+   * Weeks ticked in the weekly bulk picker, or `null` when nothing has been
+   * ticked and the From/To range alone decides what is in scope.
+   *
+   * Kept separate from the range because a pay cycle can skip a week: with an
+   * explicit list the totals cover exactly the ticked weeks, not everything
+   * that happens to fall between the first and the last one.
+   */
+  const [weekSelection, setWeekSelection] = useState<string[] | null>(null);
+
+  /** Any range change that did not come from the week picker drops the ticks. */
+  const pickStartDate = (value: string) => {
+    setStartDate(value);
+    setWeekSelection(null);
+  };
+  const pickEndDate = (value: string) => {
+    setEndDate(value);
+    setWeekSelection(null);
+  };
+
   useEffect(() => {
     if (groupBy !== 'all_time') return;
     setStartDate(activeRange.start);
@@ -284,7 +310,17 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
   useEffect(() => {
     setStartDate(activeRange.start);
     setEndDate(activeRange.end);
+    setWeekSelection(null);
   }, [activeRange.end, activeRange.start, mode]);
+
+  const fleetWeekFilter = useMemo(
+    () => (groupBy === 'weekly' && mode === 'fleet' && weekSelection ? new Set(weekSelection) : null),
+    [groupBy, mode, weekSelection],
+  );
+  const driverWeekFilter = useMemo(
+    () => (groupBy === 'weekly' && mode === 'drivers' && weekSelection ? new Set(weekSelection) : null),
+    [groupBy, mode, weekSelection],
+  );
 
   const [adjustmentsByDriver, setAdjustmentsByDriver] = useState<Record<string, DriverAdjustment[]>>({});
 
@@ -319,6 +355,8 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
 
   const filteredEntries = useMemo(() => {
     if (groupBy === 'all_time') return sortedEntries;
+    if (fleetWeekFilter) return sortedEntries.filter((e) => fleetWeekFilter.has(e.id));
+
     const start = parseISO(startDate);
     const end = parseISO(endDate);
 
@@ -327,11 +365,12 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
       const ed = parseISO(e.end_date);
       return ed >= start && s <= end;
     });
-  }, [groupBy, sortedEntries, startDate, endDate]);
+  }, [fleetWeekFilter, groupBy, sortedEntries, startDate, endDate]);
 
   const filteredSettlements = useMemo(() => {
     const base = selectedDriverId === 'all' ? sortedSettlements : sortedSettlements.filter((s) => s.driver_id === selectedDriverId);
     if (groupBy === 'all_time') return base;
+    if (driverWeekFilter) return base.filter((s) => driverWeekFilter.has(settlementWeekKey(s)));
 
     const start = parseISO(startDate);
     const end = parseISO(endDate);
@@ -341,7 +380,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
       const sEnd = parseISO(s.week_end);
       return sEnd >= start && sStart <= end;
     });
-  }, [endDate, groupBy, selectedDriverId, sortedSettlements, startDate]);
+  }, [driverWeekFilter, endDate, groupBy, selectedDriverId, sortedSettlements, startDate]);
 
   const allFleetPeriodOptions = useMemo(() => {
     if (groupBy === 'all_time') return [{ key: 'all_time', label: 'All time', start: bookkeepingRange.start, end: bookkeepingRange.end }];
@@ -398,7 +437,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
       if (groupBy === 'weekly') {
         start = s.week_start.split('T')[0];
         end = s.week_end.split('T')[0];
-        key = `${start}_${end}`;
+        key = settlementWeekKey(s);
         label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
       } else if (groupBy === 'monthly') {
         const mStart = startOfMonth(weekStart);
@@ -425,6 +464,30 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
     arr.sort((a, b) => parseISO(a.start).getTime() - parseISO(b.start).getTime());
     return arr;
   }, [groupBy, selectedDriverId, settlementsRange.end, settlementsRange.start, sortedSettlements]);
+
+  /** Every week the bulk picker can offer, oldest → newest. */
+  const weekOptions: WeekOption[] = mode === 'fleet' ? allFleetPeriodOptions : allDriverPeriodOptions;
+
+  /**
+   * Ticks to show in the picker. Before anything is ticked they are inferred
+   * from the From/To range, so the picker opens already reflecting what the
+   * page is showing rather than looking empty.
+   */
+  const selectedWeekKeys = useMemo(() => {
+    if (weekSelection) return weekSelection;
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+    return weekOptions.filter((o) => parseISO(o.end) >= start && parseISO(o.start) <= end).map((o) => o.key);
+  }, [endDate, startDate, weekOptions, weekSelection]);
+
+  /** Ticking weeks also pulls the From/To range out to span them. */
+  const applyWeekSelection = (keys: string[]) => {
+    setWeekSelection(keys);
+    const picked = weekOptions.filter((o) => keys.includes(o.key));
+    if (picked.length === 0) return;
+    setStartDate(picked[0].start);
+    setEndDate(picked[picked.length - 1].end);
+  };
 
   const aggregated = useMemo<AggregatedPeriod[]>(() => {
     const map = new Map<string, AggregatedPeriod>();
@@ -565,7 +628,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
       } else if (groupBy === 'weekly') {
         start = s.week_start.split('T')[0];
         end = s.week_end.split('T')[0];
-        key = `${start}_${end}`;
+        key = settlementWeekKey(s);
         label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
       } else if (groupBy === 'monthly') {
         const mStart = startOfMonth(weekStart);
@@ -1122,13 +1185,15 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
                 {mode === 'fleet'
                   ? 'Advanced breakdown from Weekly Bookkeeping entries'
                   : 'Compare drivers by gross, net and payout from Driver Settlements'}
-                {(startDate !== activeRange.start || endDate !== activeRange.end) && groupBy !== 'all_time' ? (
+                {(startDate !== activeRange.start || endDate !== activeRange.end || weekSelection !== null) &&
+                groupBy !== 'all_time' ? (
                   <button
                     type="button"
                     className={styles.resetLink}
                     onClick={() => {
                       setStartDate(activeRange.start);
                       setEndDate(activeRange.end);
+                      setWeekSelection(null);
                     }}
                   >
                     Reset to all dates
@@ -1203,7 +1268,10 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
                 <select
                   className={styles.select}
                   value={selectedDriverId}
-                  onChange={(e) => setSelectedDriverId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDriverId(e.target.value);
+                    setWeekSelection(null);
+                  }}
                 >
                   <option value="all">All drivers</option>
                   {drivers.map((d) => (
@@ -1219,7 +1287,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
               <div className={styles.filterLabel}>From</div>
               <DatePicker
                 value={startDate}
-                onChange={setStartDate}
+                onChange={pickStartDate}
                 maxDate={endDate}
                 disabled={groupBy === 'all_time'}
               />
@@ -1228,7 +1296,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
               <div className={styles.filterLabel}>To</div>
               <DatePicker
                 value={endDate}
-                onChange={setEndDate}
+                onChange={pickEndDate}
                 minDate={startDate}
                 maxDate={safeIso(new Date())}
                 disabled={groupBy === 'all_time'}
@@ -1239,7 +1307,10 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
               <select
                 className={styles.select}
                 value={groupBy}
-                onChange={(e) => setGroupBy(e.target.value as GroupByWithAllTime)}
+                onChange={(e) => {
+                  setGroupBy(e.target.value as GroupByWithAllTime);
+                  setWeekSelection(null);
+                }}
               >
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
@@ -1248,7 +1319,17 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
                 <option value="all_time">All time</option>
               </select>
             </div>
-            {mode === 'fleet' ? (
+            {groupBy === 'weekly' ? (
+              <div className={`${styles.filterGroup} ${styles.filterGroupWide}`}>
+                <div className={styles.filterLabel}>Weeks (Active Period)</div>
+                <WeekMultiSelect
+                  options={weekOptions}
+                  selectedKeys={selectedWeekKeys}
+                  onChange={applyWeekSelection}
+                  disabled={weekOptions.length === 0}
+                />
+              </div>
+            ) : mode === 'fleet' ? (
               <div className={styles.filterGroup}>
                 <div className={styles.filterLabel}>Active Period</div>
                 <select
@@ -1569,6 +1650,20 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
                 <div className={styles.panelTitle}>Journal Preview</div>
                 <div className={styles.panelSubtitle}>Suggested bookkeeping entries for the active period</div>
               </div>
+              {aggregated.length > 1 ? (
+                <select
+                  className={styles.panelSelect}
+                  value={selectedKey ?? ''}
+                  onChange={(e) => setSelectedKey(e.target.value)}
+                  title="Which period the journal below covers"
+                >
+                  {aggregated.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </div>
 
             <div className={styles.journalGrid}>
@@ -1751,9 +1846,25 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
             </div>
 
             <div className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div className={styles.panelTitle}>{selectedDriverId === 'all' ? 'Top Drivers' : 'Driver Summary'}</div>
-                <div className={styles.panelSubtitle}>{selectedDriverId === 'all' ? 'Ranked by total gross' : 'Selected period details'}</div>
+              <div className={styles.panelHeaderRow}>
+                <div>
+                  <div className={styles.panelTitle}>{selectedDriverId === 'all' ? 'Top Drivers' : 'Driver Summary'}</div>
+                  <div className={styles.panelSubtitle}>{selectedDriverId === 'all' ? 'Ranked by total gross' : 'Selected period details'}</div>
+                </div>
+                {selectedDriverId !== 'all' && driverAggregated.length > 1 ? (
+                  <select
+                    className={styles.panelSelect}
+                    value={selectedKey ?? ''}
+                    onChange={(e) => setSelectedKey(e.target.value)}
+                    title="Which period the breakdown below covers"
+                  >
+                    {driverAggregated.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
               </div>
 
               {selectedDriverId === 'all' ? (

@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import StaffForm from '@/components/admin/StaffForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -29,15 +29,11 @@ export default async function NewStaffPage() {
 
   return (
     <FleetShell user={user} title="Add New Staff">
+      <FleetBackLink href="/fleet/staff" label="Back to staff" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
           <h2>Add New Staff</h2>
           <span className={styles.subtitle}>Create a new account or grant staff access to an existing driver</span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href="/fleet/staff" className="btn btn-secondary">
-            ← Back to Staff
-          </Link>
         </div>
       </div>
 

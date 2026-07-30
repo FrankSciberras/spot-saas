@@ -646,6 +646,7 @@
 .rovora-site .chat-head-txt strong { font-size: 14.5px; color: var(--text-1); font-weight: 500; }
 .rovora-site .chat-status { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
 .rovora-site .chat-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); display: inline-block; }
+.rovora-site .chat-head-actions { display: flex; align-items: center; gap: 2px; }
 .rovora-site .chat-x {
   flex: none; width: 30px; height: 30px; border-radius: 8px;
   border: none; background: transparent; color: var(--text-3); cursor: pointer;

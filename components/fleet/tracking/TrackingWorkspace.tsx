@@ -212,7 +212,6 @@ export default function TrackingWorkspace({
       circlesRef.current.clear();
       draftCircleRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Realtime: stream position changes for this org.

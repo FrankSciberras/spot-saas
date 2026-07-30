@@ -139,7 +139,7 @@ export async function sendPlatformBroadcastAction(input: SendBroadcastInput): Pr
       for (const u of users) {
         try {
           const sent = await sendPushNotification(u.id, { title, body, url: actionUrl || '/fleet/notifications' });
-          sent ? results.push.sent++ : results.push.failed++;
+          if (sent) results.push.sent++; else results.push.failed++;
         } catch { results.push.failed++; }
       }
     }
@@ -147,7 +147,7 @@ export async function sendPlatformBroadcastAction(input: SendBroadcastInput): Pr
       for (const u of users) {
         try {
           const sent = await sendEmailNotification({ to: u.email, subject: title, body, driverName: u.full_name || undefined, actionUrl: actionUrl || undefined });
-          sent ? results.email.sent++ : results.email.failed++;
+          if (sent) results.email.sent++; else results.email.failed++;
         } catch { results.email.failed++; }
       }
     }
@@ -209,7 +209,7 @@ export async function sendPlatformBroadcastAction(input: SendBroadcastInput): Pr
         if (!d.user_id) { results.push.failed++; continue; }
         try {
           const sent = await sendPushNotification(d.user_id, { title, body, url: actionUrl || '/driver/notifications' });
-          sent ? results.push.sent++ : results.push.failed++;
+          if (sent) results.push.sent++; else results.push.failed++;
         } catch { results.push.failed++; }
       }
     }
@@ -219,7 +219,7 @@ export async function sendPlatformBroadcastAction(input: SendBroadcastInput): Pr
         if (!email) { results.email.failed++; continue; }
         try {
           const sent = await sendEmailNotification({ to: email, subject: title, body, driverName: d.full_name, actionUrl: actionUrl || undefined });
-          sent ? results.email.sent++ : results.email.failed++;
+          if (sent) results.email.sent++; else results.email.failed++;
         } catch { results.email.failed++; }
       }
     }

@@ -508,7 +508,17 @@
 }
 
 .platformIcon {
-  font-size: 1.25rem;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
 
 .platformName {
@@ -626,6 +636,8 @@
 }
 
 .bestWeekPlatform {
+  display: inline-flex;
+  align-items: center;
   background: rgba(var(--color-warning-rgb), 0.2);
   padding: 6px 12px;
   border-radius: var(--radius-md);
@@ -736,6 +748,8 @@
 }
 
 .platformTag {
+  display: inline-flex;
+  align-items: center;
   background: var(--bg-tertiary);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -1054,4 +1068,15 @@
   .emptyState p {
     font-size: var(--font-sm);
   }
+}
+
+/* Small colour dot standing in for the old per-platform emoji. */
+.platformSwatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: baseline;
 }

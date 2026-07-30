@@ -36,10 +36,13 @@ import {
 import {
   COMPONENT_META,
   DEFAULT_COMPONENTS,
+  PLATFORM_COLORS,
+  platformInitial,
   resolveComponents,
   type SettlementComponentKey,
   type SettlementComponents,
 } from '@/lib/config/settlements';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './settlements-settings.module.css';
 
 export interface DriverPresetRow {
@@ -297,6 +300,7 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
 
   return (
     <div className={styles.container}>
+      <FleetBackLink href="/fleet/settlements" label="Back to settlements" />
       <div className={styles.header}>
         <div className={styles.breadcrumb}>Settlements / Settlement Rules</div>
         <div className={styles.titleRow}>
@@ -764,7 +768,7 @@ interface PlatformForm {
   color: string;
 }
 
-const EMPTY_PLATFORM: PlatformForm = { name: '', feePct: '10', icon: '🚗', color: '#2bbd7e' };
+const EMPTY_PLATFORM: PlatformForm = { name: '', feePct: '10', icon: '', color: '#2bbd7e' };
 
 function platformInput(f: PlatformForm): PlatformInput {
   return {
@@ -791,6 +795,8 @@ function PlatformsCard({ platforms, onError, onDone }: PlatformsCardProps) {
 
   const set = (field: keyof PlatformForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const setColor = (color: string) => setForm((prev) => ({ ...prev, color }));
 
   const openNew = () => {
     setForm(EMPTY_PLATFORM);
@@ -874,14 +880,16 @@ function PlatformsCard({ platforms, onError, onDone }: PlatformsCardProps) {
           const isBusy = busyId === p.id;
           if (editing === p.id) {
             return (
-              <PlatformEditor key={p.id} form={form} set={set} saving={saving} onSave={save} onCancel={() => setEditing(null)} />
+              <PlatformEditor key={p.id} form={form} set={set} setColor={setColor} saving={saving} onSave={save} onCancel={() => setEditing(null)} />
             );
           }
           return (
             <div key={p.id} className={`${styles.presetCard} ${!p.is_active ? styles.platformInactive : ''}`}>
               <div className={styles.presetInfo}>
                 <div className={styles.presetName}>
-                  <span>{p.icon}</span>
+                  <span className={styles.platformDot} style={{ background: p.color }} aria-hidden>
+                    {platformInitial(p.name)}
+                  </span>
                   {p.name}
                   {!p.is_active && <span className={styles.inactiveBadge}>Hidden</span>}
                 </div>
@@ -905,7 +913,7 @@ function PlatformsCard({ platforms, onError, onDone }: PlatformsCardProps) {
         })}
 
         {editing === 'new' && (
-          <PlatformEditor form={form} set={set} saving={saving} onSave={save} onCancel={() => setEditing(null)} />
+          <PlatformEditor form={form} set={set} setColor={setColor} saving={saving} onSave={save} onCancel={() => setEditing(null)} />
         )}
 
         {platforms.length === 0 && editing === null && (
@@ -922,12 +930,13 @@ function PlatformsCard({ platforms, onError, onDone }: PlatformsCardProps) {
 interface PlatformEditorProps {
   form: PlatformForm;
   set: (field: keyof PlatformForm) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+  setColor: (color: string) => void;
   saving: boolean;
   onSave: () => void;
   onCancel: () => void;
 }
 
-function PlatformEditor({ form, set, saving, onSave, onCancel }: PlatformEditorProps) {
+function PlatformEditor({ form, set, setColor, saving, onSave, onCancel }: PlatformEditorProps) {
   return (
     <div className={styles.editorCard}>
       <div className={styles.editorGrid}>
@@ -954,25 +963,39 @@ function PlatformEditor({ form, set, saving, onSave, onCancel }: PlatformEditorP
             <span className={styles.pctSuffix}>% commission</span>
           </span>
         </label>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Icon (emoji)</span>
-          <input
-            type="text"
-            value={form.icon}
-            onChange={set('icon')}
-            className={styles.iconInput}
-            maxLength={4}
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Color</span>
-          <input
-            type="color"
-            value={form.color}
-            onChange={set('color')}
-            className={styles.colorInput}
-          />
-        </label>
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>Colour</span>
+          <div className={styles.swatchRow}>
+            {/* Live preview of how the platform will read in the settlement form */}
+            <span
+              className={styles.platformDotLg}
+              style={{ background: form.color }}
+              aria-hidden
+            >
+              {platformInitial(form.name)}
+            </span>
+            <div className={styles.swatchGrid}>
+              {PLATFORM_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  title={color}
+                  aria-label={`Use ${color}`}
+                  aria-pressed={form.color.toLowerCase() === color.toLowerCase()}
+                  onClick={() => setColor(color)}
+                  className={styles.swatch}
+                  style={{
+                    background: color,
+                    outline: form.color.toLowerCase() === color.toLowerCase()
+                      ? '2px solid var(--text-1)'
+                      : 'none',
+                    outlineOffset: 2,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
       <div className={styles.editorActions}>
         <button type="button" className="btn btn-primary" disabled={saving} onClick={onSave}>

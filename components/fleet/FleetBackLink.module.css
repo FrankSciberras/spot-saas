@@ -1,0 +1,28 @@
+/* Back chip for fleet sub-pages. Mirrors .backLink in DriverProfile.module.css
+   and VehicleProfile.module.css — keep the three in sync. */
+.row {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.flush {
+  margin-bottom: 0;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text-1);
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.link:hover { background: var(--bg-2); border-color: var(--line-3); }
+.link svg { fill: none; stroke: currentColor; color: var(--text-3); }
+.link:hover svg { color: var(--text-1); }

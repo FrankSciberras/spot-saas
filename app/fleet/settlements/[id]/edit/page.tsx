@@ -1,9 +1,9 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from '../../settlements.module.css';
 
 interface PageProps {
@@ -47,17 +47,13 @@ export default async function EditSettlementPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title="Edit Settlement">
+      <FleetBackLink href="/fleet/settlements" label="Back to settlements" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
           <h2>Edit Settlement</h2>
           <p className={styles.pageSubtitle}>
             {driverName} • {settlement.week_label}
           </p>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href="/fleet/settlements" className="btn btn-secondary">
-            ← Back to Settlements
-          </Link>
         </div>
       </div>
 

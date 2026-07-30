@@ -1,9 +1,9 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import ServiceForm from '@/components/admin/ServiceForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -38,17 +38,13 @@ export default async function EditServicePage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title="Edit Service">
+      <FleetBackLink href={`/fleet/services/${id}`} label="Back to service" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
           <h2>Edit Service</h2>
           <span className={styles.subtitle}>
             Update service record details
           </span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href={`/fleet/services/${id}`} className="btn btn-secondary">
-            ← Back to Service
-          </Link>
         </div>
       </div>
 

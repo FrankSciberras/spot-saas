@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import DriverInlineEdit from '@/components/admin/DriverInlineEdit';
 import DeleteDriverButton from '@/components/admin/DeleteDriverButton';
 import styles from '@/components/admin/AdminForms.module.css';
@@ -60,11 +61,9 @@ export default async function EditDriverPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title={`Edit: ${driver.full_name}`}>
+      <FleetBackLink href={`/fleet/drivers/${id}`} label="Back to driver" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href={`/fleet/drivers/${id}`} className={styles.backButton} aria-label="Back to driver">
-            <span>←</span>
-          </Link>
           <div className={styles.pageTitleMain}>
             <h2>{driver.full_name}</h2>
             <span className={styles.subtitle}>

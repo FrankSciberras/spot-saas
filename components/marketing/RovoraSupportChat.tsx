@@ -91,6 +91,57 @@ const GREETING: Msg = {
   text: "Hi! 👋 I'm Rovora's assistant. Ask me anything about features, pricing, which plan fits your fleet or getting set up — or, any time, press “Talk to a real person” to reach our team.",
 };
 
+// ── Conversation persistence ─────────────────────────────────────────────────
+// Visitors lose their thread on any reload — an accidental refresh, a flaky
+// mobile connection, or clicking through to /pricing and coming back. We keep it
+// on the DEVICE in localStorage.
+//
+// Deliberately NOT stored server-side against the visitor's IP: IPs are shared
+// (office Wi-Fi, mobile carriers, NAT), so one visitor would be handed another's
+// conversation, and it would mean holding chat transcripts + IPs — personal data
+// — for an anonymous public page. localStorage is per-device, per-browser, needs
+// no consent banner, and never leaves the visitor's machine.
+
+const STORE_KEY = 'rovora_chat_v1';
+const STORE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // forget a conversation after a week
+const STORE_MAX_MSGS = 60; // keep the stored thread small
+
+type Saved = { v: 1; savedAt: number; msgs: Msg[] };
+
+function loadSaved(): Saved | null {
+  try {
+    const raw = window.localStorage.getItem(STORE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Saved> | null;
+    if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.msgs) || typeof parsed.savedAt !== 'number') {
+      return null;
+    }
+    if (Date.now() - parsed.savedAt > STORE_TTL_MS) {
+      window.localStorage.removeItem(STORE_KEY);
+      return null;
+    }
+    // Trust nothing that came back out of storage — it's user-writable.
+    const msgs = parsed.msgs.filter(
+      (m): m is Msg =>
+        !!m && typeof m.id === 'number' && typeof m.text === 'string' && (m.from === 'bot' || m.from === 'user'),
+    );
+    if (!msgs.length) return null;
+    return { v: 1, savedAt: parsed.savedAt, msgs };
+  } catch {
+    return null;
+  }
+}
+
+function saveThread(msgs: Msg[]) {
+  try {
+    const payload: Saved = { v: 1, savedAt: Date.now(), msgs: msgs.slice(-STORE_MAX_MSGS) };
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+  } catch {
+    // Private mode, quota, or storage disabled. Persistence is a nicety —
+    // never let it break the chat itself.
+  }
+}
+
 // Subject + body the "Talk to a real person" button pre-fills. We append a short
 // transcript so whoever picks up the email has the visitor's context.
 function humanMailto(msgs: Msg[]): string {
@@ -112,8 +163,35 @@ export default function RovoraSupportChat() {
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
   const nextId = useRef(1);
+  const restored = useRef(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Pull the saved thread back the first time the visitor opens the panel.
+  // Deliberately done here rather than in a mount effect: the server and the
+  // first client render then stay identical (localStorage doesn't exist during
+  // SSR), so there's no hydration mismatch and no cascading re-render.
+  function restoreOnce() {
+    if (restored.current) return;
+    restored.current = true;
+    const saved = loadSaved();
+    if (!saved) return;
+    setMsgs(saved.msgs);
+    nextId.current = saved.msgs.reduce((max, m) => Math.max(max, m.id), 0) + 1;
+  }
+
+  function toggleOpen() {
+    if (!open) restoreOnce();
+    setOpen((o) => !o);
+  }
+
+  // Persist on every change — but never before the restore pass has run, or we'd
+  // overwrite a saved thread with the empty starting state.
+  useEffect(() => {
+    if (!restored.current) return;
+    if (msgs.length <= 1) return; // nothing worth keeping yet
+    saveThread(msgs);
+  }, [msgs]);
 
   // Keep the transcript pinned to the newest message.
   useEffect(() => {
@@ -123,6 +201,19 @@ export default function RovoraSupportChat() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  // Wipe the thread from this device — also the visitor's privacy control.
+  function startOver() {
+    try {
+      window.localStorage.removeItem(STORE_KEY);
+    } catch {
+      /* storage unavailable — the in-memory reset below still applies */
+    }
+    nextId.current = 1;
+    setMsgs([GREETING]);
+    setDraft('');
+    inputRef.current?.focus();
+  }
 
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -181,11 +272,22 @@ export default function RovoraSupportChat() {
                 <span className="chat-status"><i /> Ask anything · or reach a human</span>
               </div>
             </div>
-            <button className="chat-x" onClick={() => setOpen(false)} aria-label="Close chat">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </button>
+            <div className="chat-head-actions">
+              {/* Only offer this once there's an actual conversation to clear. */}
+              {msgs.length > 1 && (
+                <button className="chat-x" onClick={startOver} aria-label="Start a new chat" title="Start a new chat">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+              )}
+              <button className="chat-x" onClick={() => setOpen(false)} aria-label="Close chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div className="chat-body" ref={bodyRef}>
@@ -237,7 +339,7 @@ export default function RovoraSupportChat() {
 
       <button
         className="chat-launch"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         aria-expanded={open}
         aria-label={open ? 'Close support chat' : 'Open support chat'}
       >

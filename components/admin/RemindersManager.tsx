@@ -258,17 +258,19 @@ export default function RemindersManager({
       <div style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Tasks / Reminders</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Reminders &amp; To-Do</h1>
-            <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{total}</span>
+          <div style={st.titleRow}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Reminders &amp; To-Do</h1>
+              <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{total}</span>
+            </div>
+            {canCreate && (
+              <button style={st.primaryBtn} className="fleetHover" onClick={openAdd}>
+                <FleetIcon name="plus" size={14} stroke={2.2} /> Add reminder
+              </button>
+            )}
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>Track tasks, set reminders, and manage recurring to-dos</div>
         </div>
-        {canCreate && (
-          <button style={st.primaryBtn} className="fleetHover" onClick={openAdd}>
-            <FleetIcon name="plus" size={14} stroke={2.2} /> Add reminder
-          </button>
-        )}
       </div>
 
       <div style={st.statsRow} className="stats-row-mobile">
@@ -488,6 +490,7 @@ export default function RemindersManager({
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 18px' },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' },
   secondaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-1)', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },

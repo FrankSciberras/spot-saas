@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import DeleteStaffButton from '@/components/admin/DeleteStaffButton';
 import styles from '../staff.module.css';
 
@@ -42,12 +43,10 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
   return (
     <FleetShell user={user} title="Staff Details">
       <div className={styles.container}>
+        <FleetBackLink href="/fleet/staff" label="Back to staff" />
         <div className={styles.header}>
           <h2>{staff.full_name || staff.email}</h2>
           <div className={styles.actions}>
-            <Link href="/fleet/staff" className="btn btn-secondary">
-              ← Back
-            </Link>
             <Link href={`/fleet/staff/${staff.id}/edit`} className="btn btn-primary">
               Edit
             </Link>

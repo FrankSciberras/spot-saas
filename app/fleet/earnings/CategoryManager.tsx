@@ -6,7 +6,6 @@ import FleetIcon from '@/components/fleet/FleetIcon';
 import {
   CATEGORY_PRESETS,
   CATEGORY_COLORS,
-  CATEGORY_ICONS,
   categoriesOfKind,
   type FinanceCategory,
   type CategoryKind,
@@ -33,6 +32,9 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(BLANK_DRAFT);
   const [showAdd, setShowAdd] = useState(false);
+  // The palette stays out of the way until the colour swatch is pressed — adding
+  // a category is a name and nothing else unless you go looking for more.
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const income = useMemo(() => categoriesOfKind(categories, 'income', { includeInactive: true }), [categories]);
   const expense = useMemo(() => categoriesOfKind(categories, 'expense', { includeInactive: true }), [categories]);
@@ -42,6 +44,14 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
     () => CATEGORY_PRESETS.filter((p) => !existingKeys.has(p.key)),
     [existingKeys],
   );
+
+  /** First palette colour this kind isn't already using, so lines stay tellable apart. */
+  const nextColor = (kind: CategoryKind) => {
+    const used = new Set(
+      (kind === 'income' ? income : expense).map((c) => c.color.toLowerCase()),
+    );
+    return CATEGORY_COLORS.find((c) => !used.has(c.toLowerCase())) ?? BLANK_DRAFT.color;
+  };
 
   const run = (fn: () => Promise<{ error?: string; ok?: boolean }>, onDone?: () => void) => {
     setError(null);
@@ -59,26 +69,39 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
   const startEdit = (category: FinanceCategory) => {
     setEditingId(category.id);
     setShowAdd(false);
+    setPaletteOpen(false);
     setDraft({ name: category.name, kind: category.kind, icon: category.icon, color: category.color });
   };
 
   const startAdd = (kind: CategoryKind) => {
     setEditingId(null);
     setShowAdd(true);
-    setDraft({ ...BLANK_DRAFT, kind });
+    setPaletteOpen(false);
+    setError(null);
+    // A fresh colour per kind keeps new lines visually distinct from each other
+    // without asking the operator to choose one up front.
+    setDraft({ ...BLANK_DRAFT, kind, color: nextColor(kind) });
+  };
+
+  const closeForm = () => {
+    setEditingId(null);
+    setShowAdd(false);
+    setPaletteOpen(false);
+    setError(null);
   };
 
   const saveDraft = () => {
+    if (!draft.name.trim() || pending) return;
     if (editingId) {
-      run(() => updateFinanceCategoryAction(editingId, draft), () => setEditingId(null));
+      run(() => updateFinanceCategoryAction(editingId, draft), closeForm);
     } else {
-      run(() => createFinanceCategoryAction(draft), () => setShowAdd(false));
+      run(() => createFinanceCategoryAction(draft), closeForm);
     }
   };
 
   const renderRow = (category: FinanceCategory) => {
     const isEditing = editingId === category.id;
-    if (isEditing) return <div key={category.id} style={st.editRow}>{renderForm('Save changes')}</div>;
+    if (isEditing) return <div key={category.id} style={st.editRow}>{renderForm('Save')}</div>;
 
     return (
       <div key={category.id} style={{ ...st.row, opacity: category.isActive ? 1 : 0.5 }}>
@@ -116,47 +139,49 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
   };
 
   const renderForm = (submitLabel: string) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          onClick={() => setPaletteOpen((open) => !open)}
+          title="Change the colour"
+          aria-label="Change the colour"
+          style={{ ...st.swatch, background: draft.color }}
+        />
         <input
           autoFocus
           type="text"
           value={draft.name}
           onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          placeholder="Category name"
-          style={{ ...st.input, flex: '1 1 160px' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveDraft();
+            if (e.key === 'Escape') closeForm();
+          }}
+          placeholder="Name it — e.g. Fuel"
+          style={{ ...st.input, flex: 1, minWidth: 0 }}
         />
-        <select
-          value={draft.icon}
-          onChange={(e) => setDraft({ ...draft, icon: e.target.value })}
-          style={{ ...st.input, width: 120 }}
-        >
-          {CATEGORY_ICONS.map((icon) => (
-            <option key={icon} value={icon}>{icon}</option>
-          ))}
-        </select>
-      </div>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        {CATEGORY_COLORS.map((color) => (
-          <button
-            key={color}
-            onClick={() => setDraft({ ...draft, color })}
-            title={color}
-            style={{
-              width: 20, height: 20, borderRadius: 5, background: color, cursor: 'pointer',
-              border: draft.color === color ? '2px solid var(--text-1)' : '1px solid var(--line-2)',
-            }}
-          />
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
         <button style={st.savePrimary} onClick={saveDraft} disabled={pending || !draft.name.trim()}>
           {pending ? 'Saving…' : submitLabel}
         </button>
-        <button style={st.miniBtn} onClick={() => { setEditingId(null); setShowAdd(false); setError(null); }} disabled={pending}>
-          Cancel
+        <button style={st.iconBtn} onClick={closeForm} disabled={pending} title="Cancel" aria-label="Cancel">
+          <FleetIcon name="close" size={12} />
         </button>
       </div>
+      {paletteOpen && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {CATEGORY_COLORS.map((color) => (
+            <button
+              key={color}
+              onClick={() => { setDraft({ ...draft, color }); setPaletteOpen(false); }}
+              title={color}
+              aria-label={`Use ${color}`}
+              style={{
+                width: 20, height: 20, borderRadius: 5, background: color, cursor: 'pointer',
+                border: draft.color === color ? '2px solid var(--text-1)' : '1px solid var(--line-2)',
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -164,13 +189,22 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
     <div style={st.card}>
       <div style={{ ...st.cardHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>{title}</div>
-        <button style={st.linkBtn} onClick={() => startAdd(kind)} disabled={pending}>+ Add</button>
+        <button
+          style={st.plusBtn}
+          className="fleetHover"
+          onClick={() => startAdd(kind)}
+          disabled={pending}
+          title={`Add ${title.toLowerCase()} category`}
+          aria-label={`Add ${title.toLowerCase()} category`}
+        >
+          <FleetIcon name="plus" size={13} />
+        </button>
       </div>
       <div style={{ borderTop: '1px solid var(--line-1)' }}>
-        {list.map(renderRow)}
         {showAdd && draft.kind === kind && !editingId && (
-          <div style={st.editRow}>{renderForm('Add category')}</div>
+          <div style={st.editRow}>{renderForm('Add')}</div>
         )}
+        {list.map(renderRow)}
       </div>
     </div>
   );
@@ -232,19 +266,19 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
 }
 
 const st: Record<string, CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 24, zIndex: 200, overflowY: 'auto' },
-  modal: { width: '100%', maxWidth: 640, background: 'var(--bg-0)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginTop: 24 },
-  modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 18px', gap: 12, borderBottom: '1px solid var(--line-1)' },
-  modalBody: { padding: 16, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' },
-  card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 200 },
+  modal: { width: '100%', maxWidth: 640, maxHeight: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-0)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
+  modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 18px', gap: 12, borderBottom: '1px solid var(--line-1)', flexShrink: 0 },
+  modalBody: { padding: 16, display: 'flex', flexDirection: 'column', gap: 14, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' },
+  card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', flexShrink: 0 },
   cardHeader: { padding: '12px 14px' },
   row: { display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderBottom: '1px solid var(--line-1)' },
   editRow: { display: 'flex', padding: '12px 14px', borderBottom: '1px solid var(--line-1)', background: 'var(--bg-2)' },
   input: { boxSizing: 'border-box', background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: 7, padding: '7px 9px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, outline: 'none' },
   iconBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 6, fontSize: 11.5, fontFamily: 'inherit', cursor: 'pointer' },
-  miniBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' },
   savePrimary: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' },
-  linkBtn: { background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', padding: 0 },
+  plusBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--accent)', borderRadius: 7, cursor: 'pointer', flexShrink: 0, padding: 0 },
+  swatch: { width: 26, height: 26, borderRadius: 7, border: '1px solid var(--line-2)', cursor: 'pointer', flexShrink: 0, padding: 0 },
   presetChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 20, color: 'var(--text-1)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' },
-  alert: { padding: '10px 14px', borderRadius: 8, fontSize: 13 },
+  alert: { padding: '10px 14px', borderRadius: 8, fontSize: 13, flexShrink: 0 },
 };
