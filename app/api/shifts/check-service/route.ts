@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
+import { appUrl } from '@/lib/urls';
 
 /**
  * POST /api/shifts/check-service
@@ -313,8 +314,7 @@ export async function POST(request: Request) {
         ? { sent: 0, failed: 0 }
         : undefined;
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-      const fullActionUrl = `${appUrl}${actionUrl}`;
+      const fullActionUrl = `${appUrl()}${actionUrl}`;
 
       // Resolve recipients based on target_role
       const target = effectiveTargetRole;

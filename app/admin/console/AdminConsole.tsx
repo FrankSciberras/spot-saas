@@ -1015,6 +1015,7 @@ const InquiryRowCard = ({ inq, open, onToggle }: { inq: Inquiry; open: boolean; 
             <DetailField label="Fleet / company">{inq.company || <span style={{ color: 'var(--text-4)' }}>—</span>}</DetailField>
             <DetailField label="Fleet size">{inq.fleetSize || <span style={{ color: 'var(--text-4)' }}>—</span>}</DetailField>
             <DetailField label="Topic">{TOPIC_LABEL[inq.topic] ?? inq.topic}</DetailField>
+            <DetailField label="Came from">{inq.source === 'chat' ? 'Website chat' : 'Contact form'}</DetailField>
             <DetailField label="Received">{fmtDateTime(inq.createdAt)}</DetailField>
           </div>
 

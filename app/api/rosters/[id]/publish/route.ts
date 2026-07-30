@@ -6,6 +6,7 @@ import { getSession, isAdminOrStaff } from '@/lib/auth/session';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
+import { appUrl } from '@/lib/urls';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -143,8 +144,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const drivers = Array.from(driversMap.values());
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const fullActionUrl = `${appUrl}${actionUrl}`;
+    const fullActionUrl = `${appUrl()}${actionUrl}`;
 
     const includeAdmins = effectiveTargetRole === 'admin' || effectiveTargetRole === 'all';
     const includeDrivers = effectiveTargetRole === 'driver' || effectiveTargetRole === 'all';

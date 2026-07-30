@@ -24,7 +24,7 @@
   --pos-soft: rgba(10, 140, 79, 0.10);
   --warn: #a06400;
   --warn-soft: rgba(160, 100, 0, 0.10);
-  --topbar-bg: rgba(246, 247, 249, 0.75);
+  --topbar-bg: #ffffff;
   --shot-shadow: 0 40px 100px -36px rgba(20, 30, 60, 0.34), 0 0 0 1px rgba(15, 18, 26, 0.08);
   --ambient-1: rgba(26, 143, 90, 0.06);
   --ambient-2: rgba(10, 140, 79, 0.03);
@@ -62,7 +62,7 @@
   --pos-soft: rgba(62, 207, 142, 0.14);
   --warn: #f5b54a;
   --warn-soft: rgba(245, 181, 74, 0.14);
-  --topbar-bg: rgba(10, 12, 17, 0.72);
+  --topbar-bg: #11141b;
   --shot-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --ambient-1: rgba(43, 189, 126, 0.10);
   --ambient-2: rgba(62, 207, 142, 0.05);
@@ -103,9 +103,11 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  /* Fully opaque, not translucent: page content scrolling underneath used to
+     show through the bar and collide with the nav labels. The backdrop-filter
+     that went with it is gone too — behind a solid fill it renders nothing and
+     only costs a GPU layer on every scroll frame. */
   background: var(--topbar-bg);
-  backdrop-filter: saturate(160%) blur(14px);
-  -webkit-backdrop-filter: saturate(160%) blur(14px);
   border-bottom: 1px solid var(--line-1);
 }
 .rovora-site .nav-inner { height: 72px; display: flex; align-items: center; gap: 32px; }
@@ -120,8 +122,18 @@
 .rovora-site .nav-links a.nav-ai { display: inline-flex; align-items: center; gap: 6px; }
 .rovora-site .nav-ai svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
 
-/* ── Features megamenu ── */
-.rovora-site .mm { position: relative; }
+/* ── Features megamenu ──
+   A full-bleed sheet that drops straight out of the header's bottom border.
+   `.mm` stays `static` on purpose so the panel's containing block is the sticky
+   header itself — that's what lets it run edge to edge and sit flush under the
+   nav line instead of floating under the trigger. */
+.rovora-site .mm {
+  position: static;
+  /* Padding cancelled by the negative margin: the box keeps its layout size but
+     its hover area reaches the header's bottom edge, so the pointer never leaves
+     the menu on the way down to the sheet. */
+  padding: 26px 0; margin: -26px 0;
+}
 .rovora-site .mm-trigger {
   display: inline-flex; align-items: center; gap: 5px;
   font: inherit; font-size: 14.5px; font-weight: 500; color: var(--text-2);
@@ -132,37 +144,159 @@
 .rovora-site .mm-trigger.open .mm-caret { transform: rotate(180deg); }
 
 .rovora-site .mm-panel {
-  position: absolute; top: calc(100% + 14px); left: -16px; z-index: 60;
-  width: 600px; max-width: 90vw;
-  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 16px;
-  box-shadow: 0 24px 60px -22px rgba(20, 30, 60, 0.42), 0 0 0 1px var(--line-1);
-  padding: 16px; animation: mm-pop .16s cubic-bezier(.22,.61,.36,1);
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 60;
+  background: var(--bg-1);
+  /* `top: 100%` lands on the header's border-box edge, so the panel covers the
+     nav's own bottom border — redraw it here to keep the line unbroken. */
+  border-top: 1px solid var(--line-1);
+  border-bottom: 1px solid var(--line-2);
+  box-shadow: 0 28px 56px -30px rgba(15, 23, 42, 0.35);
+  max-height: calc(100vh - 72px); overflow-y: auto;
+  animation: mm-fade .16s ease;
 }
-.rovora-site .mm-panel::before {
-  /* hover bridge so the gap between trigger and panel doesn't drop the hover */
-  content: ''; position: absolute; top: -14px; left: 0; right: 0; height: 14px;
-}
-@keyframes mm-pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.rovora-site[data-theme='dark'] .mm-panel { box-shadow: 0 30px 60px -28px rgba(0, 0, 0, 0.75); }
+/* The sheet edge stays put; only its contents ease down into place. */
+.rovora-site .mm-inner { padding-top: 30px; padding-bottom: 6px; animation: mm-rise .22s cubic-bezier(.22,.61,.36,1); }
+@keyframes mm-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mm-rise { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
 
-.rovora-site .mm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
-.rovora-site .mm-heading { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 500; padding: 6px 10px 8px; }
-.rovora-site .mm-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px; border-radius: 11px; transition: background .14s; }
+.rovora-site .mm-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 300px;
+  gap: 4px 26px; align-items: start;
+}
+.rovora-site .mm-col { display: flex; flex-direction: column; }
+.rovora-site .mm-heading {
+  font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-3); font-weight: 600; padding: 0 10px 10px;
+}
+.rovora-site .mm-item { display: flex; gap: 13px; align-items: flex-start; padding: 11px 10px; border-radius: 12px; transition: background .14s; }
 .rovora-site .mm-item:hover { background: var(--bg-2); }
 .rovora-site .mm-ico {
-  flex: none; width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center;
+  flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
   background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent);
+  transition: background .16s, color .16s, border-color .16s;
 }
-.rovora-site .mm-ico svg { width: 18px; height: 18px; }
-.rovora-site .mm-text { display: flex; flex-direction: column; gap: 2px; }
-.rovora-site .mm-title { font-size: 14px; font-weight: 500; color: var(--text-1); letter-spacing: -0.01em; }
-.rovora-site .mm-blurb { font-size: 12.5px; color: var(--text-3); line-height: 1.4; }
-.rovora-site .mm-foot {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  margin-top: 12px; padding: 12px; border-top: 1px solid var(--line-1);
-  font-size: 13.5px; font-weight: 500; color: var(--accent) !important;
+.rovora-site .mm-item:hover .mm-ico { background: var(--accent); border-color: transparent; color: #fff; }
+.rovora-site .mm-ico svg { width: 19px; height: 19px; }
+.rovora-site .mm-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rovora-site .mm-title { font-size: 14px; font-weight: 600; color: var(--text-1); letter-spacing: -0.01em; }
+.rovora-site .mm-blurb { font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
+.rovora-site .mm-tags { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; }
+.rovora-site .mm-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); }
+.rovora-site .mm-tag::before { content: ''; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); opacity: .7; flex: none; }
+
+/* Right rail — the rest of the platform + the driver app */
+.rovora-site .mm-rail { display: flex; flex-direction: column; padding-left: 26px; border-left: 1px solid var(--line-1); }
+/* `.mm-panel` prefix beats `.nav-links a`, which would otherwise size these. */
+.rovora-site .mm-panel .mm-mini {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 500; color: var(--text-2) !important; transition: background .14s, color .14s;
+}
+.rovora-site .mm-panel .mm-mini:hover { background: var(--bg-2); color: var(--text-1) !important; }
+.rovora-site .mm-mini svg { width: 16px; height: 16px; flex: none; color: var(--text-3); }
+.rovora-site .mm-mini:first-of-type svg { color: var(--accent); }
+.rovora-site .mm-soon {
+  margin-left: auto; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+  border-radius: 999px; padding: 2px 7px;
+}
+.rovora-site .mm-card { margin-top: 14px; padding: 14px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-2); }
+.rovora-site .mm-card-k { font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.rovora-site .mm-card p { margin: 7px 0 11px; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.rovora-site .mm-card .gplay-badge { display: inline-flex; }
+
+/* Bottom strip — everything that ships without a page of its own */
+.rovora-site .mm-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px;
+  margin-top: 22px; padding: 15px 0 20px; border-top: 1px solid var(--line-1);
+}
+.rovora-site .mm-strip-label { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.rovora-site .mm-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.rovora-site .mm-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2);
+  background: var(--bg-2); border: 1px solid var(--line-1); border-radius: 999px; padding: 5px 12px;
+}
+.rovora-site .mm-chip svg { width: 11px; height: 11px; color: var(--accent); flex: none; }
+.rovora-site .mm-panel .mm-foot {
+  display: inline-flex; align-items: center; gap: 8px; margin-left: auto;
+  font-size: 13.5px; font-weight: 500; color: var(--accent) !important; white-space: nowrap;
 }
 .rovora-site .mm-foot svg { width: 15px; height: 15px; transition: transform .15s; }
 .rovora-site .mm-foot:hover svg { transform: translateX(3px); }
+
+/* Narrow desktops: drop the rail under the columns and lose the app card. */
+@media (max-width: 1180px) {
+  .rovora-site .mm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rovora-site .mm-rail {
+    grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px;
+    border-left: none; border-top: 1px solid var(--line-1); padding: 12px 0 0; margin-top: 12px;
+  }
+  .rovora-site .mm-rail .mm-heading { padding: 0 12px 0 10px; }
+  .rovora-site .mm-card { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site .mm-panel, .rovora-site .mm-inner, .rovora-site .mnav { animation: none; }
+}
+
+/* ── Mobile menu ──
+   Below 880px the desktop links are hidden, so this burger is the only way into
+   the site — signed in or out. The sheet hangs off the header's bottom border,
+   exactly like the features megamenu. */
+.rovora-site .nav-burger {
+  display: none; position: relative; flex: none; width: 38px; height: 38px; padding: 0;
+  background: transparent; border: 1px solid var(--line-2); border-radius: 9px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.rovora-site .nav-burger:hover { border-color: var(--line-3); background: var(--bg-2); }
+.rovora-site .nav-burger span {
+  position: absolute; left: 10px; width: 16px; height: 1.6px; border-radius: 2px; background: var(--text-1);
+  transition: transform .22s cubic-bezier(.22,.61,.36,1), opacity .15s;
+}
+.rovora-site .nav-burger span:nth-child(1) { top: 13px; }
+.rovora-site .nav-burger span:nth-child(2) { top: 18.2px; }
+.rovora-site .nav-burger span:nth-child(3) { top: 23.4px; }
+.rovora-site .nav-burger.open span:nth-child(1) { transform: translateY(5.2px) rotate(45deg); }
+.rovora-site .nav-burger.open span:nth-child(2) { opacity: 0; }
+.rovora-site .nav-burger.open span:nth-child(3) { transform: translateY(-5.2px) rotate(-45deg); }
+
+.rovora-site .mnav {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 60;
+  background: var(--bg-1); border-top: 1px solid var(--line-1);
+  height: calc(100vh - 72px); height: calc(100dvh - 72px);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  animation: mm-fade .16s ease;
+}
+.rovora-site .mnav-inner { display: flex; flex-direction: column; padding: 6px 18px 36px; }
+.rovora-site .mnav-link, .rovora-site .mnav-acc {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  font: inherit; font-size: 16px; font-weight: 500; color: var(--text-1);
+  background: none; border: none; border-bottom: 1px solid var(--line-1);
+  padding: 16px 4px; cursor: pointer;
+}
+.rovora-site .mnav-acc svg { width: 18px; height: 18px; margin-left: auto; color: var(--text-3); transition: transform .2s; }
+.rovora-site .mnav-acc.open svg { transform: rotate(180deg); }
+.rovora-site .mnav-acc.open { border-bottom-color: transparent; }
+.rovora-site .mnav-sub { display: flex; flex-direction: column; padding: 0 0 12px; border-bottom: 1px solid var(--line-1); }
+.rovora-site .mnav-sub-link { display: flex; align-items: center; gap: 12px; padding: 10px 4px; font-size: 15px; color: var(--text-2); }
+.rovora-site .mnav-ico {
+  flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent);
+}
+.rovora-site .mnav-ico svg { width: 16px; height: 16px; }
+.rovora-site .mnav-all {
+  display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
+  padding: 12px 4px 2px; font-size: 14px; font-weight: 500; color: var(--accent) !important;
+}
+.rovora-site .mnav-all svg { width: 15px; height: 15px; }
+.rovora-site .mnav-cta { display: flex; flex-direction: column; gap: 10px; padding: 24px 0 20px; }
+.rovora-site .mnav-cta .btn { width: 100%; }
+.rovora-site .mnav-theme {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 18px 4px 0; border-top: 1px solid var(--line-1); font-size: 14px; color: var(--text-2);
+}
+/* The chat launcher is fixed at z-index 9999 — park it while the menu is open. */
+body.mnav-open .rovora-site .rovora-chat { display: none; }
+
 .rovora-site .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 18px; }
 .rovora-site .nav-actions .signin { color: var(--text-2); font-size: 14.5px; font-weight: 500; }
 .rovora-site .nav-actions .signin:hover { color: var(--text-1); }
@@ -210,18 +344,79 @@
 .rovora-site .btn-lg { padding: 13px 22px; font-size: 15.5px; border-radius: 11px; }
 
 /* ─── Hero ─── */
-.rovora-site .hero { padding: 84px 0 0; text-align: center; }
+.rovora-site .hero { padding: 44px 0 0; text-align: center; }
 .rovora-site .eyebrow { display: inline-flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--text-2); background: var(--bg-1); border: 1px solid var(--line-2); padding: 6px 13px 6px 9px; border-radius: 100px; }
 .rovora-site .eyebrow .live { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); box-shadow: 0 0 0 3px var(--pos-soft); }
-.rovora-site h1.hero-title { font-size: clamp(38px, 6vw, 68px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 500; margin: 26px auto 0; max-width: 14ch; }
-.rovora-site .hero-sub { margin: 24px auto 0; max-width: 60ch; font-size: clamp(16px, 2vw, 19px); color: var(--text-2); line-height: 1.55; }
-.rovora-site .hero-cta { margin-top: 34px; display: flex; gap: 13px; justify-content: center; flex-wrap: wrap; }
-.rovora-site .hero-micro { margin-top: 18px; font-size: 13px; color: var(--text-3); display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+.rovora-site h1.hero-title { font-size: clamp(38px, 6vw, 68px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 500; margin: 26px auto 0; max-width: 19ch; }
+/* That 26px exists to sit under the eyebrow pill. On a hero with no eyebrow
+   (the home page) it's just dead space pushing the photograph below the fold. */
+.rovora-site h1.hero-title:first-child { margin-top: 0; }
+.rovora-site .hero-sub { margin: 18px auto 0; max-width: 60ch; font-size: clamp(16px, 2vw, 19px); color: var(--text-2); line-height: 1.55; }
+.rovora-site .hero-cta { margin-top: 26px; display: flex; gap: 13px; justify-content: center; flex-wrap: wrap; }
+/* 22px here and 22px on .hero-stage below: the row sits centred between the
+   buttons and the video, rather than hugging the buttons. */
+.rovora-site .hero-micro { margin-top: 22px; font-size: 13px; color: var(--text-3); display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
 .rovora-site .hero-micro span { display: inline-flex; align-items: center; gap: 7px; }
 .rovora-site .hero-micro .ck { color: var(--pos); }
-.rovora-site .hero-trust { margin-top: 20px; font-size: 12.5px; color: var(--text-3); display: flex; gap: 9px; justify-content: center; align-items: center; flex-wrap: wrap; }
-.rovora-site .hero-trust a { color: var(--text-2); text-decoration: none; font-weight: 500; margin-left: 4px; }
-.rovora-site .hero-trust a:hover { color: var(--accent); text-decoration: underline; }
+
+/* ─── Hero stage: the demo video, standing alone ───
+   Nothing overlaps it on purpose. The point of moving the demo up here is that
+   a visitor can press play the moment they land, so the play button has to be
+   the most obvious thing on screen after the primary CTA.
+
+   Width is capped rather than filling the container: 16:9 across the full
+   1256px grid would be ~706px tall and shove the whole page down. */
+/* The bottom margin is what separates the video from the stats band. The .hero
+   section itself has no bottom padding, so without this the video's edge lands
+   directly on the stats border and the two read as one block. Kept close to the
+   96px .sec-pad rhythm the rest of the page uses. */
+.rovora-site .hero-stage { position: relative; margin-top: 22px; margin-bottom: 88px; }
+
+/* Faint accent bloom behind the frame. Kept small and tight to the video —
+   the wide version read as a grey haze spreading across the section. */
+.rovora-site .hero-stage::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 18%;
+  width: 48%;
+  height: 46%;
+  transform: translateX(-50%);
+  background: radial-gradient(60% 60% at 50% 50%, var(--accent-soft), transparent 70%);
+  filter: blur(46px);
+  pointer-events: none;
+}
+
+.rovora-site .hero-video {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--bg-2);
+  /* Deliberately NOT var(--shot-shadow): that bakes in a `0 0 0 1px` ring, which
+     draws a grey outline around the video, and a 100px-blur shadow offset 40px
+     down that trails a long way below the frame. This is just a short, soft
+     lift — no border. */
+  box-shadow: 0 16px 40px -20px rgba(20, 30, 60, 0.30);
+}
+.rovora-site[data-theme='dark'] .hero-video {
+  box-shadow: 0 18px 44px -20px rgba(0, 0, 0, 0.7);
+}
+/* The embed sets its own 16/9 box; this just keeps its corners inside the frame. */
+.rovora-site .hero-video .ytlite { border-radius: inherit; }
+
+@media (max-width: 720px) {
+  .rovora-site .hero-stage { margin-top: 20px; margin-bottom: 56px; }
+  .rovora-site .hero-video { border-radius: 16px; }
+  /* 74px of play button covers a third of a 375px-wide poster. Scoped through
+     .hero-video so it outranks the base .ytlite-play rule, which is defined
+     further down the file and would otherwise win on source order. */
+  .rovora-site .hero-video .ytlite-play { width: 58px; height: 58px; }
+  .rovora-site .hero-video .ytlite-play svg { width: 23px; height: 23px; }
+}
 
 /* ─── Browser shot frame ─── */
 .rovora-site .shot { margin: 60px auto 0; max-width: 1240px; border-radius: 16px; overflow: hidden; background: var(--bg-1); border: 1px solid var(--line-2); box-shadow: var(--shot-shadow); }
@@ -478,6 +673,7 @@
 /* Bottom legal bar */
 .rovora-site .foot-bottom { margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--line-1); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-3); }
 .rovora-site .foot-legal { display: inline-flex; gap: 20px; }
+.rovora-site .foot-theme { display: inline-flex; align-items: center; gap: 10px; }
 .rovora-site .foot-legal a { color: var(--text-3); transition: color .15s; }
 .rovora-site .foot-legal a:hover { color: var(--text-1); }
 
@@ -501,6 +697,14 @@
 .rovora-site .auth-foot { text-align: center; margin-top: 22px; font-size: 14px; color: var(--text-2); }
 .rovora-site .auth-foot a { color: var(--accent); font-weight: 500; }
 .rovora-site .auth-foot a:hover { text-decoration: underline; }
+/* Mode switches inside the auth card (Forgot password, Create a fleet account,
+   Resend code…). They change the form rather than navigate, so they're real
+   <button>s reset to read as links. The explicit cursor matters: these used to
+   be href-less <a>s, which browsers treat as plain text — the pointer never
+   appeared and hovering showed a text caret. */
+.rovora-site .auth-link { padding: 0; border: 0; background: none; font: inherit; color: var(--accent); font-weight: 500; cursor: pointer; vertical-align: baseline; }
+.rovora-site .auth-link:hover { text-decoration: underline; }
+.rovora-site .auth-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .rovora-site .auth-back { position: absolute; top: 24px; left: 24px; z-index: 3; font-size: 14px; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; }
 .rovora-site .auth-back:hover { color: var(--text-1); }
 .rovora-site .auth-toggle { position: absolute; top: 20px; right: 24px; z-index: 3; }
@@ -538,6 +742,11 @@
 /* ─── Responsive ─── */
 @media (max-width: 880px) {
   .rovora-site .nav-links { display: none; }
+  /* The burger takes over; both CTAs move inside the sheet. Direct-child
+     selectors so the sheet's own buttons aren't hidden with them. */
+  .rovora-site .nav-burger { display: block; }
+  .rovora-site .nav-actions > .signin, .rovora-site .nav-actions > .btn { display: none; }
+  .rovora-site .nav-actions { gap: 14px; }
   .rovora-site .stats-grid { grid-template-columns: 1fr 1fr; }
   .rovora-site .stat:nth-child(3) { border-left: none; }
   .rovora-site .stat:nth-child(1), .rovora-site .stat:nth-child(2) { border-bottom: 1px solid var(--line-1); }
@@ -570,8 +779,14 @@
 }
 
 /* ============================================================
-   Support chat widget (placeholder UI — real data wired later)
+   Support chat widget — the Rovora assistant
    Fixed to the bottom-right; floats above all page content.
+
+   Layout follows the modern assistant convention rather than the
+   old two-sided speech-bubble look: the assistant's reply is plain
+   text at full width (it is the content, it shouldn't be boxed in),
+   and only the visitor's own lines get a bubble. Replies stream in
+   token by token behind a blinking caret.
    ============================================================ */
 .rovora-site .rovora-chat {
   position: fixed;
@@ -585,7 +800,10 @@
   font-family: inherit;
 }
 
+/* Launcher — the two icons are stacked and cross-fade, so the button
+   never flickers between two different glyph boxes. */
 .rovora-site .chat-launch {
+  position: relative;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -593,35 +811,44 @@
   cursor: pointer;
   background: var(--accent);
   color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 28px -8px var(--accent), 0 2px 6px rgba(15, 18, 26, 0.18);
-  transition: transform .18s cubic-bezier(.22, .61, .36, 1), box-shadow .18s, filter .15s;
+  box-shadow: 0 12px 30px -10px var(--accent), 0 2px 6px rgba(15, 18, 26, .2);
+  transition: transform .22s cubic-bezier(.34, 1.56, .64, 1), box-shadow .2s, filter .15s;
   align-self: flex-end;
 }
-.rovora-site .chat-launch:hover { transform: translateY(-2px); filter: brightness(1.05); }
-.rovora-site .chat-launch:active { transform: translateY(0); }
-.rovora-site .chat-launch svg { width: 24px; height: 24px; }
+.rovora-site .chat-launch:hover { transform: translateY(-2px) scale(1.03); filter: brightness(1.05); }
+.rovora-site .chat-launch:active { transform: translateY(0) scale(.97); }
+.rovora-site .chat-launch-ico {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition: opacity .18s ease, transform .28s cubic-bezier(.34, 1.56, .64, 1);
+}
+.rovora-site .chat-launch-ico svg { width: 24px; height: 24px; }
+.rovora-site .chat-launch-ico[data-hide='true'] { opacity: 0; transform: rotate(-60deg) scale(.5); }
 
 /* Panel */
 .rovora-site .chat-panel {
-  width: 360px;
+  width: 384px;
   max-width: calc(100vw - 32px);
-  height: 480px;
+  /* Roomy enough that the in-chat sign-up / lead forms fit without a scroll. */
+  height: 560px;
   max-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
   background: var(--bg-1);
   border: 1px solid var(--line-2);
-  border-radius: 18px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 24px 70px -24px rgba(20, 30, 60, 0.45), 0 0 0 1px var(--line-1);
+  box-shadow:
+    0 32px 80px -28px rgba(20, 30, 60, .45),
+    0 8px 24px -12px rgba(20, 30, 60, .2),
+    0 0 0 1px var(--line-1);
   transform-origin: bottom right;
-  animation: chat-pop .22s cubic-bezier(.22, .61, .36, 1);
+  animation: chat-pop .26s cubic-bezier(.34, 1.4, .64, 1);
 }
 @keyframes chat-pop {
-  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  from { opacity: 0; transform: translateY(14px) scale(.94); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -630,72 +857,103 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 13px 14px 13px 16px;
   border-bottom: 1px solid var(--line-1);
-  background: var(--bg-2);
+  background: var(--bg-1);
+  /* Sits above the scrolling transcript so text slides under it cleanly. */
+  position: relative;
+  z-index: 2;
 }
 .rovora-site .chat-head-id { display: flex; align-items: center; gap: 11px; }
 .rovora-site .chat-ava {
-  width: 38px; height: 38px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   background: var(--accent-soft);
   display: inline-flex; align-items: center; justify-content: center;
   position: relative;
 }
-.rovora-site .chat-ava-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
-.rovora-site .chat-head-txt { display: flex; flex-direction: column; gap: 2px; }
-.rovora-site .chat-head-txt strong { font-size: 14.5px; color: var(--text-1); font-weight: 500; }
-.rovora-site .chat-status { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
-.rovora-site .chat-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--pos); display: inline-block; }
+.rovora-site .chat-ava-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--accent-line);
+  animation: chat-breathe 3.2s ease-in-out infinite;
+}
+@keyframes chat-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-line); }
+  50% { box-shadow: 0 0 0 7px transparent; }
+}
+.rovora-site .chat-head-txt { display: flex; flex-direction: column; gap: 1px; }
+.rovora-site .chat-head-txt strong { font-size: 14.5px; color: var(--text-1); font-weight: 550; letter-spacing: -.01em; }
+.rovora-site .chat-status { font-size: 11.5px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+.rovora-site .chat-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--pos); display: inline-block; flex: none; }
 .rovora-site .chat-head-actions { display: flex; align-items: center; gap: 2px; }
 .rovora-site .chat-x {
-  flex: none; width: 30px; height: 30px; border-radius: 8px;
+  flex: none; width: 30px; height: 30px; border-radius: 9px;
   border: none; background: transparent; color: var(--text-3); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background .15s, color .15s;
 }
-.rovora-site .chat-x:hover { background: var(--bg-3); color: var(--text-1); }
-.rovora-site .chat-x svg { width: 18px; height: 18px; }
+.rovora-site .chat-x:hover { background: var(--bg-2); color: var(--text-1); }
+.rovora-site .chat-x svg { width: 17px; height: 17px; }
 
-/* Body / messages */
+/* Transcript */
 .rovora-site .chat-body {
   flex: 1;
   overflow-y: auto;
-  padding: 18px 16px;
+  overscroll-behavior: contain;
+  padding: 20px 18px 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--bg-0);
-}
-.rovora-site .chat-msg { display: flex; }
-.rovora-site .chat-msg.bot { justify-content: flex-start; }
-.rovora-site .chat-msg.user { justify-content: flex-end; }
-.rovora-site .chat-bubble {
-  max-width: 80%;
-  padding: 10px 13px;
-  border-radius: 14px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-.rovora-site .chat-msg.bot .chat-bubble {
+  gap: 16px;
   background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  color: var(--text-1);
-  border-bottom-left-radius: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-3) transparent;
 }
-.rovora-site .chat-msg.user .chat-bubble {
-  background: var(--accent);
-  color: #fff;
-  border-bottom-right-radius: 5px;
+.rovora-site .chat-body::-webkit-scrollbar { width: 6px; }
+.rovora-site .chat-body::-webkit-scrollbar-track { background: transparent; }
+.rovora-site .chat-body::-webkit-scrollbar-thumb { background: var(--line-3); border-radius: 3px; }
+.rovora-site .chat-body::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+.rovora-site .chat-turn {
+  display: flex;
+  flex-direction: column;
+  animation: chat-in .3s cubic-bezier(.22, .61, .36, 1) both;
+}
+.rovora-site .chat-turn.user { align-items: flex-end; }
+@keyframes chat-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Rendered Markdown inside a bot bubble — tight, scannable spacing */
+/* The assistant's words — deliberately unboxed. */
+.rovora-site .chat-text {
+  font-size: 14.5px;
+  line-height: 1.62;
+  color: var(--text-1);
+  letter-spacing: -.005em;
+}
+
+/* The visitor's own line — the only thing that gets a bubble. */
+.rovora-site .chat-pill {
+  max-width: 86%;
+  padding: 9px 14px;
+  border-radius: 16px 16px 5px 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 6px 16px -10px var(--accent);
+}
+
+/* Rendered Markdown in a reply — tight, scannable spacing */
 .rovora-site .chat-md > :first-child { margin-top: 0; }
 .rovora-site .chat-md > :last-child { margin-bottom: 0; }
-.rovora-site .chat-md p { margin: 0 0 8px; }
+.rovora-site .chat-md p { margin: 0 0 9px; }
 .rovora-site .chat-md ul,
-.rovora-site .chat-md ol { margin: 4px 0 8px; padding-left: 18px; }
-.rovora-site .chat-md li { margin: 2px 0; }
-.rovora-site .chat-md li::marker { color: var(--text-3); }
+.rovora-site .chat-md ol { margin: 6px 0 10px; padding-left: 18px; }
+.rovora-site .chat-md li { margin: 3px 0; }
+.rovora-site .chat-md li::marker { color: var(--accent); }
 .rovora-site .chat-md strong { font-weight: 600; color: var(--text-1); }
 .rovora-site .chat-md a {
   color: var(--accent);
@@ -706,86 +964,326 @@
 }
 .rovora-site .chat-md a:hover { filter: brightness(.92); }
 
-/* "Talk to a real person" — shown under every bot reply */
-.rovora-site .chat-human {
+/* Blinking caret trailing the text as it streams in. */
+.rovora-site .chat-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: chat-blink 1s steps(2, start) infinite;
+}
+@keyframes chat-blink { 50% { opacity: 0; } }
+
+/* Waiting on the first token */
+.rovora-site .chat-typing { display: inline-flex; gap: 5px; align-items: center; padding: 4px 0; }
+.rovora-site .chat-typing span {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--text-4);
+  animation: chat-bounce 1.3s infinite ease-in-out;
+}
+.rovora-site .chat-typing span:nth-child(2) { animation-delay: .16s; }
+.rovora-site .chat-typing span:nth-child(3) { animation-delay: .32s; }
+@keyframes chat-bounce {
+  0%, 65%, 100% { transform: translateY(0); opacity: .45; }
+  32% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* Action chips — the assistant's real buttons, under its newest reply.
+   "primary" is the one we actually want pressed (start a trial / book a demo). */
+.rovora-site .chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+.rovora-site .chat-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin: 6px 0 2px;
-  padding: 6px 11px;
+  gap: 7px;
+  padding: 8px 13px;
   border-radius: 999px;
   border: 1px solid var(--accent-line);
   background: var(--accent-soft);
   color: var(--accent);
+  font: inherit;
   font-size: 12.5px;
   font-weight: 500;
   line-height: 1;
+  cursor: pointer;
   text-decoration: none;
-  transition: background .15s, filter .15s, transform .1s;
+  animation: chat-in .32s cubic-bezier(.22, .61, .36, 1) both;
+  transition: transform .16s cubic-bezier(.34, 1.4, .64, 1), box-shadow .18s, filter .15s;
 }
-.rovora-site .chat-human:hover { filter: brightness(1.03); background: var(--accent-soft); }
-.rovora-site .chat-human:active { transform: translateY(1px); }
-.rovora-site .chat-human svg { width: 14px; height: 14px; }
+.rovora-site .chat-chip:hover { transform: translateY(-1.5px); filter: brightness(1.04); }
+.rovora-site .chat-chip:active { transform: translateY(0) scale(.98); }
+.rovora-site .chat-chip svg { width: 14px; height: 14px; flex: none; }
+.rovora-site .chat-chip.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 18px -10px var(--accent);
+}
+.rovora-site .chat-chip.primary:hover { box-shadow: 0 12px 22px -10px var(--accent); }
 
-/* Typing indicator */
-.rovora-site .chat-typing { display: inline-flex; gap: 4px; align-items: center; }
-.rovora-site .chat-typing span {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--text-3);
-  animation: chat-bounce 1.2s infinite ease-in-out;
-}
-.rovora-site .chat-typing span:nth-child(2) { animation-delay: .15s; }
-.rovora-site .chat-typing span:nth-child(3) { animation-delay: .3s; }
-@keyframes chat-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: .5; }
-  30% { transform: translateY(-4px); opacity: 1; }
-}
-
-/* Input */
-.rovora-site .chat-input {
+/* Suggested follow-up questions — quieter than the action chips on purpose. */
+.rovora-site .chat-asks {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+}
+.rovora-site .chat-ask {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.3;
+  cursor: pointer;
+  text-align: left;
+  animation: chat-in .32s cubic-bezier(.22, .61, .36, 1) both;
+  transition: background .16s, border-color .16s, color .16s;
+}
+.rovora-site .chat-ask svg {
+  width: 13px; height: 13px; flex: none;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity .18s, transform .18s;
+}
+.rovora-site .chat-ask:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+.rovora-site .chat-ask:hover svg { opacity: 1; transform: translateX(0); }
+
+/* Composer */
+.rovora-site .chat-input {
+  padding: 10px 14px 12px;
   border-top: 1px solid var(--line-1);
   background: var(--bg-1);
 }
-.rovora-site .chat-input input {
-  flex: 1;
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
+.rovora-site .chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 7px 7px 7px 14px;
+  border-radius: 18px;
   border: 1px solid var(--line-2);
   background: var(--bg-0);
-  color: var(--text-1);
-  font: inherit;
-  font-size: 14px;
-  outline: none;
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .18s, box-shadow .18s;
 }
-.rovora-site .chat-input input::placeholder { color: var(--text-4); }
-.rovora-site .chat-input input:focus {
+.rovora-site .chat-composer:focus-within {
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+.rovora-site .chat-composer textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 7px 0;
+  max-height: 116px;
+  resize: none;
+  outline: none;
+  scrollbar-width: thin;
+}
+.rovora-site .chat-composer textarea::placeholder { color: var(--text-4); }
 .rovora-site .chat-send {
-  flex: none; width: 40px; height: 40px; border-radius: 10px;
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
   border: none; cursor: pointer;
   background: var(--accent); color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
-  transition: filter .15s, opacity .15s;
+  transition: filter .15s, opacity .15s, transform .16s cubic-bezier(.34, 1.4, .64, 1);
 }
-.rovora-site .chat-send:hover { filter: brightness(1.06); }
-.rovora-site .chat-send:disabled { opacity: .45; cursor: not-allowed; }
-.rovora-site .chat-send svg { width: 18px; height: 18px; }
+.rovora-site .chat-send:hover:not(:disabled) { filter: brightness(1.07); transform: scale(1.06); }
+.rovora-site .chat-send:active:not(:disabled) { transform: scale(.94); }
+.rovora-site .chat-send:disabled { opacity: .35; cursor: not-allowed; }
+.rovora-site .chat-send svg { width: 17px; height: 17px; }
+/* Mid-reply the same button becomes "stop generating". */
+.rovora-site .chat-send.stop { background: var(--bg-3); color: var(--text-1); }
+.rovora-site .chat-send.stop svg { width: 15px; height: 15px; }
+.rovora-site .chat-legal {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--text-4);
+}
+
+/* In-chat forms — trial sign-up and "talk to the team" */
+.rovora-site .chat-form {
+  padding: 14px 15px 15px;
+  border-radius: 16px;
+  border: 1px solid var(--accent-line);
+  background: var(--bg-0);
+  box-shadow: 0 14px 30px -20px rgba(20, 30, 60, .5);
+  animation: chat-in .3s cubic-bezier(.22, .61, .36, 1) both;
+}
+.rovora-site .chat-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.rovora-site .chat-form-head strong { font-size: 14px; font-weight: 600; color: var(--text-1); letter-spacing: -.01em; }
+.rovora-site .chat-form-lbl {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin: 10px 0 5px;
+}
+.rovora-site .chat-form-lbl span { color: var(--text-4); font-weight: 400; }
+.rovora-site .chat-form-in {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.rovora-site .chat-form-in::placeholder { color: var(--text-4); }
+.rovora-site .chat-form-in:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rovora-site select.chat-form-in { appearance: none; cursor: pointer; padding-right: 8px; }
+.rovora-site .chat-form-ta { height: 64px; padding: 9px 12px; resize: vertical; line-height: 1.45; }
+.rovora-site .chat-form-code { text-align: center; letter-spacing: .4em; font-size: 17px; font-weight: 600; }
+.rovora-site .chat-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.rovora-site .chat-form-btn {
+  width: 100%;
+  height: 42px;
+  margin-top: 14px;
+  border: none;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -10px var(--accent);
+  transition: filter .15s, opacity .15s, transform .16s cubic-bezier(.34, 1.4, .64, 1);
+}
+.rovora-site .chat-form-btn:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+.rovora-site .chat-form-btn:active:not(:disabled) { transform: translateY(0); }
+.rovora-site .chat-form-btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+.rovora-site .chat-form-fine {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+.rovora-site .chat-form-fine a { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
+.rovora-site .chat-form-link {
+  border: none; background: none; padding: 0;
+  font: inherit; font-size: 11px;
+  color: var(--accent); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.rovora-site .chat-form-err,
+.rovora-site .chat-form-note {
+  margin-bottom: 2px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+/* Matches .auth-alert so an error reads the same wherever it appears. */
+.rovora-site .chat-form-err {
+  background: rgba(236, 106, 94, .12);
+  border: 1px solid rgba(236, 106, 94, .3);
+  color: #d2483b;
+}
+.rovora-site[data-theme='dark'] .chat-form-err { color: #f0918a; }
+.rovora-site .chat-form-note { background: var(--accent-soft); color: var(--accent); }
+
+/* Proactive nudge — a teaser above the launcher, never an auto-opening panel */
+.rovora-site .chat-nudge {
+  position: relative;
+  display: flex;
+  max-width: min(300px, calc(100vw - 44px));
+  border-radius: 16px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  box-shadow: 0 20px 46px -22px rgba(20, 30, 60, .55);
+  animation: chat-pop .3s cubic-bezier(.34, 1.4, .64, 1);
+}
+.rovora-site .chat-nudge-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 30px 13px 15px;
+  border: none;
+  background: none;
+  border-radius: 16px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rovora-site .chat-nudge-body strong { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+.rovora-site .chat-nudge-body span { font-size: 12.5px; line-height: 1.45; color: var(--text-3); }
+.rovora-site .chat-nudge-x {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  border: none; border-radius: 7px;
+  background: transparent; color: var(--text-4);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.rovora-site .chat-nudge-x:hover { background: var(--bg-2); color: var(--text-1); }
+.rovora-site .chat-nudge-x svg { width: 13px; height: 13px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rovora-site .chat-panel { animation: none; }
-  .rovora-site .chat-typing span { animation: none; }
+  .rovora-site .chat-panel,
+  .rovora-site .chat-form,
+  .rovora-site .chat-turn,
+  .rovora-site .chat-chip,
+  .rovora-site .chat-ask,
+  .rovora-site .chat-nudge { animation: none; }
+  .rovora-site .chat-typing span,
+  .rovora-site .chat-caret,
+  .rovora-site .chat-ava-dot { animation: none; }
 }
 
+/* On a phone the panel becomes a proper sheet — a 380px card floating in the
+   middle of a small screen reads as broken. */
 @media (max-width: 520px) {
   .rovora-site .rovora-chat { right: 16px; bottom: 16px; }
-  .rovora-site .chat-panel { height: min(70vh, 480px); }
+  .rovora-site .chat-panel {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    animation: chat-sheet .26s cubic-bezier(.22, .61, .36, 1);
+  }
+  @keyframes chat-sheet {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .rovora-site .chat-head { padding-top: max(13px, env(safe-area-inset-top)); }
+  .rovora-site .chat-input { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 }
 
 /* ============================================================

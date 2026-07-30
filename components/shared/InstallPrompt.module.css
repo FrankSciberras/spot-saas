@@ -1,0 +1,201 @@
+/* ──────────────────────────────────────────────────────────────
+   "Install Rovora" nudge.
+
+   Renders INSIDE the fleet canvas (not portalled to <body>) so the
+   design tokens resolve — same reason FleetAccountMenu has to
+   re-apply .fleetTheme when it portals its mobile sheet.
+
+   Non-modal by design: it sits at the bottom out of the way, so a
+   user mid-task can ignore it. The push-notification prompt is the
+   modal one; two modals stacking would be miserable.
+   ────────────────────────────────────────────────────────────── */
+
+.wrap {
+  position: fixed;
+  z-index: 45; /* above the bottom nav (30), below the mobile sidebar (50) */
+  left: 16px;
+  right: 16px;
+  /* Clear the mobile bottom nav and the iPhone home indicator. */
+  bottom: calc(var(--bottom-nav-h, 60px) + 16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+@media (min-width: 720px) {
+  .wrap {
+    left: auto;
+    right: 24px;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    justify-content: flex-end;
+  }
+}
+
+.card {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  padding: 16px;
+  background: var(--bg-1, #11141b);
+  border: 1px solid var(--line-2, rgba(255, 255, 255, 0.09));
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  animation: rise 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line-1, rgba(255, 255, 255, 0.05));
+  background-image: url('/icons/android-chrome-192x192.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-1, #f1f3f8);
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-2, #9aa3b6);
+}
+
+.closeBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-3, #5f6878);
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text-1, #f1f3f8);
+}
+
+.closeBtn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ─── Native-prompt variant: two buttons ─── */
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.installBtn {
+  flex: 1;
+  height: 36px;
+  padding: 0 14px;
+  background: var(--accent, #2bbd7e);
+  color: #04140c;
+  border: none;
+  border-radius: var(--radius, 10px);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.installBtn:hover { filter: brightness(1.06); }
+
+.laterBtn {
+  height: 36px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--text-2, #9aa3b6);
+  border: 1px solid var(--line-2, rgba(255, 255, 255, 0.09));
+  border-radius: var(--radius, 10px);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.laterBtn:hover {
+  color: var(--text-1, #f1f3f8);
+  border-color: var(--line-3, rgba(255, 255, 255, 0.14));
+}
+
+/* ─── Manual variant: numbered steps (iOS, desktop Safari/Firefox) ─── */
+
+.steps {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-2, #9aa3b6);
+}
+
+.stepNum {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-soft, rgba(43, 189, 126, 0.14));
+  color: var(--accent, #2bbd7e);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step strong {
+  color: var(--text-1, #f1f3f8);
+  font-weight: 600;
+}
+
+/* The iOS Share glyph, inline in the sentence so it's recognisable. */
+.shareIcon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  margin: 0 1px;
+  color: var(--accent, #2bbd7e);
+}

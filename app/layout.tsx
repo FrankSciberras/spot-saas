@@ -63,9 +63,20 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#2e7fdb',
+  // Was a hard-coded #2e7fdb — a leftover Spot-era blue that matched nothing in
+  // the Rovora palette and tinted mobile browser chrome against every page.
+  // Following the colour scheme lets the chrome blend with the white marketing
+  // site and the dark dashboard alike.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0c11' },
+  ],
   width: 'device-width',
   initialScale: 1,
+  // Without this, env(safe-area-inset-*) reports 0 on notched iPhones — so the
+  // insets the bottom nav and topbar ask for only do anything once the app is
+  // installed and running full-screen.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

@@ -79,15 +79,18 @@ export default function GlobalError({
               borderColor: reconnecting ? 'var(--accent-line)' : 'var(--warn-soft)',
             }}
           >
+            {/* Size these explicitly. An <svg> with only a viewBox falls back to
+                the replaced-element default (300×150) and blew out of the 56px
+                badge, so the triangle sat edge to edge with no breathing room. */}
             {reconnecting ? (
-              <svg className="rovora-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <svg className="rovora-spin" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                 <path d="M21 12a9 9 0 1 1-2.64-6.36" />
                 <path d="M21 4v5h-5" />
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.3 3.8 2.6 17a1.5 1.5 0 0 0 1.3 2.3h16.2a1.5 1.5 0 0 0 1.3-2.3L13.7 3.8a1.6 1.6 0 0 0-2.8 0Z" />
-                <path d="M12 9v4M12 17h.01" />
+                <path d="M12 9.5v4M12 17h.01" />
               </svg>
             )}
           </div>

@@ -209,51 +209,37 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         {/* HERO */}
         <section className="hero" id="top">
           <div className="container reveal-stagger">
-            <span className="eyebrow"><span className="live" /> Built for fleets of 1 to 100+ vehicles</span>
-            <h1 className="hero-title">Fleet management software for <span className="pos">taxi and rideshare fleets</span>.</h1>
-            <p className="hero-sub">Vehicles, maintenance, damage, drivers, live GPS tracking and pay — Rovora keeps every part of your operation in a single dashboard, so nothing slips through the cracks.</p>
+            <h1 className="hero-title">Run your whole fleet <span className="pos">from one screen</span>.</h1>
+            {/* One line on purpose. The feature list that used to live here just
+                pushed the video further down — and the page spends the next
+                three sections listing features anyway. */}
+            <p className="hero-sub">Fleet management software for taxi and rideshare fleets.</p>
             <div className="hero-cta">
               <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
               <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>
             </div>
+            {/* Two, not three: the third wrapped onto its own line at common
+                widths, which made the row look accidental rather than designed. */}
             <div className="hero-micro">
               <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
               <span><span className="ck">✓</span> No card required</span>
-              <span><span className="ck">✓</span> Set up in an afternoon</span>
-            </div>
-            <div className="hero-trust">
-              <span>EU-hosted</span>
-              <span>·</span>
-              <span>Encrypted</span>
-              <span>·</span>
-              <span>GDPR-compliant</span>
-              <span>·</span>
-              <span>Cancel anytime</span>
-              <Link href="/security">Read our security &amp; privacy →</Link>
             </div>
           </div>
-          <div className="container hero-shot-wrap reveal">
-            <div className="shot">
-              <ShotBar path="dashboard" />
-              <div className="mock">
-                <div className="mock-top">
-                  <span className="mock-title">Fleet overview</span>
-                  <span className="mock-pill">● Live</span>
-                </div>
-                <div className="mock-cards">
-                  <div className="mock-card"><div className="k">Revenue / wk</div><div className="v">€18.4k</div></div>
-                  <div className="mock-card"><div className="k">On shift</div><div className="v accent">14</div></div>
-                  <div className="mock-card"><div className="k">Utilisation</div><div className="v pos">82%</div></div>
-                  <div className="mock-card"><div className="k">Alerts</div><div className="v">3</div></div>
-                </div>
-                <div className="mock-rows">
-                  <div className="mock-row"><span className="av" /><span className="nm">A. Murphy</span><span className="meta">· 12-D-4471</span><span className="amt">€412</span><span className="st">On shift</span></div>
-                  <div className="mock-row"><span className="av" /><span className="nm">J. Byrne</span><span className="meta">· 21-C-9920</span><span className="amt">€388</span><span className="st">On shift</span></div>
-                  <div className="mock-row"><span className="av" /><span className="nm">K. Walsh</span><span className="meta">· 19-L-1183</span><span className="amt">€0</span><span className="st idle">Off duty</span></div>
-                </div>
-              </div>
+
+          {/* The demo video IS the hero visual — a real recording of the product
+              beats any mockup, and putting it here means a visitor can watch it
+              without scrolling or hunting for a "watch" section. It deliberately
+              stands alone: nothing overlaps it, so the play button is the most
+              obvious thing on the page after the CTA. */}
+          <div className="container hero-stage reveal">
+            <div className="hero-video">
+              <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority />
             </div>
           </div>
+
+          {/* The EU-hosted / Encrypted / GDPR strip used to sit here. Removed so
+              the video gets the room instead — the claims still live on the
+              /security page, which the footer links to. */}
         </section>
 
         {/* STATS */}
@@ -268,20 +254,9 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           </div>
         </section>
 
-        {/* SEE IT IN ACTION */}
-        <section className="sec-pad" id="demo">
-          <div className="container">
-            <div className="sec-head center reveal">
-              <span className="kicker">Watch</span>
-              <h2 className="sec-title">See Rovora in action</h2>
-              <p className="sec-desc">A quick tour of the dashboard — vehicles, drivers, live GPS tracking, weekly driver pay and the books, all in one place.</p>
-            </div>
-            <div className="shot reveal">
-              <ShotBar path="dashboard" />
-              <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" />
-            </div>
-          </div>
-        </section>
+        {/* The old "See Rovora in action" section lived here. It was removed when
+            the demo moved into the hero — running the same video twice on one
+            page just splits attention and buries it below three screenfuls. */}
 
         {/* OVERVIEW GRID */}
         <section className="sec-pad way">

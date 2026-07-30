@@ -1,123 +1,26 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/lib/types/database';
 import { useBranding } from '@/components/shared/BrandingProvider';
 import { useEnabledModules } from './FleetModulesProvider';
-import { moduleForNav } from '@/lib/modules/catalog';
+import { useFleetTheme } from './FleetThemeRoot';
+import FleetOrgSwitcher from './FleetOrgSwitcher';
+import {
+  BOTTOM_TAB_FALLBACKS,
+  BOTTOM_TABS,
+  DRIVER_BOTTOM_TABS,
+  DRIVER_NAV_GROUPS,
+  NAV_GROUPS,
+  canSeeNavItem,
+  type NavItem,
+} from './navConfig';
 import FleetIcon from './FleetIcon';
-
-interface NavItem {
-  id: string;
-  name: string;
-  href: string;
-  icon: string;
-  roles?: ('admin' | 'staff' | 'driver')[];
-}
-
-interface NavGroup {
-  label: string | null;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  { label: null, items: [{ id: 'dashboard', name: 'Dashboard', href: '/fleet', icon: 'dashboard' }] },
-  {
-    label: 'Operations',
-    items: [
-      { id: 'staff', name: 'Staff', href: '/fleet/staff', icon: 'staff', roles: ['admin'] },
-      { id: 'drivers', name: 'Drivers', href: '/fleet/drivers', icon: 'driver' },
-      { id: 'vehicles', name: 'Vehicles', href: '/fleet/vehicles', icon: 'vehicle' },
-      { id: 'rosters', name: 'Rosters', href: '/fleet/rosters', icon: 'roster' },
-      { id: 'shifts', name: 'Shifts', href: '/fleet/shifts', icon: 'shift' },
-      { id: 'tracking', name: 'Live Map', href: '/fleet/tracking', icon: 'map' },
-      { id: 'trips', name: 'Trips', href: '/fleet/trips', icon: 'pin' },
-      { id: 'safety', name: 'Safety', href: '/fleet/safety', icon: 'warning' },
-    ],
-  },
-  {
-    label: 'Maintenance',
-    items: [
-      { id: 'services', name: 'Services', href: '/fleet/services', icon: 'wrench' },
-      { id: 'damages', name: 'Damages', href: '/fleet/damages', icon: 'damage' },
-      { id: 'parts', name: 'Parts', href: '/fleet/parts', icon: 'box' },
-    ],
-  },
-  {
-    label: 'Financial',
-    items: [
-      { id: 'bookkeeping', name: 'Bookkeeping', href: '/fleet/earnings', icon: 'book', roles: ['admin'] },
-      { id: 'financials', name: 'Financials', href: '/fleet/financials', icon: 'chart', roles: ['admin'] },
-      { id: 'settlements', name: 'Settlements', href: '/fleet/settlements', icon: 'settle', roles: ['admin'] },
-      { id: 'adjustments', name: 'Adjustments', href: '/fleet/adjustments', icon: 'adjust', roles: ['admin'] },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { id: 'reminders', name: 'Reminders', href: '/fleet/reminders', icon: 'bell' },
-      { id: 'audit', name: 'Audit Log', href: '/fleet/audit-log', icon: 'audit', roles: ['admin'] },
-      { id: 'notify', name: 'Notify', href: '/fleet/notifications', icon: 'bell', roles: ['admin'] },
-      { id: 'permissions', name: 'Permissions', href: '/fleet/permissions', icon: 'doc', roles: ['admin'] },
-      { id: 'integrations', name: 'Integrations', href: '/fleet/integrations', icon: 'plug', roles: ['admin'] },
-      { id: 'settings', name: 'Settings', href: '/fleet/settings', icon: 'adjust', roles: ['admin'] },
-    ],
-  },
-  {
-    label: 'Account',
-    items: [
-      { id: 'billing', name: 'Billing & plan', href: '/fleet/billing', icon: 'settle', roles: ['admin'] },
-      { id: 'profile-admin', name: 'My Profile', href: '/fleet/profile', icon: 'driver', roles: ['admin'] },
-      { id: 'profile-staff', name: 'My Profile', href: '/staff/profile', icon: 'driver', roles: ['staff'] },
-    ],
-  },
-];
-
-const DRIVER_NAV_GROUPS: NavGroup[] = [
-  { label: null, items: [{ id: 'dashboard', name: 'Dashboard', href: '/driver', icon: 'dashboard' }] },
-  {
-    label: 'Work',
-    items: [
-      { id: 'go-online', name: 'Start Shift', href: '/driver/go-online', icon: 'shift' },
-      { id: 'shifts', name: 'My Shifts', href: '/driver/shifts', icon: 'audit' },
-      { id: 'vehicles', name: 'Vehicles', href: '/driver/vehicles', icon: 'vehicle' },
-      { id: 'roster', name: 'My Roster', href: '/driver/roster', icon: 'roster' },
-    ],
-  },
-  {
-    label: 'Financial',
-    items: [
-      { id: 'earnings', name: 'My Earnings', href: '/driver/earnings', icon: 'chart' },
-      { id: 'settlements', name: 'Settlements', href: '/driver/settlements', icon: 'settle' },
-    ],
-  },
-  {
-    label: 'Account',
-    items: [
-      { id: 'notifications', name: 'Notifications', href: '/driver/notifications', icon: 'bell' },
-      { id: 'profile', name: 'My Profile', href: '/driver/profile', icon: 'driver' },
-    ],
-  },
-];
-
-const BOTTOM_TABS: { name: string; href: string; icon: string }[] = [
-  { name: 'Home', href: '/fleet', icon: 'dashboard' },
-  { name: 'Drivers', href: '/fleet/drivers', icon: 'driver' },
-  { name: 'Vehicles', href: '/fleet/vehicles', icon: 'vehicle' },
-  { name: 'Shifts', href: '/fleet/shifts', icon: 'shift' },
-];
-
-// Two tabs each side of the centre Go-online button (+ "More"), so it sits
-// exactly in the middle. Earnings stays reachable via More and the dashboard.
-const DRIVER_BOTTOM_TABS: { name: string; href: string; icon: string }[] = [
-  { name: 'Home', href: '/driver', icon: 'dashboard' },
-  { name: 'Shifts', href: '/driver/shifts', icon: 'shift' },
-  { name: 'Roster', href: '/driver/roster', icon: 'roster' },
-];
 
 /**
  * Raised centre button in the driver's mobile tab bar: one press to go online
@@ -226,93 +129,165 @@ interface FleetSidebarProps {
   open: boolean;
   onClose: () => void;
   onMenuToggle: () => void;
+  /** Desktop only: render as a narrow icon rail. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
-export default function FleetSidebar({ user, variant = 'fleet', isMobile, open, onClose, onMenuToggle }: FleetSidebarProps) {
+export default function FleetSidebar({
+  user,
+  variant = 'fleet',
+  isMobile,
+  open,
+  onClose,
+  onMenuToggle,
+  collapsed = false,
+  onToggleCollapsed,
+}: FleetSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { logoUrl } = useBranding();
   const enabledModules = useEnabledModules();
+  const { theme } = useFleetTheme();
+
+  const railed = collapsed && !isMobile;
+
+  // Rail tooltip. Portalled to <body> because the nav scrolls (overflow-y:
+  // auto forces overflow-x to clip too), so anything drawn outside the 64px
+  // rail would be cut off. Position comes from the hovered item's own rect.
+  const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const showTip = useCallback((e: { currentTarget: HTMLElement }, label: string) => {
+    if (!railed) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ label, top: r.top + r.height / 2, left: r.right + 10 });
+  }, [railed]);
+
+  const hideTip = useCallback(() => setTip(null), []);
+
+  // Expanding the sidebar mid-hover would otherwise strand the tooltip.
+  useEffect(() => { if (!railed) setTip(null); }, [railed]);
 
   const isDriver = variant === 'driver';
   const rootHref = isDriver ? '/driver' : '/fleet';
   const navGroups = isDriver ? DRIVER_NAV_GROUPS : NAV_GROUPS;
-  const bottomTabs = isDriver ? DRIVER_BOTTOM_TABS : BOTTOM_TABS;
 
-  const canSee = (item: NavItem) => {
-    // Module gate (fleet nav only): hide items whose module the fleet switched
-    // off. Driver nav is never module-gated — a driver's own pages stay put.
-    if (!isDriver) {
-      const moduleKey = moduleForNav(item.id);
-      if (moduleKey && !enabledModules.has(moduleKey)) return false;
-    }
-    // Role gate.
-    if (!item.roles) return true;
-    if (!user?.role) return false;
-    if (user.role === 'driver' && user.also_staff && item.roles.includes('staff')) return true;
-    return item.roles.includes(user.role);
-  };
+  // Identity, billing, profile, help and sign-out now live in the topbar
+  // account menu (FleetAccountMenu) — the sidebar is navigation only.
+  const canSee = (item: NavItem) =>
+    canSeeNavItem(item, {
+      role: user?.role,
+      alsoStaff: user?.also_staff,
+      enabledModules,
+      isDriver,
+    });
 
   const isActive = (href: string) =>
     pathname === href || (href !== rootHref && pathname.startsWith(href));
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  };
+  // Mobile tab bar respects the same gates as the sidebar, topping up from the
+  // fallback list so a fleet with modules switched off still gets a full bar.
+  const bottomTabs: NavItem[] = isDriver
+    ? DRIVER_BOTTOM_TABS
+    : (() => {
+        const picked = BOTTOM_TABS.filter(canSee);
+        for (const extra of BOTTOM_TAB_FALLBACKS) {
+          if (picked.length >= BOTTOM_TABS.length) break;
+          if (canSee(extra) && !picked.some((p) => p.id === extra.id)) picked.push(extra);
+        }
+        return picked;
+      })();
 
-  const initial =
-    user?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || '?';
-  const roleLabel =
-    user?.also_staff && user?.role === 'driver' ? 'Staff' : user?.role || 'Member';
+  // Sits in the top-right of the sidebar header, beside the org switcher. In
+  // rail mode there's no room alongside the monogram, so it drops to its own
+  // centred row directly underneath — still at the top, not buried at the foot
+  // of the nav where it used to live.
+  const collapseToggle =
+    !isMobile && onToggleCollapsed ? (
+      <button
+        onClick={() => { hideTip(); onToggleCollapsed(); }}
+        onMouseEnter={(e) => showTip(e, 'Expand sidebar')}
+        onMouseLeave={hideTip}
+        className="fleetCollapseBtn"
+        style={s.collapseBtn}
+        // Native title only when expanded — in the rail it would double up with
+        // the custom tooltip.
+        title={railed ? undefined : 'Collapse sidebar  ['}
+        aria-label={railed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <FleetIcon name={railed ? 'chevron-right' : 'chevron-left'} size={16} stroke={1.7} />
+      </button>
+    ) : null;
 
   const body = (
     <>
-      <div style={s.logoWrap}>
-        {logoUrl ? (
-          // Custom fleet logo (set in Settings → Branding).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt={user?.organization_name || 'Fleet logo'} style={s.logoImg} />
-        ) : (
-          <>
-            <div style={s.logo}>
-              {/* Icon-only Rovora mark (no wordmark) — the org name sits beside it. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.png" alt="Rovora" style={{ height: 30, width: 'auto' }} />
-            </div>
-            <div style={s.companyTag}>
-              <div style={s.companyName}>{user?.organization_name || 'Rovora'}</div>
-              <div style={s.companyMeta}>{isDriver ? 'Driver' : 'Fleet ops'}</div>
-            </div>
-          </>
+      <div style={{ ...s.logoWrap, ...(railed ? s.logoWrapRail : {}), ...(isMobile ? s.logoWrapMobile : {}) }}>
+        {/* The drawer covers most of the screen, leaving barely any scrim to
+            tap — so give it an explicit close control. */}
+        {isMobile && (
+          <button onClick={onClose} style={s.closeBtn} className="fleetIconBtn fleetIconBtnBare" aria-label="Close menu">
+            <FleetIcon name="close" size={20} stroke={2} />
+          </button>
         )}
+        {/* Handlers sit on the wrapper so the switcher itself needs no tooltip
+            plumbing — hover bubbles up from the trigger inside it. */}
+        <div
+          style={s.orgSlot}
+          onMouseEnter={(e) => showTip(e, user?.organization_name || 'Rovora')}
+          onMouseLeave={hideTip}
+          onClick={hideTip}
+        >
+          <FleetOrgSwitcher
+            user={user}
+            logoUrl={logoUrl}
+            railed={railed}
+            isMobile={isMobile}
+            onNavigate={onClose}
+          />
+        </div>
+        {!railed && collapseToggle}
       </div>
 
-      <nav style={s.nav}>
+      {railed && collapseToggle && <div style={s.railToggleRow}>{collapseToggle}</div>}
+
+      <nav style={{ ...s.nav, ...(railed ? s.navRail : {}) }}>
         {navGroups.map((g, gi) => {
           const items = g.items.filter(canSee);
           if (!items.length) return null;
           return (
-            <div key={gi} style={{ marginBottom: 14 }}>
-              {g.label && <div style={s.navLabel}>{g.label}</div>}
+            <div key={gi} style={{ marginBottom: railed ? 8 : 14 }}>
+              {g.label && (railed ? <div style={s.railDivider} /> : <div style={s.navLabel}>{g.label}</div>)}
               {items.map((item) => {
                 const active = isActive(item.href);
                 return (
                   <Link
                     key={item.id}
                     href={item.href}
-                    onClick={onClose}
+                    onClick={() => { hideTip(); onClose(); }}
+                    onMouseEnter={(e) => showTip(e, item.name)}
+                    onMouseLeave={hideTip}
+                    onBlur={hideTip}
+                    onFocus={(e) => showTip(e, item.name)}
                     data-tour={`nav-${item.id}`}
+                    // No `title` — that draws the OS's own grey tooltip. The
+                    // rail renders its own (portalled, see railTip below).
+                    aria-label={railed ? item.name : undefined}
                     className={`fleetNavItem${active ? ' fleetNavItemActive' : ''}`}
-                    style={{ ...s.navItem, ...(active ? s.navItemActive : {}), textDecoration: 'none' }}
+                    style={{
+                      ...s.navItem,
+                      ...(railed ? s.navItemRail : {}),
+                      textDecoration: 'none',
+                    }}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 11, color: active ? 'var(--accent)' : 'var(--text-2)' }}>
+                    {/* Colours come from .fleetNavItem / .fleetNavItemActive in
+                        fleet-theme.css — inline colours here would outrank the
+                        hover rules and freeze the transition. */}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                       <FleetIcon name={item.icon} size={17} stroke={1.6} />
-                      <span style={{ color: active ? 'var(--text-1)' : 'var(--text-2)', fontWeight: active ? 500 : 400 }}>
-                        {item.name}
-                      </span>
+                      {!railed && (
+                        <span style={{ fontWeight: active ? 500 : 400 }}>{item.name}</span>
+                      )}
                     </span>
                   </Link>
                 );
@@ -322,57 +297,18 @@ export default function FleetSidebar({ user, variant = 'fleet', isMobile, open, 
         })}
       </nav>
 
-      {!isDriver && (
-        <button
-          onClick={() => {
-            onClose();
-            window.dispatchEvent(new Event('rovora:start-tour'));
-          }}
-          className="fleetNavItem"
-          style={{ ...s.navItem, margin: '0 10px 2px', width: 'auto', cursor: 'pointer' }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 11, color: 'var(--text-2)' }}>
-            <FleetIcon name="doc" size={17} stroke={1.6} />
-            <span>Help &amp; tour</span>
-          </span>
-        </button>
-      )}
-
-      {user?.also_staff && user?.role === 'driver' && (
-        <Link
-          href={isDriver ? '/fleet' : '/driver'}
-          onClick={onClose}
-          className="fleetNavItem"
-          style={{ ...s.navItem, margin: '0 10px 6px', width: 'auto', textDecoration: 'none' }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 11, color: 'var(--text-2)' }}>
-            <FleetIcon name="logout" size={17} stroke={1.6} />
-            <span>{isDriver ? 'Switch to Fleet View' : 'Switch to Driver View'}</span>
-          </span>
-        </Link>
-      )}
-
-      <div style={s.userCard}>
-        <div style={s.userAvatar}>{initial}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {user?.full_name || user?.email || 'User'}
-          </div>
-          <div style={{ fontSize: 11.5, color: 'var(--text-3)', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {roleLabel} · {user?.email}
-          </div>
-        </div>
-        <button style={s.iconBtn} title="Sign out" onClick={handleLogout} className="fleetHover">
-          <FleetIcon name="logout" size={15} />
-        </button>
-      </div>
     </>
   );
 
-  const renderBottomTab = (tab: { name: string; href: string; icon: string }) => {
+  const renderBottomTab = (tab: NavItem) => {
     const active = isActive(tab.href);
     return (
-      <Link key={tab.href} href={tab.href} style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}) }}>
+      <Link
+        key={tab.href}
+        href={tab.href}
+        className={`fleetBottomTab${active ? ' fleetBottomTabActive' : ''}`}
+        style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}) }}
+      >
         <FleetIcon name={tab.icon} size={20} stroke={active ? 1.9 : 1.6} />
         <span style={{ fontSize: 10.5, marginTop: 2 }}>{tab.name}</span>
       </Link>
@@ -390,7 +326,11 @@ export default function FleetSidebar({ user, variant = 'fleet', isMobile, open, 
           {(isDriver ? bottomTabs.slice(0, 2) : bottomTabs).map(renderBottomTab)}
           {isDriver && <DriverShiftFab />}
           {isDriver && bottomTabs.slice(2).map(renderBottomTab)}
-          <button onClick={onMenuToggle} style={{ ...s.bottomTab, ...(open ? s.bottomTabActive : {}) }} className="fleetHover">
+          <button
+            onClick={onMenuToggle}
+            style={{ ...s.bottomTab, ...(open ? s.bottomTabActive : {}) }}
+            className={`fleetBottomTab${open ? ' fleetBottomTabActive' : ''}`}
+          >
             <FleetIcon name="dots" size={20} stroke={1.6} />
             <span style={{ fontSize: 10.5, marginTop: 2 }}>More</span>
           </button>
@@ -399,7 +339,22 @@ export default function FleetSidebar({ user, variant = 'fleet', isMobile, open, 
     );
   }
 
-  return <aside style={s.sidebar}>{body}</aside>;
+  return (
+    <>
+      <aside style={{ ...s.sidebar, ...(railed ? s.sidebarRail : {}) }}>{body}</aside>
+      {railed && tip && mounted && createPortal(
+        <div
+          className="fleetRailTip fleetTheme"
+          data-fleet-theme={theme}
+          role="tooltip"
+          style={{ top: tip.top, left: tip.left }}
+        >
+          {tip.label}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
 }
 
 const s: Record<string, CSSProperties> = {
@@ -414,7 +369,9 @@ const s: Record<string, CSSProperties> = {
     top: 0,
     flexShrink: 0,
     zIndex: 1,
+    transition: 'width 180ms cubic-bezier(.4,.0,.2,1)',
   },
+  sidebarRail: { width: 'var(--sidebar-rail-w)' },
   sidebarMobile: {
     position: 'fixed',
     top: 0,
@@ -423,6 +380,8 @@ const s: Record<string, CSSProperties> = {
     width: 280,
     minHeight: 'auto',
     height: '100vh',
+    // Full-screen on an iPhone the drawer starts behind the status bar.
+    paddingTop: 'env(safe-area-inset-top, 0px)',
     zIndex: 50,
     transition: 'transform 220ms cubic-bezier(.4,.0,.2,1)',
     boxShadow: '8px 0 32px rgba(0,0,0,0.3)',
@@ -434,12 +393,15 @@ const s: Record<string, CSSProperties> = {
     bottom: 0,
     left: 0,
     right: 0,
-    height: 60,
+    // Everything here is border-box, so the home-indicator inset has to be
+    // ADDED to the height — otherwise the padding eats the tabs and they end
+    // up ~26px tall on an iPhone once the app runs full-screen.
+    height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
     background: 'var(--bg-1)',
     borderTop: '1px solid var(--line-1)',
     display: 'flex',
     zIndex: 30,
-    paddingBottom: 'env(safe-area-inset-bottom, 0)',
+    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
   },
   bottomTab: {
     flex: 1,
@@ -455,53 +417,55 @@ const s: Record<string, CSSProperties> = {
     textDecoration: 'none',
   },
   bottomTabActive: { color: 'var(--accent)' },
-  logoWrap: { display: 'flex', alignItems: 'center', gap: 10, padding: '18px', borderBottom: '1px solid var(--line-1)', minHeight: 61 },
-  logo: { color: 'var(--text-1)', display: 'flex', alignItems: 'center' },
-  logoImg: { maxWidth: '100%', maxHeight: 36, objectFit: 'contain' },
-  companyTag: { display: 'flex', flexDirection: 'column', minWidth: 0 },
-  companyName: { fontSize: 13, fontWeight: 600, color: 'var(--text-1)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 },
-  companyMeta: { fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 },
-  nav: { flex: 1, overflowY: 'auto', padding: '14px 10px' },
+  // 9px padding + the 42px-tall switcher trigger + 1px border = 61px, matching
+  // the topbar so the two headers line up across the seam.
+  logoWrap: { display: 'flex', alignItems: 'center', gap: 4, padding: '9px 10px', borderBottom: '1px solid var(--line-1)', minHeight: 61 },
+  logoWrapRail: { padding: '9px 6px', justifyContent: 'center', gap: 0 },
+  logoWrapMobile: { padding: '9px 10px 9px 4px', gap: 2 },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+    borderRadius: 7,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nav:{ flex: 1, overflowY: 'auto', padding: '14px 10px' },
+  navRail: { padding: '14px 8px', overflowX: 'hidden' },
   navLabel: { fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-4)', padding: '8px 10px 4px' },
+  railDivider: { height: 1, background: 'var(--line-1)', margin: '6px 8px 8px' },
   navItem: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
     padding: '9px 10px',
-    background: 'transparent',
     border: 'none',
     borderRadius: 7,
-    color: 'var(--text-2)',
     fontSize: 13.5,
     textAlign: 'left',
-    transition: 'background 140ms ease, transform 140ms ease, box-shadow 140ms ease',
+    // Background, colour and transitions live in fleet-theme.css
+    // (.fleetNavItem / .fleetNavItemActive). Setting them inline would outrank
+    // the stylesheet and the hover state would never show.
     marginBottom: 1,
     fontFamily: 'inherit',
   },
-  navItemActive: { background: 'var(--bg-2)', boxShadow: 'inset 0 0 0 1px var(--line-2)' },
-  userCard: {
-    margin: '8px 10px 12px',
-    padding: '10px',
-    background: 'var(--bg-2)',
-    border: '1px solid var(--line-1)',
-    borderRadius: 9,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 7,
-    background: 'linear-gradient(135deg, #2bbd7e, #3b6ad9)',
-    color: '#fff',
-    fontWeight: 600,
-    fontSize: 13.5,
+  navItemRail: { justifyContent: 'center', padding: '10px 0' },
+  /** Lets the org switcher shrink so the collapse button keeps its corner. */
+  orgSlot: { flex: 1, minWidth: 0 },
+  collapseBtn: {
+    width: 30,
+    height: 30,
+    flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    padding: 0,
+    border: 'none',
+    borderRadius: 7,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   },
-  iconBtn: { width: 28, height: 28, background: 'transparent', border: 'none', color: 'var(--text-3)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  railToggleRow: { display: 'flex', justifyContent: 'center', padding: '8px 0 0' },
 };

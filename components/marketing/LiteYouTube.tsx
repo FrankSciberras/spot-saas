@@ -7,8 +7,21 @@ import { useState } from 'react';
  * only the poster thumbnail + a play button (basically weightless), so the heavy
  * YouTube player never loads on first paint. On click it swaps in the real
  * privacy-friendly (youtube-nocookie) iframe and autoplays.
+ *
+ * `priority` is for an embed that sits ABOVE THE FOLD (the home page hero). The
+ * poster is then the page's largest paint, and lazy-loading it means the browser
+ * waits for layout before even requesting it — measurably worse LCP. Leave it off
+ * anywhere further down the page.
  */
-export default function LiteYouTube({ id, title }: { id: string; title: string }) {
+export default function LiteYouTube({
+  id,
+  title,
+  priority = false,
+}: {
+  id: string;
+  title: string;
+  priority?: boolean;
+}) {
   const [playing, setPlaying] = useState(false);
 
   if (playing) {
@@ -37,7 +50,8 @@ export default function LiteYouTube({ id, title }: { id: string; title: string }
         className="ytlite-thumb"
         src={`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`}
         alt=""
-        loading="lazy"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
         onError={(e) => {
           // maxresdefault doesn't exist for every upload — fall back to hqdefault.
           e.currentTarget.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;

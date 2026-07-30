@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
 import FleetIcon from './FleetIcon';
 import { markFleetTourCompletedAction } from '@/lib/actions/fleet-tour';
 
@@ -78,11 +79,16 @@ export default function FleetTour({ userId, role, tourCompleted }: Props) {
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const pathname = usePathname();
 
   const step = STEPS[i];
 
   useEffect(() => {
     setMounted(true);
+    // The shell renders this on every /fleet page, but the tour is a welcome to
+    // the dashboard — it should greet you there, not ambush you on Settings.
+    // Manual replay (the "Help & tour" event below) still works anywhere.
+    if (pathname !== '/fleet') return;
     // Server-persisted "seen" flag wins — the tour shows only once, ever.
     if (tourCompleted) return;
     let done = false;
@@ -109,7 +115,7 @@ export default function FleetTour({ userId, role, tourCompleted }: Props) {
       }, 700);
       return () => clearTimeout(t);
     }
-  }, [userId, role, tourCompleted]);
+  }, [userId, role, tourCompleted, pathname]);
 
   // Resolve the highlight rect for the current step.
   useEffect(() => {

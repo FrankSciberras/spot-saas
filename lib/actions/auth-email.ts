@@ -17,8 +17,9 @@
 //     itself already would.
 // =============================================================================
 
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
+import { appUrl } from '@/lib/urls';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -47,12 +48,10 @@ export async function requestPasswordResetAction(
     return { ok: true };
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'recovery',
     email: clean,
-    options: { redirectTo: `${appUrl}/auth/callback?type=recovery` },
+    options: { redirectTo: `${appUrl()}/auth/callback?type=recovery` },
   });
 
   const link = data?.properties?.action_link;
@@ -63,13 +62,14 @@ export async function requestPasswordResetAction(
 
   const html = renderBrandedEmail({
     heading: 'Reset your password',
+    preheader: `Choose a new password for your ${appName()} account. This link expires in 1 hour.`,
     body:
       `We received a request to reset the password for your ${appName()} account. ` +
       `Click the button below to choose a new password. This link expires in 1 hour.\n\n` +
-      `If you didn't request this, you can safely ignore this email — your password won't change.\n\n` +
-      `Trouble with the button? Copy and paste this link into your browser:\n${link}`,
+      `If you didn't request this, you can safely ignore this email — your password won't change.`,
     actionUrl: link,
     actionLabel: 'Reset password',
+    footnote: 'For your security this link can only be used once.',
   });
 
   await sendEmail({ to: clean, subject: 'Reset your password', html });
@@ -99,10 +99,11 @@ interface SignupCodeResult {
 async function sendCodeEmail(to: string, code: string): Promise<boolean> {
   const html = renderBrandedEmail({
     heading: 'Verify your email',
-    body:
-      `Welcome to ${appName()}! Enter this code on the sign-up screen to verify your email address:\n\n` +
-      `${code}\n\n` +
-      `For your security the code is single-use and expires shortly. ` +
+    preheader: `${code} is your ${appName()} verification code.`,
+    body: `Welcome to ${appName()}! Enter this code on the sign-up screen to verify your email address:`,
+    code,
+    footnote:
+      `The code is single-use and expires shortly. ` +
       `If you didn't create a ${appName()} account, you can safely ignore this email.`,
   });
   return sendEmail({ to, subject: `${code} is your ${appName()} verification code`, html });
@@ -191,4 +192,78 @@ export async function resendSignupCodeAction(email: string): Promise<SignupCodeR
   const sent = await sendCodeEmail(clean, otp);
   if (!sent) return { ok: false, error: 'Could not send the verification email. Please try again.' };
   return { ok: true, verifyType: 'email' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIGN-UP FROM THE WEBSITE CHAT
+// ─────────────────────────────────────────────────────────────────────────────
+// The marketing assistant can start a trial without sending the visitor to
+// /login — the fewer steps between "I'm interested" and "I have an account",
+// the more trials actually start.
+//
+// These wrap the same flow the login page runs, but do the session-creating
+// half on the SERVER. That matters twice over: the session cookie is set by the
+// action itself (no client-side auth round-trip), and — because the chat widget
+// is mounted on every marketing page — it keeps supabase-js out of the public
+// site's JS bundle, which is otherwise a needless ~50KB on pages built to be
+// fast and crawlable.
+
+export interface ChatSignupResult {
+  /** 'code' — a verification code was emailed; 'signed_in' — session is live. */
+  status?: 'code' | 'signed_in';
+  verifyType?: SignupVerifyType;
+  error?: string;
+}
+
+/**
+ * Create the trial account from the chat. Returns either "check your email for a
+ * code" or, when Supabase auto-confirms, a live session ready for /onboarding.
+ */
+export async function chatSignupAction(email: string, password: string): Promise<ChatSignupResult> {
+  const clean = email?.trim().toLowerCase() || '';
+  const res = await requestSignupCodeAction(clean, password);
+  if (!res.ok) return { error: res.error || 'Could not create the account. Please try again.' };
+
+  // Email confirmation is switched off in Supabase, so the account is already
+  // usable — sign in here rather than dead-ending on a code that never arrives.
+  if (res.alreadyConfirmed) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email: clean, password });
+    if (error) return { error: 'Account created — please sign in to continue.' };
+    return { status: 'signed_in' };
+  }
+
+  return { status: 'code', verifyType: res.verifyType ?? 'signup' };
+}
+
+/**
+ * Verify the emailed code and sign the visitor in. Runs server-side so the
+ * session cookie is written by this action.
+ */
+export async function chatVerifyCodeAction(
+  email: string,
+  code: string,
+  verifyType: SignupVerifyType = 'signup',
+): Promise<{ ok: boolean; error?: string }> {
+  const clean = email?.trim().toLowerCase() || '';
+  const token = code?.replace(/\D/g, '') || '';
+  if (!EMAIL_RE.test(clean)) return { ok: false, error: 'Enter a valid email address.' };
+  if (token.length < 6) return { ok: false, error: 'Enter the 6-digit code from your email.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: clean,
+    token,
+    type: verifyType === 'email' ? 'email' : 'signup',
+  });
+
+  if (error || !data.session) {
+    return {
+      ok: false,
+      error: /expired|invalid/i.test(error?.message || '')
+        ? 'That code is invalid or has expired — check the digits, or resend a fresh one.'
+        : error?.message || 'Could not verify that code. Please try again.',
+    };
+  }
+  return { ok: true };
 }

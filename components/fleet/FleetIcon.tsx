@@ -113,6 +113,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><path d="M4 20h4l10.5-10.5a2.47 2.47 0 0 0-3.5-3.5L4 16.5z" /><path d="M14 7.5l3 3" /></svg>;
     case 'trash':
       return <svg {...props}><path d="M4 7h16" /><path d="M9.5 7V4.5h5V7" /><path d="M6.5 7l.9 12.6A1.5 1.5 0 0 0 8.9 21h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7" /><path d="M10.5 11.5v5.5M13.5 11.5v5.5" /></svg>;
+    case 'eye':
+      return <svg {...props}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>;
     case 'lock':
       return <svg {...props}><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></svg>;
     case 'unlock':

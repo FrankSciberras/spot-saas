@@ -1,5 +1,5 @@
 // Rovora Fleet Management Service Worker
-const CACHE_NAME = 'rovora-dashboard-v16';
+const CACHE_NAME = 'rovora-dashboard-v17';
 const OFFLINE_URL = '/offline';
 
 // Assets to cache for offline use

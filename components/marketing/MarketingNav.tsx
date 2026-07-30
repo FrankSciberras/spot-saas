@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import RovoraThemeToggle from './RovoraThemeToggle';
 import FeaturesMenu from './FeaturesMenu';
 import NavActions from './NavActions';
+import MobileNav from './MobileNav';
 
 /**
  * Shared marketing top nav. On the home page the section links are pure hashes
@@ -38,9 +38,11 @@ export default function MarketingNav({ onHome = false }: { onHome?: boolean }) {
           <a href={h('faq')}>FAQ</a>
           <Link href="/blog">Blog</Link>
         </nav>
+        {/* The light/dark switch deliberately lives in the mobile menu and the
+            footer instead of here, so the top bar stays uncluttered. */}
         <div className="nav-actions">
-          <RovoraThemeToggle />
           <NavActions />
+          <MobileNav onHome={onHome} />
         </div>
       </div>
     </header>

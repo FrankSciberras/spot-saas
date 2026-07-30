@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getSession } from '@/lib/auth/session';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
+import { appUrl } from '@/lib/urls';
 import type { UserRole } from '@/lib/types/database';
 
 /**
@@ -49,8 +50,9 @@ export async function POST(request: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const redirectTo = appUrl ? `${appUrl}/auth/callback` : undefined;
+    // Tag the type explicitly so the callback sends invitees to set a password,
+    // rather than relying on Supabase echoing `type` back in the URL fragment.
+    const redirectTo = `${appUrl()}/auth/callback?type=invite`;
 
     // --- 1. Create or find the auth user --------------------------------------
     // Supabase's own mailer (inviteUserByEmail) fails on this project with
@@ -105,10 +107,10 @@ export async function POST(request: Request) {
       const html = renderBrandedEmail({
         heading: `You're invited to ${orgName}`,
         greeting: fullName ? `Hi ${fullName},` : undefined,
+        preheader: `${orgName} has invited you to join their fleet on ${appName()}.`,
         body:
           `${orgName} has invited you to join their fleet on ${appName()} as ${roleLabel}. ` +
-          `Click the button below to accept the invitation and set your password.\n\n` +
-          `Trouble with the button? Copy and paste this link into your browser:\n${inviteLink}`,
+          `Click the button below to accept the invitation and set your password.`,
         actionUrl: inviteLink,
         actionLabel: 'Accept invitation',
       });
