@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from '@/components/admin/AdminForms.module.css';
 
 interface ShiftData {
@@ -172,11 +173,9 @@ export default function EditShiftPage({ params }: PageProps) {
 
   return (
     <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+      <FleetBackLink href={`/fleet/shifts/${shiftId}`} label="Back to shift" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <Link href={`/fleet/shifts/${shiftId}`} className={styles.backButton} aria-label="Back">
-            <span>←</span>
-          </Link>
           <div className={styles.pageTitleMain}>
             <h2>Edit Shift</h2>
             <span className={styles.subtitle}>

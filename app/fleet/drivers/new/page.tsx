@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import DriverForm from '@/components/admin/DriverForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -43,16 +43,12 @@ export default async function NewDriverPage() {
 
   return (
     <FleetShell user={user} title="Add New Driver">
+      <FleetBackLink href="/fleet/drivers" label="Back to drivers" />
       <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitleMain}>
           <div className={styles.breadcrumb}>Operations / Drivers / New</div>
           <h2>Add New Driver</h2>
           <span className={styles.subtitle}>Create a new driver profile and link to a user account</span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href="/fleet/drivers" className="btn btn-secondary">
-            ← Back to Drivers
-          </Link>
         </div>
       </div>
 

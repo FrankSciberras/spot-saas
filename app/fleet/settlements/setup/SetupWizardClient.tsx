@@ -32,10 +32,12 @@ import {
 import { createRecurringAdjustmentAction } from '@/lib/actions/recurring-adjustments';
 import {
   DEFAULT_COMPONENTS,
+  platformInitial,
   type SettlementComponents,
   type SettlementScheme,
 } from '@/lib/config/settlements';
 import { calculateSettlement, formatCurrency, round2 } from '@/lib/utils/settlementCalculations';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import styles from './setup-wizard.module.css';
 
 // Pay-model icons — plain stroke SVGs (no emojis) matching the app's icon style.
@@ -754,9 +756,14 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                 <div key={d.id ?? `new-${idx}`} className={`${styles.platformRow} ${!d.active ? styles.platformRowOff : ''}`}>
                   <button type="button" className={styles.platformToggle} onClick={() => togglePlatform(idx)}>
                     <span className={`${styles.platformCheck} ${d.active ? styles.platformCheckOn : ''}`}>
-                      {d.active ? '✓' : ''}
+                      {d.active && <FleetIcon name="check" size={12} stroke={2.6} />}
                     </span>
-                    <span className={styles.platformName}>{d.icon} {d.name}</span>
+                    <span className={styles.platformName}>
+                      <span className={styles.platformDot} style={{ background: d.color || 'var(--accent)' }} aria-hidden>
+                        {platformInitial(d.name)}
+                      </span>
+                      {d.name}
+                    </span>
                   </button>
                   <span className={styles.platformFee}>
                     <input

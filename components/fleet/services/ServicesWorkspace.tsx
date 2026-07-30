@@ -122,18 +122,20 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
       <div style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Maintenance / Services</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Services</h1>
-            <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{counts.all}</span>
+          <div style={st.titleRow}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Services</h1>
+              <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{counts.all}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={st.secondaryBtn} className="fleetHover" onClick={() => router.refresh()}>
+                <FleetIcon name="filter" size={14} /> Refresh
+              </button>
+              <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/services/new')}>
+                <FleetIcon name="plus" size={14} stroke={2.2} /> Schedule service
+              </button>
+            </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={st.secondaryBtn} className="fleetHover" onClick={() => router.refresh()}>
-            <FleetIcon name="filter" size={14} /> Refresh
-          </button>
-          <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/services/new')}>
-            <FleetIcon name="plus" size={14} stroke={2.2} /> Schedule service
-          </button>
         </div>
       </div>
 
@@ -178,14 +180,25 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
                   key={s.id}
                   style={{ ...st.svcRow, borderBottom: i < list.length - 1 ? '1px solid var(--line-1)' : 'none', cursor: 'pointer' }}
                   className="fleetNavItem"
-                  onClick={() => router.push(`/fleet/vehicles/${s.vehicleId}`)}
+                  onClick={() => router.push(`/fleet/services/${s.id}`)}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, minWidth: 0, flex: 1 }}>
                     <div style={st.svcIcon}><FleetIcon name={CAT_ICON[s.category] || 'wrench'} size={15} /></div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 13.5, color: 'var(--text-1)', fontWeight: 500 }}>{s.type}</span>
-                        <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4 }}>{s.plate}</span>
+                        {/* Plate is a shortcut to the vehicle; the rest of the row opens the record. */}
+                        <span
+                          className="mono"
+                          role="link"
+                          tabIndex={0}
+                          title={`Open vehicle ${s.plate}`}
+                          onClick={(e) => { e.stopPropagation(); router.push(`/fleet/vehicles/${s.vehicleId}`); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); router.push(`/fleet/vehicles/${s.vehicleId}`); } }}
+                          style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4, cursor: 'pointer' }}
+                        >
+                          {s.plate}
+                        </span>
                       </div>
                       <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3 }}>
                         {s.garage}{s.mechanic !== '—' && <> · {s.mechanic}</>}
@@ -258,6 +271,7 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px' },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit' },
   secondaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-1)', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },

@@ -68,21 +68,21 @@ export default function RostersWorkspace({ rosters, canManage }: Props) {
       <div style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Operations / Rosters</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <div style={st.titleRow}>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Weekly schedules</h1>
+            {canManage && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                {selected.size > 0 && (
+                  <button style={st.secondaryBtn}><FleetIcon name="dots" size={14} /> {selected.size} selected</button>
+                )}
+                <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/rosters/new')}>
+                  <FleetIcon name="plus" size={14} stroke={2.2} /> New roster
+                </button>
+              </div>
+            )}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>Create and manage weekly rosters for your fleet</div>
         </div>
-        {canManage && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            {selected.size > 0 && (
-              <button style={st.secondaryBtn}><FleetIcon name="dots" size={14} /> {selected.size} selected</button>
-            )}
-            <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/rosters/new')}>
-              <FleetIcon name="plus" size={14} stroke={2.2} /> New roster
-            </button>
-          </div>
-        )}
       </div>
 
       <div style={st.statsRow} className="stats-row-mobile">
@@ -145,6 +145,7 @@ export default function RostersWorkspace({ rosters, canManage }: Props) {
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px' },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit' },
   secondaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-1)', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },

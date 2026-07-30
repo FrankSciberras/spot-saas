@@ -216,20 +216,22 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
       <div style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Financial / Adjustments</div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Driver adjustments</h1>
+          <div style={st.titleRow}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Driver adjustments</h1>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={st.ghostBtn} className="fleetHover" onClick={() => router.push('/fleet/settlements')}>
+                <FleetIcon name="settle" size={13} /> Settlements
+              </button>
+              {isAdmin && (
+                <button style={st.primaryBtn} className="fleetHover" onClick={openNew}>
+                  <FleetIcon name="plus" size={13} stroke={2.2} /> New adjustment
+                </button>
+              )}
+            </div>
+          </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>
             Expenses and compensations applied to drivers. Each entry flows into their settlement balance.
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={st.ghostBtn} className="fleetHover" onClick={() => router.push('/fleet/settlements')}>
-            <FleetIcon name="settle" size={13} /> Settlements
-          </button>
-          {isAdmin && (
-            <button style={st.primaryBtn} className="fleetHover" onClick={openNew}>
-              <FleetIcon name="plus" size={13} stroke={2.2} /> New adjustment
-            </button>
-          )}
         </div>
       </div>
 
@@ -487,6 +489,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 
 const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 18px', gap: 12 },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit' },
   ghostBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 },

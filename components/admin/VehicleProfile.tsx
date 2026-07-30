@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import DeleteVehicleButton from './DeleteVehicleButton';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import DeleteRecordButton from '@/components/fleet/DeleteRecordButton';
 import styles from './VehicleProfile.module.css';
 
 /* ─── Types ─── */
@@ -415,14 +415,33 @@ export default function VehicleProfile({
             <span className={styles.heroSub}>{vehicle.make} {vehicle.model}{vehicle.year ? ` (${vehicle.year})` : ''}</span>
             <div className={styles.heroBadges}>
               <span className={`badge ${statusBadge(vehicle.status)}`}>{statusLabel(vehicle.status)}</span>
-              {vehicle.color && <span className="badge badge-info">{vehicle.color}</span>}
+              {vehicle.color && (
+                <span className={styles.colorChip}>
+                  <span className={styles.colorDot} style={{ background: vehicle.color.toLowerCase() }} />
+                  {vehicle.color}
+                </span>
+              )}
             </div>
           </div>
           <div className={styles.heroActions}>
-            <Link href={`/fleet/vehicles/${vehicle.id}/damages`} className="btn btn-secondary" style={{ fontSize: 13, padding: '8px 14px' }}>
-              Damages
+            <Link href={`/fleet/vehicles/${vehicle.id}/damages`} className={styles.heroBtn}>
+              <FleetIcon name="damage" size={14} /> Damages
             </Link>
-            {isAdmin && <DeleteVehicleButton vehicleId={vehicle.id} vehicleReg={vehicle.registration_number} />}
+            {isAdmin && (
+              <DeleteRecordButton
+                endpoint={`/api/vehicles/${vehicle.id}`}
+                redirectTo="/fleet/vehicles"
+                title="Delete vehicle?"
+                body={
+                  <>
+                    <strong>{vehicle.registration_number}</strong> ({vehicle.make} {vehicle.model}) will be
+                    removed from your fleet. Shift, service and damage records that reference it will be
+                    affected.
+                  </>
+                }
+                confirmLabel="Delete vehicle"
+              />
+            )}
           </div>
         </div>
       </div>

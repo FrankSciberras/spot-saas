@@ -131,7 +131,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   const { error } = await supabase
     .from('vehicle_services')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

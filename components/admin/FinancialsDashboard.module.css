@@ -160,6 +160,28 @@
   border-color: var(--accent-line);
 }
 
+/* The weekly bulk picker carries a longer summary than a plain period name. */
+.filterGroupWide {
+  grid-column: span 2;
+}
+
+.panelSelect {
+  max-width: 200px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.panelSelect:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+
 .resetLink {
   display: inline;
   margin-left: 8px;
@@ -571,6 +593,10 @@
 
   .filtersGrid {
     grid-template-columns: 1fr;
+  }
+
+  .filterGroupWide {
+    grid-column: span 1;
   }
 
   .kpiGrid {

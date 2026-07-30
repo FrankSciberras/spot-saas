@@ -350,12 +350,31 @@
 }
 
 .platformName {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Coloured circle + initial, instead of a per-platform emoji. */
+.platformDot {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
 
 .platformFee {

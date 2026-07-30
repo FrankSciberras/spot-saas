@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DatePicker from '@/components/shared/DatePicker';
 import AddDriverModal from '@/components/fleet/AddDriverModal';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import SettlementImportModal, { type StagedImport, type ImportedFigures } from './SettlementImportModal';
 import {
   getDefaultFssTax,
@@ -31,6 +32,13 @@ import bulkStyles from '@/components/admin/ServicesList.module.css';
 function dateOnly(value: string): string {
   return value.includes('T') ? value.split('T')[0] : value;
 }
+
+/** Spoken/hover text for the per-driver status dot in the sidebar. */
+const STATUS_LABELS: Record<string, string> = {
+  finalized: 'Finalized',
+  draft: 'Draft saved',
+  pending: 'Nothing entered yet',
+};
 
 
 interface DriverWithStatus extends Pick<Driver, 'id' | 'full_name' | 'employment_type'> {
@@ -1286,8 +1294,12 @@ export default function SettlementsWorkspace({
     <div className={styles.workspace}>
       {isAdmin && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-          <Link href="/fleet/settlements/settings" className="btn btn-secondary btn-sm">
-            ⚙ Settlement rules
+          <Link
+            href="/fleet/settlements/settings"
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <FleetIcon name="adjust" size={14} /> Settlement rules
           </Link>
         </div>
       )}
@@ -1299,6 +1311,8 @@ export default function SettlementsWorkspace({
           {availableYears.map(year => (
             <button
               key={year}
+              type="button"
+              aria-pressed={year === selectedYear}
               className={`${styles.yearBtn} ${year === selectedYear ? styles.active : ''}`}
               onClick={() => {
                 setSelectedYear(year);
@@ -1322,6 +1336,9 @@ export default function SettlementsWorkspace({
             return (
               <button
                 key={idx}
+                type="button"
+                aria-pressed={isSelected}
+                aria-label={`${name} ${selectedYear}${hasData ? `, ${data.count} settlement${data.count === 1 ? '' : 's'}` : ', no settlements'}`}
                 className={`${styles.monthCard} ${isSelected ? styles.active : ''} ${hasData ? styles.hasData : ''}`}
                 onClick={() => {
                   setSelectedMonth(idx);
@@ -1352,10 +1369,12 @@ export default function SettlementsWorkspace({
                     disabled={monthSettlements.length === 0}
                     title="Export all settlements for this month as a PDF"
                     type="button"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
-                    Export Month PDF
+                    <FleetIcon name="download" size={14} /> Export Month PDF
                   </button>
                   <button
+                    type="button"
                     className="btn btn-primary btn-sm"
                     onClick={() => {
                       setIsCreatingPeriod(true);
@@ -1366,9 +1385,9 @@ export default function SettlementsWorkspace({
                       const month = String(selectedMonth + 1).padStart(2, '0');
                       setNewPeriodMonth(`${selectedYear}-${month}-01`);
                     }}
-                    type="button"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
-                    + New Week
+                    <FleetIcon name="plus" size={14} stroke={2.2} /> New Week
                   </button>
                 </div>
               )}
@@ -1377,13 +1396,18 @@ export default function SettlementsWorkspace({
             {/* New Period Form */}
             {isCreatingPeriod && (
               <div className={styles.newPeriodForm}>
+                <div className={styles.formTitle}>
+                  <FleetIcon name="calendar-plus" size={15} />
+                  New week in {monthNames[selectedMonth]} {selectedYear}
+                </div>
                 <div className={styles.formRow}>
+                  <span>Starts</span>
                   <DatePicker
                     value={newPeriodStart}
                     onChange={setNewPeriodStart}
                     placeholder="Start date"
                   />
-                  <span>to</span>
+                  <span>Ends</span>
                   <DatePicker
                     value={newPeriodEnd}
                     onChange={setNewPeriodEnd}
@@ -1394,6 +1418,7 @@ export default function SettlementsWorkspace({
                 <input
                   type="text"
                   placeholder="Week name (e.g. Week 1)"
+                  aria-label="Week name"
                   value={newPeriodName}
                   onChange={(e) => {
                     setNewPeriodName(e.target.value);
@@ -1402,15 +1427,25 @@ export default function SettlementsWorkspace({
                   className={styles.periodNameInput}
                 />
                 <div className={styles.formActions}>
-                  {newPeriodStart && newPeriodEnd && (
-                    <button className="btn btn-primary btn-sm" onClick={confirmNewPeriod}>
-                      Continue
-                    </button>
-                  )}
-                  <button className="btn btn-ghost btn-sm" onClick={cancelNewPeriod}>
+                  {/* Kept mounted but disabled: hiding it left a lone "Cancel" as
+                      the only visible action, which read as a dead end. */}
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={confirmNewPeriod}
+                    disabled={!newPeriodStart || !newPeriodEnd}
+                  >
+                    Continue
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={cancelNewPeriod}>
                     Cancel
                   </button>
                 </div>
+                {(!newPeriodStart || !newPeriodEnd) && (
+                  <span className={styles.formHint}>
+                    Pick a start and end date to continue.
+                  </span>
+                )}
               </div>
             )}
 
@@ -1418,13 +1453,15 @@ export default function SettlementsWorkspace({
             <div className={styles.weekCards}>
               {/* Show new week card if one is being created */}
               {selectedWeekId?.startsWith('new_') && currentPeriod && (
-                <div className={`${styles.weekCard} ${styles.active} ${styles.newWeek}`}>
+                <div className={`${styles.weekCard} ${styles.active} ${styles.newWeek} ${styles.weekCardStatic}`}>
                   <div className={styles.weekCardHeader}>
                     <span className={styles.weekName}>{currentPeriod.periodName || 'New Week'}</span>
                     <span className={styles.weekDates}>{currentPeriod.label}</span>
                   </div>
                   <div className={styles.weekCardStats}>
-                    <span className={styles.newBadge}>New - Select a driver to add settlements</span>
+                    <span className={styles.newBadge}>
+                      <FleetIcon name="arrow-down" size={12} /> New — pick a driver below to add settlements
+                    </span>
                   </div>
                 </div>
               )}
@@ -1433,6 +1470,8 @@ export default function SettlementsWorkspace({
               {weeksInMonth.map(week => (
                 <button
                   key={week.id}
+                  type="button"
+                  aria-current={selectedWeekId === week.id ? 'true' : undefined}
                   className={`${styles.weekCard} ${selectedWeekId === week.id ? styles.active : ''}`}
                     onClick={() => {
                       setSelectedWeekId(week.id);
@@ -1457,10 +1496,19 @@ export default function SettlementsWorkspace({
             {/* Empty state - only show if no weeks and not creating */}
             {weeksInMonth.length === 0 && !isCreatingPeriod && !selectedWeekId?.startsWith('new_') && (
               <div className={styles.emptyWeeks}>
-                <p>No weeks in {monthNames[selectedMonth]} {selectedYear}</p>
+                <FleetIcon name="calendar" size={28} stroke={1.4} />
+                <div className={styles.emptyTitle}>
+                  No weeks in {monthNames[selectedMonth]} {selectedYear}
+                </div>
+                <div className={styles.emptyDesc}>
+                  A week is the pay period you enter driver earnings against. Create one to
+                  start recording settlements for this month.
+                </div>
                 {isAdmin && (
                   <button
+                    type="button"
                     className="btn btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                     onClick={() => {
                       setIsCreatingPeriod(true);
                       setIsEditingPeriod(false);
@@ -1469,7 +1517,7 @@ export default function SettlementsWorkspace({
                       setNewPeriodMonth(`${selectedYear}-${month}-01`);
                     }}
                   >
-                    Create First Week
+                    <FleetIcon name="plus" size={14} stroke={2.2} /> Create first week
                   </button>
                 )}
               </div>
@@ -1484,15 +1532,15 @@ export default function SettlementsWorkspace({
         <div className={styles.weekStatsBar}>
           <div className={styles.weekStats}>
             <span className={styles.statItem}>
-              <span className={styles.statDot} style={{ background: 'var(--color-success)' }}></span>
+              <span className={styles.statDot} style={{ background: 'var(--pos)' }}></span>
               {periodSettlements.filter(s => s.status === 'finalized').length} Finalized
             </span>
             <span className={styles.statItem}>
-              <span className={styles.statDot} style={{ background: 'var(--color-warning)' }}></span>
+              <span className={styles.statDot} style={{ background: 'var(--warn)' }}></span>
               {periodSettlements.filter(s => s.status === 'draft').length} Draft
             </span>
             <span className={styles.statItem}>
-              <span className={styles.statDot} style={{ background: 'var(--text-muted)' }}></span>
+              <span className={styles.statDot} style={{ background: 'var(--text-3)' }}></span>
               {activeDrivers.length - periodSettlements.length} Pending
             </span>
           </div>
@@ -1503,8 +1551,9 @@ export default function SettlementsWorkspace({
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowImport(true)}
                 title="Import per-driver earnings from a platform CSV export"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Import CSV
+                <FleetIcon name="upload" size={14} /> Import CSV
               </button>
             )}
             {isAdmin && periodSettlements.length > 0 && (
@@ -1513,8 +1562,9 @@ export default function SettlementsWorkspace({
                 className="btn btn-secondary btn-sm"
                 onClick={startEditingPeriod}
                 disabled={periodSaving}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Edit Week Dates
+                <FleetIcon name="pencil" size={14} /> Edit week dates
               </button>
             )}
             {periodSettlements.length > 0 && (
@@ -1524,13 +1574,7 @@ export default function SettlementsWorkspace({
                 onClick={handleExportPdf}
                 title="Export all settlements for this week as PDF"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="18" x2="12" y2="12" />
-                  <line x1="9" y1="15" x2="15" y2="15" />
-                </svg>
-                Export PDF
+                <FleetIcon name="download" size={14} /> Export PDF
               </button>
             )}
           </div>
@@ -1542,7 +1586,7 @@ export default function SettlementsWorkspace({
         <div className={styles.weekStatsBar}>
           <div className={styles.weekStats}>
             <span className={styles.statItem}>
-              <span className={styles.statDot} style={{ background: 'var(--accent, #2bbd7e)' }}></span>
+              <span className={styles.statDot} style={{ background: 'var(--accent)' }}></span>
               Imported figures staged for {Object.keys(stagedImport).length} driver{Object.keys(stagedImport).length === 1 ? '' : 's'}
               {stagedPendingIds.length < Object.keys(stagedImport).length
                 ? ` (${Object.keys(stagedImport).length - stagedPendingIds.length} already have settlements)`
@@ -1638,20 +1682,16 @@ export default function SettlementsWorkspace({
               className={bulkStyles.paidBtn}
               onClick={() => setShowBulkPaidConfirm(true)}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-              Mark Paid Selected
+              <FleetIcon name="check" size={15} stroke={2.2} />
+              Mark paid
             </button>
             <button
               type="button"
               className={bulkStyles.deleteBtn}
               onClick={() => setShowBulkDeleteConfirm(true)}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-              </svg>
-              Delete Selected
+              <FleetIcon name="trash" size={15} />
+              Delete
             </button>
           </div>
         </div>
@@ -1659,8 +1699,14 @@ export default function SettlementsWorkspace({
 
       {showBulkPaidConfirm && (
         <div className={bulkStyles.modalOverlay} onClick={() => !bulkPaidLoading && setShowBulkPaidConfirm(false)}>
-          <div className={bulkStyles.modal} onClick={e => e.stopPropagation()}>
-            <h3>Confirm Paid</h3>
+          <div
+            className={bulkStyles.modal}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulk-paid-title"
+          >
+            <h3 id="bulk-paid-title">Confirm paid</h3>
             <p>
               Mark <strong>{selectedSettlementIds.size}</strong> settlement{selectedSettlementIds.size !== 1 ? 's' : ''} as paid?
             </p>
@@ -1692,8 +1738,14 @@ export default function SettlementsWorkspace({
       {/* Bulk Delete Confirmation Modal */}
       {showBulkDeleteConfirm && (
         <div className={bulkStyles.modalOverlay} onClick={() => !bulkDeleteLoading && setShowBulkDeleteConfirm(false)}>
-          <div className={bulkStyles.modal} onClick={e => e.stopPropagation()}>
-            <h3>Confirm Deletion</h3>
+          <div
+            className={bulkStyles.modal}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulk-delete-title"
+          >
+            <h3 id="bulk-delete-title">Confirm deletion</h3>
             <p>
               Are you sure you want to delete <strong>{selectedSettlementIds.size}</strong> settlement{selectedSettlementIds.size !== 1 ? 's' : ''}? 
               This will permanently remove all associated platform data. This action cannot be undone.
@@ -1730,33 +1782,41 @@ export default function SettlementsWorkspace({
             <div className={styles.sidebarHeader}>
               <div className={styles.driverTabs}>
                 <button
+                  type="button"
+                  aria-pressed={!showArchived}
                   className={`${styles.tabBtn} ${!showArchived ? styles.active : ''}`}
                   onClick={() => { setShowArchived(false); setSelectedDriverId(null); }}
                 >
                   Active ({activeDrivers.length})
                 </button>
                 <button
+                  type="button"
+                  aria-pressed={showArchived}
                   className={`${styles.tabBtn} ${showArchived ? styles.active : ''}`}
                   onClick={() => { setShowArchived(true); setSelectedDriverId(null); }}
                 >
                   Archived ({archivedDrivers.length})
                 </button>
               </div>
-              <input
-                type="text"
-                placeholder="Search drivers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={styles.searchInput}
-              />
+              <div className={styles.searchBox}>
+                <FleetIcon name="search" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search drivers..."
+                  aria-label="Search drivers"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={styles.searchField}
+                />
+              </div>
               {isAdmin && (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   onClick={() => setShowAddDriver(true)}
                 >
-                  + Add driver
+                  <FleetIcon name="plus" size={14} stroke={2.2} /> Add driver
                 </button>
               )}
             </div>
@@ -1773,7 +1833,7 @@ export default function SettlementsWorkspace({
                   <span>Select all ({periodSettlements.length})</span>
                 </label>
                 {selectedSettlementIds.size > 0 && (
-                  <button className={styles.clearSelectionBtn} onClick={clearSelection}>
+                  <button type="button" className={styles.clearSelectionBtn} onClick={clearSelection}>
                     Clear
                   </button>
                 )}
@@ -1797,6 +1857,7 @@ export default function SettlementsWorkspace({
                       <input
                         type="checkbox"
                         className={styles.driverCheckbox}
+                        aria-label={`Select ${driver.full_name}'s settlement`}
                         checked={isSettlementSelected}
                         onChange={(e) => {
                           e.stopPropagation();
@@ -1806,16 +1867,27 @@ export default function SettlementsWorkspace({
                       />
                     )}
                     <button
+                      type="button"
+                      aria-current={isSelected ? 'true' : undefined}
                       className={styles.driverItemBtn}
                       onClick={() => selectDriver(driver.id)}
                     >
                       <span className={styles.driverName}>{driver.full_name}</span>
                       <div className={styles.driverIndicators}>
-                        {isPaid && <span className={styles.paidBadge} title="Paid">$</span>}
-                        <span className={`${styles.statusIndicator} ${styles[`status_${status}`]}`}>
-                          {status === 'finalized' && '✓'}
-                          {status === 'draft' && '○'}
-                          {status === 'pending' && '–'}
+                        {isPaid && (
+                          <span className={styles.paidBadge} role="img" aria-label="Paid">
+                            <FleetIcon name="euro" size={11} stroke={2} />
+                          </span>
+                        )}
+                        <span
+                          className={`${styles.statusIndicator} ${styles[`status_${status}`]}`}
+                          role="img"
+                          aria-label={STATUS_LABELS[status] ?? status}
+                          title={STATUS_LABELS[status] ?? status}
+                        >
+                          {status === 'finalized' && <FleetIcon name="check" size={12} stroke={2.4} />}
+                          {status === 'draft' && <span className={styles.statusDot} />}
+                          {status === 'pending' && <FleetIcon name="minus" size={12} stroke={2.4} />}
                         </span>
                       </div>
                     </button>
@@ -1829,10 +1901,10 @@ export default function SettlementsWorkspace({
                     <button
                       type="button"
                       className="btn btn-primary btn-sm"
-                      style={{ marginTop: 12 }}
+                      style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                       onClick={() => setShowAddDriver(true)}
                     >
-                      + Add your first driver
+                      <FleetIcon name="plus" size={14} stroke={2.2} /> Add your first driver
                     </button>
                   )}
                 </div>
@@ -1852,8 +1924,10 @@ export default function SettlementsWorkspace({
                   className={styles.navBtn}
                   onClick={goToPrevDriver}
                   disabled={currentDriverIndex <= 0}
+                  aria-label="Previous driver"
                 >
-                  ← Previous
+                  <FleetIcon name="chevron-left" size={14} />
+                  <span className={styles.navBtnLabel}>Previous</span>
                 </button>
                 <div className={styles.currentDriver}>
                   <h3>{selectedDriver.full_name}</h3>
@@ -1864,8 +1938,10 @@ export default function SettlementsWorkspace({
                   className={styles.navBtn}
                   onClick={goToNextDriver}
                   disabled={currentDriverIndex >= displayedDrivers.length - 1}
+                  aria-label="Next driver"
                 >
-                  Next →
+                  <span className={styles.navBtnLabel}>Next</span>
+                  <FleetIcon name="chevron-right" size={14} />
                 </button>
               </div>
 
@@ -1900,7 +1976,15 @@ export default function SettlementsWorkspace({
                         <tr key={platform.platformId}>
                           <td>
                             <span className={styles.platformName}>
-                              <span className={styles.platformIcon}>{platformConfig?.icon}</span>
+                              {/* The platform's own colour + initial, rather than the
+                                  emoji stored on the org_platforms row. */}
+                              <span
+                                className={styles.platformIcon}
+                                style={{ background: platformConfig?.color || 'var(--accent)' }}
+                                aria-hidden
+                              >
+                                {platform.platformName.charAt(0).toUpperCase()}
+                              </span>
                               {platform.platformName}
                             </span>
                           </td>
@@ -2017,7 +2101,7 @@ export default function SettlementsWorkspace({
                   </div>
                 )}
                 {components.hours && (
-                  <div className={styles.fssTaxCompact}>
+                  <label className={styles.fssTaxCompact}>
                     <span>Hours worked (auto from shifts)</span>
                     <input
                       type="number"
@@ -2027,7 +2111,7 @@ export default function SettlementsWorkspace({
                       onChange={(e) => setHoursWorked(e.target.value)}
                       disabled={!isAdmin}
                     />
-                  </div>
+                  </label>
                 )}
                 {components.hours && (
                   <div className={styles.totalItem}>
@@ -2056,7 +2140,7 @@ export default function SettlementsWorkspace({
                   </div>
                 )}
                 {components.tax && (
-                  <div className={styles.fssTaxCompact}>
+                  <label className={styles.fssTaxCompact}>
                     <span>FSS/Tax{taxAutoPct !== null ? ` (auto ${taxAutoPct}%)` : ''}</span>
                     <input
                       type="number"
@@ -2069,7 +2153,7 @@ export default function SettlementsWorkspace({
                       }}
                       disabled={!isAdmin}
                     />
-                  </div>
+                  </label>
                 )}
                 <div className={styles.finalBalanceCompact}>
                   <span>Payable Balance</span>
@@ -2096,6 +2180,7 @@ export default function SettlementsWorkspace({
                   <div className={styles.actionLeft}>
                     {existingSettlement && (
                       <button
+                        type="button"
                         className="btn btn-danger btn-sm"
                         onClick={handleDelete}
                         disabled={loading}
@@ -2121,6 +2206,7 @@ export default function SettlementsWorkspace({
                   </div>
                   <div className={styles.actionRight}>
                     <button
+                      type="button"
                       className="btn btn-secondary"
                       onClick={() => handleSave('draft')}
                       disabled={loading}
@@ -2128,6 +2214,7 @@ export default function SettlementsWorkspace({
                       {loading ? 'Saving...' : 'Save Draft'}
                     </button>
                     <button
+                      type="button"
                       className="btn btn-primary"
                       onClick={() => handleSave('finalized')}
                       disabled={loading}
@@ -2140,23 +2227,27 @@ export default function SettlementsWorkspace({
             </>
           ) : !currentPeriod ? (
             <div className={styles.selectPrompt}>
-              <div className={styles.promptIcon}>📅</div>
-              <h3>Select or Create a Period</h3>
-              <p>Choose an existing period from the dropdown or create a new one to start entering settlements</p>
+              <div className={styles.promptIcon}>
+                <FleetIcon name="calendar" size={28} stroke={1.4} />
+              </div>
+              <h3>Pick a week to work on</h3>
+              <p>Choose a month above, then select one of its weeks — or create a new week to start entering settlements.</p>
             </div>
           ) : (
             <div className={styles.selectPrompt}>
-              <div className={styles.promptIcon}>👈</div>
-              <h3>Select a Driver</h3>
-              <p>Choose a driver from the list to enter their settlement for {currentPeriod.periodName || currentPeriod.label}</p>
+              <div className={styles.promptIcon}>
+                <FleetIcon name="driver" size={28} stroke={1.4} />
+              </div>
+              <h3>Pick a driver</h3>
+              <p>Choose a driver from the list to enter their settlement for {currentPeriod.periodName || currentPeriod.label}.</p>
               {isAdmin && (
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ marginTop: 16 }}
+                  style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   onClick={() => setShowAddDriver(true)}
                 >
-                  + Add a driver
+                  <FleetIcon name="plus" size={14} stroke={2.2} /> Add a driver
                 </button>
               )}
             </div>

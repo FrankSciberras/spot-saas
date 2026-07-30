@@ -1,10 +1,14 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
-import styles from '@/components/admin/AdminForms.module.css';
+import ServiceDetail, {
+  type ServiceDetailRecord,
+  type ServiceDetailVehicle,
+  type SiblingService,
+  type SvcDetailStatus,
+} from '@/components/fleet/services/ServiceDetail';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -31,6 +35,16 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+const INSPECTION_TYPES = new Set(['general_inspection', 'annual_service', 'major_service']);
+
+function categoryFor(serviceType: string): ServiceDetailRecord['category'] {
+  if (serviceType === 'repair') return 'repair';
+  if (INSPECTION_TYPES.has(serviceType)) return 'inspection';
+  return 'scheduled';
+}
+
+const labelFor = (t: string) => SERVICE_TYPE_LABELS[t] || t;
+
 export default async function ServiceDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin', 'staff']);
@@ -42,7 +56,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
     .from('vehicle_services')
     .select(`
       *,
-      vehicles:vehicle_id (id, registration_number, make, model, mileage),
+      vehicles:vehicle_id (id, registration_number, make, model, year, mileage),
       users:created_by (full_name, email)
     `)
     .eq('id', id)
@@ -53,171 +67,71 @@ export default async function ServiceDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
+  // Other jobs on the same vehicle, so the record sits in context instead of
+  // dead-ending. Fetched newest-first and capped — this is a sidebar, not a log.
+  const { data: siblingRows } = service.vehicle_id
+    ? await supabase
+        .from('vehicle_services')
+        .select('id, service_date, service_type, mileage_at_service, cost')
+        .eq('organization_id', user.organization_id)
+        .eq('vehicle_id', service.vehicle_id)
+        .neq('id', id)
+        .order('service_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(6)
+    : { data: [] };
 
-  // Calculate km until next service
-  const kmUntilService = service.next_service_mileage && service.vehicles
-    ? service.next_service_mileage - service.vehicles.mileage
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const vehicle: ServiceDetailVehicle | null = service.vehicles
+    ? {
+        id: service.vehicles.id,
+        plate: service.vehicles.registration_number,
+        make: service.vehicles.make,
+        model: service.vehicles.model,
+        year: service.vehicles.year ?? null,
+        mileage: service.vehicles.mileage ?? 0,
+      }
     : null;
 
+  // A future-dated record is still a booking; anything else is work already done.
+  // "Overdue" is reserved for a booking whose date has slipped past today.
+  const serviceDate = new Date(service.service_date);
+  const status: SvcDetailStatus = serviceDate > today ? 'scheduled' : 'completed';
+
+  const creator = service.users as { full_name: string | null; email: string | null } | null;
+
+  const record: ServiceDetailRecord = {
+    id: service.id,
+    serviceType: service.service_type,
+    typeLabel: labelFor(service.service_type),
+    category: categoryFor(service.service_type),
+    serviceDate: service.service_date,
+    mileageAtService: service.mileage_at_service ?? 0,
+    nextServiceMileage: service.next_service_mileage ?? null,
+    nextServiceDate: service.next_service_date ?? null,
+    cost: service.cost ?? null,
+    currency: service.currency || 'EUR',
+    serviceProvider: service.service_provider ?? null,
+    description: service.description ?? null,
+    partsReplaced: service.parts_replaced ?? null,
+    createdAt: service.created_at,
+    createdBy: creator?.full_name || creator?.email || null,
+    status,
+  };
+
+  const siblings: SiblingService[] = (siblingRows || []).map((s) => ({
+    id: s.id,
+    typeLabel: labelFor(s.service_type),
+    date: s.service_date,
+    cost: s.cost ?? null,
+    mileage: s.mileage_at_service ?? 0,
+  }));
+
   return (
-    <FleetShell user={user} title="Service Details">
-      <div className={styles.pageHeader}>
-        <div className={styles.pageTitleMain}>
-          <h2>{SERVICE_TYPE_LABELS[service.service_type] || service.service_type}</h2>
-          <span className={styles.subtitle}>
-            {service.vehicles?.registration_number} • {formatDate(service.service_date)}
-          </span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href="/fleet/services" className="btn btn-secondary">
-            ← Back to Services
-          </Link>
-          {isAdmin && (
-            <Link href={`/fleet/services/${id}/edit`} className="btn btn-primary">
-              Edit Service
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* Service Summary */}
-      <div className={styles.detailCard}>
-        <h3>Service Summary</h3>
-        <div className={styles.detailGrid}>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Date</span>
-            <span className={styles.detailValue}>{formatDate(service.service_date)}</span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Service Type</span>
-            <span className={styles.detailValue}>
-              {SERVICE_TYPE_LABELS[service.service_type] || service.service_type}
-            </span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Mileage at Service</span>
-            <span className={styles.detailValue}>{service.mileage_at_service.toLocaleString()} km</span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Cost</span>
-            <span className={styles.detailValue}>
-              {service.cost 
-                ? `${service.currency} ${service.cost.toFixed(2)}`
-                : <span className={styles.empty}>Not recorded</span>
-              }
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Vehicle Info */}
-      {service.vehicles && (
-        <div className={styles.detailCard}>
-          <h3>Vehicle</h3>
-          <div className={styles.detailGrid}>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Registration</span>
-              <span className={styles.detailValue}>
-                <Link href={`/fleet/vehicles/${service.vehicles.id}`} className={styles.detailLink}>
-                  {service.vehicles.registration_number}
-                </Link>
-              </span>
-            </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Vehicle</span>
-              <span className={styles.detailValue}>
-                {service.vehicles.make} {service.vehicles.model}
-              </span>
-            </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Current Mileage</span>
-              <span className={styles.detailValue}>{service.vehicles.mileage.toLocaleString()} km</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Next Service Due */}
-      {(service.next_service_mileage || service.next_service_date) && (
-        <div className={styles.detailCard}>
-          <h3>Next Service Due</h3>
-          <div className={styles.detailGrid}>
-            {service.next_service_mileage && (
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Due at Mileage</span>
-                <span className={styles.detailValue}>{service.next_service_mileage.toLocaleString()} km</span>
-              </div>
-            )}
-            {service.next_service_date && (
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Due by Date</span>
-                <span className={styles.detailValue}>{formatDate(service.next_service_date)}</span>
-              </div>
-            )}
-            {kmUntilService !== null && (
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Remaining</span>
-                <span className={`${styles.detailValue} ${kmUntilService <= 500 ? styles.expiryDanger : kmUntilService <= 2000 ? styles.expiryWarning : styles.expiryOk}`}>
-                  {kmUntilService <= 0 
-                    ? `${Math.abs(kmUntilService).toLocaleString()} km overdue`
-                    : `${kmUntilService.toLocaleString()} km remaining`
-                  }
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Service Provider */}
-      {service.service_provider && (
-        <div className={styles.detailCard}>
-          <h3>Service Provider</h3>
-          <p className={styles.detailValue}>{service.service_provider}</p>
-        </div>
-      )}
-
-      {/* Description */}
-      {service.description && (
-        <div className={styles.detailCard}>
-          <h3>Description</h3>
-          <p className={styles.notesContent}>{service.description}</p>
-        </div>
-      )}
-
-      {/* Parts Replaced */}
-      {service.parts_replaced && (
-        <div className={styles.detailCard}>
-          <h3>Parts Replaced</h3>
-          <p className={styles.notesContent}>{service.parts_replaced}</p>
-        </div>
-      )}
-
-      {/* Record Info */}
-      <div className={styles.detailCard}>
-        <h3>Record Information</h3>
-        <div className={styles.detailGrid}>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Created</span>
-            <span className={styles.detailValue}>
-              {new Date(service.created_at).toLocaleString('en-GB')}
-            </span>
-          </div>
-          {service.users && (
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Created By</span>
-              <span className={styles.detailValue}>{service.users.full_name || service.users.email}</span>
-            </div>
-          )}
-        </div>
-      </div>
+    <FleetShell user={user} title={`${record.typeLabel}${vehicle ? ` · ${vehicle.plate}` : ''}`}>
+      <ServiceDetail service={record} vehicle={vehicle} siblings={siblings} isAdmin={isAdmin} />
     </FleetShell>
   );
 }

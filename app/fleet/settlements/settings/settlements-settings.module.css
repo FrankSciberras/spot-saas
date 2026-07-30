@@ -386,30 +386,52 @@
   padding: 2px 8px;
 }
 
-.iconInput {
-  width: 64px;
-  padding: 8px 10px;
-  font-size: 16px;
-  text-align: center;
-  color: var(--text-1);
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  font-family: inherit;
+/* ─── Platform identity: a coloured circle with the platform's initial.
+       Replaces the old emoji field — emoji render differently on every device
+       and can't follow the fleet light/dark palette. ─── */
+.platformDot,
+.platformDotLg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
 
-.iconInput:focus {
-  outline: none;
-  border-color: var(--accent);
+.platformDot {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
 }
 
-.colorInput {
-  width: 48px;
-  height: 36px;
-  padding: 2px;
-  background: var(--bg-1);
+.platformDotLg {
+  width: 34px;
+  height: 34px;
+  font-size: 15px;
+}
+
+.swatchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.swatchGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 220px;
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
   border: 1px solid var(--line-2);
-  border-radius: var(--radius);
+  border-radius: 50%;
+  padding: 0;
   cursor: pointer;
 }
 
@@ -519,6 +541,16 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+/* Each "Driver earns" / "Deducted from pay" column. The markup already asked for
+   this class; it was never defined, so the columns had no surface of their own. */
+.compGroup {
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
 }
 
 .compGroupTitle {

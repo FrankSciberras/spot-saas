@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import ServiceForm from '@/components/admin/ServiceForm';
 import styles from '@/components/admin/AdminForms.module.css';
 
@@ -35,20 +35,19 @@ export default async function NewServicePage({ searchParams }: PageProps) {
 
   return (
     <FleetShell user={user} title="Add Service">
+      <FleetBackLink
+        href={preselectedVehicleId ? `/fleet/vehicles/${preselectedVehicleId}` : '/fleet/services'}
+        label={preselectedVehicleId ? 'Back to vehicle' : 'Back to services'}
+      />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
           <h2>Add Service Record</h2>
           <span className={styles.subtitle}>
-            {preselectedVehicle 
+            {preselectedVehicle
               ? `For ${preselectedVehicle.registration_number} - ${preselectedVehicle.make} ${preselectedVehicle.model}`
               : 'Record a new vehicle service or maintenance'
             }
           </span>
-        </div>
-        <div className={styles.pageActions}>
-          <Link href={preselectedVehicleId ? `/fleet/vehicles/${preselectedVehicleId}` : '/fleet/services'} className="btn btn-secondary">
-            ← Back
-          </Link>
         </div>
       </div>
 

@@ -1,6 +1,20 @@
 /* =============================================================================
    Settlements Module Styles — Rovora Fleet flat aesthetic
+
+   Speaks the fleet design tokens directly (--bg-*, --text-*, --line-*, --accent,
+   --pos/--neg/--warn, --radius*) so it follows the /fleet light/dark toggle
+   instead of going through the legacy-token remap.
    ============================================================================= */
+
+/* Every field in this workspace inherits the fleet text colour and font. Two
+   rules used to set a dark `background` but no `color`, so the browser fell back
+   to its own black `fieldtext` — black text on a dark surface. */
+.workspace input,
+.workspace select,
+.workspace textarea {
+  color: var(--text-1);
+  font-family: inherit;
+}
 
 /* Workspace Layout */
 .workspace {
@@ -11,10 +25,10 @@
 
 /* Navigation Header */
 .navHeader {
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  margin-bottom: var(--spacing-md);
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-1);
+  margin-bottom: 14px;
   overflow: visible;
 }
 
@@ -23,29 +37,32 @@
   display: flex;
   gap: 4px;
   padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-1);
 }
 
 .yearBtn {
   padding: 8px 16px;
   border: none;
   background: transparent;
-  font-size: var(--font-sm);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-2);
   cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  border-radius: var(--radius);
+  transition: all 140ms ease;
 }
 
 .yearBtn:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-3);
 }
 
+/* Selected states follow the fleet segmented-control convention (soft tint +
+   inset ring) rather than a solid accent fill: white-on-green was only ~2.2:1. */
 .yearBtn.active {
-  background: var(--color-primary);
-  color: white;
+  background: var(--bg-3);
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
 }
 
 /* Month Grid */
@@ -54,58 +71,65 @@
   grid-template-columns: repeat(12, 1fr);
   gap: 4px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line-1);
 }
 
 .monthCard {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 5px;
+  min-height: 56px;
   padding: 10px 8px;
   border: none;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  color: var(--text-2);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
 .monthCard:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-3);
+  color: var(--text-1);
 }
 
 .monthCard.active {
-  background: var(--color-primary);
-  color: white;
-}
-
-.monthCard.hasData {
-  background: rgba(var(--color-primary-rgb), 0.1);
-}
-
-.monthCard.hasData.active {
-  background: var(--color-primary);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .monthName {
-  font-size: var(--font-xs);
+  font-size: 11.5px;
   font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
+/* A month that holds settlements is signalled by the badge, so the tile itself
+   stays neutral and the selected ring is never ambiguous. */
 .monthCount {
   font-size: 10px;
-  background: var(--color-primary);
-  color: white;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-3);
+  color: var(--text-3);
   padding: 2px 6px;
-  border-radius: var(--radius-full);
+  border-radius: 100px;
   min-width: 18px;
   text-align: center;
 }
 
+.monthCard.hasData .monthCount {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .monthCard.active .monthCount {
-  background: white;
-  color: var(--color-primary);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
 }
 
 /* Weeks List */
@@ -128,15 +152,15 @@
  }
 
 .weeksHeader h3 {
-  font-size: var(--font-lg);
+  font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-1);
   margin: 0;
 }
 
 /* New Period Form */
 .newPeriodForm {
-  background: var(--bg-secondary);
+  background: var(--bg-2);
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 12px;
@@ -148,6 +172,20 @@
   z-index: 10;
 }
 
+.formTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.formTitle svg {
+  color: var(--accent);
+  flex: none;
+}
+
 .formRow {
   display: flex;
   align-items: center;
@@ -157,13 +195,20 @@
 }
 
 .formRow span {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
+  color: var(--text-3);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .formActions {
   display: flex;
   gap: 8px;
+}
+
+.formHint {
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.45;
 }
 
 /* Week Cards */
@@ -180,24 +225,24 @@
   flex-direction: column;
   gap: 8px;
   padding: 14px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 140ms ease;
   text-align: left;
   width: 100%;
 }
 
 .weekCard:hover {
-  border-color: var(--color-primary);
-  background: var(--bg-tertiary);
+  border-color: var(--accent);
+  background: var(--bg-3);
 }
 
 .weekCard.active {
-  border-color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb), 0.05);
-  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .weekCardHeader {
@@ -208,46 +253,75 @@
 
 .weekName {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .weekDates {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-3);
 }
 
 .weekCardStats {
   display: flex;
   justify-content: space-between;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .weekTotal {
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--accent);
 }
 
 .weekCard.newWeek {
   border-style: dashed;
-  border-color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb), 0.03);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
 }
 
 .newBadge {
-  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
   font-weight: 500;
+}
+
+/* The new-week preview is a summary, not a control — .weekCard's pointer cursor
+   and hover would otherwise advertise a click that does nothing. */
+.weekCardStatic {
+  cursor: default;
+}
+
+.weekCardStatic:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
 }
 
 /* Empty State */
 .emptyWeeks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding: 32px;
-  color: var(--text-muted);
+  padding: 40px 20px;
+  color: var(--text-3);
 }
 
-.emptyWeeks p {
+.emptyTitle {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.emptyDesc {
+  margin-top: 6px;
   margin-bottom: 16px;
+  max-width: 380px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.5;
 }
 
 /* Week Bar - keep for stats */
@@ -256,24 +330,24 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  margin-bottom: var(--spacing-md);
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-1);
+  margin-bottom: 14px;
   flex-wrap: wrap;
-  gap: var(--spacing-md);
+  gap: 14px;
 }
 
 .weekSelector {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 14px;
 }
 
 .weekModeToggle {
   display: flex;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  border-radius: var(--radius);
   padding: 2px;
 }
 
@@ -281,44 +355,44 @@
   padding: 8px 16px;
   border: none;
   background: transparent;
-  font-size: var(--font-sm);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-2);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: all 140ms ease;
 }
 
 .modeBtn.active {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
+  background: var(--bg-1);
+  color: var(--text-1);
+  box-shadow: none;
 }
 
 .weekSelect {
   padding: 10px 16px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
   font-weight: 500;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--bg-1);
+  color: var(--text-1);
   min-width: 200px;
 }
 
 .customDateInputs {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 8px;
 }
 
 .dateInput {
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg-1);
+  color: var(--text-1);
 }
 
 .datePickerField {
@@ -327,24 +401,24 @@
 
 .periodNameInput {
   padding: 10px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
   font-weight: 500;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--bg-1);
+  color: var(--text-1);
   min-width: 180px;
 }
 
 .periodNameInput::placeholder {
-  color: var(--text-muted);
+  color: var(--text-3);
   font-weight: 400;
 }
 
 .periodNameInput:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .currentPeriodInfo {
@@ -355,17 +429,17 @@
 }
 
 .periodDates {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .periodBadge {
-  font-size: var(--font-xs);
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   padding: 4px 10px;
-  border-radius: var(--radius-full);
+  border-radius: 100px;
 }
 
 /* Week Stats Bar - separate from navHeader */
@@ -373,22 +447,22 @@
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  background: var(--bg-card);
+  background: var(--bg-1);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--line-1);
+  margin-bottom: 14px;
 }
 
 .weekStatsRow {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
+  gap: 18px;
   flex-wrap: wrap;
 }
 
 .weekStats {
   display: flex;
-  gap: var(--spacing-lg);
+  gap: 18px;
 }
 
 .weekStatsActions {
@@ -403,8 +477,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .statDot {
@@ -415,104 +489,81 @@
 
 /* Export PDF Button */
 .exportPdfBtn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: var(--color-primary);
-  color: white;
+  background: var(--accent);
+  color: #fff;
   border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
+  border-radius: 7px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: filter 140ms ease;
 }
 
 .exportPdfBtn:hover {
-  background: var(--color-primary-dark);
-  transform: translateY(-1px);
+  filter: brightness(1.08);
 }
 
 .exportPdfBtn:active {
-  transform: translateY(0);
+  transform: translateY(0.5px);
 }
 
 .exportPdfBtn svg {
   flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
-  .weekStatsBar {
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-  }
-  
-  .weekStats {
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-  }
-
-  .weekStatsActions {
-    width: 100%;
-    margin-left: 0;
-  }
-  
-  .exportPdfBtn {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
 /* Month Selector */
 .monthSelector {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding-left: var(--spacing-md);
-  border-left: 1px solid var(--border-subtle);
+  gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-1);
 }
 
 .monthSelector label {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
   white-space: nowrap;
 }
 
 .monthSelect {
   padding: 6px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg-1);
+  color: var(--text-1);
   cursor: pointer;
 }
 
 .monthSelect:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--accent);
 }
 
 .monthInput {
   padding: 10px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg-1);
+  color: var(--text-1);
 }
 
 .monthInput:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 /* Main Workspace */
 .workspaceMain {
   display: flex;
-  gap: var(--spacing-md);
+  gap: 14px;
   flex: 1;
   min-height: 0;
 }
@@ -523,55 +574,81 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-1);
   overflow: hidden;
 }
 
 .sidebarHeader {
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 14px;
+  border-bottom: 1px solid var(--line-1);
 }
 
 .driverTabs {
   display: flex;
   gap: 4px;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 8px;
 }
 
 .tabBtn {
   flex: 1;
   padding: 8px;
   border: none;
-  background: var(--bg-secondary);
-  font-size: var(--font-xs);
+  background: var(--bg-2);
+  font-size: 11.5px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-2);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: all 140ms ease;
 }
 
 .tabBtn.active {
-  background: var(--color-primary);
-  color: white;
+  background: var(--bg-3);
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
 }
 
-.searchInput {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+/* Search field, matching the fleet searchBox pattern (icon inside the border) */
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  color: var(--text-3);
+}
+
+.searchBox:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.searchBox svg {
+  flex: none;
+}
+
+.searchField {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.searchField::placeholder {
+  color: var(--text-3);
 }
 
 .driverList {
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-xs);
+  padding: 4px;
 }
 
 .driverItem {
@@ -581,47 +658,60 @@
   width: 100%;
   padding: 12px 14px;
   background: transparent;
-  font-size: var(--font-sm);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  font-size: 13px;
+  border-radius: var(--radius);
+  transition: all 140ms ease;
 }
 
 .driverItem:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-2);
 }
 
 .driverItem.selected {
-  background: rgba(var(--color-primary-rgb), 0.1);
-  color: var(--color-primary);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
 .driverName {
   font-weight: 500;
+  color: var(--text-1);
+}
+
+.driverItem.selected .driverName {
+  color: var(--accent);
 }
 
 .statusIndicator {
   width: 20px;
   height: 20px;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
   border-radius: 50%;
 }
 
+/* "Draft" reads as a hollow ring rather than an icon. */
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.6px solid currentColor;
+}
+
 .status_finalized {
-  background: rgba(var(--color-success-rgb), 0.15);
-  color: var(--badge-success-text);
+  background: color-mix(in srgb, var(--pos) 15%, transparent);
+  color: var(--pos);
 }
 
 .status_draft {
-  background: rgba(var(--color-warning-rgb), 0.15);
-  color: var(--badge-warning-text);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  color: var(--warn);
 }
 
 .status_pending {
-  background: var(--bg-secondary);
-  color: var(--text-muted);
+  background: var(--bg-2);
+  color: var(--text-3);
 }
 
 /* Driver Indicators */
@@ -634,22 +724,21 @@
 .paidBadge {
   width: 18px;
   height: 18px;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
   border-radius: 50%;
-  background: rgba(var(--color-success-rgb), 0.15);
-  color: var(--badge-success-text);
+  background: color-mix(in srgb, var(--pos) 15%, transparent);
+  color: var(--pos);
 }
 
 .driverItem.paid {
-  background: rgba(var(--color-success-rgb), 0.05);
+  background: color-mix(in srgb, var(--pos) 5%, transparent);
 }
 
 .driverItem.paid:hover {
-  background: rgba(var(--color-success-rgb), 0.1);
+  background: color-mix(in srgb, var(--pos) 10%, transparent);
 }
 
 /* Bulk Selection Styles */
@@ -658,16 +747,16 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-2);
 }
 
 .selectAllLabel {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
   cursor: pointer;
 }
 
@@ -675,23 +764,23 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--color-primary);
+  accent-color: var(--accent);
 }
 
 .clearSelectionBtn {
   padding: 4px 10px;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-3);
   background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 140ms ease;
 }
 
 .clearSelectionBtn:hover {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
+  color: var(--neg);
+  border-color: var(--neg);
 }
 
 .driverCheckbox {
@@ -699,7 +788,7 @@
   height: 16px;
   flex-shrink: 0;
   cursor: pointer;
-  accent-color: var(--color-primary);
+  accent-color: var(--accent);
 }
 
 .driverItemBtn {
@@ -710,25 +799,25 @@
   background: transparent;
   border: none;
   padding: 0;
-  font-size: var(--font-sm);
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
   color: inherit;
 }
 
 .driverItem.bulkSelected {
-  background: rgba(var(--color-primary-rgb), 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .driverItem.bulkSelected:hover {
-  background: rgba(var(--color-primary-rgb), 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .noDrivers {
-  padding: var(--spacing-lg);
+  padding: 18px;
   text-align: center;
-  color: var(--text-muted);
-  font-size: var(--font-sm);
+  color: var(--text-3);
+  font-size: 13px;
 }
 
 /* Settlement Panel */
@@ -736,9 +825,9 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-1);
   overflow: visible;
   min-width: 0;
 }
@@ -749,24 +838,31 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-1);
 }
 
 .navBtn {
-  padding: 8px 16px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  font-size: 13px;
+  color: var(--text-2);
   cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  border-radius: 7px;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.navBtnLabel {
+  white-space: nowrap;
 }
 
 .navBtn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .navBtn:disabled {
@@ -780,14 +876,14 @@
 
 .currentDriver h3 {
   margin: 0;
-  font-size: var(--font-lg);
+  font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .weekLabel {
-  font-size: var(--font-sm);
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 /* Select Prompt */
@@ -797,41 +893,53 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-xxl);
+  padding: 40px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-3);
 }
 
 .promptIcon {
-  font-size: 3rem;
-  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  color: var(--text-3);
 }
 
 .selectPrompt h3 {
-  font-size: var(--font-lg);
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-sm);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin: 0 0 6px;
+}
+
+.selectPrompt p {
+  margin: 0;
+  max-width: 400px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.5;
 }
 
 /* Alerts */
 .errorAlert {
-  background: rgba(var(--color-danger-rgb), 0.1);
-  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
-  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--neg) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--neg) 30%, transparent);
+  border-radius: var(--radius);
   padding: 12px 16px;
-  margin: var(--spacing-md);
-  color: var(--badge-danger-text);
-  font-size: var(--font-sm);
+  margin: 14px;
+  color: var(--neg);
+  font-size: 13px;
 }
 
 .successAlert {
-  background: rgba(var(--color-success-rgb), 0.1);
-  border: 1px solid rgba(var(--color-success-rgb), 0.3);
-  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--pos) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pos) 30%, transparent);
+  border-radius: var(--radius);
   padding: 12px 16px;
-  margin: var(--spacing-md);
-  color: var(--badge-success-text);
-  font-size: var(--font-sm);
+  margin: 14px;
+  color: var(--pos);
+  font-size: 13px;
 }
 
 /* Settlement Form */
@@ -840,58 +948,58 @@
 }
 
 .formSection {
-  background: var(--bg-card);
-  border-radius: 12px;
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
   padding: 24px;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--line-1);
+  box-shadow: none;
+  margin-bottom: 18px;
 }
 
 .formSection h3 {
-  font-size: var(--font-base);
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
+  border-bottom: 1px solid var(--line-1);
+  color: var(--text-1);
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-lg);
+  gap: 18px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 4px;
 }
 
 .formGroup label {
-  font-size: var(--font-sm);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-2);
 }
 
 .formGroup input,
 .formGroup select,
 .formGroup textarea {
   padding: 10px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  transition: all var(--transition-fast);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  transition: all 140ms ease;
 }
 
 .formGroup input:focus,
 .formGroup select:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .formGroup input[type="number"] {
@@ -901,7 +1009,7 @@
 /* Platform Table */
 .platformTableWrapper {
   overflow-x: auto;
-  margin: var(--spacing-md) 0;
+  margin: 14px 0;
 }
 
 .platformTable {
@@ -914,17 +1022,17 @@
 .platformTable td {
   padding: 12px 10px;
   text-align: right;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line-1);
   white-space: nowrap;
 }
 
 .platformTable th {
-  font-size: var(--font-xs);
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  background: var(--bg-secondary);
+  background: var(--bg-2);
   position: sticky;
   top: 0;
 }
@@ -935,12 +1043,12 @@
   padding-left: 16px;
   position: sticky;
   left: 0;
-  background: var(--bg-primary);
+  background: var(--bg-1);
   z-index: 1;
 }
 
 .platformTable th:first-child {
-  background: var(--bg-secondary);
+  background: var(--bg-2);
   z-index: 2;
 }
 
@@ -950,29 +1058,29 @@
 }
 
 .platformTable tbody tr:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-2);
 }
 
 .platformTable tbody tr:hover td:first-child {
-  background: var(--bg-secondary);
+  background: var(--bg-2);
 }
 
 .platformTable input {
   width: 100%;
   max-width: 90px;
   padding: 8px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  font-size: 13px;
   text-align: right;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--bg-1);
+  color: var(--text-1);
 }
 
 .platformTable input:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .platformName {
@@ -983,33 +1091,44 @@
 }
 
 .platformIcon {
-  font-size: 1.25rem;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
 
 .calculatedValue {
-  color: var(--text-secondary);
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  font-size: var(--font-sm);
+  color: var(--text-2);
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
 }
 
 .balanceValue {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .balancePositive {
-  color: var(--color-success);
+  color: var(--pos);
 }
 
 .balanceNegative {
-  color: var(--color-danger);
+  color: var(--neg);
 }
 
 /* Totals Section */
 .totalsSection {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
-  border-top: 2px solid var(--border-subtle);
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 2px solid var(--line-1);
 }
 
 .totalRow {
@@ -1017,23 +1136,24 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  font-size: var(--font-sm);
+  font-size: 13px;
 }
 
 .totalRow:nth-child(odd) {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  border-radius: var(--radius);
 }
 
 .totalLabel {
-  color: var(--text-secondary);
+  color: var(--text-2);
   font-weight: 500;
 }
 
 .totalValue {
   font-weight: 600;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  color: var(--text-primary);
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
 }
 
 .fssTaxRow {
@@ -1041,19 +1161,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  background: rgba(239, 68, 68, 0.05);
-  border-radius: var(--radius-md);
-  margin: var(--spacing-sm) 0;
+  background: color-mix(in srgb, var(--neg) 5%, transparent);
+  border-radius: var(--radius);
+  margin: 8px 0;
 }
 
 .fssTaxRow input {
   width: 100px;
   padding: 8px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  font-size: 13px;
   text-align: right;
-  background: var(--bg-primary);
+  background: var(--bg-1);
+  color: var(--text-1);
 }
 
 .finalBalanceRow {
@@ -1063,51 +1184,42 @@
   padding: 16px;
   background: var(--accent-soft);
   border-radius: var(--radius-lg);
-  margin-top: var(--spacing-md);
+  margin-top: 14px;
 }
 
 .finalBalanceLabel {
-  font-size: var(--font-base);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .finalBalanceValue {
-  font-size: var(--font-xl);
+  font-size: 19px;
   font-weight: 700;
-  color: var(--color-primary);
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-}
-
-/* Form Actions */
-.formActions {
-  display: flex;
-  gap: var(--spacing-md);
-  justify-content: flex-end;
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border-color);
+  color: var(--accent);
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Settlement Cards (for list view) */
 .settlementsList {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 14px;
 }
 
 .settlementCard {
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
+  background: var(--bg-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-1);
+  box-shadow: none;
   overflow: hidden;
-  transition: all var(--transition-fast);
+  transition: all 140ms ease;
 }
 
 .settlementCard:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .settlementHeader {
@@ -1116,11 +1228,11 @@
   align-items: center;
   padding: 16px 20px;
   cursor: pointer;
-  background: var(--bg-secondary);
+  background: var(--bg-2);
 }
 
 .settlementHeader:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-3);
 }
 
 .driverInfo {
@@ -1129,20 +1241,10 @@
   gap: 4px;
 }
 
-.driverName {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.weekLabel {
-  font-size: var(--font-sm);
-  color: var(--text-muted);
-}
-
 .settlementSummary {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
+  gap: 18px;
 }
 
 .summaryItem {
@@ -1150,20 +1252,20 @@
 }
 
 .summaryLabel {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-3);
   display: block;
 }
 
 .summaryValue {
-  font-size: var(--font-base);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-1);
 }
 
 .settlementDetails {
   padding: 20px;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--line-1);
   display: none;
 }
 
@@ -1176,34 +1278,34 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  border-radius: var(--radius-full);
-  font-size: var(--font-xs);
+  border-radius: 100px;
+  font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .statusDraft {
-  background: rgba(var(--color-warning-rgb), 0.1);
-  color: var(--badge-warning-text);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--warn);
 }
 
 .statusFinalized {
-  background: rgba(var(--color-success-rgb), 0.1);
-  color: var(--badge-success-text);
+  background: color-mix(in srgb, var(--pos) 10%, transparent);
+  color: var(--pos);
 }
 
 /* Driver View Specific */
 .driverBalanceCard {
   background: var(--accent);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   color: white;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 18px;
 }
 
 .balanceTitle {
-  font-size: var(--font-sm);
+  font-size: 13px;
   opacity: 0.9;
   margin-bottom: 8px;
 }
@@ -1211,11 +1313,12 @@
 .balanceAmount {
   font-size: 2.5rem;
   font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .balanceWeek {
-  font-size: var(--font-sm);
+  font-size: 13px;
   opacity: 0.8;
   margin-top: 8px;
 }
@@ -1223,71 +1326,23 @@
 /* Empty State */
 .emptyState {
   text-align: center;
-  padding: var(--spacing-xxl);
-  color: var(--text-muted);
+  padding: 40px;
+  color: var(--text-3);
 }
 
 .emptyState svg {
   width: 64px;
   height: 64px;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 14px;
   opacity: 0.5;
 }
 
 .emptyState h3 {
-  font-size: var(--font-lg);
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-sm);
+  font-size: 16px;
+  color: var(--text-2);
+  margin-bottom: 8px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .pageHeader {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .filtersBar {
-    flex-direction: column;
-  }
-  
-  .filterGroup {
-    width: 100%;
-  }
-  
-  .filterGroup select,
-  .filterGroup input {
-    width: 100%;
-  }
-  
-  .platformTable {
-    font-size: var(--font-xs);
-  }
-  
-  .platformTable th,
-  .platformTable td {
-    padding: 8px 4px;
-  }
-  
-  .platformTable input {
-    max-width: 70px;
-    padding: 6px;
-  }
-  
-  .settlementSummary {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: var(--spacing-sm);
-  }
-  
-  .formActions {
-    flex-direction: column;
-  }
-  
-  .formActions button {
-    width: 100%;
-  }
-}
 
 /* Table responsive wrapper */
 .tableWrapper {
@@ -1300,18 +1355,18 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: var(--spacing-xxl);
-  color: var(--text-muted);
+  padding: 40px;
+  color: var(--text-3);
 }
 
 /* Compact Totals for Workspace */
 .totalsCompact {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-subtle);
+  gap: 14px;
+  padding: 14px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--line-1);
   align-items: center;
 }
 
@@ -1320,43 +1375,51 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px 16px;
-  background: var(--bg-primary);
-  border-radius: var(--radius-md);
+  background: var(--bg-1);
+  border-radius: var(--radius);
 }
 
 .totalItem span:first-child {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-3);
 }
 
 .totalItem span:last-child {
-  font-size: var(--font-sm);
+  font-size: 13px;
   font-weight: 600;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .fssTaxCompact {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 8px;
   padding: 8px 16px;
-  background: rgba(239, 68, 68, 0.05);
-  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--neg) 5%, transparent);
+  border-radius: var(--radius);
 }
 
 .fssTaxCompact span {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .fssTaxCompact input {
   width: 80px;
   padding: 6px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  font-size: 13px;
   text-align: right;
-  background: var(--bg-primary);
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+
+.fssTaxCompact input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .finalBalanceCompact {
@@ -1365,42 +1428,43 @@
   gap: 2px;
   padding: 10px 20px;
   background: var(--accent-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   margin-left: auto;
 }
 
 .finalBalanceCompact span:first-child {
-  font-size: var(--font-xs);
-  color: var(--text-secondary);
+  font-size: 11.5px;
+  color: var(--text-2);
 }
 
 .finalBalanceCompact span:last-child {
-  font-size: var(--font-lg);
+  font-size: 16px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Notes Section */
 .notesSection {
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border-subtle);
+  padding: 14px;
+  border-top: 1px solid var(--line-1);
 }
 
 .notesSection textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg-1);
+  color: var(--text-1);
   resize: vertical;
   font-family: inherit;
 }
 
 .notesSection textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--accent);
 }
 
 /* Action Bar */
@@ -1408,20 +1472,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border-subtle);
-  background: var(--bg-secondary);
+  padding: 14px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-2);
 }
 
 .actionLeft {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 14px;
 }
 
 .actionRight {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: 8px;
 }
 
 /* Paid Checkbox */
@@ -1429,157 +1493,346 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: var(--text-2);
   cursor: pointer;
   padding: 6px 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  transition: all var(--transition-fast);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  transition: all 140ms ease;
 }
 
 .paidCheckbox:hover {
-  border-color: var(--color-success);
+  border-color: var(--pos);
 }
 
 .paidCheckbox input {
   width: 16px;
   height: 16px;
-  accent-color: var(--color-success);
+  accent-color: var(--pos);
 }
 
 .paidCheckbox input:checked + span {
-  color: var(--color-success);
+  color: var(--pos);
   font-weight: 600;
 }
 
 .paidDate {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-3);
   margin-left: 4px;
 }
 
-/* Tablet landscape — narrower driver sidebar */
-@media (max-width: 1400px) {
+
+/* =============================================================================
+   Responsive.
+
+   Consolidated onto the fleet breakpoints — 720px is the phone boundary the
+   .fleetCanvas helper classes and FleetShell's `isMobile` both use, 480px is the
+   narrow phone. 1024px stays as a layout-only step: the two-column workspace
+   (driver list + entry form) genuinely needs to stack well before phone width.
+   ============================================================================= */
+
+/* ─── Laptop: the 12-across month strip gets tight ─── */
+@media (max-width: 1180px) {
   .driverSidebar {
-    width: 220px;
+    width: 240px;
   }
 
   .monthGrid {
     grid-template-columns: repeat(6, 1fr);
   }
-
-  .weekBar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .weekStatsRow {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .monthSelector {
-    padding-left: 0;
-    border-left: none;
-    padding-top: var(--spacing-sm);
-    border-top: 1px solid var(--border-subtle);
-    width: 100%;
-  }
-
-  .monthSelect {
-    flex: 1;
-  }
 }
 
-/* Tablet portrait — stack workspace */
+/* ─── Tablet portrait: stack the driver list above the entry form ─── */
 @media (max-width: 1024px) {
   .workspaceMain {
     flex-direction: column;
   }
-  
+
+  /* Was a fixed 200px scroll box — too cramped for a real fleet. */
   .driverSidebar {
     width: 100%;
-    max-height: 200px;
+    max-height: 340px;
   }
-  
-  .driverList {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm);
-  }
-  
-  .driverItem {
-    flex: 0 0 auto;
-    padding: 8px 14px;
-    border: 1px solid var(--border-subtle);
-  }
-  
+
   .totalsCompact {
-    flex-direction: column;
     align-items: stretch;
   }
-  
+
   .finalBalanceCompact {
     margin-left: 0;
   }
 }
 
-@media (max-width: 768px) {
-  .monthGrid {
-    grid-template-columns: repeat(6, 1fr);
+/* ─── Phone ─── */
+@media (max-width: 720px) {
+  .workspace {
+    min-height: 0;
   }
-  
+
+  /* Year + month become horizontal scrollers instead of wrapping into a
+     three-row block that pushed everything below the fold. */
+  .yearSelector {
+    padding: 10px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .yearSelector::-webkit-scrollbar {
+    display: none;
+  }
+
+  .yearBtn {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+  }
+
+  .monthGrid {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .monthGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .monthCard {
+    flex: 0 0 auto;
+    min-width: 58px;
+    scroll-snap-align: center;
+  }
+
+  /* Weeks header: month title + Export + New Week no longer fight for one row */
+  .weeksList {
+    padding: 12px;
+  }
+
+  .weeksHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .monthActions {
+    flex-wrap: wrap;
+  }
+
+  .monthActions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* ─── New week / edit week form ─── */
+  .newPeriodForm {
+    padding: 14px;
+    gap: 14px;
+  }
+
   .formRow {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
   }
-  
+
+  /* Once the two date fields stack, the bare "to" between them reads as an
+     orphan. Turn it into a label for the field that follows it. */
   .formRow span {
-    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: -4px;
+  }
+
+  .datePickerField,
+  .periodNameInput,
+  .monthInput {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .formActions {
+    flex-direction: column;
+  }
+
+  .formActions button {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* ─── Week cards ─── */
+  .weekCardHeader,
+  .weekCardStats {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+  }
+
+  /* ─── Stats + actions bar ─── */
+  .weekStatsBar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .weekStats {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .weekStatsActions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .weekStatsActions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* ─── Driver list ─── */
+  .driverSidebar {
+    max-height: 300px;
+  }
+
+  .driverItem {
+    padding: 12px;
+  }
+
+  /* ─── Driver pager ─── */
+  .driverNav {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .currentDriver {
+    min-width: 0;
+  }
+
+  .currentDriver h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .navBtn {
+    flex: 0 0 auto;
+    padding: 10px 12px;
+  }
+
+  /* ─── Platform table: still scrolls sideways, but smoothly and less wide ─── */
+  .platformTableWrapper {
+    margin: 12px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .platformTable {
+    min-width: 660px;
+    font-size: 12px;
+  }
+
+  .platformTable th,
+  .platformTable td {
+    padding: 9px 7px;
+  }
+
+  .platformTable th:first-child,
+  .platformTable td:first-child {
+    padding-left: 12px;
+  }
+
+  .platformTable input {
+    max-width: 74px;
+    padding: 8px 7px;
+  }
+
+  /* ─── Totals ─── */
+  .totalsCompact {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .totalItem,
+  .fssTaxCompact {
+    flex: 1 1 calc(50% - 4px);
+    padding: 8px 12px;
+  }
+
+  .finalBalanceCompact {
+    width: 100%;
+    padding: 12px 14px;
+  }
+
+  .notesSection {
+    padding: 12px;
+  }
+
+  /* ─── Save bar sticks above the mobile bottom nav so Save is always reachable
+         on a long settlement form. ─── */
+  .actionBar {
+    position: sticky;
+    bottom: var(--bottom-nav-h, 0px);
+    z-index: 20;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .actionLeft {
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .actionRight {
+    flex-direction: column;
+  }
+
+  .actionRight button {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .paidCheckbox {
+    padding: 10px 12px;
+  }
+
+  .selectPrompt {
+    padding: 40px 20px;
   }
 }
 
-@media (max-width: 640px) {
-  .monthGrid {
-    grid-template-columns: repeat(4, 1fr);
+/* ─── Narrow phone ─── */
+@media (max-width: 480px) {
+  .monthCard {
+    min-width: 52px;
+    min-height: 52px;
   }
-  
-  .yearSelector {
+
+  .totalItem,
+  .fssTaxCompact {
+    flex: 1 1 100%;
+  }
+
+  .driverTabs {
     flex-wrap: wrap;
   }
-  
-  .yearBtn {
-    padding: 6px 12px;
-    font-size: var(--font-xs);
-  }
-  
-  .platformTable {
-    font-size: 11px;
-  }
-  
-  .platformTable th,
-  .platformTable td {
-    padding: 8px 4px;
-  }
-  
-  .platformTable input {
-    max-width: 60px;
-    padding: 6px;
-  }
-  
-  .platformIcon {
+
+  /* Pager collapses to icon-only so the driver name keeps the room */
+  .navBtnLabel {
     display: none;
   }
-  
-  .driverNav {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
-  
+
   .navBtn {
-    width: 100%;
+    padding: 10px;
   }
 }

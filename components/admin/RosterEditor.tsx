@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DatePicker from '@/components/shared/DatePicker';
 import AddDriverModal from '@/components/fleet/AddDriverModal';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './RosterEditor.module.css';
 
 interface Vehicle {
@@ -277,12 +278,7 @@ export default function RosterEditor({ roster, vehicles, drivers, mode, isAdmin 
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <button onClick={() => router.back()} className={styles.backBtn}>
-            <svg viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
+          <FleetBackLink href="/fleet/rosters" label="Back to rosters" flush />
         </div>
         <div className={styles.headerRight}>
           {isAdmin && (

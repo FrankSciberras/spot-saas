@@ -167,18 +167,18 @@ export default function PermissionsPage() {
             <div className={styles.breadcrumb}>Admin / Permissions</div>
             <div className={styles.titleRow}>
               <h1 className={styles.title}>Role Permissions</h1>
+              {hasChanges && (
+                <button
+                  className="btn btn-primary"
+                  onClick={savePermissions}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              )}
             </div>
             <p className={styles.subtitle}>Configure what each role can see and do in the system</p>
           </div>
-          {hasChanges && (
-            <button
-              className="btn btn-primary"
-              onClick={savePermissions}
-              disabled={saving}
-            >
-              {saving ? 'Saving…' : 'Save Changes'}
-            </button>
-          )}
         </div>
 
         {/* Message */}
