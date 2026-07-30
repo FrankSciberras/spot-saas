@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect } from 'react';
+import { initInstallCapture } from '@/hooks/useInstallPrompt';
 
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
+    // `beforeinstallprompt` fires once, early, and is lost if nobody is
+    // listening. This component mounts in the root layout on first paint, so
+    // it is the earliest reliable place to park the event for the install UI.
+    initInstallCapture();
+
     if ('serviceWorker' in navigator) {
       // Register service worker with proper scope and cache settings
       navigator.serviceWorker

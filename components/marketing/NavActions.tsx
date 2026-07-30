@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SIGN_IN, START_TRIAL } from './links';
-import type { NavViewer } from '@/lib/auth/viewer';
+import { useNavViewer } from './useNavViewer';
 
 /**
  * The signed-in/signed-out half of the marketing nav.
@@ -15,17 +14,7 @@ import type { NavViewer } from '@/lib/auth/viewer';
  * what we want crawlers to index anyway.
  */
 export default function NavActions() {
-  const [viewer, setViewer] = useState<NavViewer | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch('/api/nav-viewer', { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setViewer(data?.viewer ?? null))
-      // Signed-out is the correct fallback for any failure here.
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
+  const viewer = useNavViewer();
 
   if (viewer) {
     return (

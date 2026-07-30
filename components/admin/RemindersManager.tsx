@@ -323,23 +323,23 @@ export default function RemindersManager({
             return (
               <div
                 key={r.id}
+                className="fleetTodoRow"
                 style={{
                   ...st.row,
                   borderBottom: i < filtered.length - 1 ? '1px solid var(--line-1)' : 'none',
                   opacity: cancelled ? 0.55 : 1,
                 }}
               >
+                {/* Surface colours live in fleet-theme.css (.fleetCheckBtn) —
+                    setting them inline would outrank the :hover rules. */}
                 <button
                   onClick={() => toggleComplete(r)}
                   title={done ? 'Mark as pending' : 'Mark as done'}
+                  aria-label={done ? 'Mark as pending' : 'Mark as done'}
+                  aria-pressed={done}
                   disabled={!canEdit}
-                  style={{
-                    ...st.check,
-                    background: done ? 'var(--pos)' : 'transparent',
-                    borderColor: done ? 'var(--pos)' : 'var(--line-2)',
-                    color: done ? '#fff' : 'transparent',
-                    cursor: canEdit ? 'pointer' : 'default',
-                  }}
+                  className={`fleetCheckBtn${done ? ' fleetCheckBtnDone' : ''}`}
+                  style={st.check}
                 >
                   <FleetIcon name="check" size={13} stroke={3} />
                 </button>
@@ -371,16 +371,24 @@ export default function RemindersManager({
                 {(canEdit || canDelete) && (
                   <div style={st.actions}>
                     {canEdit && (
-                      <button style={st.actionBtn} className="fleetHover" onClick={() => openEdit(r)}>Edit</button>
+                      <button style={st.actionBtn} className="fleetGhostBtn" onClick={() => openEdit(r)}>
+                        <FleetIcon name="pencil" size={13} /> Edit
+                      </button>
                     )}
                     {canDelete && (
                       deletingId === r.id ? (
                         <>
-                          <button style={{ ...st.actionBtn, color: 'var(--neg)', borderColor: 'var(--neg)' }} onClick={() => handleDelete(r.id)}>Confirm</button>
-                          <button style={st.actionBtn} className="fleetHover" onClick={() => setDeletingId(null)}>Cancel</button>
+                          <button style={st.actionBtn} className="fleetGhostBtn fleetGhostBtnDangerSolid" onClick={() => handleDelete(r.id)}>
+                            <FleetIcon name="check" size={13} stroke={2.4} /> Confirm
+                          </button>
+                          <button style={st.actionBtn} className="fleetGhostBtn" onClick={() => setDeletingId(null)}>
+                            <FleetIcon name="close" size={13} /> Cancel
+                          </button>
                         </>
                       ) : (
-                        <button style={{ ...st.actionBtn, color: 'var(--neg)' }} className="fleetHover" onClick={() => setDeletingId(r.id)}>Delete</button>
+                        <button style={st.actionBtn} className="fleetGhostBtn fleetGhostBtnDanger" onClick={() => setDeletingId(r.id)}>
+                          <FleetIcon name="trash" size={13} /> Delete
+                        </button>
                       )
                     )}
                   </div>
@@ -397,7 +405,7 @@ export default function RemindersManager({
           <div style={st.modal} onClick={e => e.stopPropagation()}>
             <div style={st.modalHeader}>
               <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-1)' }}>{editing ? 'Edit reminder' : 'New reminder'}</div>
-              <button style={st.modalClose} className="fleetHover" onClick={() => setShowModal(false)}><FleetIcon name="close" size={15} /></button>
+              <button style={st.modalClose} className="fleetGhostBtn" onClick={() => setShowModal(false)}><FleetIcon name="close" size={15} /></button>
             </div>
 
             <div style={st.modalBody}>
@@ -476,7 +484,7 @@ export default function RemindersManager({
             </div>
 
             <div style={st.modalFooter}>
-              <button style={st.secondaryBtn} className="fleetHover" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
+              <button style={st.secondaryBtn} className="fleetGhostBtn" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
               <button style={st.primaryBtn} className="fleetHover" onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving…' : editing ? 'Update' : 'Create'}
               </button>
@@ -492,7 +500,7 @@ const st: Record<string, CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 18px' },
   titleRow: { display: 'flex', alignItems: 'center', gap: 14, rowGap: 10, flexWrap: 'wrap' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' },
-  secondaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', color: 'var(--text-1)', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' },
+  secondaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' },
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 },
   stat: { padding: '14px 16px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 10 },
   filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 },
@@ -502,17 +510,19 @@ const st: Record<string, CSSProperties> = {
   select: { padding: '7px 10px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 7, color: 'var(--text-1)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' },
   card: { background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
   row: { display: 'flex', alignItems: 'flex-start', gap: 13, padding: '14px 18px' },
-  check: { width: 22, height: 22, flexShrink: 0, marginTop: 1, borderRadius: 7, border: '1.5px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease' },
+  // Geometry only — border/background/colour/transition are in fleet-theme.css
+  // (.fleetCheckBtn) so the hover + done states can win the cascade.
+  check: { width: 22, height: 22, flexShrink: 0, marginTop: 1, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   pill: { display: 'inline-flex', alignItems: 'center', fontSize: 10.5, fontFamily: 'Geist Mono, monospace', padding: '2px 7px', borderRadius: 5, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' },
   metaRow: { display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 7 },
   meta: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--text-3)' },
   actions: { display: 'flex', gap: 6, flexShrink: 0 },
-  actionBtn: { padding: '5px 11px', background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-2)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' },
+  actionBtn: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' },
   // Modal
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' },
   modal: { width: '100%', maxWidth: 560, background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: 'var(--radius-lg)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)', overflow: 'hidden' },
   modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid var(--line-1)' },
-  modalClose: { width: 28, height: 28, borderRadius: 7, background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  modalClose: { width: 28, height: 28, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   modalBody: { padding: 18, display: 'flex', flexDirection: 'column', gap: 14 },
   modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 18px', borderTop: '1px solid var(--line-1)' },
   field: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 },

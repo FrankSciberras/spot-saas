@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+/** Broadcast channel so every mounted toggle shows the same icon. */
+const SYNC_EVENT = 'rovora-theme-change';
+
 /**
  * Light/dark toggle for the Rovora marketing + auth surfaces.
  * Flips the `data-theme` attribute on the nearest `.rovora-site` ancestor
  * and remembers the choice in localStorage.
+ *
+ * More than one can be on the page at a time (the footer and the mobile menu),
+ * so each instance listens for the others' changes instead of drifting.
  */
 export default function RovoraThemeToggle() {
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -24,6 +30,14 @@ export default function RovoraThemeToggle() {
       setTheme(stored);
       apply(stored);
     }
+
+    const onSync = (e: Event) => {
+      const next = (e as CustomEvent<'light' | 'dark'>).detail;
+      setTheme(next);
+      apply(next);
+    };
+    window.addEventListener(SYNC_EVENT, onSync);
+    return () => window.removeEventListener(SYNC_EVENT, onSync);
   }, []);
 
   const toggle = () => {
@@ -35,6 +49,7 @@ export default function RovoraThemeToggle() {
     } catch {
       /* ignore */
     }
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: next }));
   };
 
   return (

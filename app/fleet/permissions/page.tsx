@@ -3,27 +3,40 @@
 import { useState, useEffect } from 'react';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
+import FleetIcon from '@/components/fleet/FleetIcon';
 import { SessionUser, RolePermission } from '@/lib/types/database';
 import styles from './permissions.module.css';
 
+/** `icon` is a FleetIcon name — the same one the sidebar uses for that page. */
 const RESOURCE_INFO: Record<string, { label: string; icon: string; description: string }> = {
-  dashboard: { label: 'Dashboard', icon: '📊', description: 'View dashboard and statistics' },
-  drivers: { label: 'Drivers', icon: '👤', description: 'Manage driver profiles and documents' },
-  vehicles: { label: 'Vehicles', icon: '🚗', description: 'Manage vehicle fleet' },
-  shifts: { label: 'Shifts', icon: '⏰', description: 'View and manage work shifts' },
-  rosters: { label: 'Rosters', icon: '📅', description: 'Manage weekly rosters' },
-  services: { label: 'Services', icon: '🔧', description: 'Vehicle service records' },
-  damages: { label: 'Damages', icon: '⚠️', description: 'Vehicle damage tracking and reports' },
-  notifications: { label: 'Notifications', icon: '🔔', description: 'Send and manage notifications' },
-  reports: { label: 'Reports', icon: '📈', description: 'View and export reports' },
-  settings: { label: 'Settings', icon: '⚙️', description: 'System settings and configuration' },
+  dashboard: { label: 'Dashboard', icon: 'dashboard', description: 'View dashboard and statistics' },
+  drivers: { label: 'Drivers', icon: 'driver', description: 'Manage driver profiles and documents' },
+  vehicles: { label: 'Vehicles', icon: 'vehicle', description: 'Manage vehicle fleet' },
+  shifts: { label: 'Shifts', icon: 'shift', description: 'View and manage work shifts' },
+  rosters: { label: 'Rosters', icon: 'roster', description: 'Manage weekly rosters' },
+  services: { label: 'Services', icon: 'wrench', description: 'Vehicle service records' },
+  damages: { label: 'Damages', icon: 'damage', description: 'Vehicle damage tracking and reports' },
+  notifications: { label: 'Notifications', icon: 'bell', description: 'Send and manage notifications' },
+  reports: { label: 'Reports', icon: 'chart', description: 'View and export reports' },
+  settings: { label: 'Settings', icon: 'adjust', description: 'System settings and configuration' },
 };
 
+// Reminders share the sidebar's bell with Notifications, so they take the tick
+// instead — two identical icons in one list would be unreadable.
 RESOURCE_INFO.reminders = {
   label: 'Reminders',
-  icon: '✓',
+  icon: 'check',
   description: 'View and manage reminders and to-dos',
 };
+
+type PermField = 'can_view' | 'can_create' | 'can_edit' | 'can_delete';
+
+const ACTION_INFO: { field: PermField; label: string; icon: string; description: string }[] = [
+  { field: 'can_view', label: 'View', icon: 'eye', description: 'Can see the page and data' },
+  { field: 'can_create', label: 'Create', icon: 'plus', description: 'Can add new records' },
+  { field: 'can_edit', label: 'Edit', icon: 'pencil', description: 'Can modify existing records' },
+  { field: 'can_delete', label: 'Delete', icon: 'trash', description: 'Can remove records' },
+];
 
 const ROLE_INFO: Record<string, { label: string; color: string; description: string }> = {
   staff: { 
@@ -226,87 +239,49 @@ export default function PermissionsPage() {
             <thead>
               <tr>
                 <th className={styles.resourceCol}>Resource</th>
-                <th className={styles.permCol}>
-                  <div className={styles.permHeader}>
-                    <span>👁️ View</span>
-                  </div>
-                </th>
-                <th className={styles.permCol}>
-                  <div className={styles.permHeader}>
-                    <span>➕ Create</span>
-                  </div>
-                </th>
-                <th className={styles.permCol}>
-                  <div className={styles.permHeader}>
-                    <span>✏️ Edit</span>
-                  </div>
-                </th>
-                <th className={styles.permCol}>
-                  <div className={styles.permHeader}>
-                    <span>🗑️ Delete</span>
-                  </div>
-                </th>
+                {ACTION_INFO.map((action) => (
+                  <th key={action.field} className={styles.permCol}>
+                    <div className={styles.permHeader}>
+                      <FleetIcon name={action.icon} size={14} stroke={1.7} />
+                      <span>{action.label}</span>
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {rolePermissions.map(perm => {
-                const resourceInfo = RESOURCE_INFO[perm.resource] || { 
-                  label: perm.resource, 
-                  icon: '📄', 
-                  description: '' 
+                const resourceInfo = RESOURCE_INFO[perm.resource] || {
+                  label: perm.resource,
+                  icon: 'doc',
+                  description: '',
                 };
-                
+
                 return (
                   <tr key={perm.id}>
                     <td className={styles.resourceCell}>
                       <div className={styles.resourceInfo}>
-                        <span className={styles.resourceIcon}>{resourceInfo.icon}</span>
+                        <span className={styles.resourceIcon}>
+                          <FleetIcon name={resourceInfo.icon} size={17} stroke={1.6} />
+                        </span>
                         <div>
                           <span className={styles.resourceName}>{resourceInfo.label}</span>
                           <span className={styles.resourceDesc}>{resourceInfo.description}</span>
                         </div>
                       </div>
                     </td>
-                    <td className={styles.permCell}>
-                      <label className={styles.toggle}>
-                        <input
-                          type="checkbox"
-                          checked={perm.can_view}
-                          onChange={() => togglePermission(perm.id, 'can_view')}
-                        />
-                        <span className={styles.toggleSlider}></span>
-                      </label>
-                    </td>
-                    <td className={styles.permCell}>
-                      <label className={styles.toggle}>
-                        <input
-                          type="checkbox"
-                          checked={perm.can_create}
-                          onChange={() => togglePermission(perm.id, 'can_create')}
-                        />
-                        <span className={styles.toggleSlider}></span>
-                      </label>
-                    </td>
-                    <td className={styles.permCell}>
-                      <label className={styles.toggle}>
-                        <input
-                          type="checkbox"
-                          checked={perm.can_edit}
-                          onChange={() => togglePermission(perm.id, 'can_edit')}
-                        />
-                        <span className={styles.toggleSlider}></span>
-                      </label>
-                    </td>
-                    <td className={styles.permCell}>
-                      <label className={styles.toggle}>
-                        <input
-                          type="checkbox"
-                          checked={perm.can_delete}
-                          onChange={() => togglePermission(perm.id, 'can_delete')}
-                        />
-                        <span className={styles.toggleSlider}></span>
-                      </label>
-                    </td>
+                    {ACTION_INFO.map((action) => (
+                      <td key={action.field} className={styles.permCell}>
+                        <label className={styles.toggle} title={`${action.label} — ${resourceInfo.label}`}>
+                          <input
+                            type="checkbox"
+                            checked={perm[action.field]}
+                            onChange={() => togglePermission(perm.id, action.field)}
+                          />
+                          <span className={styles.toggleSlider}></span>
+                        </label>
+                      </td>
+                    ))}
                   </tr>
                 );
               })}
@@ -316,22 +291,16 @@ export default function PermissionsPage() {
 
         {/* Legend */}
         <div className={styles.legend}>
-          <div className={styles.legendItem}>
-            <span className={styles.legendIcon}>👁️</span>
-            <span><strong>View</strong> - Can see the page and data</span>
-          </div>
-          <div className={styles.legendItem}>
-            <span className={styles.legendIcon}>➕</span>
-            <span><strong>Create</strong> - Can add new records</span>
-          </div>
-          <div className={styles.legendItem}>
-            <span className={styles.legendIcon}>✏️</span>
-            <span><strong>Edit</strong> - Can modify existing records</span>
-          </div>
-          <div className={styles.legendItem}>
-            <span className={styles.legendIcon}>🗑️</span>
-            <span><strong>Delete</strong> - Can remove records</span>
-          </div>
+          {ACTION_INFO.map((action) => (
+            <div key={action.field} className={styles.legendItem}>
+              <span className={styles.legendIcon}>
+                <FleetIcon name={action.icon} size={14} stroke={1.7} />
+              </span>
+              <span>
+                <strong>{action.label}</strong> — {action.description}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Note */}

@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { rovoraFontVars } from '@/lib/rovoraFonts';
+import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 import PasswordInput from '@/components/shared/PasswordInput';
-import styles from './reset-password.module.css';
 
 /**
- * Reset Password Page - Allows users to set a new password after clicking the reset link
+ * Set-password screen — the destination for recovery links and fleet invites.
+ *
+ * Shares the auth shell (`auth-wrap` / `auth-card` / `field` / `btn`) with
+ * /login rather than carrying its own stylesheet, so the last step of the reset
+ * flow looks like the first. It used to render a dark card on a blue-green
+ * gradient that matched nothing else in the product.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -20,16 +26,12 @@ export default function ResetPasswordPage() {
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if user has a valid recovery session
     const checkSession = async () => {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        setIsValidSession(true);
-      } else {
-        setIsValidSession(false);
-      }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setIsValidSession(Boolean(session));
     };
 
     checkSession();
@@ -39,14 +41,12 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password must be at least 6 characters.');
       return;
     }
-
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Those passwords don’t match.');
       return;
     }
 
@@ -54,10 +54,7 @@ export default function ResetPasswordPage() {
 
     try {
       const supabase = createClient();
-      
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
 
       if (updateError) {
         setError(updateError.message);
@@ -65,11 +62,7 @@ export default function ResetPasswordPage() {
       }
 
       setSuccess(true);
-      
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
+      setTimeout(() => router.push('/login'), 3000);
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -77,167 +70,97 @@ export default function ResetPasswordPage() {
     }
   };
 
-  // Show loading state while checking session
-  if (isValidSession === null) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <div className={styles.loadingState}>
-            <span className={styles.spinner}></span>
-            <p>Verifying your reset link...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const heading = success
+    ? 'Password updated'
+    : isValidSession === false
+      ? 'This link has expired'
+      : 'Set a new password';
 
-  // Show error if no valid session
-  if (isValidSession === false) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <div className={styles.header}>
-            <div className={styles.logo}>
-              <Image
-                src="/logo-full.png"
-                alt="Rovora logo"
-                className={styles.logoImage}
-                width={200}
-                height={50}
-                style={{ width: 'auto', height: 'auto' }}
-                priority
-              />
-            </div>
-          </div>
-          <div className={styles.errorState}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <h2>Invalid or Expired Link</h2>
-            <p>This password reset link is invalid or has expired. Please request a new one.</p>
-            <button
-              className={styles.primaryBtn}
-              onClick={() => router.push('/login')}
-            >
-              Back to Login
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show success state
-  if (success) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <div className={styles.header}>
-            <div className={styles.logo}>
-              <Image
-                src="/logo-full.png"
-                alt="Rovora logo"
-                className={styles.logoImage}
-                width={200}
-                height={50}
-                style={{ width: 'auto', height: 'auto' }}
-                priority
-              />
-            </div>
-          </div>
-          <div className={styles.successState}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <h2>Password Reset Successfully!</h2>
-            <p>Your password has been updated. You will be redirected to the login page shortly.</p>
-            <button
-              className={styles.primaryBtn}
-              onClick={() => router.push('/login')}
-            >
-              Go to Login
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const subheading = success
+    ? 'You can sign in with your new password now — taking you there in a moment.'
+    : isValidSession === false
+      ? 'Password reset links can only be used once, and expire after an hour. Request a fresh one to continue.'
+      : isValidSession === null
+        ? 'Checking your reset link…'
+        : 'Choose a password you don’t use anywhere else.';
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <div className={styles.header}>
-          <div className={styles.logo}>
-            <Image
-              src="/logo-full.png"
-              alt="Rovora logo"
-              className={styles.logoImage}
-              width={200}
-              height={50}
-              style={{ width: 'auto', height: 'auto' }}
-              priority
-            />
-          </div>
-          <p className={styles.subtitle}>Set your new password</p>
-        </div>
+    <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
+      <Link className="auth-back" href="/">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Back to home
+      </Link>
+      <div className="auth-toggle">
+        <RovoraThemeToggle />
+      </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          {error && (
-            <div className={styles.error}>
-              {error}
-            </div>
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <span className="logo"><img src="/logo-full.png" alt="Rovora" /></span>
+          </div>
+
+          <div className="auth-head">
+            <h1>{heading}</h1>
+            <p>{subheading}</p>
+          </div>
+
+          {error && <div className="auth-alert err">{error}</div>}
+
+          {isValidSession === null ? null : isValidSession === false ? (
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => router.push('/login')}>
+              Request a new link
+            </button>
+          ) : success ? (
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => router.push('/login')}>
+              Go to sign in
+            </button>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="field">
+                <label htmlFor="newPassword">New password</label>
+                <PasswordInput
+                  id="newPassword"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="confirmPassword">Confirm password</label>
+                <PasswordInput
+                  id="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Type it again"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg"
+                disabled={loading || !newPassword || !confirmPassword}
+              >
+                {loading ? 'Updating…' : 'Update password'}
+              </button>
+
+              <p className="auth-foot">
+                Remembered it?{' '}
+                <Link href="/login" className="auth-link">Back to sign in</Link>
+              </p>
+            </form>
           )}
-
-          <div className="form-group">
-            <label htmlFor="newPassword" className="form-label">
-              New Password
-            </label>
-            <PasswordInput
-              id="newPassword"
-              className="form-input"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min. 6 characters)"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">
-              Confirm Password
-            </label>
-            <PasswordInput
-              id="confirmPassword"
-              className="form-input"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your new password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className={`btn btn-primary btn-full btn-lg ${styles.submitBtn}`}
-            disabled={loading || !newPassword || !confirmPassword}
-          >
-            {loading ? (
-              <>
-                <span className="spinner"></span>
-                Updating Password...
-              </>
-            ) : (
-              'Reset Password'
-            )}
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@
 // =============================================================================
 
 import Stripe from 'stripe';
+import { appUrl } from '@/lib/urls';
 
 let _stripe: Stripe | null = null;
 
@@ -38,7 +39,5 @@ export function getStripe(): Stripe {
 
 /** Absolute base URL for building Checkout/Portal return links. */
 export function appBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:3000'
-  );
+  return appUrl();
 }

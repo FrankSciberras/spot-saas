@@ -183,6 +183,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+
+.permHeader svg {
+  flex-shrink: 0;
+  color: var(--text-3);
 }
 
 .resourceCell {
@@ -202,7 +209,7 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  font-size: 16px;
+  color: var(--text-2);
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: 9px;
@@ -300,7 +307,10 @@
 }
 
 .legendIcon {
-  font-size: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--text-3);
 }
 
 /* ─── Note ─── */

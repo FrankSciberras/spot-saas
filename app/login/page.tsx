@@ -289,7 +289,7 @@ function LoginPageContent() {
               </button>
               <p className="auth-foot">
                 Already have an account?{' '}
-                <a role="button" tabIndex={0} onClick={() => switchMode('login')}>Sign in</a>
+                <button type="button" className="auth-link" onClick={() => switchMode('login')}>Sign in</button>
               </p>
             </form>
           )}
@@ -321,14 +321,14 @@ function LoginPageContent() {
               </div>
               <div className="auth-row">
                 <span />
-                <a role="button" tabIndex={0} onClick={() => switchMode('forgot')}>Forgot password?</a>
+                <button type="button" className="auth-link" onClick={() => switchMode('forgot')}>Forgot password?</button>
               </div>
               <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
               <p className="auth-foot">
                 New here?{' '}
-                <a role="button" tabIndex={0} onClick={() => switchMode('signup')}>Create a fleet account</a>
+                <button type="button" className="auth-link" onClick={() => switchMode('signup')}>Create a fleet account</button>
               </p>
             </form>
           )}
@@ -360,11 +360,11 @@ function LoginPageContent() {
                 {resendCooldown > 0 ? (
                   <span style={{ color: 'var(--text-3)' }}>Resend in {resendCooldown}s</span>
                 ) : (
-                  <a role="button" tabIndex={0} onClick={handleResendCode}>Resend code</a>
+                  <button type="button" className="auth-link" onClick={handleResendCode}>Resend code</button>
                 )}
               </p>
               <p className="auth-foot">
-                <a role="button" tabIndex={0} onClick={() => switchMode('login')}>← Back to sign in</a>
+                <button type="button" className="auth-link" onClick={() => switchMode('login')}>← Back to sign in</button>
               </p>
             </form>
           )}
@@ -387,7 +387,7 @@ function LoginPageContent() {
                 {loading ? 'Sending…' : 'Send reset link'}
               </button>
               <p className="auth-foot">
-                <a role="button" tabIndex={0} onClick={() => switchMode('login')}>← Back to sign in</a>
+                <button type="button" className="auth-link" onClick={() => switchMode('login')}>← Back to sign in</button>
               </p>
             </form>
           )}

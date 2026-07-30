@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
+import RovoraThemeToggle from './RovoraThemeToggle';
 
 /**
  * Shared marketing footer (used by the landing page and every /features page).
@@ -122,6 +123,11 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
             <Link href="/security">Security</Link>
           </span>
           <span className="mono">Made for fleets that move.</span>
+          {/* Only home for the light/dark switch on desktop — the top bar stays clean. */}
+          <span className="foot-theme">
+            <span>Appearance</span>
+            <RovoraThemeToggle />
+          </span>
         </div>
       </div>
     </footer>
