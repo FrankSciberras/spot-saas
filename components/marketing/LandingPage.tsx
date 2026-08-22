@@ -9,6 +9,7 @@ import MarketingNav from './MarketingNav';
 import MarketingFooter from './MarketingFooter';
 import PricingPlans from './PricingPlans';
 import LiteYouTube from './LiteYouTube';
+import ReplacesSection from './ReplacesSection';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import { Icon, type IconName } from './feature/icons';
 import { markFontSize } from '@/lib/integrations/catalog';
@@ -233,7 +234,9 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               obvious thing on the page after the CTA. */}
           <div className="container hero-stage reveal">
             <div className="hero-video">
-              <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority />
+              {/* Autoplays muted on a loop, like a living screenshot — visitors
+                  unmute with the player's own controls if they want the audio. */}
+              <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority autoplay />
             </div>
           </div>
 
@@ -257,6 +260,10 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         {/* The old "See Rovora in action" section lived here. It was removed when
             the demo moved into the hero — running the same video twice on one
             page just splits attention and buries it below three screenfuls. */}
+
+        {/* REPLACES THE PATCHWORK — the consolidation sell, straight after the
+            stats band while the "6 hrs saved on admin" number is still fresh. */}
+        <ReplacesSection />
 
         {/* OVERVIEW GRID */}
         <section className="sec-pad way">

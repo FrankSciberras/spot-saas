@@ -440,6 +440,19 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 /* ─── Lite YouTube embed (click-to-play) ─── */
 .rovora-site .ytlite { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; margin: 0; padding: 0; border: 0; background: #000; overflow: hidden; }
 .rovora-site .ytlite-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* Ambient (hero) mode: the video is decoration, not a player.
+   - pointer-events: none → no click can pause it, no hover can summon controls.
+   - The size trick hides YouTube's LOAD-TIME chrome (title card, mute pill,
+     watermark), which controls=0 does not remove: the iframe is made 160px
+     taller than its 16:9 frame, so YouTube letterboxes the video with 80px
+     bars top and bottom. All of its chrome anchors to the iframe's edges —
+     inside those bars — and the frame's overflow:hidden crops them away.
+     The video content itself scales to the frame width, so none of it is lost. */
+.rovora-site .ytlite-ambient .ytlite-frame {
+  pointer-events: none;
+  top: -80px;
+  height: calc(100% + 160px);
+}
 .rovora-site button.ytlite-poster { cursor: pointer; }
 .rovora-site .ytlite-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .rovora-site .ytlite-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 74px; height: 74px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 12px 34px -8px rgba(0, 0, 0, 0.55); transition: transform 0.15s ease, filter 0.15s ease; }
@@ -484,6 +497,127 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .stat .num { font-size: 40px; font-weight: 500; letter-spacing: -0.03em; }
 .rovora-site .stat .num.mono { font-family: var(--font-geist-mono), monospace; }
 .rovora-site .stat .lbl { margin-top: 8px; font-size: 14px; color: var(--text-2); }
+
+/* ─── "One app instead of all of these" — app constellation ───
+   Chips are absolutely positioned by % inside a fixed-aspect stage; the SVG
+   underneath draws its lines in the SAME % coordinate space (viewBox 0-100,
+   preserveAspectRatio none), so the lines track the chips at any width. */
+.rovora-site .rep-stage {
+  position: relative;
+  max-width: 1060px;
+  margin: 56px auto 0;
+  aspect-ratio: 1000 / 440;
+}
+/* Soft accent bloom behind the hub, same treatment as the hero video. */
+.rovora-site .rep-stage::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  height: 66%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(60% 60% at 50% 50%, var(--accent-soft), transparent 70%);
+  filter: blur(44px);
+  pointer-events: none;
+}
+
+.rovora-site .rep-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rovora-site .rep-line {
+  stroke: var(--accent);
+  stroke-opacity: 0.22;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+  /* Dashes drift toward the hub — the patchwork flowing into Rovora. */
+  animation: rep-flow 1.6s linear infinite;
+}
+@keyframes rep-flow { to { stroke-dashoffset: -8; } }
+
+.rovora-site .rep-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px 9px 11px;
+  border-radius: 13px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 10px 24px -16px rgba(20, 30, 60, 0.35);
+  white-space: nowrap;
+}
+.rovora-site .rep-logo { display: block; width: 26px; height: 26px; object-fit: contain; flex: none; }
+/* Stand-in until the real logo file is dropped into /public/replaces/. */
+.rovora-site .rep-mono {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rovora-site .rep-chip-txt { display: flex; flex-direction: column; gap: 1px; text-align: left; }
+.rovora-site .rep-chip-name { font-size: 12.5px; font-weight: 550; color: var(--text-1); line-height: 1.2; }
+.rovora-site .rep-chip-role { font-size: 11px; color: var(--text-3); line-height: 1.2; }
+
+.rovora-site .rep-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 40px 20px;
+  border-radius: 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  box-shadow: 0 22px 50px -22px rgba(20, 30, 60, 0.45), 0 0 0 6px var(--accent-soft);
+}
+.rovora-site .rep-hub img { display: block; width: 40px; height: 40px; }
+.rovora-site .rep-hub-name { margin-top: 4px; font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-1); }
+.rovora-site .rep-hub-sub { font-size: 11.5px; color: var(--text-3); }
+
+.rovora-site .rep-arrow { display: none; }
+
+.rovora-site .rep-cta { margin-top: 46px; display: flex; gap: 13px; justify-content: center; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site .rep-line { animation: none; }
+}
+
+/* On small screens the constellation collapses into a plain grid of chips,
+   an arrow, and the hub — absolute positioning at phone widths just piles
+   the chips on top of each other. */
+@media (max-width: 860px) {
+  .rovora-site .rep-stage {
+    aspect-ratio: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 40px;
+  }
+  .rovora-site .rep-stage::before { display: none; }
+  .rovora-site .rep-lines { display: none; }
+  .rovora-site .rep-chip { position: static; transform: none; }
+  .rovora-site .rep-arrow {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    color: var(--accent);
+    margin: 6px 0;
+  }
+  .rovora-site .rep-arrow svg { width: 22px; height: 22px; }
+  .rovora-site .rep-hub { position: static; transform: none; }
+  .rovora-site .rep-cta { margin-top: 36px; }
+}
 
 /* ─── Feature rows ─── */
 .rovora-site .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
