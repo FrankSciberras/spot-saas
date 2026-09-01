@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getSession } from '@/lib/auth/session';
+import { checkCapacityToAdd } from '@/lib/billing/fleet-billing';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
 import { appUrl } from '@/lib/urls';
@@ -44,6 +45,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
+    // Plan cap for drivers, checked BEFORE the auth user, invite email and
+    // membership exist — otherwise the follow-up POST /api/drivers would be
+    // refused and leave a half-created member behind.
+    if (role === 'driver') {
+      const capacity = await checkCapacityToAdd(session.organization_id, 'drivers');
+      if (!capacity.ok) {
+        return NextResponse.json(
+          { error: capacity.message, code: 'plan_limit', required_plan: capacity.requiredPlan },
+          { status: 402 }
+        );
+      }
+    }
+
     const admin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -67,7 +81,10 @@ export async function POST(request: Request) {
       email,
       options: {
         data: { full_name: fullName },
-        redirectTo: redirectTo ? `${redirectTo}?type=invite` : undefined,
+        // `redirectTo` already carries ?type=invite — appending it again produced
+        // "…callback?type=invite?type=invite", which the callback read as an
+        // unknown type and sent invitees to "/" without ever setting a password.
+        redirectTo,
       },
     });
 

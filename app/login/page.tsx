@@ -11,6 +11,7 @@ import {
   type SignupVerifyType,
 } from '@/lib/actions/auth-email';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
+import { safeInternalPath } from '@/lib/utils/safeRedirect';
 import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 import PasswordInput from '@/components/shared/PasswordInput';
 
@@ -20,7 +21,9 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   // Default to the dashboard resolver so signing in lands on the right dashboard,
   // not the marketing home page (which stays freely browsable while logged in).
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+  // Only same-origin paths are honoured — a crafted ?redirectTo=https://evil…
+  // must not bounce a freshly signed-in user off the site.
+  const redirectTo = safeInternalPath(searchParams.get('redirectTo'), '/dashboard');
   const initialMode: Mode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
 
   const [email, setEmail] = useState('');

@@ -45,7 +45,7 @@ export default async function BillingPage({
     sub = `Your ${TRIAL_DAYS}-day trial of ${user.organization_name} is over. Choose a plan to keep managing your fleet.`;
   } else if (billing.overLimit) {
     heading = `You've outgrown the ${billing.plan} plan`;
-    sub = `${user.organization_name} now has ${billing.drivers} drivers and ${billing.vehicles} vehicles. Move up to the ${billing.requiredPlan} plan to continue.`;
+    sub = `${user.organization_name} now has ${billing.drivers} drivers and ${billing.vehicles} vehicles. Adding more is paused until you move up to the ${billing.requiredPlan} plan (or remove the extras).`;
   } else if (billing.status === 'suspended' || billing.status === 'cancelled') {
     heading = 'Your fleet is paused';
     sub = `${user.organization_name} has been ${billing.status}. Choose a plan to reactivate it.`;

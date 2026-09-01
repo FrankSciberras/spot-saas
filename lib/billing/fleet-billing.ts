@@ -14,10 +14,52 @@ import {
   type PaidPlan,
   type FleetBilling,
   TRIAL_PLAN,
+  getPlanDef,
   planRank,
   requiredPlanFor,
 } from './plans';
 import { getPlans } from './plans-data';
+
+export type CapacityCheck =
+  | { ok: true }
+  | { ok: false; message: string; current: number; cap: number; requiredPlan: PaidPlan };
+
+/**
+ * May this fleet add ONE more driver / vehicle under its current plan?
+ *
+ * Enforced at create time so a fleet can never slip over its cap by accident
+ * (which used to lock the whole dashboard). Trials and unknown plan keys are
+ * not capped here — the trial gate and the plan picker handle those.
+ */
+export async function checkCapacityToAdd(
+  organizationId: string,
+  kind: 'drivers' | 'vehicles'
+): Promise<CapacityCheck> {
+  const [plans, billing] = await Promise.all([getPlans(), getFleetBilling(organizationId)]);
+  if (billing.onTrial) return { ok: true };
+
+  const planDef = getPlanDef(plans, billing.plan);
+  if (!planDef) return { ok: true };
+
+  const cap = kind === 'drivers' ? planDef.maxDrivers : planDef.maxVehicles;
+  const current = kind === 'drivers' ? billing.drivers : billing.vehicles;
+  if (cap === null || current + 1 <= cap) return { ok: true };
+
+  const requiredPlan = requiredPlanFor(
+    plans,
+    kind === 'drivers' ? current + 1 : billing.drivers,
+    kind === 'vehicles' ? current + 1 : billing.vehicles
+  );
+  const requiredName = getPlanDef(plans, requiredPlan)?.name ?? requiredPlan;
+  const noun = kind === 'drivers' ? 'driver' : 'vehicle';
+  return {
+    ok: false,
+    current,
+    cap,
+    requiredPlan,
+    message: `Your ${planDef.name} plan includes up to ${cap} ${noun}${cap === 1 ? '' : 's'} and you already have ${current}. Upgrade to the ${requiredName} plan to add more.`,
+  };
+}
 
 function daysBetween(future: Date, now: Date): number {
   const ms = future.getTime() - now.getTime();
@@ -71,7 +113,12 @@ export const getFleetBilling = cache(async (organizationId: string): Promise<Fle
   const overLimit = !onTrial && planKnown && planRank(plans, plan) < planRank(plans, requiredPlan);
 
   const suspended = status === 'suspended' || status === 'cancelled';
-  const locked = trialExpired || overLimit || suspended;
+  // Outgrowing the plan does NOT lock the dashboard any more: that trapped
+  // operators on /billing with no way to remove the extra vehicle. Instead the
+  // create endpoints refuse additions over the cap (checkCapacityToAdd) and the
+  // dashboard shows an upgrade banner while `overLimit` is true. Only an
+  // expired trial or a platform-admin suspension locks the fleet out.
+  const locked = trialExpired || suspended;
 
   return {
     plan,

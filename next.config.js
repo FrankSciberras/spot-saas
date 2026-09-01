@@ -1,5 +1,37 @@
 /** @type {import('next').NextConfig} */
+
+// Baseline security headers for every response. Kept deliberately conservative:
+// no script-restricting CSP (Sentry tunnel, Supabase, Leaflet tiles, YouTube
+// embed and Stripe redirects would each need allow-listing first); the
+// frame-ancestors directive alone stops click-jacking. The Rovora Driver app
+// loads the portal in a WebView, not an <iframe>, so framing rules don't
+// affect it.
+const securityHeaders = [
+  // Browsers only ever talk to us over HTTPS for the next two years.
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+  // Never sniff a response into a different content type.
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  // Legacy equivalent of frame-ancestors for older browsers.
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+  // Don't leak full URLs (which can contain ids) to third-party sites.
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  // Camera (shift photos) and geolocation (driver "Share location") stay
+  // first-party only; nothing on the site needs the microphone.
+  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
+];
+
 const nextConfig = {
+  // Don't advertise the framework in every response.
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

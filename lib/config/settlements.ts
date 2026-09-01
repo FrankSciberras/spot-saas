@@ -213,13 +213,13 @@ export const COMPONENT_META: {
 }[] = [
   { key: 'share', label: 'Share of fares', hint: 'Driver earns a % of gross fares', group: 'earnings' },
   { key: 'hours', label: 'Hourly wage', hint: 'Hours worked × hourly rate (hours prefill from shifts)', group: 'earnings' },
-  { key: 'fixed', label: 'Fixed weekly wage', hint: 'A flat amount every settlement', group: 'earnings' },
+  { key: 'fixed', label: 'Fixed weekly wage', hint: 'Per week — scaled to the settlement period (a 4-week period pays 4×)', group: 'earnings' },
   { key: 'tips', label: 'Tips', hint: 'Tips line on the settlement', group: 'earnings' },
   { key: 'campaigns', label: 'Campaigns', hint: 'Platform campaign bonuses', group: 'earnings' },
   { key: 'fee', label: 'Platform fee', hint: 'Driver bears (part of) the platform commission', group: 'deductions' },
   { key: 'cash', label: 'Cash collected', hint: 'Cash the driver already holds is deducted', group: 'deductions' },
-  { key: 'tax', label: 'FSS / Tax', hint: 'Tax withholding line', group: 'deductions' },
-  { key: 'rent', label: 'Weekly rent', hint: 'Fixed weekly vehicle rent', group: 'deductions' },
+  { key: 'tax', label: 'FSS / Tax', hint: 'Flat tax is per week and scales with the period; percent tax is a % of the balance', group: 'deductions' },
+  { key: 'rent', label: 'Weekly rent', hint: 'Per week — scaled to the settlement period (a 4-week period deducts 4×)', group: 'deductions' },
 ];
 
 /**

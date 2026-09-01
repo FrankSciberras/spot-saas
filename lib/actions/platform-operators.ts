@@ -295,7 +295,8 @@ export async function updateOperatorAction(
 
 /**
  * Set an exact trial end date (puts the fleet on the trial plan, active). Pass
- * null to clear it. Useful for granting/adjusting a bespoke trial window.
+ * null for a fresh standard trial (TRIAL_DAYS from today). Useful for
+ * granting/adjusting a bespoke trial window.
  */
 export async function setOperatorTrialEndAction(
   organizationId: string,
@@ -304,11 +305,16 @@ export async function setOperatorTrialEndAction(
   await requirePlatformAdmin();
   const admin = createAdminClient();
 
-  let trialEnds: string | null = null;
+  // A trial must always have an end date: fleet-billing treats a NULL
+  // trial_ends_at as ALREADY EXPIRED, so "clearing" the date used to lock the
+  // fleet out instantly. An empty date now means "a fresh standard trial".
+  let trialEnds: string;
   if (isoDate) {
     const d = new Date(isoDate);
     if (Number.isNaN(d.getTime())) return { error: 'Invalid date.' };
     trialEnds = d.toISOString();
+  } else {
+    trialEnds = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString();
   }
 
   const { error } = await admin

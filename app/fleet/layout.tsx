@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
+import { getPlans } from '@/lib/billing/plans-data';
+import { getPlanDef } from '@/lib/billing/plans';
 import { getEnabledModuleKeys } from '@/lib/modules/server';
 import BrandingShell from '@/components/shared/BrandingShell';
 import { FleetBillingProvider } from '@/components/shared/FleetBillingProvider';
@@ -22,8 +24,11 @@ export default async function FleetLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole(['admin', 'staff']);
-  const billing = await getFleetBilling(user.organization_id);
+  const [billing, plans] = await Promise.all([getFleetBilling(user.organization_id), getPlans()]);
 
+  // Locked = expired trial or platform suspension. Outgrowing a paid plan no
+  // longer locks the dashboard (see fleet-billing.ts); it shows a banner and the
+  // create endpoints refuse additions instead.
   if (billing.locked) {
     redirect('/billing');
   }
@@ -41,6 +46,9 @@ export default async function FleetLayout({
             onTrial: billing.onTrial,
             trialExpired: billing.trialExpired,
             trialDaysLeft: billing.trialDaysLeft,
+            overLimit: billing.overLimit,
+            planName: getPlanDef(plans, billing.plan)?.name ?? billing.plan,
+            requiredPlanName: getPlanDef(plans, billing.requiredPlan)?.name ?? billing.requiredPlan,
           }}
         >
           <FleetThemeRoot>{children}</FleetThemeRoot>

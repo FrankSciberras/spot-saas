@@ -121,8 +121,13 @@ export async function completeOnboardingAction(
       }
       // Checkout couldn't start — fall through and let them into the trial.
       console.error('completeOnboardingAction (checkout) failed:', result.error);
+    } else if (isStripeEnabled()) {
+      // Stripe is live but this plan has no price/product connected yet. Never
+      // activate a paid tier for free — the fleet simply stays on its trial and
+      // can pick a connected plan from /billing later.
+      console.error('completeOnboardingAction: plan has no Stripe price, staying on trial:', plan);
     } else {
-      // No Stripe yet — keep the old stub so dev still activates the tier.
+      // No Stripe at all (local/dev) — keep the old stub so dev still activates the tier.
       const { error: planError } = await supabase.rpc('set_organization_plan', {
         p_org: orgId as string,
         p_plan: plan,

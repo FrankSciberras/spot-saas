@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
+import { safeInternalPath } from '@/lib/utils/safeRedirect';
 
 /**
  * Auth callback — password recovery, fleet invites, magic links, OAuth.
@@ -69,9 +70,12 @@ export default function AuthCallbackPage() {
       // none yet. `type` rides in the query on our own links and in the hash on
       // Supabase's, so check both.
       const type = search.get('type') || hash.get('type');
-      const next = search.get('next');
+      // `next` must be an internal path — never an absolute/protocol-relative
+      // URL, or a tampered link could hand the fresh session straight to a
+      // phishing page.
+      const next = safeInternalPath(search.get('next'), '/');
       const destination =
-        type === 'recovery' || type === 'invite' ? '/auth/reset-password' : next || '/';
+        type === 'recovery' || type === 'invite' ? '/auth/reset-password' : next;
 
       // replace(), not push() — the URL still holds the tokens, and it should
       // not survive in history or the back button.

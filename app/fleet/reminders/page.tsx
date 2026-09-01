@@ -30,6 +30,9 @@ export default async function RemindersPage() {
 }
 
 async function RemindersContent({ user, permissions }: { user: FleetUser; permissions: ReminderPerms }) {
+  // The admin client bypasses RLS, so EVERY query below must be pinned to the
+  // caller's active fleet — without the organization_id filter this page used
+  // to list every fleet's reminders (and every fleet's staff directory).
   const supabase = createAdminClient();
   const isAdmin = user.role === 'admin';
 
@@ -40,6 +43,7 @@ async function RemindersContent({ user, permissions }: { user: FleetUser; permis
       creator:created_by (full_name, email),
       assignee:assigned_to (full_name, email)
     `)
+    .eq('organization_id', user.organization_id)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
 
@@ -49,12 +53,23 @@ async function RemindersContent({ user, permissions }: { user: FleetUser; permis
 
   const { data: reminders } = await remindersQuery;
 
+  // Assignable users = admins/staff of THIS fleet only. Membership role (not the
+  // deprecated global users.role) decides who counts as staff in this fleet.
   const shouldLoadAssignableUsers = permissions.can_create || permissions.can_edit;
-  const { data: users } = shouldLoadAssignableUsers
+  const { data: staffMemberships } = shouldLoadAssignableUsers
+    ? await supabase
+        .from('memberships')
+        .select('user_id')
+        .eq('organization_id', user.organization_id)
+        .or('role.eq.admin,role.eq.staff,also_staff.eq.true')
+    : { data: [] as { user_id: string }[] };
+  const memberIds = (staffMemberships || []).map((m) => m.user_id);
+
+  const { data: users } = memberIds.length > 0
     ? await supabase
         .from('users')
         .select('id, full_name, email, role, also_staff')
-        .or('role.eq.admin,role.eq.staff,also_staff.eq.true')
+        .in('id', memberIds)
         .order('full_name')
     : { data: [] };
 

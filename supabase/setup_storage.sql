@@ -1,4 +1,16 @@
 -- =============================================================================
+-- !! LEGACY — DO NOT RUN ON AN EXISTING DATABASE !!
+-- =============================================================================
+-- This was the original (pre-SaaS) storage bootstrap. It makes both buckets
+-- PUBLIC and recreates "any authenticated user can read/update/delete any
+-- document" policies. Those were removed for GDPR/tenant-isolation reasons by:
+--   supabase/migrations/20260610_private_storage_buckets.sql  (private buckets, no public reads)
+--   supabase/migrations/20260902_drop_legacy_storage_write_policies.sql (no open update/delete)
+-- Kept only as historical reference. For a brand-new project, create the two
+-- private buckets by hand and apply the migrations above instead.
+-- =============================================================================
+
+-- =============================================================================
 -- STORAGE BUCKET SETUP
 -- Run this in Supabase SQL Editor to configure storage buckets
 -- =============================================================================

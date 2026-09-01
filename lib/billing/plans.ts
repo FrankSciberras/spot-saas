@@ -240,12 +240,15 @@ export interface FleetBilling {
   vehicles: number;
   /** Smallest paid plan that fits current usage. */
   requiredPlan: PaidPlan;
-  /** True when the current paid plan is smaller than usage requires. */
+  /**
+   * True when the current paid plan is smaller than usage requires. Does NOT
+   * lock the dashboard: the API refuses further driver/vehicle creates and the
+   * dashboard shows an upgrade banner until they upgrade or remove the extras.
+   */
   overLimit: boolean;
   /**
    * True when the fleet dashboard should be blocked behind the upgrade screen:
    *   - trial has expired, or
-   *   - on a paid plan but outgrew it, or
    *   - org was suspended/cancelled by a platform admin.
    */
   locked: boolean;

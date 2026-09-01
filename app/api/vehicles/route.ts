@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { checkCapacityToAdd } from '@/lib/billing/fleet-billing';
 import type { CreateVehicleInput } from '@/lib/types/database';
 
 /**
@@ -63,6 +64,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'registration_number, make, and model are required' },
         { status: 400 }
+      );
+    }
+
+    // Plan cap: refuse the add with an upgrade message rather than letting the
+    // fleet slip over its limit (which used to lock the whole dashboard).
+    const capacity = await checkCapacityToAdd(session.organization_id, 'vehicles');
+    if (!capacity.ok) {
+      return NextResponse.json(
+        { error: capacity.message, code: 'plan_limit', required_plan: capacity.requiredPlan },
+        { status: 402 }
       );
     }
 

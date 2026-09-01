@@ -13,7 +13,9 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Enable sending user PII (Personally Identifiable Information)
+  // Do NOT attach request cookies / IP / user PII to server events: the Supabase
+  // session cookies would otherwise ride along on every server-side error.
+  // (The browser config already has this off — keep all three runtimes aligned.)
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  sendDefaultPii: false,
 });

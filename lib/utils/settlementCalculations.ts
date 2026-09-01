@@ -263,3 +263,51 @@ export function getRecentWeeks(count: number = 8): { start: Date; end: Date; lab
 export function formatDateISO(date: Date): string {
   return date.toISOString().split('T')[0];
 }
+
+// =============================================================================
+// Period length helpers — "weekly" amounts vs. multi-week settlements
+// =============================================================================
+// Presets store rent, fixed wage and flat tax PER WEEK. A settlement period is
+// not always a week: a fleet that pays every 4 weeks creates 28-day
+// settlements, so those weekly figures have to be scaled to the period or the
+// driver is charged one week of rent (and paid one week of wage) for a month.
+
+/**
+ * Number of calendar days in an inclusive settlement period (week_start ..
+ * week_end). Accepts 'YYYY-MM-DD' or full ISO strings. Falls back to 7 when a
+ * date is missing/invalid so weekly amounts stay weekly.
+ */
+export function periodDays(
+  weekStart: string | null | undefined,
+  weekEnd: string | null | undefined
+): number {
+  if (!weekStart || !weekEnd) return 7;
+  const start = Date.parse(`${weekStart.slice(0, 10)}T00:00:00Z`);
+  const end = Date.parse(`${weekEnd.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 7;
+  const days = Math.round((end - start) / 86_400_000) + 1;
+  return days >= 1 ? days : 7;
+}
+
+/** Period length in weeks: 7 days → 1, a 4-week pay cycle → 4, 10 days → 1.43. */
+export function periodWeeks(
+  weekStart: string | null | undefined,
+  weekEnd: string | null | undefined
+): number {
+  return round2(periodDays(weekStart, weekEnd) / 7);
+}
+
+/**
+ * Scale a per-WEEK amount (weekly rent, fixed weekly wage, flat weekly tax) to
+ * the settlement period. A 28-day period gets 4× the weekly figure; a 7-day
+ * period is unchanged; odd lengths are prorated by days.
+ */
+export function scaleWeekly(
+  perWeek: unknown,
+  weekStart: string | null | undefined,
+  weekEnd: string | null | undefined
+): number {
+  const amount = Math.max(0, safeNumber(perWeek));
+  if (amount === 0) return 0;
+  return round2((amount * periodDays(weekStart, weekEnd)) / 7);
+}

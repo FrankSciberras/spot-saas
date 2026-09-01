@@ -111,6 +111,8 @@ export async function PUT(request: Request, context: RouteContext) {
       updateData.full_name = full_name;
     }
     if (also_staff !== undefined) {
+      // Legacy mirror only — kept so the older list pages that still read
+      // users.also_staff stay in step. Access itself is decided below.
       updateData.also_staff = !!also_staff;
     }
 
@@ -122,6 +124,21 @@ export async function PUT(request: Request, context: RouteContext) {
 
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+    }
+
+    // Staff access is PER FLEET: getSession() and RLS read memberships.also_staff
+    // for the active org, so that is the row that has to change. (Writing only
+    // users.also_staff, as this route used to, granted nothing and revoked nothing.)
+    if (also_staff !== undefined) {
+      const { error: membershipError } = await supabaseAdmin
+        .from('memberships')
+        .update({ also_staff: !!also_staff })
+        .eq('organization_id', session.organization_id)
+        .eq('user_id', id);
+
+      if (membershipError) {
+        return NextResponse.json({ error: membershipError.message }, { status: 500 });
       }
     }
 
@@ -176,7 +193,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     // Resolve the target's role IN THIS FLEET (the source of truth post-SaaS).
     const { data: membership } = await supabaseAdmin
       .from('memberships')
-      .select('role')
+      .select('role, also_staff')
       .eq('organization_id', orgId)
       .eq('user_id', id)
       .maybeSingle();
@@ -186,6 +203,8 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     // Dual-role driver+staff → only revoke staff access (keep them as a driver).
+    // The flag that actually grants dashboard access is memberships.also_staff
+    // (per fleet); users.also_staff is a legacy mirror some list pages still read.
     if (membership.role === 'driver') {
       const { data: targetProfile } = await supabaseAdmin
         .from('users')
@@ -193,15 +212,18 @@ export async function DELETE(request: Request, context: RouteContext) {
         .eq('id', id)
         .maybeSingle();
 
-      if (targetProfile?.also_staff) {
+      if (membership.also_staff || targetProfile?.also_staff) {
         const { error: revokeError } = await supabaseAdmin
-          .from('users')
+          .from('memberships')
           .update({ also_staff: false })
-          .eq('id', id);
+          .eq('organization_id', orgId)
+          .eq('user_id', id);
 
         if (revokeError) {
           return NextResponse.json({ error: revokeError.message }, { status: 500 });
         }
+
+        await supabaseAdmin.from('users').update({ also_staff: false }).eq('id', id);
 
         return NextResponse.json({ success: true, action: 'revoked_staff_access' });
       }

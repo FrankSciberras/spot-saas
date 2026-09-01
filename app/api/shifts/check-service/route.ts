@@ -5,6 +5,7 @@ import { sendEmailNotification } from '@/lib/notifications/email';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
 import { appUrl } from '@/lib/urls';
+import { getSession } from '@/lib/auth/session';
 
 /**
  * POST /api/shifts/check-service
@@ -26,21 +27,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { vehicle_id, current_mileage } = body;
+    const vehicle_id: string | null = typeof body?.vehicle_id === 'string' ? body.vehicle_id : null;
+    const current_mileage = Number(body?.current_mileage);
 
-    if (!vehicle_id || current_mileage === undefined) {
+    if (
+      !vehicle_id ||
+      !/^[0-9a-f-]{36}$/i.test(vehicle_id) ||
+      !Number.isFinite(current_mileage) ||
+      current_mileage < 0
+    ) {
       return NextResponse.json(
-        { error: 'vehicle_id and current_mileage are required' },
+        { error: 'vehicle_id (uuid) and a non-negative numeric current_mileage are required' },
         { status: 400 }
       );
     }
-
-    // Resolve the current driver (if the authenticated user is a driver)
-    const { data: currentDriver } = await adminClient
-      .from('drivers')
-      .select('id, user_id, full_name, users:user_id (email)')
-      .eq('user_id', user.id)
-      .maybeSingle();
 
     // Get the vehicle first — its org scopes the rule + recipient lookups.
     const { data: vehicle, error: vehicleError } = await adminClient
@@ -55,6 +55,23 @@ export async function POST(request: Request) {
         { status: 404 }
       );
     }
+
+    // Tenant guard: the admin client bypasses RLS, so confirm the caller is
+    // acting within the vehicle's fleet before touching its rules/notifications.
+    // Without this, any signed-in user could fire "service due" alerts, emails
+    // and pushes into another fleet just by guessing a vehicle id.
+    const session = await getSession();
+    if (!session || vehicle.organization_id !== session.organization_id) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+    }
+
+    // Resolve the current driver (if the caller is a driver in THIS fleet).
+    const { data: currentDriver } = await adminClient
+      .from('drivers')
+      .select('id, user_id, full_name, users:user_id (email)')
+      .eq('user_id', user.id)
+      .eq('organization_id', vehicle.organization_id)
+      .maybeSingle();
 
     // Check if the service_due notification rule is active FOR THIS ORG.
     const { data: serviceRule, error: ruleError } = await adminClient

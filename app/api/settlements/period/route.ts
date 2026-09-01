@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 function formatWeekLabel(weekStart: string, weekEnd: string): string {
   const start = new Date(`${weekStart}T00:00:00`);
   const end = new Date(`${weekEnd}T00:00:00`);
@@ -25,6 +27,11 @@ interface PeriodUpdateBody {
  * PUT /api/settlements/period
  * Update the shared period metadata for all settlements in a week.
  * Requires admin role.
+ *
+ * Every query is pinned to the caller's ACTIVE fleet. RLS only guarantees
+ * "some fleet the caller belongs to", so without the organization_id filter a
+ * multi-fleet admin renaming a period here used to rewrite the other fleets'
+ * settlements that happened to share the same start date.
  */
 export async function PUT(request: Request) {
   try {
@@ -37,6 +44,7 @@ export async function PUT(request: Request) {
     if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const orgId = session.organization_id;
 
     const body = await request.json() as PeriodUpdateBody;
     const currentWeekStart = body.current_week_start;
@@ -46,6 +54,20 @@ export async function PUT(request: Request) {
     if (!currentWeekStart || !nextWeekStart || !nextWeekEnd) {
       return NextResponse.json(
         { error: 'current_week_start, week_start, and week_end are required' },
+        { status: 400 }
+      );
+    }
+
+    if (![currentWeekStart, nextWeekStart, nextWeekEnd].every((d) => ISO_DATE.test(d))) {
+      return NextResponse.json(
+        { error: 'Dates must be in YYYY-MM-DD format' },
+        { status: 400 }
+      );
+    }
+
+    if (body.settlement_month && !ISO_DATE.test(body.settlement_month)) {
+      return NextResponse.json(
+        { error: 'settlement_month must be a YYYY-MM-DD date' },
         { status: 400 }
       );
     }
@@ -60,6 +82,7 @@ export async function PUT(request: Request) {
     const { data: currentPeriodSettlements, error: currentPeriodError } = await supabase
       .from('driver_settlements')
       .select('id, driver_id')
+      .eq('organization_id', orgId)
       .eq('week_start', currentWeekStart);
 
     if (currentPeriodError) {
@@ -78,6 +101,7 @@ export async function PUT(request: Request) {
       const { data: conflicts, error: conflictError } = await supabase
         .from('driver_settlements')
         .select('id, driver_id')
+        .eq('organization_id', orgId)
         .eq('week_start', nextWeekStart)
         .in('driver_id', driverIds)
         .not('id', 'in', excludedIds);
@@ -106,6 +130,7 @@ export async function PUT(request: Request) {
     const { error: updateError, count } = await supabase
       .from('driver_settlements')
       .update(updateData, { count: 'exact' })
+      .eq('organization_id', orgId)
       .eq('week_start', currentWeekStart);
 
     if (updateError) {

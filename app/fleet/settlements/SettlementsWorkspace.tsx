@@ -20,7 +20,9 @@ import {
 import {
   calculateSettlement,
   formatCurrency,
+  periodWeeks,
   round2,
+  scaleWeekly,
   type PlatformEarningsInput
 } from '@/lib/utils/settlementCalculations';
 import { exportMonthlySettlementsPdf, exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
@@ -675,7 +677,8 @@ export default function SettlementsWorkspace({
           components: driverComponents,
           hoursWorked: driverHours,
           hourlyRate: Number(preset?.hourly_rate) || 0,
-          fixedWageWeekly: Number(preset?.fixed_wage_weekly) || 0,
+          // Weekly figure × the period length (4-week cycle → 4×).
+          fixedWageWeekly: scaleWeekly(preset?.fixed_wage_weekly, currentPeriod.startISO, currentPeriod.endISO),
         }
       );
       let tax: number;
@@ -684,9 +687,12 @@ export default function SettlementsWorkspace({
       } else if (preset && preset.tax_type === 'percent') {
         tax = round2(Math.max(0, base.totalBalanceBeforeTax) * (preset.tax_value / 100));
       } else if (preset) {
-        tax = presetFlatTax(preset, driver?.employment_type) ?? 0;
+        // Flat tax is a per-week amount — scale it to the period like rent.
+        tax = scaleWeekly(presetFlatTax(preset, driver?.employment_type) ?? 0, currentPeriod.startISO, currentPeriod.endISO);
       } else {
-        tax = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
+        tax = driver?.employment_type === 'full_time'
+          ? scaleWeekly(getDefaultFssTax(), currentPeriod.startISO, currentPeriod.endISO)
+          : 0;
       }
 
       try {
@@ -865,15 +871,18 @@ export default function SettlementsWorkspace({
       // No preset → legacy rule: full_time = €22, everyone else = 0.
       const presetId = driver?.settlement_preset_id ?? orgDefaultPresetId;
       const preset = presetId ? presets.find(p => p.id === presetId) ?? null : null;
+      // Flat amounts are PER WEEK — scale to the period (4-week cycle → 4×).
       if (preset && preset.tax_type === 'percent') {
         setTaxAutoPct(preset.tax_value);
         setFssTax('0');
       } else if (preset) {
         setTaxAutoPct(null);
-        setFssTax(String(presetFlatTax(preset, driver?.employment_type) ?? 0));
+        setFssTax(String(scaleWeekly(presetFlatTax(preset, driver?.employment_type) ?? 0, currentPeriod.startISO, currentPeriod.endISO)));
       } else {
         setTaxAutoPct(null);
-        const defaultFss = driver?.employment_type === 'full_time' ? getDefaultFssTax() : 0;
+        const defaultFss = driver?.employment_type === 'full_time'
+          ? scaleWeekly(getDefaultFssTax(), currentPeriod.startISO, currentPeriod.endISO)
+          : 0;
         setFssTax(defaultFss.toString());
       }
       // Reset hours; the effect below prefills them from clocked shifts when
@@ -937,10 +946,15 @@ export default function SettlementsWorkspace({
 
   const currentSharePct = scheme.driverSharePct;
 
-  // Weekly rent: frozen snapshot when editing, else from the preset.
+  // How many weeks this period spans (1 for a normal week, 4 for a 4-week pay
+  // cycle). Presets store rent / fixed wage / flat tax PER WEEK, so new
+  // settlements scale them by this; frozen snapshots are already scaled.
+  const periodWeekCount = periodWeeks(currentPeriod?.startISO, currentPeriod?.endISO);
+
+  // Rent: frozen snapshot when editing, else the preset's weekly rent × weeks.
   const rentAmount = existingSettlement
     ? (existingSettlement.rent_amount ?? 0)
-    : (currentPreset?.rent_weekly ?? 0);
+    : scaleWeekly(currentPreset?.rent_weekly, currentPeriod?.startISO, currentPeriod?.endISO);
 
   // Component toggles ("which columns count"): frozen snapshot when editing,
   // else from the driver's preset. {} / no preset = the classic split lines.
@@ -963,7 +977,7 @@ export default function SettlementsWorkspace({
             round2((Number(existingSettlement.hourly_rate) || 0) * (Number(existingSettlement.hours_worked) || 0))
         )
       )
-    : Number(currentPreset?.fixed_wage_weekly) || 0;
+    : scaleWeekly(currentPreset?.fixed_wage_weekly, currentPeriod?.startISO, currentPeriod?.endISO);
 
   // The platform table only matters when at least one platform-based line counts
   // (a pure-wage preset hides it entirely).
@@ -2123,7 +2137,7 @@ export default function SettlementsWorkspace({
                 )}
                 {components.fixed && (
                   <div className={styles.totalItem}>
-                    <span>Fixed wage</span>
+                    <span>Fixed wage{periodWeekCount !== 1 ? ` (${periodWeekCount} wks)` : ''}</span>
                     <span className={styles.balancePositive}>+{formatCurrency(fixedWageWeekly)}</span>
                   </div>
                 )}
@@ -2135,7 +2149,7 @@ export default function SettlementsWorkspace({
                 </div>
                 {calculation.rent > 0 && (
                   <div className={styles.totalItem}>
-                    <span>Rent</span>
+                    <span>Rent{periodWeekCount !== 1 ? ` (${periodWeekCount} wks)` : ''}</span>
                     <span className={styles.balanceNegative}>-{formatCurrency(calculation.rent)}</span>
                   </div>
                 )}

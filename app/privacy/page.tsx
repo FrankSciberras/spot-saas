@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '11 June 2026';
+const LAST_UPDATED = '2 September 2026';
 
 export default function PrivacyPage() {
   return (
@@ -32,16 +32,17 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                “Rovora”, “we”, “us” means the operator of the Rovora platform at{' '}
+                “Rovora”, “we”, “us” means <strong>Rovora</strong> (VAT No. MT29253436), G1 Citycode,
+                Triq Francesco Masini, Victoria, Gozo, Malta — the operator of the Rovora platform at{' '}
                 <a href="https://rovora.eu">rovora.eu</a>. Rovora provides a dashboard and driver app
-                that taxi and cab fleets use to manage drivers, vehicles, shifts, rosters and weekly
+                that taxi and cab fleets use to manage drivers, vehicles, shifts, rosters and driver
                 settlements.
               </p>
               <p>
-                We are based in the European Union and our service is hosted in the EU. For any
-                privacy matter you can reach our team at{' '}
-                <a href="mailto:privacy@rovora.eu">privacy@rovora.eu</a>, or by post at{' '}
-                <span className={s.placeholder}>[registered business address — to be filled in]</span>.
+                We are based in Malta, in the European Union, and our service is hosted in the EU. For
+                any privacy matter you can reach our team at{' '}
+                <a href="mailto:privacy@rovora.eu">privacy@rovora.eu</a>, or by post at the address
+                above.
               </p>
             </>
           ),
@@ -120,6 +121,11 @@ export default function PrivacyPage() {
                       <td>So the fleet operator can see live driver positions and shift routes (see <a href="#location">Location data</a>)</td>
                     </tr>
                     <tr>
+                      <td>Driving &amp; device signals</td>
+                      <td>Speeding events, harsh braking/acceleration detected by the phone’s motion sensors, entries and exits of the fleet’s zones, weekly safety scores, and the phone’s battery level, charging state and GPS/permission status — all only while location sharing is on</td>
+                      <td>So the fleet can spot unsafe driving and lost signal, and drivers can see why an alert fired (see <a href="#location">Location data</a>)</td>
+                    </tr>
+                    <tr>
                       <td>Operational &amp; financial</td>
                       <td>Shifts, rosters, check-in mileage, earnings, settlements (fares, tips, campaigns, fees and tax deductions such as FSS), adjustments and weekly bookkeeping</td>
                       <td>To run rosters and reconcile each driver’s weekly pay</td>
@@ -133,6 +139,11 @@ export default function PrivacyPage() {
                       <td>Communications</td>
                       <td>Notification preferences and the in-app, push and email alerts we send you</td>
                       <td>To deliver document-expiry, shift and platform notices</td>
+                    </tr>
+                    <tr>
+                      <td>Website chat &amp; enquiries</td>
+                      <td>Messages you type to the assistant on our public website, the page you were on, and the name, email, phone number and fleet size you give us when you ask to be contacted or start a trial</td>
+                      <td>To answer product questions and follow up on sales enquiries</td>
                     </tr>
                     <tr>
                       <td>Technical &amp; security</td>
@@ -186,9 +197,19 @@ export default function PrivacyPage() {
                   the data controller for it; Rovora processes the data on the operator’s behalf.
                 </li>
                 <li>
-                  <strong>Retention.</strong> The latest position is overwritten continuously; route
-                  history is retained as operational data under the fleet’s account (see{' '}
-                  <a href="#retention">How long we keep it</a>) and is deleted with it.
+                  <strong>Driving and device signals.</strong> While sharing is on, the driver app also
+                  records speed against the fleet’s speed limit, sudden braking or acceleration detected
+                  by the phone’s motion sensors, entries and exits of the fleet’s zones, and the phone’s
+                  battery level and GPS/permission status. Rovora turns these into per-driver safety
+                  indicators and a weekly summary for the fleet. They are an aid for the fleet’s own
+                  review — Rovora makes no automatic decision about a driver from them.
+                </li>
+                <li>
+                  <strong>Retention.</strong> The latest position is overwritten each time a new one
+                  arrives. Raw GPS points are deleted after 90 days and speeding, zone, connection and
+                  device-health events after 180 days. The trips and stops derived from them remain as
+                  operational data under the fleet’s account (see{' '}
+                  <a href="#retention">How long we keep it</a>) and are deleted with it.
                 </li>
               </ul>
             </>
@@ -237,11 +258,21 @@ export default function PrivacyPage() {
               </p>
               <ul>
                 <li>
+                  <strong>Hetzner Online GmbH</strong> — hosting of the Rovora application servers, in
+                  Germany.
+                </li>
+                <li>
                   <strong>Supabase</strong> — our database, authentication and document storage, hosted in
                   the EU.
                 </li>
                 <li>
                   <strong>Stripe</strong> — subscription billing and card payment processing.
+                </li>
+                <li>
+                  <strong>OpenAI</strong> — powers the assistant on our public website. Only the messages
+                  you type into that chat and the page you are on are sent to it; no fleet, driver or
+                  location data ever is. OpenAI does not use data sent through its API to train its
+                  models.
                 </li>
                 <li>
                   <strong>Resend</strong> — delivery of transactional and notification emails.
@@ -282,6 +313,15 @@ export default function PrivacyPage() {
                 <li>
                   <strong>While your fleet’s account is active</strong> — operational data is retained so
                   the fleet can run day to day.
+                </li>
+                <li>
+                  <strong>Location and driving data</strong> — raw GPS points are deleted after 90 days;
+                  speeding, zone, connection and device-health events after 180 days. The trips and stops
+                  derived from them stay with the fleet’s operational records.
+                </li>
+                <li>
+                  <strong>Website chat and enquiries</strong> — kept while we handle your enquiry and for
+                  a reasonable period afterwards so we can follow up, then deleted.
                 </li>
                 <li>
                   <strong>Financial and tax records</strong> — retained for the period required by

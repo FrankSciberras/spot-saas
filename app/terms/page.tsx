@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '8 June 2026';
+const LAST_UPDATED = '2 September 2026';
 
 export default function TermsPage() {
   return (
@@ -33,10 +33,11 @@ export default function TermsPage() {
             <>
               <p>
                 These Terms of Service (“Terms”) govern your access to and use of the Rovora platform,
-                websites and apps (the “Service”), provided by Rovora (“we”, “us”). By signing up, starting
-                a trial, or using the Service, you confirm that you have read and accept these Terms. If
-                you are agreeing on behalf of a company or fleet, you confirm you are authorised to bind
-                that organisation.
+                websites and apps (the “Service”), provided by <strong>Rovora</strong> (VAT No.
+                MT29253436), of G1 Citycode, Triq Francesco Masini, Victoria, Gozo, Malta (“we”, “us”).
+                By signing up, starting a trial, or using the Service, you confirm that you have read and
+                accept these Terms. If you are agreeing on behalf of a company or fleet, you confirm you
+                are authorised to bind that organisation.
               </p>
               <p>
                 If you do not agree with these Terms, do not use the Service.
@@ -283,7 +284,8 @@ export default function TermsPage() {
             <div className={s.callout}>
               <p>
                 Questions about these Terms? Email{' '}
-                <a href="mailto:hello@rovora.eu">hello@rovora.eu</a>. For privacy matters see our{' '}
+                <a href="mailto:hello@rovora.eu">hello@rovora.eu</a> or write to Rovora, G1 Citycode,
+                Triq Francesco Masini, Victoria, Gozo, Malta. For privacy matters see our{' '}
                 <a href="/privacy">Privacy Policy</a>; for security, see our{' '}
                 <a href="/security">Security</a> page.
               </p>

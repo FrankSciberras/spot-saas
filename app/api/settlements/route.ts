@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import type { CreateSettlementInput } from '@/lib/types/database';
-import { calculateSettlement, round2, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
+import { calculateSettlement, round2, scaleWeekly, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
 import { resolveComponents, resolveScheme, schemeFromPreset, type PresetLike } from '@/lib/config/settlements';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 import type { AdjustmentType, RecurringAmountType } from '@/lib/types/database';
@@ -165,7 +165,11 @@ export async function POST(request: Request) {
     }
 
     const scheme = preset ? schemeFromPreset(preset) : resolveScheme(orgDefaults, driverRow);
-    const rent = preset ? Math.max(0, preset.rent_weekly || 0) : 0;
+    // Presets store rent and fixed wage PER WEEK. Scale them to THIS settlement's
+    // period so a fleet paying every 4 weeks deducts 4 weeks of rent and pays 4
+    // weeks of wage (a 7-day period is unchanged). The scaled figures are what
+    // gets frozen onto the row.
+    const rent = preset ? scaleWeekly(preset.rent_weekly, body.week_start, body.week_end) : 0;
     // Component toggles + wage rates from the preset ({} / no preset = legacy
     // split, wage lines off). Hours come from the client (prefilled from
     // shifts, editable by the operator).
@@ -174,7 +178,7 @@ export async function POST(request: Request) {
       components,
       hoursWorked: Math.max(0, Number(body.hours_worked) || 0),
       hourlyRate: preset ? Math.max(0, Number(preset.hourly_rate) || 0) : 0,
-      fixedWageWeekly: preset ? Math.max(0, Number(preset.fixed_wage_weekly) || 0) : 0,
+      fixedWageWeekly: preset ? scaleWeekly(preset.fixed_wage_weekly, body.week_start, body.week_end) : 0,
     };
 
     // Calculate totals from platform data

@@ -168,7 +168,7 @@ export default function OperatorDetailModal({ operatorId, onClose }: { operatorI
                 </button>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 6 }}>
-                Puts the fleet on the trial plan until this date. Current plan: <strong style={{ color: 'var(--text-2)' }}>{detail.plan}</strong>.
+                Puts the fleet on the trial plan until this date (leave the date empty for a fresh standard trial from today). Current plan: <strong style={{ color: 'var(--text-2)' }}>{detail.plan}</strong>.
               </div>
             </div>
 

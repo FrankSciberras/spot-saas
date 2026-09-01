@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 /**
  * POST /api/files/upload
@@ -109,8 +109,10 @@ export async function POST(request: Request) {
 
     if (dbError) {
       console.error('Database error:', dbError);
-      // Try to delete uploaded file
-      await supabase.storage.from('documents').remove([uploadData.path]);
+      // Roll back the orphaned object. Uses the service role: authenticated
+      // users deliberately have NO update/delete policy on the bucket
+      // (20260902_drop_legacy_storage_write_policies.sql).
+      await createAdminClient().storage.from('documents').remove([uploadData.path]);
       return NextResponse.json({ error: 'Failed to save file record' }, { status: 500 });
     }
 
