@@ -92,6 +92,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       .from('monthly_earnings')
       .select('*')
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (error) {
@@ -131,6 +133,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .from('monthly_earnings')
       .select('*')
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (!existing) {
@@ -189,6 +193,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .from('monthly_earnings')
       .update(updateData)
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .select()
       .single();
 
@@ -223,7 +229,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const { error } = await supabase
       .from('monthly_earnings')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     if (error) {
       console.error('Error deleting earnings:', error);

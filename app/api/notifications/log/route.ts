@@ -27,6 +27,8 @@ export async function GET(request: Request) {
       *,
       notification_rules:rule_id (name, trigger_type)
     `)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .order('created_at', { ascending: false })
     .limit(limit);
 

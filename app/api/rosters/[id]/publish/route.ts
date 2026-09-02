@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
@@ -18,15 +17,8 @@ interface RouteParams {
  */
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = await createClient();
-  const adminClient = createAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   const session = await getSession();
+
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -36,7 +28,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const adminClient = createAdminClient();
+  const actor = await getAuditActor(session.id);
 
   // Parse request body for republish flag
   let republish = false;
@@ -47,11 +40,13 @@ export async function POST(request: Request, { params }: RouteParams) {
     // No body or invalid JSON, assume first publish
   }
 
-  // Get roster
+  // Get roster (the service role bypasses RLS, so the org filter is mandatory)
   const { data: roster, error: rosterError } = await adminClient
     .from('rosters')
     .select('*')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   if (rosterError || !roster) {
@@ -74,7 +69,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       published_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', roster.organization_id);
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -93,6 +90,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       )
     `)
     .eq('roster_id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', roster.organization_id)
     .not('driver_id', 'is', null);
 
   const notificationResults = {
@@ -268,7 +267,7 @@ export async function POST(request: Request, { params }: RouteParams) {
               subject: notificationTitle,
               body: notificationBody,
               driverName: u.full_name || undefined,
-              actionUrl: `${appUrl}/fleet/rosters`,
+              actionUrl: `${appUrl()}/fleet/rosters`,
             });
             notificationResults.email++;
           } catch (err) {

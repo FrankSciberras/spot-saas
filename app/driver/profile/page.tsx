@@ -41,7 +41,9 @@ export default async function DriverProfilePage() {
       vehicles:assigned_vehicle_id (id, registration_number, make, model)
     `)
     .eq('user_id', user.id)
-    .single();
+    // Active fleet only — a driver in two fleets has two rows.
+    .eq('organization_id', user.organization_id)
+    .maybeSingle();
 
   if (error || !driver) {
     // If admin/staff viewing without driver profile, redirect

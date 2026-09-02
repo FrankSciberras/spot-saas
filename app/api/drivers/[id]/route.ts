@@ -25,6 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Active-fleet scope (RLS alone merges a multi-fleet user's orgs).
     const { data: driver, error } = await supabase
       .from('drivers')
       .select(`
@@ -33,6 +34,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         vehicles:assigned_vehicle_id (id, registration_number, make, model)
       `)
       .eq('id', id)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (error) {
@@ -45,7 +47,8 @@ export async function GET(request: Request, { params }: RouteParams) {
         vehicle_id,
         vehicles:vehicle_id (id, registration_number, make, model)
       `)
-      .eq('driver_id', id);
+      .eq('driver_id', id)
+      .eq('organization_id', session.organization_id);
 
     const normalizeVehicle = (v: unknown): { id: string; registration_number: string; make: string; model: string } | null => {
       if (!v) return null;
@@ -117,31 +120,56 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     updateData.updated_at = new Date().toISOString();
 
+    const orgId = session.organization_id;
+
+    // Every requested vehicle must belong to THIS fleet before we touch anything.
+    const uniqueVehicleIds = requestedVehicleIds ? Array.from(new Set(requestedVehicleIds)) : [];
+    if (uniqueVehicleIds.length > 0) {
+      const { data: fleetVehicles } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('organization_id', orgId)
+        .in('id', uniqueVehicleIds);
+      if ((fleetVehicles?.length ?? 0) !== uniqueVehicleIds.length) {
+        return NextResponse.json({ error: 'One or more vehicles are not in this fleet' }, { status: 400 });
+      }
+    }
+
+    // Active-fleet scope (RLS alone merges a multi-fleet user's orgs).
     const { data: driver, error } = await supabase
       .from('drivers')
       .update(updateData)
       .eq('id', id)
+      .eq('organization_id', orgId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!driver) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
     }
 
     if (requestedVehicleIds !== undefined) {
       const { error: deleteError } = await supabase
         .from('driver_vehicle_assignments')
         .delete()
-        .eq('driver_id', id);
+        .eq('driver_id', id)
+        .eq('organization_id', orgId);
 
       if (deleteError) {
         return NextResponse.json({ error: deleteError.message }, { status: 500 });
       }
 
-      if (requestedVehicleIds.length > 0) {
-        const records = requestedVehicleIds.map((vehicleId) => ({
+      if (uniqueVehicleIds.length > 0) {
+        // Stamp the org explicitly: the DB auto-stamp trigger leaves it NULL for
+        // admins who belong to more than one fleet, which failed RLS and wiped
+        // the assignments that had just been deleted above.
+        const records = uniqueVehicleIds.map((vehicleId) => ({
           driver_id: id,
           vehicle_id: vehicleId,
+          organization_id: orgId,
         }));
 
         const { error: insertError } = await supabase

@@ -13,12 +13,13 @@ interface RouteParams {
  */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const supabase = await createClient();
 
   const { data: service, error } = await supabase
     .from('vehicle_services')
@@ -27,6 +28,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       vehicles:vehicle_id (id, registration_number, make, model)
     `)
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   if (error || !service) {
@@ -42,21 +45,20 @@ export async function GET(request: Request, { params }: RouteParams) {
  */
 export async function PUT(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
   // same thing RLS checks), not the legacy global users.role.
-  const session = await getSession();
-  if (!session || !isAdminOrStaff(session)) {
+  if (!isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
 
   const body = await request.json();
 
@@ -64,6 +66,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .from('vehicle_services')
     .select('id, vehicle_id, service_type, service_date, mileage_at_service')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   const { data: service, error } = await supabase
@@ -83,6 +87,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .select(`
       *,
       vehicles:vehicle_id (id, registration_number, make, model)

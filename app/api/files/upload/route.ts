@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 
 /**
  * POST /api/files/upload
@@ -7,9 +8,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -28,14 +29,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid owner type' }, { status: 400 });
     }
 
-    // Tenant check: the owner (driver/vehicle) must be visible to the caller
-    // under RLS — i.e. belong to a fleet they're a member of. Without this a
-    // user could attach forged documents to another tenant's driver/vehicle.
+    // Tenant check: the owner (driver/vehicle) must belong to the caller's
+    // ACTIVE fleet. RLS alone only proves "some fleet they're a member of", so
+    // without the explicit filter a multi-fleet user could attach documents to
+    // another of their fleets' driver/vehicle from this one.
     const ownerTable = ownerType === 'driver' ? 'drivers' : 'vehicles';
     const { data: owner } = await supabase
       .from(ownerTable)
       .select('id, organization_id')
       .eq('id', ownerId)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .maybeSingle();
 
     if (!owner) {

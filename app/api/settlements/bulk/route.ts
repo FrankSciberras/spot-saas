@@ -27,16 +27,19 @@ export async function DELETE(request: Request) {
   }
 
   // Delete settlement platforms first (foreign key constraint)
+  // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
   await supabase
     .from('settlement_platforms')
     .delete()
-    .in('settlement_id', ids);
+    .in('settlement_id', ids)
+    .eq('organization_id', session.organization_id);
 
   // Delete settlements
   const { error } = await supabase
     .from('driver_settlements')
     .delete()
-    .in('id', ids);
+    .in('id', ids)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -72,7 +75,9 @@ export async function PUT(request: Request) {
   const { error } = await supabase
     .from('driver_settlements')
     .update({ paid_at: nextPaidAt })
-    .in('id', ids);
+    .in('id', ids)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -58,10 +58,13 @@ export async function DELETE(
     }
   }
 
+  // active-fleet scope (RLS alone merges a multi-fleet user's orgs) — and the
+  // service-role client bypasses RLS entirely, so the filter is mandatory here.
   const { error: deleteError } = await adminClient
     .from('files')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('organization_id', session.organization_id);
 
   if (deleteError) {
     return NextResponse.json(

@@ -86,6 +86,8 @@ export async function GET() {
     const { data: earnings, error } = await supabase
       .from('monthly_earnings')
       .select('*')
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .order('month', { ascending: false });
 
     if (error) {
@@ -121,11 +123,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'month is required' }, { status: 400 });
     }
 
-    // Check for existing record
+    // Check for existing record (per fleet — the unique key is (org, month))
     const { data: existing } = await supabase
       .from('monthly_earnings')
       .select('id')
       .eq('month', body.month)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (existing) {

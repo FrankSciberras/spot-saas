@@ -15,11 +15,12 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const supabase = await createClient();
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Active-fleet scope (RLS alone merges a multi-fleet user's orgs).
     const { data: vehicle, error } = await supabase
       .from('vehicles')
       .select(`
@@ -27,6 +28,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         drivers:assigned_driver_id (id, full_name, phone)
       `)
       .eq('id', id)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (error) {
@@ -39,7 +41,8 @@ export async function GET(request: Request, { params }: RouteParams) {
         driver_id,
         drivers:driver_id (id, full_name, phone)
       `)
-      .eq('vehicle_id', id);
+      .eq('vehicle_id', id)
+      .eq('organization_id', session.organization_id);
 
     const normalizeDriver = (d: unknown): { id: string; full_name: string; phone?: string | null } | null => {
       if (!d) return null;
@@ -108,31 +111,56 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (body.vehicle_model_id !== undefined) updateData.vehicle_model_id = body.vehicle_model_id;
     updateData.updated_at = new Date().toISOString();
 
+    const orgId = session.organization_id;
+
+    // Every requested driver must belong to THIS fleet before we touch anything.
+    const uniqueDriverIds = requestedDriverIds ? Array.from(new Set(requestedDriverIds)) : [];
+    if (uniqueDriverIds.length > 0) {
+      const { data: fleetDrivers } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('organization_id', orgId)
+        .in('id', uniqueDriverIds);
+      if ((fleetDrivers?.length ?? 0) !== uniqueDriverIds.length) {
+        return NextResponse.json({ error: 'One or more drivers are not in this fleet' }, { status: 400 });
+      }
+    }
+
+    // Active-fleet scope (RLS alone merges a multi-fleet user's orgs).
     const { data: vehicle, error } = await supabase
       .from('vehicles')
       .update(updateData)
       .eq('id', id)
+      .eq('organization_id', orgId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!vehicle) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
 
     if (requestedDriverIds !== undefined) {
       const { error: deleteError } = await supabase
         .from('driver_vehicle_assignments')
         .delete()
-        .eq('vehicle_id', id);
+        .eq('vehicle_id', id)
+        .eq('organization_id', orgId);
 
       if (deleteError) {
         return NextResponse.json({ error: deleteError.message }, { status: 500 });
       }
 
-      if (requestedDriverIds.length > 0) {
-        const records = requestedDriverIds.map((driverId) => ({
+      if (uniqueDriverIds.length > 0) {
+        // Stamp the org explicitly: the DB auto-stamp trigger leaves it NULL for
+        // admins who belong to more than one fleet, which failed RLS and wiped
+        // the assignments that had just been deleted above.
+        const records = uniqueDriverIds.map((driverId) => ({
           driver_id: driverId,
           vehicle_id: id,
+          organization_id: orgId,
         }));
 
         const { error: insertError } = await supabase
@@ -167,13 +195,18 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { error } = await supabase
+    // Active-fleet scope (RLS alone merges a multi-fleet user's orgs).
+    const { error, count } = await supabase
       .from('vehicles')
-      .delete()
-      .eq('id', id);
+      .delete({ count: 'exact' })
+      .eq('id', id)
+      .eq('organization_id', session.organization_id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!count) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });

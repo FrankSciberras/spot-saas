@@ -49,12 +49,13 @@ export default async function DriverShiftsPage() {
 
   const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 
-  // Get driver profile
+  // Get driver profile — for the ACTIVE fleet (a driver in two fleets has two rows).
   const { data: driver } = await supabase
     .from('drivers')
     .select('id')
     .eq('user_id', user.id)
-    .single();
+    .eq('organization_id', user.organization_id)
+    .maybeSingle();
 
   if (!driver) {
     return (

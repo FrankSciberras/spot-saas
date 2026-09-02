@@ -29,6 +29,10 @@ export default function PortalScreen() {
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
+  // Which driver row is active, as told by the web portal with the session. A
+  // driver who works for two fleets has two driver rows; a bare user_id lookup
+  // can't tell them apart (and .single() errors on two rows).
+  const driverCtxRef = useRef<{ driverId: string; organizationId: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const sendStatus = useCallback(async (extraError?: string) => {
@@ -110,11 +114,13 @@ export default function PortalScreen() {
   const resolveContext = useCallback(async (): Promise<TrackingContext | string> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return 'Still connecting — try again in a few seconds.';
-    const { data: driver } = await supabase
-      .from('drivers')
-      .select('id, organization_id')
-      .eq('user_id', session.user.id)
-      .single();
+    // Prefer the active fleet's driver row (sent by the portal); fall back to
+    // the first row for this login so a legacy portal build still works.
+    const known = driverCtxRef.current;
+    const driverQuery = supabase.from('drivers').select('id, organization_id');
+    const { data: driver } = known
+      ? await driverQuery.eq('id', known.driverId).maybeSingle()
+      : await driverQuery.eq('user_id', session.user.id).limit(1).maybeSingle();
     if (!driver) return 'No driver profile found for this account.';
     const { data: shift } = await supabase
       .from('driver_shifts')
@@ -156,13 +162,19 @@ export default function PortalScreen() {
 
   const handleStop = useCallback(async () => {
     try {
+      const known = driverCtxRef.current;
+      if (known) {
+        await stopTracking(known.driverId);
+        return void sendStatus();
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: driver } = await supabase
           .from('drivers')
           .select('id')
           .eq('user_id', session.user.id)
-          .single();
+          .limit(1)
+          .maybeSingle();
         if (driver) {
           await stopTracking(driver.id);
           return void sendStatus();
@@ -179,7 +191,19 @@ export default function PortalScreen() {
   const onMessage = useCallback(
     async (event: WebViewMessageEvent) => {
       try {
-        const msg = JSON.parse(event.nativeEvent.data) as Record<string, string>;
+        // Only the Rovora portal may drive the shell. Any other page that ends up
+        // in the WebView (a link the driver tapped) could otherwise post a
+        // 'session' and redirect GPS uploads to someone else's account.
+        const portalOrigin = new URL(PORTAL_URL).origin;
+        let senderOrigin = '';
+        try {
+          senderOrigin = new URL(event.nativeEvent.url).origin;
+        } catch {
+          return;
+        }
+        if (senderOrigin !== portalOrigin) return;
+
+        const msg = JSON.parse(event.nativeEvent.data) as Record<string, string | null>;
         switch (msg.type) {
           case 'session':
             if (msg.access_token && msg.refresh_token) {
@@ -187,6 +211,13 @@ export default function PortalScreen() {
                 access_token: msg.access_token,
                 refresh_token: msg.refresh_token,
               });
+            }
+            // Remember which driver row the portal says is active (see driverCtxRef).
+            if (msg.driver_id) {
+              driverCtxRef.current = {
+                driverId: msg.driver_id,
+                organizationId: msg.organization_id ?? null,
+              };
             }
             break;
           case 'signed-out':

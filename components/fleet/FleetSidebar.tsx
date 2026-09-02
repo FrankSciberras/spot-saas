@@ -26,7 +26,7 @@ import FleetIcon from './FleetIcon';
  * Raised centre button in the driver's mobile tab bar: one press to go online
  * (→ /driver/go-online) or, while on shift, to end it (confirm → /api/shifts/end).
  */
-function DriverShiftFab() {
+function DriverShiftFab({ driverId }: { driverId: string | null }) {
   const router = useRouter();
   const pathname = usePathname();
   const [onShift, setOnShift] = useState(false);
@@ -37,19 +37,26 @@ function DriverShiftFab() {
     let cancelled = false;
     const check = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: driver } = await supabase
-        .from('drivers')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle();
-      if (!driver) return;
+      // Prefer the ACTIVE fleet's driver id (resolved server-side in the
+      // session). A driver in two fleets has two rows, so a bare user_id lookup
+      // could pick the wrong one; it stays only as a fallback.
+      let resolvedDriverId = driverId;
+      if (!resolvedDriverId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: driver } = await supabase
+          .from('drivers')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        if (!driver) return;
+        resolvedDriverId = driver.id;
+      }
       const { data: shift } = await supabase
         .from('driver_shifts')
         .select('id')
-        .eq('driver_id', driver.id)
+        .eq('driver_id', resolvedDriverId)
         .is('end_time', null)
         .limit(1)
         .maybeSingle();
@@ -57,7 +64,7 @@ function DriverShiftFab() {
     };
     void check();
     return () => { cancelled = true; };
-  }, [pathname]);
+  }, [pathname, driverId]);
 
   const handlePress = async () => {
     if (busy) return;
@@ -324,7 +331,7 @@ export default function FleetSidebar({
         </aside>
         <nav style={s.bottomBar}>
           {(isDriver ? bottomTabs.slice(0, 2) : bottomTabs).map(renderBottomTab)}
-          {isDriver && <DriverShiftFab />}
+          {isDriver && <DriverShiftFab driverId={user.driver_id ?? null} />}
           {isDriver && bottomTabs.slice(2).map(renderBottomTab)}
           <button
             onClick={onMenuToggle}

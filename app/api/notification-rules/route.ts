@@ -21,6 +21,8 @@ export async function GET() {
   const { data: rules, error } = await supabase
     .from('notification_rules')
     .select('*')
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .order('trigger_type')
     .order('name');
 

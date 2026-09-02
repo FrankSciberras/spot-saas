@@ -8,6 +8,23 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/**
+ * True when `userId` holds a membership in `organizationId` — active-fleet scope
+ * (the admin client bypasses RLS, so an arbitrary user id would otherwise be
+ * accepted cross-tenant).
+ */
+async function isFleetMember(supabase: AdminClient, organizationId: string, userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('memberships')
+    .select('user_id')
+    .eq('organization_id', organizationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!data;
+}
+
 /**
  * PUT /api/reminders/:id — update a reminder
  */
@@ -45,6 +62,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
+
+    // assigned_to must be a member of the ACTIVE fleet
+    if (body.assigned_to && !(await isFleetMember(supabase, session.organization_id, body.assigned_to))) {
+      return NextResponse.json({ error: 'assigned_to must be a member of this fleet' }, { status: 400 });
+    }
+
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
     const allowed = ['title', 'description', 'priority', 'status', 'assigned_to', 'due_date', 'remind_at', 'recurring', 'recurring_end_date'];
@@ -80,6 +103,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     await createAuditLogEntry({
       actor,
+      // active-fleet scope: multi-fleet actors must stamp the org explicitly
+      organizationId: session.organization_id,
       action: 'update',
       entityType: 'reminder',
       entityId: data.id,
@@ -145,6 +170,8 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
     await createAuditLogEntry({
       actor,
+      // active-fleet scope: multi-fleet actors must stamp the org explicitly
+      organizationId: session.organization_id,
       action: 'delete',
       entityType: 'reminder',
       entityId: id,

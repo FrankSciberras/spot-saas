@@ -1,28 +1,27 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 /**
  * DELETE /api/rosters/bulk
- * Bulk delete rosters (and their associated entries)
+ * Bulk delete rosters (their assignments follow via ON DELETE CASCADE)
  */
 export async function DELETE(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
-  // same thing RLS checks), not the legacy global users.role.
-  const session = await getSession();
-  if (!session || !isAdminOrStaff(session)) {
+  // Deleting rosters is ADMIN-only — the same gate as the single-roster DELETE —
+  // resolved from the caller's role in their ACTIVE fleet.
+  if (session.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
 
   const body = await request.json();
   const { ids } = body;
@@ -34,19 +33,18 @@ export async function DELETE(request: Request) {
   const { data: existingRosters } = await supabase
     .from('rosters')
     .select('id, title')
-    .in('id', ids);
+    .in('id', ids)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
-  // Delete roster entries first (if they exist)
-  await supabase
-    .from('roster_entries')
-    .delete()
-    .in('roster_id', ids);
-
-  // Delete rosters
+  // Delete rosters. roster_assignments.roster_id is ON DELETE CASCADE, so the
+  // database removes the child rows — no separate child delete is needed.
   const { error } = await supabase
     .from('rosters')
     .delete()
-    .in('id', ids);
+    .in('id', ids)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

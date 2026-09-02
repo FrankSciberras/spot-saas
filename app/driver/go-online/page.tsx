@@ -74,12 +74,17 @@ export default function GoOnlinePage() {
           return;
         }
 
-        // Get driver info
-        const { data: driver } = await supabase
+        // Get driver info for the ACTIVE fleet. A driver who works for two
+        // fleets has two rows, so a bare user_id lookup with .single() failed
+        // for them; the server resolves the active fleet's driver_id for us.
+        const meRes = await fetch('/api/auth/user', { cache: 'no-store' });
+        const me = meRes.ok ? await meRes.json() : null;
+        const driverQuery = supabase
           .from('drivers')
-          .select('id, full_name, assigned_vehicle_id, organization_id')
-          .eq('user_id', user.id)
-          .single();
+          .select('id, full_name, assigned_vehicle_id, organization_id');
+        const { data: driver } = me?.driver_id
+          ? await driverQuery.eq('id', me.driver_id).maybeSingle()
+          : await driverQuery.eq('user_id', user.id).limit(1).maybeSingle();
 
         if (driver) {
           setDriverInfo(driver);

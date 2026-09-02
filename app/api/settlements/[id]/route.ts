@@ -33,6 +33,8 @@ export async function GET(request: Request, { params }: RouteParams) {
         settlement_platforms (*)
       `)
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (error || !settlement) {
@@ -82,6 +84,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .from('driver_settlements')
       .select('id, organization_id, status, driver_id, week_start, week_end, driver_share_pct, tips_driver_pct, campaigns_driver_pct, fee_driver_pct, rent_amount, hours_worked, hourly_rate, wage_amount, components')
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (!existing) {
@@ -110,15 +114,19 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // then re-capture the driver's unattached adjustments in this period. This
     // lets a re-save pick up adjustments added since the settlement was created
     // while keeping the snapshot tied to (and recomputed for) THIS record.
+    // Child reads/writes below are scoped via the settlement's own fleet.
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
     await supabase
       .from('driver_adjustments')
       .update({ settlement_id: null })
-      .eq('settlement_id', id);
+      .eq('settlement_id', id)
+      .eq('organization_id', existing.organization_id);
 
     const { data: pendingAdjustments } = await supabase
       .from('driver_adjustments')
       .select('id, type, amount')
       .eq('driver_id', existing.driver_id)
+      .eq('organization_id', existing.organization_id)
       .is('settlement_id', null)
       .gte('date', existing.week_start)
       .lte('date', existing.week_end);
@@ -129,7 +137,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       await supabase
         .from('driver_adjustments')
         .update({ settlement_id: id })
-        .in('id', adjustmentRows.map((a) => a.id));
+        .in('id', adjustmentRows.map((a) => a.id))
+        .eq('organization_id', existing.organization_id);
     }
 
     // Parse request body
@@ -200,7 +209,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
       await supabase
         .from('settlement_platforms')
         .delete()
-        .eq('settlement_id', id);
+        .eq('settlement_id', id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', existing.organization_id);
 
       if (body.platforms.length > 0) {
         const platformRecords = calculation.platforms.map((p, idx) => ({
@@ -233,7 +244,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
       const { data: platforms } = await supabase
         .from('settlement_platforms')
         .select('*')
-        .eq('settlement_id', id);
+        .eq('settlement_id', id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', existing.organization_id);
 
       const platformInputs: PlatformEarningsInput[] = (platforms || []).map(p => ({
         platformId: p.platform_id,
@@ -245,8 +258,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }));
 
       // Keep the stored tax when only the hours changed.
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
       const { data: taxRow } = body.fss_tax === undefined
-        ? await supabase.from('driver_settlements').select('fss_tax').eq('id', id).single()
+        ? await supabase
+            .from('driver_settlements')
+            .select('fss_tax')
+            .eq('id', id)
+            .eq('organization_id', session.organization_id)
+            .single()
         : { data: null };
       const effTax = body.fss_tax ?? taxRow?.fss_tax ?? 0;
 
@@ -266,7 +285,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const { error: updateError } = await supabase
       .from('driver_settlements')
       .update(updateData)
-      .eq('id', id);
+      .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     if (updateError) {
       console.error('Settlement update error:', updateError);
@@ -282,6 +303,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
         settlement_platforms (*)
       `)
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     return NextResponse.json({ data: updatedSettlement });
@@ -313,16 +336,19 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     // Delete platforms first (foreign key constraint)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
     await supabase
       .from('settlement_platforms')
       .delete()
-      .eq('settlement_id', id);
+      .eq('settlement_id', id)
+      .eq('organization_id', session.organization_id);
 
     // Delete settlement
     const { error } = await supabase
       .from('driver_settlements')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('organization_id', session.organization_id);
 
     if (error) {
       console.error('Settlement delete error:', error);

@@ -8,12 +8,13 @@ import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
  * List all vehicle services with optional filtering
  */
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const supabase = await createClient();
 
   const { searchParams } = new URL(request.url);
   const vehicleId = searchParams.get('vehicle_id');
@@ -25,6 +26,8 @@ export async function GET(request: Request) {
       *,
       vehicles:vehicle_id (id, registration_number, make, model)
     `)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .order('service_date', { ascending: false })
     .limit(limit);
 
@@ -46,21 +49,20 @@ export async function GET(request: Request) {
  * Create a new vehicle service record
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
   // same thing RLS checks), not the legacy global users.role.
-  const session = await getSession();
-  if (!session || !isAdminOrStaff(session)) {
+  if (!isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
 
   const body = await request.json();
   const {
@@ -86,12 +88,14 @@ export async function POST(request: Request) {
 
   // A service belongs to the same fleet as its vehicle. Look up that org so we
   // can stamp organization_id explicitly — the DB auto-stamp trigger leaves it
-  // NULL for multi-fleet users, which then fails RLS WITH CHECK. This SELECT is
-  // also RLS-scoped, so it confirms the caller may touch this vehicle.
+  // NULL for multi-fleet users, which then fails RLS WITH CHECK. Pinning the
+  // lookup to the ACTIVE fleet also confirms the vehicle is one of ours.
   const { data: vehicleOrg } = await supabase
     .from('vehicles')
     .select('organization_id')
     .eq('id', vehicle_id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
   if (!vehicleOrg) {
     return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
@@ -113,7 +117,7 @@ export async function POST(request: Request) {
       description: description || null,
       parts_replaced: parts_replaced || null,
       invoice_url: invoice_url || null,
-      created_by: user.id,
+      created_by: session.id,
     })
     .select(`
       *,
@@ -130,6 +134,8 @@ export async function POST(request: Request) {
     .from('vehicles')
     .select('mileage')
     .eq('id', vehicle_id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
   
   // Update if current mileage is null, 0, or less than the service mileage
@@ -137,7 +143,9 @@ export async function POST(request: Request) {
     await supabase
       .from('vehicles')
       .update({ mileage: mileage_at_service })
-      .eq('id', vehicle_id);
+      .eq('id', vehicle_id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
   }
 
   // Clear any existing service due notifications for this vehicle
@@ -146,6 +154,8 @@ export async function POST(request: Request) {
     await supabase
       .from('notifications')
       .delete()
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .eq('action_url', `/fleet/vehicles/${vehicle_id}`)
       .ilike('title', '%Service%');
   }

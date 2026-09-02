@@ -16,8 +16,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id, damageId } = await params;
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -29,6 +29,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       `)
       .eq('id', damageId)
       .eq('vehicle_id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (error) {
@@ -49,19 +51,17 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const { id, damageId } = await params;
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
     // same thing RLS checks), not the legacy global users.role.
     const session = await getSession();
-    if (!session || !isAdminOrStaff(session)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!isAdminOrStaff(session)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const actor = await getAuditActor(user.id);
+    const actor = await getAuditActor(session.id);
 
     const body: UpdateDamageInput = await request.json();
 
@@ -70,6 +70,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .select('id, zone, severity, status')
       .eq('id', damageId)
       .eq('vehicle_id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     const updateData: Record<string, unknown> = {};
@@ -89,6 +91,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .update(updateData)
       .eq('id', damageId)
       .eq('vehicle_id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .select(`
         *,
         reporter:reported_by (full_name, email)
@@ -141,7 +145,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       .from('vehicle_damages')
       .delete()
       .eq('id', damageId)
-      .eq('vehicle_id', id);
+      .eq('vehicle_id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

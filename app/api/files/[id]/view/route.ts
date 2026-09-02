@@ -40,6 +40,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     .from('files')
     .select('id, file_url')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .maybeSingle();
 
   if (!file || typeof file.file_url !== 'string') {

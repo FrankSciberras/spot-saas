@@ -16,8 +16,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,6 +28,8 @@ export async function GET(request: Request, { params }: RouteParams) {
         reporter:reported_by (full_name, email)
       `)
       .eq('vehicle_id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .order('reported_at', { ascending: false });
 
     if (error) {
@@ -48,19 +50,17 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
     // same thing RLS checks), not the legacy global users.role.
     const session = await getSession();
-    if (!session || !isAdminOrStaff(session)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!isAdminOrStaff(session)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const actor = await getAuditActor(user.id);
+    const actor = await getAuditActor(session.id);
 
     const body: CreateDamageInput = await request.json();
 
@@ -78,6 +78,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       .from('vehicles')
       .select('organization_id')
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
     if (!vehicleOrg) {
       return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
@@ -95,7 +97,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         repair_cost: body.repair_cost || null,
         currency: body.currency || 'EUR',
         images: body.images || [],
-        reported_by: user.id,
+        reported_by: session.id,
         notes: body.notes || null,
       })
       .select(`

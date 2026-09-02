@@ -1,35 +1,42 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 
-// GET - Get current authenticated user
+/**
+ * GET /api/auth/user — who am I, in my ACTIVE fleet.
+ *
+ * Client components (fleet settings/permissions pages, the driver portal's
+ * go-online and share-location screens, the native-app bridge) call this to
+ * learn the caller's role, fleet and driver id. Everything comes from
+ * getSession(), i.e. the membership in the active organization — NOT the
+ * deprecated global users.role column this route used to return, which made
+ * admin-gated UI show for the wrong people and left the fleet switcher empty.
+ *
+ * `driver_id` is the caller's driver row in the active fleet (null for
+ * non-drivers). A driver who works for two fleets has two rows, so clients
+ * must use this id instead of looking drivers up by user_id.
+ */
 export async function GET() {
   try {
-    const supabase = await createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // Fetch user details from users table
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('id, email, role, full_name, also_staff, fleet_tour_completed_at')
-      .eq('id', user.id)
-      .single();
-
-    if (error || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Client pages feed this straight into FleetShell, which passes the flag to
-    // the welcome tour. Without it the tour only had localStorage to go on, so
-    // it re-ran for an already-onboarded operator on every new browser.
-    const { fleet_tour_completed_at, ...rest } = userData as typeof userData & {
-      fleet_tour_completed_at?: string | null;
-    };
-
-    return NextResponse.json({ ...rest, fleet_tour_completed: !!fleet_tour_completed_at });
+    return NextResponse.json(
+      {
+        id: session.id,
+        email: session.email,
+        full_name: session.full_name,
+        role: session.role,
+        also_staff: session.also_staff,
+        organization_id: session.organization_id,
+        organization_name: session.organization_name,
+        driver_id: session.driver_id ?? null,
+        memberships: session.memberships,
+        fleet_tour_completed: session.fleet_tour_completed,
+      },
+      { headers: { 'Cache-Control': 'private, no-store' } }
+    );
   } catch (error) {
     console.error('Error fetching user:', error);
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });

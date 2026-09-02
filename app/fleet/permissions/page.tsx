@@ -69,7 +69,6 @@ export default function PermissionsPage() {
       // Fetch current user
       const userRes = await fetch('/api/auth/user');
       const userData = await userRes.json();
-      console.log("userData", userData)
       setUser(userData);
 
       // Fetch permissions

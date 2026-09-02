@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,8 +18,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const supabase = await createClient();
     
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -34,12 +35,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invalid mileage value' }, { status: 400 });
     }
 
-    // Use service role or direct SQL to bypass RLS for mileage updates
-    // First verify the vehicle exists
+    // First verify the vehicle exists IN THE ACTIVE FLEET. The RPC below is
+    // SECURITY DEFINER and only checks membership in "some" fleet, so this is
+    // the gate that stops a multi-fleet user touching another fleet's vehicle.
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
       .select('id, mileage, registration_number')
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (vehicleError || !vehicle) {

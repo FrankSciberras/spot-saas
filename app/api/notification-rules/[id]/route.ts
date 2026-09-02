@@ -13,9 +13,9 @@ interface RouteParams {
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -23,6 +23,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     .from('notification_rules')
     .select('*')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   if (error || !rule) {
@@ -66,6 +68,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .select()
     .single();
 
@@ -96,7 +100,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   const { error } = await supabase
     .from('notification_rules')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

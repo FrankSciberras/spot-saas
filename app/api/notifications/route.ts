@@ -18,16 +18,20 @@ export async function GET(request: Request) {
   const unreadOnly = searchParams.get('unread') === 'true';
   const limit = parseInt(searchParams.get('limit') || '20');
 
-  // Get driver_id if user is a driver
+  // Get driver_id if user is a driver in the ACTIVE fleet
+  // (active-fleet scope: RLS alone merges a multi-fleet user's orgs)
   const { data: driver } = await supabase
     .from('drivers')
     .select('id')
     .eq('user_id', session.id)
+    .eq('organization_id', session.organization_id)
     .single();
 
   let query = supabase
     .from('notifications')
     .select('*')
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -55,6 +59,8 @@ export async function GET(request: Request) {
   let countQuery = supabase
     .from('notifications')
     .select('id', { count: 'exact', head: true })
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .is('read_at', null);
 
   if (driver) {
@@ -105,6 +111,19 @@ export async function POST(request: Request) {
 
   // If broadcasting, driver_id stays null (goes to everyone)
   if (!broadcast && driver_id) {
+    // The target driver must belong to the ACTIVE fleet
+    // (active-fleet scope: RLS alone merges a multi-fleet user's orgs)
+    const { data: targetDriver } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('id', driver_id)
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
+
+    if (!targetDriver) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
+
     notificationData.driver_id = driver_id;
     notificationData.target_role = 'driver';
   } else {

@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { requireRole } from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session';
 
 export async function GET() {
   try {
-    await requireRole(['driver', 'admin', 'staff']);
+    // Any member of the active fleet (driver / staff / admin) may read the
+    // published roster grid — but only for THAT fleet.
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const supabase = await createClient();
 
     const today = new Date();
@@ -16,6 +21,8 @@ export async function GET() {
       .from('rosters')
       .select('*')
       .eq('status', 'published')
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .gte('week_end', today.toISOString().split('T')[0])
       .lte('week_start', oneWeekAhead.toISOString().split('T')[0])
       .order('week_start', { ascending: true });
@@ -38,6 +45,8 @@ export async function GET() {
         vehicles:vehicle_id (id, registration_number, make, model)
       `)
       .in('roster_id', rosterIds)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .order('assignment_date', { ascending: true });
 
     if (assignmentsError) {
@@ -45,12 +54,15 @@ export async function GET() {
       return NextResponse.json({ error: assignmentsError.message }, { status: 500 });
     }
 
-    // Fetch ALL drivers using admin client to bypass RLS
-    // (drivers can only see their own record by default)
+    // Fetch the active fleet's drivers using the admin client to bypass RLS
+    // (drivers can only see their own record by default). The service role
+    // sees EVERY tenant, so the org filter here is mandatory.
     const adminClient = createAdminClient();
     const { data: allDrivers } = await adminClient
       .from('drivers')
-      .select('id, user_id, full_name');
+      .select('id, user_id, full_name')
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
     
     // Create map from all drivers - index by both id and user_id
     const driversMap: Record<string, { id: string; full_name: string }> = {};

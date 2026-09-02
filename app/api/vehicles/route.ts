@@ -12,8 +12,8 @@ export async function GET() {
     const supabase = await createClient();
     
     // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,6 +24,8 @@ export async function GET() {
         *,
         drivers:assigned_driver_id (id, full_name)
       `)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .order('registration_number');
 
     if (error) {

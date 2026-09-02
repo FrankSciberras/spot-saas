@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 
 /**
  * POST /api/shifts/end
@@ -13,21 +14,22 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
  */
 export async function POST() {
   try {
-    const supabase = await createClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const admin = createAdminClient();
 
-    // Resolve the driver profile for this user.
+    // Resolve the driver profile for this user IN THE ACTIVE FLEET. A driver who
+    // works for two fleets has two rows; the old bare user_id lookup errored on
+    // .single() and they could never end a shift.
     const { data: driver, error: driverError } = await admin
       .from('drivers')
       .select('id')
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', session.id)
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
 
     if (driverError || !driver) {
       return NextResponse.json({ error: 'Driver profile not found' }, { status: 404 });

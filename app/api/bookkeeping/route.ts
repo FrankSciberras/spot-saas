@@ -114,7 +114,12 @@ export async function POST(request: Request) {
 
     if (sync.error) {
       // Don't leave a half-saved period behind.
-      await supabase.from('bookkeeping_periods').delete().eq('id', period.id);
+      await supabase
+        .from('bookkeeping_periods')
+        .delete()
+        .eq('id', period.id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', session.organization_id);
       return NextResponse.json({ error: sync.error }, { status: sync.status ?? 500 });
     }
 
@@ -123,6 +128,8 @@ export async function POST(request: Request) {
       .from('bookkeeping_periods')
       .select('*, entries:bookkeeping_entries(*)')
       .eq('id', period.id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     return NextResponse.json({ data: saved ?? period }, { status: 201 });

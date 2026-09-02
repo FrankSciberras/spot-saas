@@ -8,12 +8,13 @@ export default async function DriverRosterPage() {
   const user = await requireRole(['driver', 'admin', 'staff']);
   const supabase = await createClient();
 
-  // Get driver record
+  // Get driver record — for the ACTIVE fleet (a driver in two fleets has two rows).
   const { data: driver } = await supabase
     .from('drivers')
     .select('id')
     .eq('user_id', user.id)
-    .single();
+    .eq('organization_id', user.organization_id)
+    .maybeSingle();
 
   if (!driver) {
     return (

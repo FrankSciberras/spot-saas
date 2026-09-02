@@ -13,9 +13,9 @@ interface RouteParams {
  * roster for the following week (every date shifted +7 days). Lets operators
  * stop rebuilding identical weeks by hand.
  *
- * Everything runs on the RLS client, so the source roster is only readable if
- * it belongs to the caller's fleet. The new rows are stamped with the source
- * roster's organization_id (the DB auto-stamp trigger can't fill it for
+ * Every read is pinned to the caller's ACTIVE fleet (RLS alone would merge
+ * every fleet a multi-fleet user belongs to). The new rows are stamped with the
+ * source roster's organization_id (the DB auto-stamp trigger can't fill it for
  * multi-fleet users) — no cross-tenant clone is possible.
  */
 function addDays(dateStr: string, days: number): string {
@@ -26,26 +26,28 @@ function addDays(dateStr: string, days: number): string {
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
   // same thing RLS checks), not the legacy global users.role.
-  const session = await getSession();
-  if (!session || !isAdminOrStaff(session)) {
+  if (!isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  const actor = await getAuditActor(user.id);
 
-  // RLS-scoped read → only the caller's own fleet's roster resolves.
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
+
+  // Only a roster in the caller's ACTIVE fleet resolves.
   const { data: source, error: srcError } = await supabase
     .from('rosters')
     .select('id, week_start, week_end, title, notes, organization_id')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   if (srcError || !source) {
@@ -64,7 +66,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       week_end: newWeekEnd,
       title: source.title ? `${source.title} (copy)` : null,
       notes: source.notes ?? null,
-      created_by: user.id,
+      created_by: session.id,
       status: 'draft',
     })
     .select()
@@ -80,14 +82,17 @@ export async function POST(request: Request, { params }: RouteParams) {
   // Clone the assignments, shifting each date by a week.
   const { data: assignments } = await supabase
     .from('roster_assignments')
-    .select('vehicle_id, driver_id, assignment_date, day_of_week, notes')
-    .eq('roster_id', id);
+    .select('vehicle_id, driver_id, secondary_driver_id, assignment_date, day_of_week, notes')
+    .eq('roster_id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   let clonedCount = 0;
   if (assignments && assignments.length > 0) {
     const rows = assignments.map((a: {
       vehicle_id: string;
       driver_id: string | null;
+      secondary_driver_id: string | null;
       assignment_date: string;
       day_of_week: number;
       notes: string | null;
@@ -96,6 +101,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       roster_id: newRoster.id,
       vehicle_id: a.vehicle_id,
       driver_id: a.driver_id,
+      secondary_driver_id: a.secondary_driver_id ?? null,
       assignment_date: addDays(a.assignment_date, 7),
       day_of_week: a.day_of_week,
       notes: a.notes,
@@ -104,7 +110,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { error: cloneError } = await supabase.from('roster_assignments').insert(rows);
     if (cloneError) {
       // Roll back the empty roster so we don't leave an orphan on failure.
-      await supabase.from('rosters').delete().eq('id', newRoster.id);
+      await supabase
+        .from('rosters')
+        .delete()
+        .eq('id', newRoster.id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', source.organization_id);
       return NextResponse.json({ error: cloneError.message }, { status: 500 });
     }
     clonedCount = rows.length;

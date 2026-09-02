@@ -31,12 +31,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'driver_id, from and to are required' }, { status: 400 });
     }
 
-    // RLS scopes rows to the caller's organization.
     const supabase = await createClient();
+
+    // The driver must belong to the caller's ACTIVE fleet — RLS alone would
+    // also resolve a driver from any other fleet the caller is a member of.
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('id', driverId)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
+    if (!driver) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
+
     const { data: shifts, error } = await supabase
       .from('driver_shifts')
       .select('start_time, end_time')
       .eq('driver_id', driverId)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .gte('start_time', `${from}T00:00:00`)
       .lte('start_time', `${to}T23:59:59`)
       .not('end_time', 'is', null);

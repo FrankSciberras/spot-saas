@@ -125,7 +125,9 @@ export async function PUT(
         notes: body.notes !== undefined ? body.notes : existing.notes,
         status: body.status ?? existing.status,
       })
-      .eq('id', id);
+      .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     if (updateError) {
       console.error('Error updating period:', updateError);
@@ -148,6 +150,8 @@ export async function PUT(
       .from('bookkeeping_periods')
       .select(PERIOD_SELECT)
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     return NextResponse.json({ data: saved });

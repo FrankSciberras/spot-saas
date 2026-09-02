@@ -13,12 +13,14 @@ export default async function DriverDashboardPage() {
   const user = await requireRole(['driver']);
   const supabase = await createClient();
 
-  // Get driver profile
+  // Get driver profile — for the ACTIVE fleet. A driver who works for two fleets
+  // has two rows, so a bare user_id lookup with .single() fails ("Profile Not Found").
   const { data: driver } = await supabase
     .from('drivers')
     .select('*')
     .eq('user_id', user.id)
-    .single();
+    .eq('organization_id', user.organization_id)
+    .maybeSingle();
 
   if (!driver) {
     return (

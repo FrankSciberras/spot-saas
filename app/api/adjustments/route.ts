@@ -35,6 +35,8 @@ export async function GET(request: Request) {
         *,
         drivers:driver_id (id, full_name)
       `)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .order('date', { ascending: false });
 
     // Filter by driver if specified or if user is a driver
@@ -47,6 +49,8 @@ export async function GET(request: Request) {
         .from('drivers')
         .select('id')
         .eq('user_id', session.id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', session.organization_id)
         .single();
       
       if (driverRecord) {
@@ -139,6 +143,20 @@ export async function POST(request: Request) {
         { error: `Invalid type. Must be one of: ${validTypes.join(', ')}` },
         { status: 400 }
       );
+    }
+
+    // The target driver must belong to the caller's ACTIVE fleet — RLS alone
+    // would accept any driver from any fleet this admin is a member of.
+    const { data: targetDriver } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('id', body.driver_id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
+
+    if (!targetDriver) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
     }
 
     // Create adjustment

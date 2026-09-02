@@ -16,8 +16,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     const supabase = await createClient();
     
     // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,6 +28,8 @@ export async function GET(request: Request, { params }: RouteParams) {
         drivers:driver_id (id, full_name)
       `)
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (error) {
@@ -92,6 +94,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .from('driver_adjustments')
       .update(updateData)
       .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .select(`
         *,
         drivers:driver_id (id, full_name)
@@ -135,7 +139,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const { error } = await supabase
       .from('driver_adjustments')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     if (error) {
       console.error('Adjustment delete error:', error);

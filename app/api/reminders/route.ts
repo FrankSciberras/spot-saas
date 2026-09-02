@@ -4,6 +4,23 @@ import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { getSession } from '@/lib/auth/session';
 import { getResourcePermissionsForUser } from '@/lib/permissions';
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/**
+ * True when `userId` holds a membership in `organizationId` — active-fleet scope
+ * (the admin client bypasses RLS, so an arbitrary user id would otherwise be
+ * accepted cross-tenant).
+ */
+async function isFleetMember(supabase: AdminClient, organizationId: string, userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('memberships')
+    .select('user_id')
+    .eq('organization_id', organizationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!data;
+}
+
 /**
  * GET /api/reminders — list reminders (admin sees all, staff sees own)
  * Query params: status, priority, assigned_to
@@ -81,6 +98,11 @@ export async function POST(request: NextRequest) {
 
     if (!title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    }
+
+    // assigned_to must be a member of the ACTIVE fleet
+    if (assigned_to && !(await isFleetMember(supabase, session.organization_id, assigned_to))) {
+      return NextResponse.json({ error: 'assigned_to must be a member of this fleet' }, { status: 400 });
     }
 
     const { data, error } = await supabase

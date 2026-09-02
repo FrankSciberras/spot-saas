@@ -35,6 +35,8 @@ export async function GET(request: Request) {
         drivers:driver_id (id, full_name),
         settlement_platforms (*)
       `)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .order('week_start', { ascending: false });
 
     // Filter by driver if specified or if user is a driver
@@ -47,6 +49,8 @@ export async function GET(request: Request) {
         .from('drivers')
         .select('id')
         .eq('user_id', session.id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', session.organization_id)
         .single();
       
       if (driverRecord) {
@@ -118,6 +122,8 @@ export async function POST(request: Request) {
       .select('id')
       .eq('driver_id', body.driver_id)
       .eq('week_start', body.week_start)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
     if (existing) {
@@ -134,25 +140,31 @@ export async function POST(request: Request) {
       .from('drivers')
       .select(`organization_id, settlement_preset_id, ${SCHEME_COLUMNS}`)
       .eq('id', body.driver_id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id)
       .single();
 
+    // The driver must belong to the caller's ACTIVE fleet — a multi-fleet admin
+    // may not settle another fleet's driver from this one (RLS alone would let
+    // the lookup succeed for any fleet they're a member of).
+    if (!driverRow) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
+
     // The settlement, its platform lines, and any generated recurring
-    // adjustments all belong to the driver's fleet. Stamp it explicitly so
+    // adjustments all belong to the active fleet. Stamp it explicitly so
     // multi-fleet admins pass RLS WITH CHECK (the DB auto-stamp trigger leaves
     // organization_id NULL for users who belong to more than one fleet).
-    const settlementOrgId = driverRow?.organization_id ?? session.organization_id;
+    const settlementOrgId = session.organization_id;
 
-    let orgDefaults: Record<string, unknown> | null = null;
-    let presetId: string | null = driverRow?.settlement_preset_id ?? null;
-    if (driverRow?.organization_id) {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select(`default_settlement_preset_id, ${SCHEME_COLUMNS}`)
-        .eq('id', driverRow.organization_id)
-        .single();
-      orgDefaults = org;
-      if (!presetId) presetId = (org?.default_settlement_preset_id as string | null) ?? null;
-    }
+    const { data: org } = await supabase
+      .from('organizations')
+      .select(`default_settlement_preset_id, ${SCHEME_COLUMNS}`)
+      .eq('id', settlementOrgId)
+      .single();
+    const orgDefaults: Record<string, unknown> | null = org;
+    const presetId: string | null =
+      driverRow.settlement_preset_id ?? (org?.default_settlement_preset_id as string | null) ?? null;
 
     let preset: PresetLike | null = null;
     if (presetId) {
@@ -160,6 +172,8 @@ export async function POST(request: Request) {
         .from('settlement_presets')
         .select(PRESET_COLUMNS)
         .eq('id', presetId)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', settlementOrgId)
         .maybeSingle();
       preset = presetRow as PresetLike | null;
     }
@@ -196,53 +210,54 @@ export async function POST(request: Request) {
     // Materialize recurring adjustment rules into real driver_adjustments rows
     // for this driver+period, so they're frozen alongside any manual ones below.
     // Deduped by (rule, period) so re-creating a deleted settlement won't double.
-    if (driverRow?.organization_id) {
-      const { data: rules } = await supabase
-        .from('recurring_adjustments')
-        .select('id, type, amount_type, amount, description')
-        .eq('organization_id', driverRow.organization_id)
-        .eq('active', true)
-        .or(`driver_id.is.null,driver_id.eq.${body.driver_id}`)
-        .lte('start_date', body.week_end)
-        .or(`end_date.is.null,end_date.gte.${body.week_start}`);
+    const { data: rules } = await supabase
+      .from('recurring_adjustments')
+      .select('id, type, amount_type, amount, description')
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', settlementOrgId)
+      .eq('active', true)
+      .or(`driver_id.is.null,driver_id.eq.${body.driver_id}`)
+      .lte('start_date', body.week_end)
+      .or(`end_date.is.null,end_date.gte.${body.week_start}`);
 
-      if (rules && rules.length > 0) {
-        // Which rules already have a row for this driver in this period?
-        const { data: alreadyMaterialized } = await supabase
-          .from('driver_adjustments')
-          .select('recurring_rule_id')
-          .eq('driver_id', body.driver_id)
-          .gte('date', body.week_start)
-          .lte('date', body.week_end)
-          .not('recurring_rule_id', 'is', null);
-        const seen = new Set((alreadyMaterialized || []).map((r) => r.recurring_rule_id));
+    if (rules && rules.length > 0) {
+      // Which rules already have a row for this driver in this period?
+      const { data: alreadyMaterialized } = await supabase
+        .from('driver_adjustments')
+        .select('recurring_rule_id')
+        .eq('driver_id', body.driver_id)
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', settlementOrgId)
+        .gte('date', body.week_start)
+        .lte('date', body.week_end)
+        .not('recurring_rule_id', 'is', null);
+      const seen = new Set((alreadyMaterialized || []).map((r) => r.recurring_rule_id));
 
-        const newRows = rules
-          .filter((rule) => !seen.has(rule.id))
-          .map((rule) => {
-            const amountType = rule.amount_type as RecurringAmountType;
-            const amount = amountType === 'percent_of_gross'
-              ? round2((calculation.totalGrossFare * (Number(rule.amount) || 0)) / 100)
-              : round2(Number(rule.amount) || 0);
-            return { rule, amount };
-          })
-          .filter(({ amount }) => amount > 0)
-          .map(({ rule, amount }) => ({
-            organization_id: settlementOrgId,
-            driver_id: body.driver_id,
-            type: rule.type as AdjustmentType,
-            amount,
-            description: rule.description,
-            date: body.week_start,
-            recurring_rule_id: rule.id,
-          }));
+      const newRows = rules
+        .filter((rule) => !seen.has(rule.id))
+        .map((rule) => {
+          const amountType = rule.amount_type as RecurringAmountType;
+          const amount = amountType === 'percent_of_gross'
+            ? round2((calculation.totalGrossFare * (Number(rule.amount) || 0)) / 100)
+            : round2(Number(rule.amount) || 0);
+          return { rule, amount };
+        })
+        .filter(({ amount }) => amount > 0)
+        .map(({ rule, amount }) => ({
+          organization_id: settlementOrgId,
+          driver_id: body.driver_id,
+          type: rule.type as AdjustmentType,
+          amount,
+          description: rule.description,
+          date: body.week_start,
+          recurring_rule_id: rule.id,
+        }));
 
-        if (newRows.length > 0) {
-          const { error: genError } = await supabase.from('driver_adjustments').insert(newRows);
-          if (genError) {
-            console.error('Recurring adjustment generation error:', genError);
-            // Non-fatal: continue without the generated rows.
-          }
+      if (newRows.length > 0) {
+        const { error: genError } = await supabase.from('driver_adjustments').insert(newRows);
+        if (genError) {
+          console.error('Recurring adjustment generation error:', genError);
+          // Non-fatal: continue without the generated rows.
         }
       }
     }
@@ -253,6 +268,8 @@ export async function POST(request: Request) {
       .from('driver_adjustments')
       .select('id, type, amount')
       .eq('driver_id', body.driver_id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', settlementOrgId)
       .is('settlement_id', null)
       .gte('date', body.week_start)
       .lte('date', body.week_end);
@@ -305,7 +322,9 @@ export async function POST(request: Request) {
       const { error: linkError } = await supabase
         .from('driver_adjustments')
         .update({ settlement_id: settlement.id })
-        .in('id', adjustmentRows.map((a) => a.id));
+        .in('id', adjustmentRows.map((a) => a.id))
+        // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+        .eq('organization_id', settlementOrgId);
       if (linkError) {
         console.error('Adjustment link error:', linkError);
         // Non-fatal: the snapshot total is already stored on the settlement.
@@ -336,7 +355,12 @@ export async function POST(request: Request) {
 
       if (platformError) {
         // Rollback settlement on platform insert failure
-        await supabase.from('driver_settlements').delete().eq('id', settlement.id);
+        await supabase
+          .from('driver_settlements')
+          .delete()
+          .eq('id', settlement.id)
+          // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+          .eq('organization_id', settlementOrgId);
         console.error('Platform insert error:', platformError);
         return NextResponse.json({ error: platformError.message }, { status: 500 });
       }
@@ -351,6 +375,8 @@ export async function POST(request: Request) {
         settlement_platforms (*)
       `)
       .eq('id', settlement.id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', settlementOrgId)
       .single();
 
     return NextResponse.json({ data: completeSettlement }, { status: 201 });

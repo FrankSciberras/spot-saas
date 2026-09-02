@@ -13,18 +13,21 @@ interface RouteParams {
  */
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const supabase = await createClient();
 
   // Get roster
   const { data: roster, error: rosterError } = await supabase
     .from('rosters')
     .select('*')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   if (rosterError) {
@@ -41,6 +44,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       secondary_drivers:secondary_driver_id (id, full_name, phone)
     `)
     .eq('roster_id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .order('assignment_date', { ascending: true });
 
   if (assignmentsError) {
@@ -61,21 +66,20 @@ export async function GET(request: Request, { params }: RouteParams) {
  */
 export async function PUT(request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
   // same thing RLS checks), not the legacy global users.role.
-  const session = await getSession();
-  if (!session || !isAdminOrStaff(session)) {
+  if (!isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
 
   const body = await request.json();
   const { title, notes, status, assignments } = body;
@@ -84,7 +88,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .from('rosters')
     .select('id, title, status, organization_id')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
+
+  // Resolve the roster BEFORE touching anything — otherwise the assignment
+  // delete/insert below would run against an unknown roster and stamp the new
+  // rows with organization_id undefined.
+  if (!existingRoster) {
+    return NextResponse.json({ error: 'Roster not found' }, { status: 404 });
+  }
 
   // Update roster metadata
   if (title !== undefined || notes !== undefined || status !== undefined) {
@@ -101,7 +114,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const { error: updateError } = await supabase
       .from('rosters')
       .update(updateData)
-      .eq('id', id);
+      .eq('id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -114,7 +129,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
     await supabase
       .from('roster_assignments')
       .delete()
-      .eq('roster_id', id);
+      .eq('roster_id', id)
+      // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+      .eq('organization_id', session.organization_id);
 
     // Insert new assignments
     if (assignments.length > 0) {
@@ -127,7 +144,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }) => ({
         // Stamp the parent roster's fleet explicitly — the DB auto-stamp trigger
         // leaves organization_id NULL for multi-fleet users, failing RLS.
-        organization_id: existingRoster?.organization_id,
+        organization_id: existingRoster.organization_id,
         roster_id: id,
         vehicle_id: a.vehicle_id,
         driver_id: a.driver_id || null,
@@ -151,6 +168,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .from('rosters')
     .select('*')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   await createAuditLogEntry({
@@ -193,12 +212,16 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     .from('rosters')
     .select('id, title, week_start, week_end, status')
     .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .single();
 
   const { error } = await supabase
     .from('rosters')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

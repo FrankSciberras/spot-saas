@@ -8,22 +8,24 @@ import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
  * List all rosters (admins see all, drivers see only published)
  */
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const supabase = await createClient();
 
   // Draft visibility follows the caller's role in their ACTIVE fleet
   // (memberships.role — the same thing RLS checks), not the legacy global
   // users.role, which can differ when someone belongs to several fleets.
-  const session = await getSession();
-  const hasStaffAccess = !!session && isAdminOrStaff(session);
+  const hasStaffAccess = isAdminOrStaff(session);
 
   let query = supabase
     .from('rosters')
     .select('*')
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id)
     .order('week_start', { ascending: false });
 
   // Non-staff users only see published rosters
@@ -45,24 +47,20 @@ export async function GET(request: Request) {
  * Create a new roster
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Gate on the caller's role in their ACTIVE fleet (memberships.role — the
   // same thing RLS checks), not the legacy global users.role.
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'No active fleet' }, { status: 400 });
-  }
   if (!isAdminOrStaff(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
 
   // Stamp the caller's active fleet explicitly — the DB auto-stamp trigger leaves
   // organization_id NULL for multi-fleet users, which then fails RLS WITH CHECK.
@@ -88,7 +86,7 @@ export async function POST(request: Request) {
       week_end: endDate.toISOString().split('T')[0],
       title: title || generateRosterTitle(startDate, endDate),
       notes,
-      created_by: user.id,
+      created_by: session.id,
       status: 'draft',
     })
     .select()

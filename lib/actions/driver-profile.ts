@@ -41,7 +41,8 @@ export async function updateMyDriverProfileAction(input: {
   const { error } = await supabase
     .from('drivers')
     .update(updates)
-    .eq('user_id', user.id); // RLS also pins this to the caller's own record.
+    .eq('user_id', user.id) // RLS also pins this to the caller's own record.
+    .eq('organization_id', user.organization_id); // …and only the ACTIVE fleet's row.
 
   if (error) {
     console.error('updateMyDriverProfileAction failed:', error);

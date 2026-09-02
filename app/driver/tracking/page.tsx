@@ -91,11 +91,14 @@ export default function DriverTrackingPage() {
         router.push('/login');
         return;
       }
-      const { data: driverRow } = await supabase
-        .from('drivers')
-        .select('id, organization_id')
-        .eq('user_id', user.id)
-        .single();
+      // Resolve the driver row for the ACTIVE fleet (a driver in two fleets has
+      // two rows; the server knows which one is active).
+      const meRes = await fetch('/api/auth/user', { cache: 'no-store' });
+      const me = meRes.ok ? await meRes.json() : null;
+      const driverQuery = supabase.from('drivers').select('id, organization_id');
+      const { data: driverRow } = me?.driver_id
+        ? await driverQuery.eq('id', me.driver_id).maybeSingle()
+        : await driverQuery.eq('user_id', user.id).limit(1).maybeSingle();
       if (!driverRow) {
         setError('Driver profile not found. Please contact your fleet administrator.');
         setLoading(false);

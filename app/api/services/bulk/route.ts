@@ -8,22 +8,21 @@ import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
  * Bulk delete vehicle services
  */
 export async function DELETE(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Deleting service records is ADMIN-only in RLS ("Admins delete services in
   // org"), so gate on the caller's admin role in their ACTIVE fleet — otherwise
   // staff would get a 200 while RLS silently deletes 0 rows.
-  const session = await getSession();
-  if (!session || session.role !== 'admin') {
+  if (session.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const actor = await getAuditActor(user.id);
+  const supabase = await createClient();
+  const actor = await getAuditActor(session.id);
 
   const body = await request.json();
   const { ids } = body;
@@ -35,12 +34,16 @@ export async function DELETE(request: Request) {
   const { data: existingServices } = await supabase
     .from('vehicle_services')
     .select('id, vehicle_id, service_type')
-    .in('id', ids);
+    .in('id', ids)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   const { error } = await supabase
     .from('vehicle_services')
     .delete()
-    .in('id', ids);
+    .in('id', ids)
+    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
+    .eq('organization_id', session.organization_id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

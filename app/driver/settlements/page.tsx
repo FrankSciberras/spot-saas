@@ -17,12 +17,14 @@ export default async function DriverSettlementsPage() {
   const user = await requireRole(['driver', 'admin', 'staff']);
   const supabase = await createClient();
 
-  // Get driver record for current user
+  // Get driver record for current user — in the ACTIVE fleet (a driver in two
+  // fleets has two rows; .single() on a bare user_id lookup fails for them).
   const { data: driver, error: driverError } = await supabase
     .from('drivers')
     .select('id, full_name')
     .eq('user_id', user.id)
-    .single();
+    .eq('organization_id', user.organization_id)
+    .maybeSingle();
 
   if (driverError || !driver) {
     if (user.role !== 'driver') {
