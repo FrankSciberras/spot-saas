@@ -7,8 +7,8 @@
 /* ─── Display face for headings: Neue Haas Grotesk Display Pro ───
    Licensed (Monotype), so the files live outside git — see public/fonts/README.md
    for the exact filenames. Until they are present every heading silently falls
-   back to Geist. Weights map to the family's own scale: 55 Roman → 400,
-   65 Medium → 500 (what the headings use), 75 Bold → 700. */
+   back to Geist. Weights: 55 Roman → 400, 25 Thin → 200;
+   only Roman (400) and Thin (200) are declared, per the brand choice. */
 @font-face {
   font-family: 'Neue Haas Grotesk Display Pro';
   /* Roman is what the headings use. Supplied as TTF; a WOFF2 next to it is
@@ -20,16 +20,12 @@
   font-display: swap;
 }
 @font-face {
+  /* Thin (25) — the only other cut in use, for anything that should read
+     lighter than Roman. Requested via font-weight: 200. Nothing heavier is
+     declared on purpose: "500" falls back to Roman, and bold is synthesised. */
   font-family: 'Neue Haas Grotesk Display Pro';
-  src: url('/fonts/NeueHaasDisplay-Medium.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Neue Haas Grotesk Display Pro';
-  src: url('/fonts/NeueHaasDisplay-Bold.woff2') format('woff2');
-  font-weight: 700;
+  src: url('/fonts/NeueHaasDisplay-Thin.ttf') format('truetype');
+  font-weight: 200;
   font-style: normal;
   font-display: swap;
 }
@@ -75,8 +71,19 @@
   min-height: 100vh;
   background: var(--bg-0);
   color: var(--text-1);
-  font-family: var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
+  /* TRIAL: Neue Haas Roman as the site-wide base face (Geist as fallback).
+     Only Roman (400) and Medium (500) files exist; bolder weights are
+     synthesised by the browser until a Bold file is added. */
+  font-family: 'Neue Haas Grotesk Display Pro', 'neue-haas-grotesk-display', var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
   font-feature-settings: 'cv11', 'ss01';
+  /* Neue Haas sets tight at text sizes; open the body copy up a touch. Titles
+     and the nav carry their own tracking values. */
+  letter-spacing: 0.5px;
+  /* Only the Roman cut is used. Without this, every font-weight 600/700 in the
+     stylesheet would be faked by the browser (smeared, uneven "bold") — the
+     feature-menu titles were the worst case. Bold requests now simply render
+     in Roman; emphasis comes from size and colour instead. */
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   font-size: 16px;
   line-height: 1.5;
@@ -160,6 +167,10 @@
 .rovora-site[data-theme='dark'] .logo img { filter: brightness(0) invert(1); }
 .rovora-site .nav-links { display: flex; align-items: center; gap: 30px; margin-left: 8px; }
 .rovora-site .nav-links a { color: var(--text-2); font-size: 14.5px; font-weight: 500; transition: color .15s; }
+/* Trial: navbar items in Neue Haas Roman (same face as the titles). Sized up
+   half a pixel because Roman is lighter than Geist Medium at this size. */
+.rovora-site .nav-links a,
+.rovora-site .nav-links button.mm-trigger { font-family: 'Neue Haas Grotesk Display Pro', 'neue-haas-grotesk-display', var(--font-geist), -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; font-weight: 400; font-size: 15px; letter-spacing: 0.6px; color: var(--text-2); }
 .rovora-site .nav-links a:hover { color: var(--text-1); }
 .rovora-site .nav-links a.nav-ai { display: inline-flex; align-items: center; gap: 6px; }
 .rovora-site .nav-ai svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
@@ -221,7 +232,7 @@
 .rovora-site .mm-item:hover .mm-ico { background: var(--accent); border-color: transparent; color: #fff; }
 .rovora-site .mm-ico svg { width: 19px; height: 19px; }
 .rovora-site .mm-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.rovora-site .mm-title { font-size: 14px; font-weight: 600; color: var(--text-1); letter-spacing: -0.01em; }
+.rovora-site .mm-title { font-size: 15.5px; font-weight: 400; color: var(--text-1); letter-spacing: 0.2px; }
 .rovora-site .mm-blurb { font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
 .rovora-site .mm-tags { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; }
 .rovora-site .mm-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); }
