@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
+import { latestServiceByVehicle } from '@/lib/maintenance/serviceDue';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import ServicesWorkspace, {
@@ -133,16 +134,10 @@ async function ServicesContent({ orgId }: { orgId: string }) {
     spend6mo.push({ label: start.toLocaleDateString('en-GB', { month: 'short' }), v });
   }
 
-  // Due soon + overdue by km, from the latest service per vehicle that has a next_service_mileage
-  const latestByVehicle = new Map<string, VehicleService>();
-  for (const s of svc) {
-    if (s.next_service_mileage) {
-      const existing = latestByVehicle.get(s.vehicle_id);
-      if (!existing || s.mileage_at_service > existing.mileage_at_service) {
-        latestByVehicle.set(s.vehicle_id, s);
-      }
-    }
-  }
+  // Due soon + overdue by km, from the latest service per vehicle that has a
+  // next_service_mileage — "latest" decided by the shared rule the alerts engine
+  // and the shift-start check also use, so the three can't disagree.
+  const latestByVehicle = latestServiceByVehicle(svc.filter((s) => s.next_service_mileage));
 
   const dueAll: DueSoonVehicle[] = [];
   for (const vehicle of vehiclesData || []) {

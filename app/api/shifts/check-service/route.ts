@@ -6,6 +6,7 @@ import { sendPushNotification } from '@/lib/notifications/push';
 import { orgAdminStaffUsers } from '@/lib/notifications/recipients';
 import { appUrl } from '@/lib/urls';
 import { getSession } from '@/lib/auth/session';
+import { pickLatestService } from '@/lib/maintenance/serviceDue';
 
 /**
  * POST /api/shifts/check-service
@@ -95,17 +96,17 @@ export async function POST(request: Request) {
       thresholdKm = (serviceRule.trigger_config as { km_threshold?: number })?.km_threshold || 2000;
     }
 
-    // Get all services with next_service_mileage for this vehicle
-    // Then find the one with highest mileage_at_service (most recent by mileage)
+    // The service record that defines this vehicle's next service — chosen by
+    // the shared rule in lib/maintenance/serviceDue.ts (same as the alerts
+    // engine and the Services page, so "due" means the same thing everywhere).
     const { data: servicesData, error: serviceError } = await adminClient
       .from('vehicle_services')
-      .select('id, next_service_mileage, service_type, service_date, mileage_at_service')
+      .select('id, next_service_mileage, next_service_date, service_type, service_date, mileage_at_service')
       .eq('vehicle_id', vehicle_id)
-      .not('next_service_mileage', 'is', null)
-      .order('mileage_at_service', { ascending: false })
-      .limit(1);
+      .eq('organization_id', vehicle.organization_id)
+      .not('next_service_mileage', 'is', null);
 
-    const latestService = servicesData?.[0];
+    const latestService = pickLatestService(servicesData ?? []);
 
     if (serviceError || !latestService?.next_service_mileage) {
       // No service due configured, nothing to check

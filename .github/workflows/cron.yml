@@ -38,6 +38,7 @@ on:
     - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
     - cron: '10 * * * *'    # trip builder (trips/stops + GPS retention)
     - cron: '*/30 * * * *'  # reminders
+    - cron: '40 * * * *'    # open-shift watch (nudge at 14h, auto-close at 24h)
     - cron: '0 5 * * *'     # daily notification rules sweep
     - cron: '30 5 * * 1'    # weekly driver safety report (Mondays)
     - cron: '0 8 * * 1'     # weekly package update check
@@ -79,6 +80,13 @@ jobs:
           curl -fsS -m 60 --retry 3 --retry-delay 10 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/cron/reminders"
+
+      - name: Open-shift watch (hourly)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '40 * * * *'
+        run: |
+          curl -fsS -m 120 --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/shifts"
 
       - name: Notification rules (daily)
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *'

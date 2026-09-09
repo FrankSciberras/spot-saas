@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import {
+  attachReadState,
+  countUnread,
+  scopeToViewer,
+  type NotificationRowLike,
+} from '@/lib/notifications/reads';
 
 /**
- * GET /api/notifications
- * Get notifications for the current user
+ * GET /api/notifications?limit=&unread=true
+ * Notifications for the current user in their ACTIVE fleet, with `read_at`
+ * resolved PER USER for broadcasts (see lib/notifications/reads.ts).
  */
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -16,7 +23,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const unreadOnly = searchParams.get('unread') === 'true';
-  const limit = parseInt(searchParams.get('limit') || '20');
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 100);
 
   // Get driver_id if user is a driver in the ACTIVE fleet
   // (active-fleet scope: RLS alone merges a multi-fleet user's orgs)
@@ -25,7 +32,12 @@ export async function GET(request: Request) {
     .select('id')
     .eq('user_id', session.id)
     .eq('organization_id', session.organization_id)
-    .single();
+    .maybeSingle();
+  const driverId = driver?.id ?? null;
+
+  // Broadcast read state isn't a column we can filter on, so when only unread
+  // rows are wanted fetch a wider page and filter after resolving read state.
+  const fetchSize = unreadOnly ? Math.min(limit * 5, 300) : limit;
 
   let query = supabase
     .from('notifications')
@@ -33,53 +45,29 @@ export async function GET(request: Request) {
     // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
     .eq('organization_id', session.organization_id)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(fetchSize);
+  query = scopeToViewer(query, driverId);
 
-  // Filter notifications based on user role
-  if (driver) {
-    // Drivers see: their notifications OR broadcasts targeted to drivers/all
-    // RLS enforces target_role, but we also filter here for clarity
-    query = query.or(`driver_id.eq.${driver.id},and(driver_id.is.null,target_role.in.(driver,all))`);
-  } else {
-    // Admins/staff see: broadcasts targeted to admin/all (not driver-only broadcasts)
-    query = query.is('driver_id', null).in('target_role', ['admin', 'all']);
-  }
-
-  if (unreadOnly) {
-    query = query.is('read_at', null);
-  }
-
-  const { data: notifications, error } = await query;
-
+  const { data, error } = await query;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Get unread count
-  let countQuery = supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
-    .eq('organization_id', session.organization_id)
-    .is('read_at', null);
+  let rows = await attachReadState(supabase, session.id, (data ?? []) as NotificationRowLike[]);
+  if (unreadOnly) rows = rows.filter((r) => !r.read_at);
+  rows = rows.slice(0, limit);
 
-  if (driver) {
-    countQuery = countQuery.or(`driver_id.eq.${driver.id},and(driver_id.is.null,target_role.in.(driver,all))`);
-  } else {
-    countQuery = countQuery.is('driver_id', null).in('target_role', ['admin', 'all']);
-  }
+  const unreadCount = await countUnread(supabase, session, driverId);
 
-  const { count: unreadCount } = await countQuery;
-
-  return NextResponse.json({ 
-    data: notifications,
-    unread_count: unreadCount || 0,
+  return NextResponse.json({
+    data: rows,
+    unread_count: unreadCount,
   });
 }
 
 /**
  * POST /api/notifications
- * Create a new notification (admin only)
+ * Create a new notification (admin/staff of the active fleet)
  */
 export async function POST(request: Request) {
   const supabase = await createClient();

@@ -213,6 +213,14 @@ export interface DriverShift {
   car_internal_checked: boolean;
   notes: string | null;
   created_at: string;
+  /** Closing odometer reading (>= starting_mileage); null while the shift is open. */
+  ending_mileage?: number | null;
+  /** Optional closing photos (shift-images bucket). */
+  end_image_urls?: string[] | null;
+  /** Set when the hourly cron closed a forgotten shift after 24h. */
+  auto_closed_at?: string | null;
+  /** Set when the driver was reminded that their shift is still open. */
+  long_shift_nudged_at?: string | null;
 }
 
 export interface FileRecord {

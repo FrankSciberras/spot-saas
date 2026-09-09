@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
+import { attachReadState } from '@/lib/notifications/reads';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import NotificationManager from '@/components/admin/NotificationManager';
@@ -14,13 +15,13 @@ export default async function NotificationsPage() {
   return (
     <FleetShell user={user} title="Notifications">
       <Suspense fallback={<FleetPageSkeleton variant="list" />}>
-        <NotificationsContent orgId={user.organization_id} />
+        <NotificationsContent orgId={user.organization_id} userId={user.id} />
       </Suspense>
     </FleetShell>
   );
 }
 
-async function NotificationsContent({ orgId }: { orgId: string }) {
+async function NotificationsContent({ orgId, userId }: { orgId: string; userId: string }) {
   const supabase = await createClient();
 
   // Get notification rules
@@ -40,12 +41,16 @@ async function NotificationsContent({ orgId }: { orgId: string }) {
     .limit(20);
 
   // Also get recent notifications from notifications table (actual sent notifications)
-  const { data: recentNotifications } = await supabase
+  const { data: recentRows } = await supabase
     .from('notifications')
-    .select('id, title, body, type, created_at, read_at, action_url')
+    .select('id, driver_id, title, body, type, created_at, read_at, action_url')
     .eq('organization_id', orgId)
     .order('created_at', { ascending: false })
     .limit(30);
+
+  // "Read" here means read by THIS admin: broadcasts keep per-user read state
+  // (notification_reads), so the shared read_at column is not the truth for them.
+  const recentNotifications = await attachReadState(supabase, userId, recentRows || []);
 
   // Combine both sources for history, converting notifications to log format
   const notificationLogs = (recentNotifications || []).map(n => ({

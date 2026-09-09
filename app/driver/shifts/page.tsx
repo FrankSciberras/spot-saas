@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { signStorageUrls } from '@/lib/storage/signed';
 import FleetShell from '@/components/fleet/FleetShell';
 import styles from './shifts.module.css';
 
@@ -78,7 +79,16 @@ export default async function DriverShiftsPage() {
       vehicles:vehicle_id (id, registration_number, make, model)
     `)
     .eq('driver_id', driver.id)
+    .eq('organization_id', user.organization_id)
     .order('start_time', { ascending: false });
+
+  // The shift-images bucket is private: the stored "public" URLs are dead
+  // links. Swap them for short-lived signed URLs in ONE storage call.
+  const signed = await signStorageUrls(
+    (shifts || []).flatMap((s) => [s.front_image_url, s.left_image_url, s.right_image_url, s.back_image_url]),
+    'shift-images'
+  );
+  const view = (url: string | null): string | null => (url ? signed.get(url) ?? null : null);
 
   const formatDateMain = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -134,6 +144,8 @@ export default async function DriverShiftsPage() {
                   <div className={styles.shiftMileage}>
                     <span className={styles.shiftMileageIcon}><GaugeIcon /></span>
                     {shift.starting_mileage?.toLocaleString()} km
+                    {shift.ending_mileage != null && ` → ${Number(shift.ending_mileage).toLocaleString()} km`}
+                    {!shift.end_time && ' · open'}
                   </div>
                 </div>
 
@@ -159,23 +171,23 @@ export default async function DriverShiftsPage() {
                 </div>
 
                 <div className={styles.shiftImages}>
-                  {shift.front_image_url && (
-                    <a href={shift.front_image_url} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
+                  {view(shift.front_image_url) && (
+                    <a href={view(shift.front_image_url)!} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
                       <ImageIcon /> Front
                     </a>
                   )}
-                  {shift.left_image_url && (
-                    <a href={shift.left_image_url} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
+                  {view(shift.left_image_url) && (
+                    <a href={view(shift.left_image_url)!} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
                       <ImageIcon /> Left
                     </a>
                   )}
-                  {shift.right_image_url && (
-                    <a href={shift.right_image_url} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
+                  {view(shift.right_image_url) && (
+                    <a href={view(shift.right_image_url)!} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
                       <ImageIcon /> Right
                     </a>
                   )}
-                  {shift.back_image_url && (
-                    <a href={shift.back_image_url} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
+                  {view(shift.back_image_url) && (
+                    <a href={view(shift.back_image_url)!} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
                       <ImageIcon /> Back
                     </a>
                   )}

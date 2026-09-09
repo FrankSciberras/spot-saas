@@ -82,9 +82,8 @@ export default function ReplacesSection() {
           <span className="kicker">All-in-one</span>
           <h2 className="sec-title">One app instead of all of these.</h2>
           <p className="sec-desc">
-            Most fleets run on a patchwork — spreadsheets for pay, group chats for shifts, a family
-            tracker to see the cars, accounting software for the books. Rovora does the lot from one
-            login, and your accountant still gets clean Xero and QuickBooks exports.
+            Stop working with 3+ apps to manage your fleet. One app does them all. Rosters, live
+            tracking, automated wages and accounting, all of it.
           </p>
         </div>
 

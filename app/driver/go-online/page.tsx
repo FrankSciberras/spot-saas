@@ -12,6 +12,8 @@ interface Vehicle {
   make: string;
   model: string;
   assigned_driver_id?: string | null;
+  /** Last recorded odometer — a new shift can't start below it. */
+  mileage?: number | null;
 }
 
 interface DriverInfo {
@@ -33,7 +35,6 @@ export default function GoOnlinePage() {
   const [name, setName] = useState('');
   const [mileage, setMileage] = useState('');
   const [vehicleId, setVehicleId] = useState('');
-  const [startTime, setStartTime] = useState('');
   const [dashcamChecked, setDashcamChecked] = useState(false);
   const [carInternalChecked, setCarInternalChecked] = useState(false);
   const [checklistError, setChecklistError] = useState('');
@@ -99,7 +100,7 @@ export default function GoOnlinePage() {
             .from('driver_vehicle_assignments')
             .select(`
               vehicle_id,
-              vehicles:vehicle_id (id, registration_number, make, model, status)
+              vehicles:vehicle_id (id, registration_number, make, model, status, mileage)
             `)
             .eq('driver_id', driver.id);
 
@@ -120,7 +121,7 @@ export default function GoOnlinePage() {
           } else {
             const { data: allVehicles } = await supabase
               .from('vehicles')
-              .select('id, registration_number, make, model, assigned_driver_id, status')
+              .select('id, registration_number, make, model, assigned_driver_id, status, mileage')
               .order('registration_number');
 
             if (allVehicles) {
@@ -140,7 +141,7 @@ export default function GoOnlinePage() {
         } else {
           const { data: allVehicles } = await supabase
             .from('vehicles')
-            .select('id, registration_number, make, model, assigned_driver_id, status')
+            .select('id, registration_number, make, model, assigned_driver_id, status, mileage')
             .order('registration_number');
 
           if (allVehicles) {
@@ -149,10 +150,6 @@ export default function GoOnlinePage() {
           }
         }
 
-        // Set default start time to now
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        setStartTime(now.toISOString().slice(0, 16));
       } catch (err) {
         console.error('Error loading go-online data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load data. Please refresh the page.');
@@ -230,6 +227,37 @@ export default function GoOnlinePage() {
         throw new Error(msg);
       }
 
+      // One open shift at a time — a second "Go online" on top of an unfinished
+      // shift used to create a duplicate. (The database enforces this too.)
+      const { data: openShift } = await supabase
+        .from('driver_shifts')
+        .select('id, start_time')
+        .eq('driver_id', driverInfo.id)
+        .is('end_time', null)
+        .limit(1)
+        .maybeSingle();
+      if (openShift) {
+        const startedAt = new Date(openShift.start_time).toLocaleString('en-GB', {
+          timeZone: 'Europe/Malta',
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        throw new Error(`You already have an open shift (started ${startedAt}). End it before starting a new one.`);
+      }
+
+      // The odometer only goes forward. A reading below the vehicle's last
+      // recorded mileage used to be accepted silently (the mileage update was
+      // rejected server-side, but the shift was still created).
+      const enteredKm = parseInt(mileage, 10);
+      const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
+      if (selectedVehicle?.mileage != null && enteredKm < Number(selectedVehicle.mileage)) {
+        throw new Error(
+          `That reading is lower than this vehicle's last recorded ${Number(selectedVehicle.mileage).toLocaleString()} km. Check the odometer and try again.`
+        );
+      }
+
       // Upload images
       let frontUrl = null;
       let leftUrl = null;
@@ -266,7 +294,9 @@ export default function GoOnlinePage() {
           vehicle_id: vehicleId,
           name: name,
           starting_mileage: parseInt(mileage, 10),
-          start_time: new Date(startTime).toISOString(),
+          // The shift starts when the driver presses the button — not when the
+          // page happened to load (drivers leave this screen open for a while).
+          start_time: new Date().toISOString(),
           front_image_url: frontUrl,
           left_image_url: leftUrl,
           right_image_url: rightUrl,
@@ -277,6 +307,10 @@ export default function GoOnlinePage() {
         });
 
       if (insertError) {
+        // 23505 = the one-open-shift-per-driver rule in the database.
+        if ((insertError as { code?: string }).code === '23505') {
+          throw new Error('You already have an open shift. End it before starting a new one.');
+        }
         throw new Error(insertError.message);
       }
 

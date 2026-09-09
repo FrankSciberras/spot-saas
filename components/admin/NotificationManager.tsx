@@ -44,8 +44,8 @@ const TRIGGER_TYPES = [
   { value: 'shift_reminder', label: 'Shift Reminder' },
   { value: 'document_expiry', label: 'Document Expiry' },
   { value: 'service_due', label: 'Service Due' },
-  { value: 'weekly_summary', label: 'Weekly Summary' },
-  { value: 'custom', label: 'Custom' },
+  // 'weekly_summary' and 'custom' are deliberately NOT offered: nothing in the
+  // rules engine executes them, so a rule of that type would never fire.
 ];
 
 const CHANNELS = [

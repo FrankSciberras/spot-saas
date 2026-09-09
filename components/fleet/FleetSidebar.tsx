@@ -24,7 +24,8 @@ import FleetIcon from './FleetIcon';
 
 /**
  * Raised centre button in the driver's mobile tab bar: one press to go online
- * (→ /driver/go-online) or, while on shift, to end it (confirm → /api/shifts/end).
+ * (→ /driver/go-online) or, while on shift, to end it (→ /driver/end-shift,
+ * which records the closing odometer before calling /api/shifts/end).
  */
 function DriverShiftFab({ driverId }: { driverId: string | null }) {
   const router = useRouter();
@@ -72,21 +73,11 @@ function DriverShiftFab({ driverId }: { driverId: string | null }) {
       router.push('/driver/go-online');
       return;
     }
-    if (!window.confirm('End your shift now?')) return;
+    // Ending a shift records the closing odometer (and optional photos) on its
+    // own page, so the button just takes the driver there.
     setBusy(true);
-    try {
-      // Stop background location in the app (no-op in a plain browser).
-      const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
-      if (native) native.postMessage(JSON.stringify({ type: 'stop-tracking' }));
-      const res = await fetch('/api/shifts/end', { method: 'POST' });
-      if (res.ok) {
-        setOnShift(false);
-        router.push('/driver');
-        router.refresh();
-      }
-    } finally {
-      setBusy(false);
-    }
+    router.push('/driver/end-shift');
+    setBusy(false);
   };
 
   return (

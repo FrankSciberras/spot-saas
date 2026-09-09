@@ -10,37 +10,10 @@ import MarketingFooter from './MarketingFooter';
 import PricingPlans from './PricingPlans';
 import LiteYouTube from './LiteYouTube';
 import ReplacesSection from './ReplacesSection';
+import FeaturesAccordion from './FeaturesAccordion';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import { Icon, type IconName } from './feature/icons';
 import { markFontSize } from '@/lib/integrations/catalog';
-
-const Check = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 6 9 17l-5-5" />
-  </svg>
-);
-
-const Lock = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-  </svg>
-);
-
-/** Browser-frame mock used in place of product screenshots. */
-function ShotBar({ path }: { path: string }) {
-  return (
-    <div className="shot-bar">
-      <div className="dots">
-        <i /><i /><i />
-      </div>
-      <div className="shot-url">
-        <Lock />
-        app.rovora.eu/<b>{path}</b>
-      </div>
-    </div>
-  );
-}
 
 /** A representative tile from each marketplace category — full list at /integrations. */
 const INTEGRATIONS: {
@@ -225,6 +198,18 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
               <span><span className="ck">✓</span> No card required</span>
             </div>
+            {/* Trust row. Deliberately no score or review count: the Play
+                listing shows no public rating yet, so the caption stays an
+                opinion rather than a statistic. Swap in a real rating (with
+                its source) once one exists. */}
+            <div className="hero-stars" aria-label="Five stars">
+              <span className="stars" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <svg key={i} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6.1 6.7.8-4.9 4.6 1.3 6.6L12 17.4l-6 3.3 1.3-6.6L2.4 9.5l6.7-.8L12 2.6z" /></svg>
+                ))}
+              </span>
+              <span className="stars-text">Loved by fleet operators in Malta</span>
+            </div>
           </div>
 
           {/* The demo video IS the hero visual — a real recording of the product
@@ -243,6 +228,23 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           {/* The EU-hosted / Encrypted / GDPR strip used to sit here. Removed so
               the video gets the room instead — the claims still live on the
               /security page, which the footer links to. */}
+        </section>
+
+        {/* PLATFORMS — the ride-hail apps a fleet's money comes from. "Works
+            with earnings from" is the honest framing: today Rovora imports the
+            platforms' statements and does the settlement maths; a live API
+            connection is on the roadmap. Wordmarks are set in type rather than
+            shipped as logo files (no brand assets in the repo). */}
+        <section className="platforms" aria-label="Works with earnings from Uber, Bolt and eCabs">
+          <div className="container">
+            <p className="platforms-cap">Works with earnings from</p>
+            <div className="platforms-row">
+              <span className="pmark pmark-uber">Uber</span>
+              <span className="pmark pmark-bolt">Bolt</span>
+              <span className="pmark pmark-ecabs">eCabs</span>
+              <span className="pmark pmark-more">+ any platform via CSV</span>
+            </div>
+          </div>
         </section>
 
         {/* STATS */}
@@ -306,184 +308,10 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               <p className="sec-desc">No more jumping between WhatsApp, paper logs and three different spreadsheets. Rovora keeps the whole operation — and every euro — in view.</p>
             </div>
 
-            {/* Feature 1 */}
-            <div className="frow reveal">
-              <div className="ftext">
-                <div className="feat-ico">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a7 7 0 0 1 14 0v1" /></svg>
-                </div>
-                <h3>See who&apos;s on the road, live</h3>
-                <p>Every clock-in, shift hour and euro earned, streaming in as it happens. Know exactly who&apos;s driving, who&apos;s available and who&apos;s running behind — without making a single call.</p>
-                <ul className="feat-list">
-                  <li><span className="tick"><Check /></span> Live shift status and hours <span className="t2">— on shift, off duty, running late</span></li>
-                  <li><span className="tick"><Check /></span> Per-driver earnings as the day unfolds</li>
-                  <li><span className="tick"><Check /></span> Document checks flagged before they expire</li>
-                </ul>
-              </div>
-              <div className="shot tight">
-                <ShotBar path="drivers" />
-                <div className="mock">
-                  <div className="mock-rows">
-                    <div className="mock-row"><span className="av" /><span className="nm">A. Murphy</span><span className="amt">€412</span><span className="st">On shift</span></div>
-                    <div className="mock-row"><span className="av" /><span className="nm">J. Byrne</span><span className="amt">€388</span><span className="st">On shift</span></div>
-                    <div className="mock-row"><span className="av" /><span className="nm">S. Doyle</span><span className="amt">€201</span><span className="st">On shift</span></div>
-                    <div className="mock-row"><span className="av" /><span className="nm">K. Walsh</span><span className="amt">€0</span><span className="st idle">Off duty</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="frow flip reveal">
-              <div className="ftext">
-                <div className="feat-ico">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h14M6.5 17l-1.2-4.8A2 2 0 0 1 7.2 9.7l.4-.1m0 0L9 6h6l1.4 3.6m-8.8 0h8.8m0 0 .4.1a2 2 0 0 1 1.9 2.5L17.5 17" /><circle cx="7.5" cy="17.5" r="1.5" /><circle cx="16.5" cy="17.5" r="1.5" /></svg>
-                </div>
-                <h3>Never miss a licence again</h3>
-                <p>Every plate, odometer reading and document lives in one place — with utilisation tracking and expiry alerts that warn you weeks before a road licence, insurance or VRT lapses.</p>
-                <ul className="feat-list">
-                  <li><span className="tick"><Check /></span> Live utilisation per vehicle, 7-day average</li>
-                  <li><span className="tick"><Check /></span> Service, idle and active status at a glance</li>
-                  <li><span className="tick"><Check /></span> Tiered alerts for every expiring document</li>
-                </ul>
-              </div>
-              <div className="shot tight">
-                <ShotBar path="vehicles" />
-                <div className="mock">
-                  <div className="mock-cards">
-                    <div className="mock-card"><div className="k">Active</div><div className="v pos">11</div></div>
-                    <div className="mock-card"><div className="k">Idle</div><div className="v">2</div></div>
-                    <div className="mock-card"><div className="k">Service</div><div className="v">1</div></div>
-                    <div className="mock-card"><div className="k">Expiring</div><div className="v accent">3</div></div>
-                  </div>
-                  <div className="mock-rows">
-                    <div className="mock-row"><span className="nm mono">12-D-4471</span><span className="meta">· 84% used</span><span className="st">Active</span></div>
-                    <div className="mock-row"><span className="nm mono">21-C-9920</span><span className="meta">· 77% used</span><span className="st">Active</span></div>
-                    <div className="mock-row"><span className="nm mono">19-L-1183</span><span className="meta">· idle 2d</span><span className="st idle">Idle</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="frow reveal">
-              <div className="ftext">
-                <div className="feat-ico">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18M3 7l2 12a2 2 0 0 0 2 1.7h10A2 2 0 0 0 19 19l2-12M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M12 11v5M9.5 13.5h5" /></svg>
-                </div>
-                <h3>Weekly driver pay, reconciled in minutes</h3>
-                <p>Rovora does the maths for every driver — gross splits, fees, cash drops, tips and adjustments — then hands you clean, payable settlements. Review, approve and run payouts in one pass.</p>
-                <ul className="feat-list">
-                  <li><span className="tick"><Check /></span> Automatic per-driver weekly reconciliation</li>
-                  <li><span className="tick"><Check /></span> Adjustments, deductions and cash drops handled</li>
-                  <li><span className="tick"><Check /></span> Month-end PDF statements, ready for the books</li>
-                </ul>
-              </div>
-              <div className="shot tight">
-                <ShotBar path="settlements" />
-                <div className="mock">
-                  <div className="mock-rows">
-                    <div className="mock-row"><span className="nm">A. Murphy</span><span className="meta">· wk 22</span><span className="amt">€1,284</span><span className="st">Payable</span></div>
-                    <div className="mock-row"><span className="nm">J. Byrne</span><span className="meta">· wk 22</span><span className="amt">€1,107</span><span className="st">Payable</span></div>
-                    <div className="mock-row"><span className="nm">S. Doyle</span><span className="meta">· wk 22</span><span className="amt">€642</span><span className="st idle">Review</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mini grid */}
-            <div className="mini-grid reveal-stagger">
-              <div className="mini">
-                <div className="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg></div>
-                <h4>Rosters</h4>
-                <p>Build weekly schedules, assign cars to drivers and catch clashes before the shift starts.</p>
-              </div>
-              <div className="mini">
-                <div className="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg></div>
-                <h4>Financials</h4>
-                <p>Income, expenses and profit across the fleet — by day, week or month, always current.</p>
-              </div>
-              <div className="mini">
-                <div className="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h12a1 1 0 0 1 1 1v15l-3-2-2 2-2-2-2 2-2-2-2 2V5a1 1 0 0 1 1-1Z" /><path d="M9 8h6M9 12h6" /></svg></div>
-                <h4>Bookkeeping</h4>
-                <p>Every transaction categorised and VAT-ready, so month-end takes minutes, not days.</p>
-              </div>
-              <div className="mini">
-                <div className="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.8 2.6 17a1.5 1.5 0 0 0 1.3 2.3h16.2a1.5 1.5 0 0 0 1.3-2.3L13.7 3.8a1.6 1.6 0 0 0-2.8 0Z" /><path d="M12 9v4M12 17h.01" /></svg></div>
-                <h4>Damages</h4>
-                <p>Log incidents against any vehicle, track repair costs and keep a full damage history.</p>
-              </div>
-              <div className="mini">
-                <div className="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9Z" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg></div>
-                <h4>Smart alerts</h4>
-                <p>Expiring docs, idle cars, pending settlements — surfaced before they become a problem.</p>
-              </div>
-              <div className="mini">
-                <div className="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="3" /><path d="M11 18h2" /></svg></div>
-                <h4>Driver app</h4>
-                <p>Drivers clock in, log shifts and see their earnings from a free app — no training needed.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* LIVE TRACKING — NO HARDWARE */}
-        <section className="sec-pad" id="tracking">
-          <div className="container">
-            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <span className="kicker">Live tracking · No hardware</span>
-              <h2 className="sec-title">A live map of your fleet — without buying a single GPS box</h2>
-              <p className="sec-desc">Traditional fleet tracking means €100+ trackers wired into every car, SIM contracts and an installer. Rovora turns the phone your driver already carries into the tracker — switched on with one tap at shift start.</p>
-            </div>
-
-            <div className="frow reveal">
-              <div className="ftext">
-                <div className="feat-ico">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                </div>
-                <h3>Everything a hardware tracker does. Nothing it costs.</h3>
-                <p>Live positions, trip and stop history, driver safety scores and phone-health alerts — streamed from the free driver app, with privacy built in: tracking only runs during shifts, started and stopped by the driver.</p>
-                <ul className="feat-list">
-                  <li><span className="tick"><Check /></span> Live map with speed &amp; top speed per driver</li>
-                  <li><span className="tick"><Check /></span> Draw zones — get alerted when a driver enters or leaves</li>
-                  <li><span className="tick"><Check /></span> Trip history — every journey, stop and waiting time, with route playback</li>
-                  <li><span className="tick"><Check /></span> Driver safety scores — speeding, harsh braking &amp; rapid acceleration</li>
-                  <li><span className="tick"><Check /></span> Device health alerts — low battery, GPS off or permission removed</li>
-                  <li><span className="tick"><Check /></span> No devices, no installation, no SIM contracts <span className="t2">— a 10-car fleet saves €1,000+ up front</span></li>
-                </ul>
-              </div>
-
-              <div className="shot tight">
-                <ShotBar path="fleet/tracking" />
-                <div className="mapmock" aria-hidden>
-                  <div className="mm-roads" />
-                  <div className="mm-zone">
-                    <span className="mm-zone-tag">Airport</span>
-                  </div>
-                  <div className="mm-drv mm-drv1">
-                    <span className="mm-dot" style={{ background: '#2bbd7e' }}>MV</span>
-                    <span className="mm-spd">62 km/h</span>
-                  </div>
-                  <div className="mm-drv mm-drv2">
-                    <span className="mm-dot" style={{ background: '#3b6ad9' }}>JB</span>
-                    <span className="mm-spd">48 km/h</span>
-                  </div>
-                  <div className="mm-drv mm-drv3">
-                    <span className="mm-dot" style={{ background: '#a78bfa' }}>KW</span>
-                    <span className="mm-spd">35 km/h</span>
-                  </div>
-                  <div className="mm-toast">
-                    <span className="mm-toast-dot" />
-                    <span><b>Zone alert</b> — M. Vella entered “Airport”</span>
-                  </div>
-                  <div className="mm-legend">
-                    <span><i className="mm-leg-dot" /> 3 drivers live</span>
-                    <span className="mm-leg-sep">·</span>
-                    <span>updating in real time</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* One accordion instead of three stacked rows + a six-card grid:
+                same features, one screenful, with a live mock for whichever
+                row is open. Copy + mocks live in FeaturesAccordion.tsx. */}
+            <FeaturesAccordion />
           </div>
         </section>
 
@@ -542,41 +370,6 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
             <p className="integ-note">
               Want a platform we haven&rsquo;t listed? <a href="mailto:hello@rovora.eu?subject=Integration%20request">Tell us</a> and we&rsquo;ll prioritise it.
             </p>
-          </div>
-        </section>
-
-        {/* COMPARISON */}
-        <section className="sec-pad" id="compare">
-          <div className="container">
-            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <span className="kicker">Spreadsheets vs Rovora</span>
-              <h2 className="sec-title">There&rsquo;s a calmer way to run a fleet</h2>
-              <p className="sec-desc">Most small fleets run on a patchwork of spreadsheets, paper logs and group chats. Here&rsquo;s what changes the day you move to Rovora.</p>
-            </div>
-            <div className="cmp-grid reveal-stagger">
-              <div className="cmp-card cmp-old">
-                <div className="cmp-head">Spreadsheets &amp; WhatsApp</div>
-                <ul className="cmp-list">
-                  <li><span className="cmp-x" aria-hidden>✕</span> Vehicle docs &amp; services tracked from memory</li>
-                  <li><span className="cmp-x" aria-hidden>✕</span> Damage logged on scraps of paper — costs lost</li>
-                  <li><span className="cmp-x" aria-hidden>✕</span> No expiry alerts — licences lapse unnoticed</li>
-                  <li><span className="cmp-x" aria-hidden>✕</span> Driver pay worked out by hand, every week</li>
-                  <li><span className="cmp-x" aria-hidden>✕</span> GPS trackers: €100+ per car, SIM fees, installers</li>
-                  <li><span className="cmp-x" aria-hidden>✕</span> Version chaos across a dozen spreadsheets</li>
-                </ul>
-              </div>
-              <div className="cmp-card cmp-new">
-                <div className="cmp-head">Rovora</div>
-                <ul className="cmp-list">
-                  <li><span className="tick"><Check /></span> Every vehicle&rsquo;s docs, mileage &amp; services in one place</li>
-                  <li><span className="tick"><Check /></span> Damage logged against the car with full repair history</li>
-                  <li><span className="tick"><Check /></span> Tiered alerts before any licence or doc lapses</li>
-                  <li><span className="tick"><Check /></span> Driver pay reconciled automatically each week</li>
-                  <li><span className="tick"><Check /></span> Live GPS map through the driver app — €0 hardware</li>
-                  <li><span className="tick"><Check /></span> One source of truth, plus a free driver app</li>
-                </ul>
-              </div>
-            </div>
           </div>
         </section>
 

@@ -11,6 +11,7 @@ interface ShiftData {
   id: string;
   name: string;
   starting_mileage: number;
+  ending_mileage: number | null;
   start_time: string;
   end_time: string | null;
   dashcam_checked: boolean;
@@ -43,6 +44,7 @@ export default function EditShiftPage({ params }: PageProps) {
   // Form state
   const [name, setName] = useState('');
   const [startingMileage, setStartingMileage] = useState('');
+  const [endingMileage, setEndingMileage] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [dashcamChecked, setDashcamChecked] = useState(false);
@@ -81,6 +83,7 @@ export default function EditShiftPage({ params }: PageProps) {
         // Populate form
         setName(shiftData.name);
         setStartingMileage(shiftData.starting_mileage.toString());
+        setEndingMileage(shiftData.ending_mileage != null ? String(shiftData.ending_mileage) : '');
         setStartTime(formatDateTimeLocal(shiftData.start_time));
         setEndTime(shiftData.end_time ? formatDateTimeLocal(shiftData.end_time) : '');
         setDashcamChecked(shiftData.dashcam_checked);
@@ -116,29 +119,37 @@ export default function EditShiftPage({ params }: PageProps) {
         throw new Error('Please enter a valid mileage');
       }
 
+      let endKm: number | null = null;
+      if (endingMileage.trim() !== '') {
+        endKm = parseInt(endingMileage, 10);
+        if (isNaN(endKm) || endKm < mileage) {
+          throw new Error('Ending mileage must be a number no lower than the starting mileage');
+        }
+      }
+
       const updateData: Record<string, unknown> = {
         name,
         starting_mileage: mileage,
+        ending_mileage: endKm,
         start_time: new Date(startTime).toISOString(),
         dashcam_checked: dashcamChecked,
         car_internal_checked: carInternalChecked,
         notes: notes || null,
+        // Empty end time = the shift is (re)opened.
+        end_time: endTime ? new Date(endTime).toISOString() : null,
       };
 
-      // Only update end_time if provided
-      if (endTime) {
-        updateData.end_time = new Date(endTime).toISOString();
-      } else {
-        updateData.end_time = null;
-      }
-
-      const { error: updateError } = await supabase
-        .from('driver_shifts')
-        .update(updateData)
-        .eq('id', shiftId);
-
-      if (updateError) {
-        throw new Error(updateError.message);
+      // The write goes through the server: RLS only lets admins update shifts,
+      // so a staff member's direct update used to match zero rows while this
+      // page still reported success.
+      const res = await fetch(`/api/shifts/${shiftId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((json as { error?: string }).error || 'Failed to update shift');
       }
 
       setSuccess('Shift updated successfully');
@@ -222,6 +233,16 @@ export default function EditShiftPage({ params }: PageProps) {
                 onChange={(e) => setStartingMileage(e.target.value)}
                 min="0"
                 required
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Ending Mileage (km, leave empty if unknown)</label>
+              <input
+                type="number"
+                value={endingMileage}
+                onChange={(e) => setEndingMileage(e.target.value)}
+                min="0"
               />
             </div>
 

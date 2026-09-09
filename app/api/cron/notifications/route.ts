@@ -32,7 +32,12 @@ async function run(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const report = await evaluateNotificationRules();
-  return NextResponse.json({ ok: true, report });
+  // A partial failure must be visible: the GitHub Actions scheduler only fails a
+  // run on a non-2xx status, so returning 200 with `report.errors` populated
+  // hid lost alerts for weeks.
+  const ok = report.errors.length === 0;
+  if (!ok) console.error('notification rules engine reported errors:', report.errors);
+  return NextResponse.json({ ok, report }, { status: ok ? 200 : 500 });
 }
 
 export async function POST(request: Request) {

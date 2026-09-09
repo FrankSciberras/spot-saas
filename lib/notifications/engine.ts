@@ -5,30 +5,41 @@
 // match right now. Covers three triggers:
 //
 //   * document_expiry  — a document expiring within trigger_config.days_before
-//                        (default 30). Sources: the driver's own *_expiry_date
-//                        columns + driver-owned rows in `files`, PLUS the
-//                        vehicles' insurance/road-licence expiry columns and
-//                        vehicle-owned files (those facts go to admins).
+//                        (default 30), OR already expired (raised once more, as
+//                        an "Expired:" alert, for up to EXPIRED_GRACE_DAYS).
+//                        Sources: the driver's own *_expiry_date columns +
+//                        driver-owned rows in `files`, PLUS the vehicles'
+//                        insurance/road-licence expiry columns and vehicle-owned
+//                        files (those facts go to admins).
 //   * shift_reminder   — a shift starting within trigger_config.hours_before
 //                        (default 24).
 //   * service_due      — a vehicle approaching (or past) its next service, by
 //                        km (trigger_config.km_threshold, default 1000, against
 //                        the latest service's next_service_mileage) or by date
-//                        (trigger_config.days_before, default 14).
+//                        (trigger_config.days_before, default 14). "Latest
+//                        service" is decided by lib/maintenance/serviceDue.ts —
+//                        the same rule the Services page and the shift-start
+//                        check use, so they can't disagree.
 //
 // Delivery reuses the existing senders (in-app insert + web-push + email) and
 // honours each rule's `channel` and `target_role` — facts without a driver
-// (vehicle docs, service due) always route to admins. Every fact is deduped via
-// the notification_dedup table so a daily run never re-sends the same alert.
+// (vehicle docs, service due) always route to admins.
+//
+// Dedup: every fact is keyed PER RULE (`<rule id>:<fact key>`) in the
+// notification_dedup table, so two document rules with different windows (say
+// 30 days and 7 days) each fire once. Keys written before this per-rule scheme
+// are honoured too, so nothing already sent is repeated. Dedup rows are only
+// written AFTER the in-app rows were stored successfully — a failed insert is
+// retried on the next run instead of being silently lost.
 //
 // Event-based triggers (roster_published / roster_updated) are NOT handled here —
-// those should fire inline when a roster is published. weekly_summary is
-// deferred to a later pass.
+// those fire inline when a roster is published.
 // =============================================================================
 
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
+import { latestServiceByVehicle } from '@/lib/maintenance/serviceDue';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type Channel = 'app' | 'push' | 'email';
@@ -56,13 +67,19 @@ interface Rule {
 
 /** A single thing worth alerting about, plus how to address it. */
 interface Fact {
+  /** Rule-independent key; processOrg prefixes it with the rule id. */
   dedupKey: string;
   vars: Record<string, string | number>;
   driver?: { id: string; userId: string | null; email: string | null; name: string };
+  /** >0 when the document has already expired (days since expiry). */
+  expiredDays?: number;
 }
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
+const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
+/** Keep raising (once) an "expired" alert for documents that lapsed up to this long ago. */
+const EXPIRED_GRACE_DAYS = 90;
 
 const DOC_LABELS: Record<string, string> = {
   id_card_expiry_date: 'ID card',
@@ -96,12 +113,58 @@ function render(template: string, vars: Record<string, string | number>): string
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString('en-GB', { timeZone: TIME_ZONE, day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function asNumber(v: unknown, fallback: number): number {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** 'YYYY-MM-DD' of an instant in the fleet's time zone. */
+function localDateStr(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+}
+
+/** The calendar date of a stored expiry (date or timestamp string), or null. */
+function dateOnly(iso: string): string | null {
+  const s = iso.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+/** Whole days from `from` to `to` (both 'YYYY-MM-DD'); positive when `to` is later. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY);
+}
+
+interface ExpiryClass {
+  kind: 'soon' | 'expired';
+  daysLeft: number;
+  expiredDays: number;
+}
+
+/**
+ * Where a document sits relative to today (fleet-local date):
+ *   - expiring within `daysBefore` days (today counts, 0 days left) → 'soon'
+ *   - already expired, up to EXPIRED_GRACE_DAYS ago                 → 'expired'
+ *   - otherwise nothing to say.
+ * Dates are compared as calendar days, so a document dated today still alerts
+ * even though midnight has passed — the old instant comparison dropped it.
+ */
+function classifyExpiry(iso: string | null, today: string, daysBefore: number): ExpiryClass | null {
+  if (!iso) return null;
+  const doc = dateOnly(iso);
+  if (!doc) return null;
+  const diff = daysBetween(today, doc);
+  if (diff < 0) {
+    const expiredDays = -diff;
+    if (expiredDays > EXPIRED_GRACE_DAYS) return null;
+    return { kind: 'expired', daysLeft: 0, expiredDays };
+  }
+  if (diff <= daysBefore) return { kind: 'soon', daysLeft: diff, expiredDays: 0 };
+  return null;
 }
 
 // ── Evaluators ──────────────────────────────────────────────────────────────
@@ -111,42 +174,41 @@ interface OrgContext {
   driverById: Map<string, OrgContext['drivers'][number]>;
 }
 
-function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: { owner_id: string; type: string; expiry_date: string | null; file_name: string | null }[], now: Date): Fact[] {
-  const daysBefore = asNumber(rule.trigger_config?.days_before, 30);
-  const horizon = new Date(now.getTime() + daysBefore * DAY);
-  const facts: Fact[] = [];
+type FileRow = { owner_id: string; type: string; expiry_date: string | null; file_name: string | null };
 
-  const within = (iso: string | null): boolean => {
-    if (!iso) return false;
-    const d = new Date(iso);
-    return !Number.isNaN(d.getTime()) && d >= now && d <= horizon;
-  };
-  const daysLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - now.getTime()) / DAY));
+function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: FileRow[], now: Date): Fact[] {
+  const daysBefore = asNumber(rule.trigger_config?.days_before, 30);
+  const today = localDateStr(now);
+  const facts: Fact[] = [];
 
   // Driver expiry columns.
   for (const d of ctx.drivers) {
     const driver = { id: d.id, userId: d.user_id, email: d.email, name: d.full_name };
     for (const [col, label] of Object.entries(DOC_LABELS)) {
       const iso = (d as unknown as Record<string, string | null>)[col];
-      if (!within(iso)) continue;
+      const c = classifyExpiry(iso, today, daysBefore);
+      if (!c || !iso) continue;
       facts.push({
-        dedupKey: `docexp:driver:${d.id}:${col}:${iso}`,
+        dedupKey: `docexp:driver:${d.id}:${col}:${iso}${c.kind === 'expired' ? ':expired' : ''}`,
         driver,
-        vars: { driver_name: d.full_name, document_type: label, expiry_date: fmtDate(iso!), days_left: daysLeft(iso!), vehicle_reg: '' },
+        expiredDays: c.expiredDays,
+        vars: { driver_name: d.full_name, document_type: label, expiry_date: fmtDate(iso), days_left: c.daysLeft, vehicle_reg: '' },
       });
     }
   }
 
   // Driver-owned files with an expiry date.
   for (const f of files) {
-    if (!within(f.expiry_date)) continue;
+    const c = classifyExpiry(f.expiry_date, today, daysBefore);
+    if (!c || !f.expiry_date) continue;
     const d = ctx.driverById.get(f.owner_id);
     if (!d) continue;
     const label = FILE_TYPE_LABELS[f.type] || f.file_name || 'Document';
     facts.push({
-      dedupKey: `docexp:file:${f.owner_id}:${f.type}:${f.expiry_date}`,
+      dedupKey: `docexp:file:${f.owner_id}:${f.type}:${f.expiry_date}${c.kind === 'expired' ? ':expired' : ''}`,
       driver: { id: d.id, userId: d.user_id, email: d.email, name: d.full_name },
-      vars: { driver_name: d.full_name, document_type: label, expiry_date: fmtDate(f.expiry_date!), days_left: daysLeft(f.expiry_date!), vehicle_reg: '' },
+      expiredDays: c.expiredDays,
+      vars: { driver_name: d.full_name, document_type: label, expiry_date: fmtDate(f.expiry_date), days_left: c.daysLeft, vehicle_reg: '' },
     });
   }
 
@@ -169,68 +231,58 @@ const VEHICLE_DOC_LABELS: Record<string, string> = {
 };
 
 /** Vehicle documents (expiry columns + vehicle-owned files) — admin-facing. */
-function vehicleDocumentExpiryFacts(
-  rule: Rule,
-  vehicles: VehicleRow[],
-  vehicleFiles: { owner_id: string; type: string; expiry_date: string | null; file_name: string | null }[],
-  now: Date
-): Fact[] {
+function vehicleDocumentExpiryFacts(rule: Rule, vehicles: VehicleRow[], vehicleFiles: FileRow[], now: Date): Fact[] {
   const daysBefore = asNumber(rule.trigger_config?.days_before, 30);
-  const horizon = new Date(now.getTime() + daysBefore * DAY);
+  const today = localDateStr(now);
   const facts: Fact[] = [];
-
-  const within = (iso: string | null): boolean => {
-    if (!iso) return false;
-    const d = new Date(iso);
-    return !Number.isNaN(d.getTime()) && d >= now && d <= horizon;
-  };
-  const daysLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - now.getTime()) / DAY));
   const regById = new Map(vehicles.map((v) => [v.id, v.registration_number]));
 
   for (const v of vehicles) {
     for (const [col, label] of Object.entries(VEHICLE_DOC_LABELS)) {
       const iso = (v as unknown as Record<string, string | null>)[col];
-      if (!within(iso)) continue;
+      const c = classifyExpiry(iso, today, daysBefore);
+      if (!c || !iso) continue;
       facts.push({
-        dedupKey: `docexp:vehicle:${v.id}:${col}:${iso}`,
-        vars: { driver_name: '', document_type: `${label} for ${v.registration_number}`, expiry_date: fmtDate(iso!), days_left: daysLeft(iso!), vehicle_reg: v.registration_number },
+        dedupKey: `docexp:vehicle:${v.id}:${col}:${iso}${c.kind === 'expired' ? ':expired' : ''}`,
+        expiredDays: c.expiredDays,
+        vars: { driver_name: '', document_type: `${label} for ${v.registration_number}`, expiry_date: fmtDate(iso), days_left: c.daysLeft, vehicle_reg: v.registration_number },
       });
     }
   }
 
   for (const f of vehicleFiles) {
-    if (!within(f.expiry_date)) continue;
+    const c = classifyExpiry(f.expiry_date, today, daysBefore);
+    if (!c || !f.expiry_date) continue;
     const reg = regById.get(f.owner_id);
     if (!reg) continue;
     const label = FILE_TYPE_LABELS[f.type] || f.file_name || 'Document';
     facts.push({
-      dedupKey: `docexp:vfile:${f.owner_id}:${f.type}:${f.expiry_date}`,
-      vars: { driver_name: '', document_type: `${label} for ${reg}`, expiry_date: fmtDate(f.expiry_date!), days_left: daysLeft(f.expiry_date!), vehicle_reg: reg },
+      dedupKey: `docexp:vfile:${f.owner_id}:${f.type}:${f.expiry_date}${c.kind === 'expired' ? ':expired' : ''}`,
+      expiredDays: c.expiredDays,
+      vars: { driver_name: '', document_type: `${label} for ${reg}`, expiry_date: fmtDate(f.expiry_date), days_left: c.daysLeft, vehicle_reg: reg },
     });
   }
 
   return facts;
 }
 
+type ServiceTarget = { id: string; next_service_mileage: number | null; next_service_date: string | null };
+
 /**
  * Vehicles approaching (or past) their next service — admin-facing. Uses the
- * LATEST service record per vehicle that sets a next-service target. A vehicle
- * fires when its mileage is within km_threshold of next_service_mileage, or
+ * LATEST service record per vehicle that sets a next-service target (see
+ * lib/maintenance/serviceDue.ts for how "latest" is decided). A vehicle fires
+ * when its mileage is within km_threshold of next_service_mileage, or
  * next_service_date is within days_before (or already past).
  */
-function serviceDueFacts(
-  rule: Rule,
-  vehicles: VehicleRow[],
-  latestServiceByVehicle: Map<string, { id: string; next_service_mileage: number | null; next_service_date: string | null }>,
-  now: Date
-): Fact[] {
+function serviceDueFacts(rule: Rule, vehicles: VehicleRow[], latest: Map<string, ServiceTarget>, now: Date): Fact[] {
   const kmThreshold = asNumber(rule.trigger_config?.km_threshold, 1000);
   const daysBefore = asNumber(rule.trigger_config?.days_before, 14);
   const horizon = new Date(now.getTime() + daysBefore * DAY);
   const facts: Fact[] = [];
 
   for (const v of vehicles) {
-    const svc = latestServiceByVehicle.get(v.id);
+    const svc = latest.get(v.id);
     if (!svc) continue;
     const vehicleName = [v.make, v.model].filter(Boolean).join(' ');
 
@@ -313,7 +365,16 @@ function shiftReminderFacts(
         driver_name: d.full_name,
         shift_name: s.name ?? 'your shift',
         vehicle_reg: reg,
-        start_time: new Date(s.start_time).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        // Fleet-local time — the server runs in UTC, and "starts 06:00" for an
+        // 08:00 Malta shift is exactly the kind of alert drivers stop trusting.
+        start_time: start.toLocaleString('en-GB', {
+          timeZone: TIME_ZONE,
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         hours_until: hoursUntil,
       },
     });
@@ -360,6 +421,15 @@ export async function evaluateNotificationRules(opts: { orgId?: string; now?: Da
   return report;
 }
 
+interface Candidate {
+  rule: Rule;
+  fact: Fact;
+  /** Per-rule dedup key actually stored: `<rule id>:<fact key>`. */
+  key: string;
+  /** The pre-per-rule key format, honoured so already-sent alerts don't repeat. */
+  legacyKey: string;
+}
+
 async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now: Date, report: EngineReport) {
   // Org context: active drivers + their emails.
   const { data: driverRows } = await admin
@@ -389,11 +459,16 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
   }));
   const ctx: OrgContext = { drivers, driverById: new Map(drivers.map((d) => [d.id, d])) };
 
-  // Admin/staff users (for admin-targeted rules) — lazy.
+  // Admin/staff users (for admin-targeted rules) — lazy. Includes drivers who
+  // also hold staff access in this fleet.
   let adminUsersCache: { id: string; email: string }[] | null = null;
   const adminUsers = async () => {
     if (adminUsersCache) return adminUsersCache;
-    const { data: mems } = await admin.from('memberships').select('user_id').eq('organization_id', orgId).in('role', ['admin', 'staff']);
+    const { data: mems } = await admin
+      .from('memberships')
+      .select('user_id')
+      .eq('organization_id', orgId)
+      .or('role.in.(admin,staff),also_staff.eq.true');
     const ids = Array.from(new Set(((mems ?? []) as { user_id: string }[]).map((m) => m.user_id)));
     if (!ids.length) { adminUsersCache = []; return adminUsersCache; }
     const { data: us } = await admin.from('users').select('id, email').in('id', ids);
@@ -402,14 +477,14 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
   };
 
   // Build all candidate facts for this org.
-  const candidates: { rule: Rule; fact: Fact }[] = [];
+  const candidates: Candidate[] = [];
 
   const needDocs = rules.some((r) => r.trigger_type === 'document_expiry');
   const needShifts = rules.some((r) => r.trigger_type === 'shift_reminder');
   const needService = rules.some((r) => r.trigger_type === 'service_due');
 
-  let files: { owner_id: string; type: string; expiry_date: string | null; file_name: string | null }[] = [];
-  let vehicleFiles: typeof files = [];
+  let files: FileRow[] = [];
+  let vehicleFiles: FileRow[] = [];
   if (needDocs) {
     const { data: fileRows } = await admin
       .from('files')
@@ -417,7 +492,7 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
       .eq('organization_id', orgId)
       .eq('owner_type', 'driver')
       .not('expiry_date', 'is', null);
-    files = (fileRows ?? []) as typeof files;
+    files = (fileRows ?? []) as FileRow[];
 
     const { data: vFileRows } = await admin
       .from('files')
@@ -425,7 +500,7 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
       .eq('organization_id', orgId)
       .eq('owner_type', 'vehicle')
       .not('expiry_date', 'is', null);
-    vehicleFiles = (vFileRows ?? []) as typeof files;
+    vehicleFiles = (vFileRows ?? []) as FileRow[];
   }
 
   // Vehicles power both the vehicle-document sweep and service-due checks.
@@ -438,20 +513,18 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
     vehicles = (vehicleRows ?? []) as VehicleRow[];
   }
 
-  // Latest service per vehicle that sets a next-service target (km or date).
-  const latestServiceByVehicle = new Map<string, { id: string; next_service_mileage: number | null; next_service_date: string | null }>();
+  // Latest service per vehicle that sets a next-service target (km or date) —
+  // decided by the shared rule in lib/maintenance/serviceDue.ts.
+  let latestService = new Map<string, ServiceTarget>();
   if (needService) {
     const { data: svcRows } = await admin
       .from('vehicle_services')
-      .select('id, vehicle_id, service_date, next_service_mileage, next_service_date')
+      .select('id, vehicle_id, service_date, mileage_at_service, next_service_mileage, next_service_date')
       .eq('organization_id', orgId)
-      .or('next_service_mileage.not.is.null,next_service_date.not.is.null')
-      .order('service_date', { ascending: false });
-    for (const s of (svcRows ?? []) as { id: string; vehicle_id: string; service_date: string; next_service_mileage: number | null; next_service_date: string | null }[]) {
-      if (!latestServiceByVehicle.has(s.vehicle_id)) {
-        latestServiceByVehicle.set(s.vehicle_id, { id: s.id, next_service_mileage: s.next_service_mileage, next_service_date: s.next_service_date });
-      }
-    }
+      .or('next_service_mileage.not.is.null,next_service_date.not.is.null');
+    latestService = latestServiceByVehicle(
+      (svcRows ?? []) as { id: string; vehicle_id: string; service_date: string | null; mileage_at_service: number | null; next_service_mileage: number | null; next_service_date: string | null }[]
+    );
   }
 
   let shifts: { id: string; driver_id: string; vehicle_id: string | null; name: string | null; start_time: string }[] = [];
@@ -481,87 +554,112 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
         : rule.trigger_type === 'shift_reminder'
           ? shiftReminderFacts(rule, ctx, shifts, vehicleReg, now)
           : rule.trigger_type === 'service_due'
-            ? serviceDueFacts(rule, vehicles, latestServiceByVehicle, now)
+            ? serviceDueFacts(rule, vehicles, latestService, now)
             : [];
-    for (const fact of facts) candidates.push({ rule, fact });
+    for (const fact of facts) {
+      candidates.push({ rule, fact, key: `${rule.id}:${fact.dedupKey}`, legacyKey: fact.dedupKey });
+    }
   }
 
   if (candidates.length === 0) return;
 
-  // Dedup: drop anything already sent for this org.
-  const keys = Array.from(new Set(candidates.map((c) => c.fact.dedupKey)));
+  // Dedup: drop anything already sent for this org — under the per-rule key OR
+  // the older rule-less key.
+  const keys = Array.from(new Set(candidates.flatMap((c) => [c.key, c.legacyKey])));
   const existing = new Set<string>();
-  // chunk the IN() to stay well under limits
   for (let i = 0; i < keys.length; i += 200) {
     const slice = keys.slice(i, i + 200);
     const { data } = await admin.from('notification_dedup').select('dedup_key').eq('organization_id', orgId).in('dedup_key', slice);
     for (const row of (data ?? []) as { dedup_key: string }[]) existing.add(row.dedup_key);
   }
 
-  const fresh = candidates.filter((c) => !existing.has(c.fact.dedupKey));
+  const seen = new Set<string>(); // in-batch duplicate keys
+  const fresh = candidates.filter((c) => {
+    if (existing.has(c.key) || existing.has(c.legacyKey) || seen.has(c.key)) return false;
+    seen.add(c.key);
+    return true;
+  });
   report.skippedDuplicates += candidates.length - fresh.length;
   if (fresh.length === 0) return;
 
-  const notifRows: Record<string, unknown>[] = [];
-  const dedupRows: Record<string, unknown>[] = [];
-  const logRows: Record<string, unknown>[] = [];
+  // Phase 1 — decide what each fact sends.
+  interface Plan {
+    c: Candidate;
+    title: string;
+    body: string;
+    chans: Channel[];
+    toDriver: boolean;
+    toAdmin: boolean;
+  }
   const nowIso = now.toISOString();
-  const sentDedup = new Set<string>(); // guard against in-batch duplicate keys
+  const plans: Plan[] = [];
+  const notifRows: Record<string, unknown>[] = [];
 
-  for (const { rule, fact } of fresh) {
-    if (sentDedup.has(fact.dedupKey)) continue;
-    sentDedup.add(fact.dedupKey);
-
+  for (const c of fresh) {
+    const { rule, fact } = c;
     const chans = channelsOf(rule.channel);
-    const title = render(rule.title_template, fact.vars);
-    const body = render(rule.body_template, fact.vars);
+    let title = render(rule.title_template, fact.vars);
+    let body = render(rule.body_template, fact.vars);
+    if (fact.expiredDays) {
+      // Same rule/template, but make it unmistakable that this is past due.
+      if (!/expired/i.test(title)) title = `Expired: ${title}`;
+      const ago = fact.expiredDays === 1 ? 'yesterday' : `${fact.expiredDays} days ago`;
+      body = `${body} This document expired ${ago} and must be renewed.`;
+    }
     const role = rule.target_role ?? 'driver';
     const toDriver = (role === 'driver' || role === 'all') && !!fact.driver;
     // Facts with no driver attached (vehicle documents, service due) can only
     // meaningfully go to the fleet team, whatever the rule's target says.
     const toAdmin = role === 'admin' || role === 'all' || !fact.driver;
+    plans.push({ c, title, body, chans, toDriver, toAdmin });
 
-    if (toDriver && fact.driver) {
-      if (chans.includes('app')) {
-        notifRows.push({ organization_id: orgId, driver_id: fact.driver.id, title, body, type: 'warning', action_url: '/driver/notifications', target_role: 'driver', sent_at: nowIso, created_at: nowIso });
-        report.created++;
+    if (chans.includes('app')) {
+      if (toDriver && fact.driver) {
+        notifRows.push({ organization_id: orgId, driver_id: fact.driver.id, title, body, type: fact.expiredDays ? 'alert' : 'warning', action_url: '/driver/notifications', target_role: 'driver', sent_at: nowIso, created_at: nowIso });
       }
-      if (chans.includes('push') && fact.driver.userId) {
-        try { if (await sendPushNotification(fact.driver.userId, { title, body, url: '/driver/notifications' })) report.push++; } catch { /* ignore */ }
-      }
-      if (chans.includes('email') && fact.driver.email) {
-        try { if (await sendEmailNotification({ to: fact.driver.email, subject: title, body, driverName: fact.driver.name })) report.email++; } catch { /* ignore */ }
+      if (toAdmin) {
+        notifRows.push({ organization_id: orgId, driver_id: null, title, body, type: fact.expiredDays ? 'alert' : 'warning', action_url: '/fleet/notifications', target_role: 'admin', sent_at: nowIso, created_at: nowIso });
       }
     }
-
-    if (toAdmin) {
-      if (chans.includes('app')) {
-        notifRows.push({ organization_id: orgId, driver_id: null, title, body, type: 'warning', action_url: '/fleet/notifications', target_role: 'admin', sent_at: nowIso, created_at: nowIso });
-        report.created++;
-      }
-      if (chans.includes('push') || chans.includes('email')) {
-        const recips = await adminUsers();
-        for (const u of recips) {
-          if (chans.includes('push')) { try { if (await sendPushNotification(u.id, { title, body, url: '/fleet/notifications' })) report.push++; } catch { /* ignore */ } }
-          if (chans.includes('email')) { try { if (await sendEmailNotification({ to: u.email, subject: title, body })) report.email++; } catch { /* ignore */ } }
-        }
-      }
-    }
-
-    dedupRows.push({ organization_id: orgId, rule_id: rule.id, dedup_key: fact.dedupKey, sent_at: nowIso });
-    logRows.push({ organization_id: orgId, rule_id: rule.id, channel: rule.channel, title, body, status: 'sent', metadata: { dedup_key: fact.dedupKey }, sent_at: nowIso });
   }
 
+  // Phase 2 — store the in-app rows FIRST. If this fails nothing else goes out
+  // and nothing is marked as sent, so the next run retries the whole batch.
   if (notifRows.length) {
     const { error } = await admin.from('notifications').insert(notifRows);
-    if (error) report.errors.push(`org ${orgId} notifications insert: ${error.message}`);
+    if (error) {
+      report.errors.push(`org ${orgId} notifications insert failed (${notifRows.length} rows, will retry next run): ${error.message}`);
+      return;
+    }
+    report.created += notifRows.length;
   }
-  if (dedupRows.length) {
-    // ignore unique-violation races; not fatal
-    const { error } = await admin.from('notification_dedup').insert(dedupRows);
-    if (error) report.errors.push(`org ${orgId} dedup insert: ${error.message}`);
+
+  // Phase 3 — push + email.
+  for (const p of plans) {
+    const { fact } = p.c;
+    if (p.toDriver && fact.driver) {
+      if (p.chans.includes('push') && fact.driver.userId) {
+        try { if (await sendPushNotification(fact.driver.userId, { title: p.title, body: p.body, url: '/driver/notifications' })) report.push++; } catch { /* ignore */ }
+      }
+      if (p.chans.includes('email') && fact.driver.email) {
+        try { if (await sendEmailNotification({ to: fact.driver.email, subject: p.title, body: p.body, driverName: fact.driver.name })) report.email++; } catch { /* ignore */ }
+      }
+    }
+    if (p.toAdmin && (p.chans.includes('push') || p.chans.includes('email'))) {
+      const recips = await adminUsers();
+      for (const u of recips) {
+        if (p.chans.includes('push')) { try { if (await sendPushNotification(u.id, { title: p.title, body: p.body, url: '/fleet/notifications' })) report.push++; } catch { /* ignore */ } }
+        if (p.chans.includes('email')) { try { if (await sendEmailNotification({ to: u.email, subject: p.title, body: p.body })) report.email++; } catch { /* ignore */ } }
+      }
+    }
   }
-  if (logRows.length) {
-    await admin.from('notification_log').insert(logRows);
-  }
+
+  // Phase 4 — only now record the facts as sent.
+  const dedupRows = plans.map((p) => ({ organization_id: orgId, rule_id: p.c.rule.id, dedup_key: p.c.key, sent_at: nowIso }));
+  const logRows = plans.map((p) => ({ organization_id: orgId, rule_id: p.c.rule.id, channel: p.c.rule.channel, title: p.title, body: p.body, status: 'sent', metadata: { dedup_key: p.c.key }, sent_at: nowIso }));
+
+  const { error: dedupError } = await admin.from('notification_dedup').insert(dedupRows);
+  if (dedupError) report.errors.push(`org ${orgId} dedup insert: ${dedupError.message}`);
+  const { error: logError } = await admin.from('notification_log').insert(logRows);
+  if (logError) report.errors.push(`org ${orgId} log insert: ${logError.message}`);
 }

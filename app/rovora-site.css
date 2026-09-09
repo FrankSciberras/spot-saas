@@ -4,6 +4,45 @@
    Ported from the Rovora standalone mockup (Geist, accent #2bbd7e).
    ────────────────────────────────────────────────────────────── */
 
+/* ─── Display face for headings: Neue Haas Grotesk Display Pro ───
+   Licensed (Monotype), so the files live outside git — see public/fonts/README.md
+   for the exact filenames. Until they are present every heading silently falls
+   back to Geist. Weights map to the family's own scale: 55 Roman → 400,
+   65 Medium → 500 (what the headings use), 75 Bold → 700. */
+@font-face {
+  font-family: 'Neue Haas Grotesk Display Pro';
+  src: url('/fonts/NeueHaasDisplay-Roman.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk Display Pro';
+  src: url('/fonts/NeueHaasDisplay-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk Display Pro';
+  src: url('/fonts/NeueHaasDisplay-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Page titles (h1) and section titles (h2), in the Medium weight. Smaller
+   headings (feature rows, cards), body copy, buttons and the mono figures all
+   stay in Geist. "neue-haas-grotesk-display" is the Adobe Fonts name, so a
+   Typekit kit would also work without touching this file. */
+.rovora-site h1,
+.rovora-site h2,
+.rovora-site .hero-title,
+.rovora-site .sec-title {
+  font-family: 'Neue Haas Grotesk Display Pro', 'neue-haas-grotesk-display', var(--font-geist), -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font-weight: 500;
+}
+
 .rovora-site {
   /* light theme (default) */
   --bg-0: #f6f7f9;
@@ -359,6 +398,13 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .hero-micro span { display: inline-flex; align-items: center; gap: 7px; }
 .rovora-site .hero-micro .ck { color: var(--pos); }
 
+/* Trust row under the CTAs: five gold stars + a short caption. Sits on the same
+   rhythm as .hero-micro so the two read as one quiet block, not two lines. */
+.rovora-site .hero-stars { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; color: var(--text-3); }
+.rovora-site .hero-stars .stars { display: inline-flex; gap: 2px; color: #f5a623; }
+.rovora-site .hero-stars .stars svg { width: 16px; height: 16px; }
+.rovora-site .hero-stars .stars-text { font-weight: 500; color: var(--text-2); }
+
 /* ─── Hero stage: the demo video, standing alone ───
    Nothing overlaps it on purpose. The point of moving the demo up here is that
    a visitor can press play the moment they land, so the play button has to be
@@ -490,6 +536,24 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .sec-desc { margin: 16px 0 0; font-size: 17px; color: var(--text-2); line-height: 1.55; }
 
 /* ─── Stats band ─── */
+/* ─── Platforms strip: "Works with earnings from" Uber · Bolt · eCabs ───
+   A quiet logo band between the hero and the stats. Wordmarks are typeset
+   (heavy, tight, muted) so they read as logos without shipping brand files. */
+.rovora-site .platforms { padding: 26px 0 30px; }
+.rovora-site .platforms-cap { margin: 0 0 14px; text-align: center; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); font-family: var(--font-geist-mono), monospace; }
+.rovora-site .platforms-row { display: flex; align-items: center; justify-content: center; gap: 44px; flex-wrap: wrap; }
+.rovora-site .pmark { color: var(--text-3); opacity: 0.85; font-weight: 700; letter-spacing: -0.03em; font-size: 26px; line-height: 1; transition: opacity .15s, color .15s; }
+.rovora-site .platforms-row:hover .pmark { opacity: 0.55; }
+.rovora-site .platforms-row .pmark:hover { opacity: 1; color: var(--text-2); }
+.rovora-site .pmark-uber { font-weight: 600; letter-spacing: -0.02em; }
+.rovora-site .pmark-bolt { font-weight: 800; letter-spacing: -0.045em; }
+.rovora-site .pmark-ecabs { font-weight: 700; letter-spacing: -0.02em; }
+.rovora-site .pmark-more { font-weight: 500; font-size: 13px; letter-spacing: 0; opacity: 0.8; padding-left: 4px; }
+@media (max-width: 640px) {
+  .rovora-site .platforms-row { gap: 24px; }
+  .rovora-site .pmark { font-size: 21px; }
+}
+
 .rovora-site .stats { border-top: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); background: var(--bg-1); }
 .rovora-site .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
 .rovora-site .stat { padding: 40px 28px; text-align: center; border-left: 1px solid var(--line-1); }
@@ -634,6 +698,35 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .feat-list li span.t2 { color: var(--text-2); }
 
 /* ─── Small feature grid ─── */
+/* ─── Features accordion (homepage): rows on the left, live mock on the right ─── */
+.rovora-site .facc { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 28px; align-items: start; }
+.rovora-site .facc-list { display: flex; flex-direction: column; gap: 12px; }
+.rovora-site .facc-item { border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-1); transition: border-color .15s, box-shadow .2s; }
+.rovora-site .facc-item.open { border-color: var(--line-3); background: var(--bg-0); box-shadow: 0 14px 40px -30px rgba(15, 18, 26, 0.35); }
+.rovora-site .facc-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; background: none; border: none; cursor: pointer; text-align: left; color: var(--text-1); font-family: inherit; }
+.rovora-site .facc-title { font-size: 19px; font-weight: 500; letter-spacing: -0.015em; }
+.rovora-site .facc-icon { flex: none; width: 26px; height: 26px; display: grid; place-items: center; font-size: 22px; line-height: 1; color: var(--accent); font-weight: 400; }
+.rovora-site .facc-body { padding: 0 22px 22px; }
+.rovora-site .facc-body p { margin: 0; font-size: 15.5px; line-height: 1.6; color: var(--text-2); }
+.rovora-site .facc-body .feat-list { margin-top: 16px; gap: 9px; }
+.rovora-site .facc-body .feat-list li { font-size: 14.5px; }
+.rovora-site .facc-more { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; font-weight: 600; font-size: 14.5px; color: var(--accent); text-decoration: none; }
+.rovora-site .facc-more svg { width: 16px; height: 16px; transition: transform .15s; }
+.rovora-site .facc-more:hover svg { transform: translateX(3px); }
+.rovora-site .facc-stage { position: sticky; top: 96px; }
+.rovora-site .facc-shot { margin: 0; animation: facc-in .28s cubic-bezier(.22, .61, .36, 1); }
+.rovora-site .facc-shot-inline { display: none; margin: 20px 0 0; }
+@keyframes facc-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rovora-site .facc-phone { max-width: 320px; margin: 0 auto; border-radius: 28px; border: 1px solid var(--line-2); background: var(--bg-1); padding: 18px 16px 20px; box-shadow: 0 28px 70px -34px rgba(0, 0, 0, 0.5); }
+.rovora-site .facc-phone-top { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 14px; margin-bottom: 14px; }
+.rovora-site .facc-phone-pill { font-size: 11px; font-weight: 500; color: var(--pos); background: var(--pos-soft); padding: 3px 9px; border-radius: 100px; }
+.rovora-site .facc-phone-btn { margin-top: 16px; text-align: center; padding: 12px; border-radius: 12px; background: #dc2626; color: #fff; font-weight: 700; font-size: 14px; }
+@media (max-width: 900px) {
+  .rovora-site .facc { grid-template-columns: 1fr; }
+  .rovora-site .facc-stage { display: none; }
+  .rovora-site .facc-shot-inline { display: block; }
+}
+
 .rovora-site .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 52px; }
 .rovora-site .mini { padding: 24px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-1); transition: border-color .15s, transform .15s; }
 .rovora-site .mini:hover { border-color: var(--line-3); transform: translateY(-2px); }

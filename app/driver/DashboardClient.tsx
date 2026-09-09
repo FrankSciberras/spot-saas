@@ -71,26 +71,13 @@ export default function DashboardClient(props: {
   const [ending, setEnding] = useState(false);
   const [endError, setEndError] = useState('');
 
-  const handleEndShift = async () => {
+  const handleEndShift = () => {
     if (ending) return;
+    // Ending a shift records the closing odometer (and optional photos) on its
+    // own page, which then calls /api/shifts/end.
     setEnding(true);
     setEndError('');
-    try {
-      // Stop background location in the app (no-op in a plain browser).
-      const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
-      if (native) native.postMessage(JSON.stringify({ type: 'stop-tracking' }));
-
-      const res = await fetch('/api/shifts/end', { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || 'Could not end shift.');
-      }
-      router.refresh();
-    } catch (e) {
-      setEndError(e instanceof Error ? e.message : 'Could not end shift.');
-    } finally {
-      setEnding(false);
-    }
+    router.push('/driver/end-shift');
   };
 
   const settlementsData = Array.isArray(props.settlements) ? props.settlements : [];

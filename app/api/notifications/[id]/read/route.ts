@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { markOneRead } from '@/lib/notifications/reads';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -8,7 +9,9 @@ interface RouteParams {
 
 /**
  * POST /api/notifications/[id]/read
- * Mark a notification as read
+ * Mark a notification as read FOR THIS USER. Broadcasts are recorded per user
+ * (notification_reads), so one admin's click no longer clears the alert for
+ * every other admin; driver-addressed rows keep their own read_at.
  */
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
@@ -19,16 +22,21 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read_at: new Date().toISOString() })
-    .eq('id', id)
-    // active-fleet scope (RLS alone merges a multi-fleet user's orgs)
-    .eq('organization_id', session.organization_id);
+  try {
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('user_id', session.id)
+      .eq('organization_id', session.organization_id)
+      .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const result = await markOneRead(supabase, session, driver?.id ?? null, id);
+    if (result === 'not_found') {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error marking notification read:', error);
+    return NextResponse.json({ error: 'Failed to mark as read' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }

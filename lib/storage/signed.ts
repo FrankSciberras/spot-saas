@@ -38,3 +38,36 @@ export async function signStorageUrl(
   const { data } = await admin.storage.from(bucket).createSignedUrl(path, expiresIn);
   return data?.signedUrl ?? null;
 }
+
+/**
+ * Batch variant: sign many stored URLs/paths of ONE bucket in a single storage
+ * call. Returns a map from the original stored value to its signed URL (missing
+ * or failed entries are simply absent). Use this for list pages — signing each
+ * image separately costs a round-trip per photo.
+ */
+export async function signStorageUrls(
+  storedUrls: (string | null | undefined)[],
+  bucket: string,
+  expiresIn = 300
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const wanted = new Map<string, string>(); // object path -> original stored value
+  for (const stored of storedUrls) {
+    if (!stored) continue;
+    const path = pathFromStoredUrl(stored, bucket);
+    if (path && !wanted.has(path)) wanted.set(path, stored);
+  }
+  if (wanted.size === 0) return result;
+
+  const admin = createAdminClient();
+  const { data } = await admin.storage
+    .from(bucket)
+    .createSignedUrls(Array.from(wanted.keys()), expiresIn);
+  for (const entry of data || []) {
+    if (entry.path && entry.signedUrl) {
+      const original = wanted.get(entry.path);
+      if (original) result.set(original, entry.signedUrl);
+    }
+  }
+  return result;
+}
