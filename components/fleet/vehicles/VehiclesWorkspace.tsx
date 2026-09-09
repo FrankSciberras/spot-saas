@@ -24,6 +24,12 @@ export interface VehicleItem {
 interface Props {
   vehicles: VehicleItem[];
   canAdd: boolean;
+  /** Where a card click goes; the driver portal reuses this workspace with its own detail pages. */
+  hrefBase?: string;
+  /** Small breadcrumb line above the title. */
+  breadcrumb?: string;
+  /** The four KPI tiles above the filters (off in the driver portal). */
+  showStats?: boolean;
 }
 
 const STATUS_MAP: Record<VehStatus, { color: string; bg: string; label: string }> = {
@@ -121,7 +127,7 @@ function VehicleCard({ v, onClick }: { v: VehicleItem; onClick: () => void }) {
   );
 }
 
-export default function VehiclesWorkspace({ vehicles, canAdd }: Props) {
+export default function VehiclesWorkspace({ vehicles, canAdd, hrefBase = '/fleet/vehicles', breadcrumb = 'Operations / Vehicles', showStats = true }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | VehStatus>('all');
   const [search, setSearch] = useState('');
@@ -151,7 +157,7 @@ export default function VehiclesWorkspace({ vehicles, canAdd }: Props) {
     <>
       <div style={st.header} className="header-mobile-row">
         <div>
-          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Operations / Vehicles</div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>{breadcrumb}</div>
           <div style={st.titleRow}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
               <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Vehicles</h1>
@@ -168,12 +174,14 @@ export default function VehiclesWorkspace({ vehicles, canAdd }: Props) {
         </div>
       </div>
 
-      <div style={st.statsRow} className="stats-row-mobile">
-        <VehStat label="Active fleet" value={counts.active} sub={`of ${counts.all} vehicles`} icon="vehicle" accent="var(--text-1)" />
-        <VehStat label="Utilisation" value={`${Math.round(utilAvg * 100)}%`} sub="7-day average" icon="chart" accent="var(--accent)" />
-        <VehStat label="Severe damages" value={damagesTotal} sub="across active fleet" icon="damage" accent="var(--neg)" />
-        <VehStat label="Revenue this mo." value={fmtEUR(revenueMonth, { decimals: 0, compact: true })} sub="all vehicles combined" icon="settle" accent="var(--pos)" />
-      </div>
+      {showStats && (
+        <div style={st.statsRow} className="stats-row-mobile">
+          <VehStat label="Active fleet" value={counts.active} sub={`of ${counts.all} vehicles`} icon="vehicle" accent="var(--text-1)" />
+          <VehStat label="Utilisation" value={`${Math.round(utilAvg * 100)}%`} sub="7-day average" icon="chart" accent="var(--accent)" />
+          <VehStat label="Severe damages" value={damagesTotal} sub="across active fleet" icon="damage" accent="var(--neg)" />
+          <VehStat label="Revenue this mo." value={fmtEUR(revenueMonth, { decimals: 0, compact: true })} sub="all vehicles combined" icon="settle" accent="var(--pos)" />
+        </div>
+      )}
 
       <div style={st.filterBar} className="header-mobile-row">
         <div style={st.tabs} className="chips-scroll full-mobile">
@@ -197,7 +205,7 @@ export default function VehiclesWorkspace({ vehicles, canAdd }: Props) {
       </div>
 
       <div style={st.cardsGrid} className="grid-3">
-        {list.map((v) => <VehicleCard key={v.id} v={v} onClick={() => router.push(`/fleet/vehicles/${v.id}`)} />)}
+        {list.map((v) => <VehicleCard key={v.id} v={v} onClick={() => router.push(`${hrefBase}/${v.id}`)} />)}
         {list.length === 0 && (
           <div style={{ gridColumn: '1 / -1', padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12 }}>
             No vehicles match your filters.
