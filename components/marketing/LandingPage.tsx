@@ -239,8 +239,12 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           <div className="container">
             <p className="platforms-cap">Works with earnings from</p>
             <div className="platforms-row">
-              <span className="pmark pmark-uber">Uber</span>
-              <span className="pmark pmark-bolt">Bolt</span>
+              {/* Official marks, flattened to one grey via CSS so neither brand
+                  colour dominates (Uber ships black, Bolt ships green). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="pmark pmark-img" src="/platforms/uber.svg" alt="Uber" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="pmark pmark-img" src="/platforms/bolt.svg" alt="Bolt" />
               <span className="pmark pmark-ecabs">eCabs</span>
               <span className="pmark pmark-more">+ any platform via CSV</span>
             </div>
@@ -316,7 +320,8 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         </section>
 
         {/* HOW IT WORKS */}
-        <section className="sec-pad" id="how" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
+        {/* Tinted band: light green ground, white cards — see .how-band in rovora-site.css */}
+        <section className="sec-pad how-band" id="how">
           <div className="container">
             <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
               <span className="kicker">How it works</span>
