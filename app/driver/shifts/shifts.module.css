@@ -16,9 +16,10 @@
 
 /* Container */
 .container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 16px;
+  /* Match the fleet workspaces: full width, no inner padding (the shell pads). */
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Header */

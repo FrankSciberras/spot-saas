@@ -290,6 +290,35 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
         {/* Step 5 — plan recommendation + trial */}
         {step === 4 && (
           <div className={styles.step}>
+            {/* Trial CTA first — most users just want to get in; plans are the secondary path. */}
+            <div className={styles.trialPanel}>
+              <div className={styles.trialText}>
+                <div className={styles.trialTitle}>Not sure yet? Start your free 30-day trial</div>
+                <div className={styles.trialSub}>
+                  Full access to every feature. No credit card, cancel any time — pick a plan later from Billing.
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnLg} ${styles.trialBtn}`}
+                disabled={isPending}
+                onClick={() => finish('trial')}
+              >
+                {isPending && pendingChoice === 'trial' ? (
+                  <>
+                    <span className={styles.spinner} />
+                    Creating your fleet…
+                  </>
+                ) : (
+                  'Start free 30-day trial'
+                )}
+              </button>
+            </div>
+
+            <div className={styles.orDivider} aria-hidden>
+              <span>or choose a plan now</span>
+            </div>
+
             <div className={styles.grid}>
               {plans.map((plan) => {
                 const isRec = plan.id === recommended;
@@ -327,24 +356,6 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
                   </div>
                 );
               })}
-            </div>
-
-            <div className={styles.orTrial}>
-              <button
-                type="button"
-                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnFull} ${styles.btnLg}`}
-                disabled={isPending}
-                onClick={() => finish('trial')}
-              >
-                {isPending && pendingChoice === 'trial' ? (
-                  <>
-                    <span className={styles.spinner} />
-                    Creating your fleet…
-                  </>
-                ) : (
-                  'Start free 30-day trial'
-                )}
-              </button>
             </div>
 
             <div className={styles.navRow}>

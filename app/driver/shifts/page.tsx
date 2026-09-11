@@ -7,7 +7,7 @@ import styles from './shifts.module.css';
 
 // SVG Icons
 const PlayIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <path d="M8 5v14l11-7z"/>
   </svg>
 );
@@ -115,11 +115,22 @@ export default async function DriverShiftsPage() {
   return (
     <FleetShell user={user} variant="driver" title="My Shifts">
       <div className={styles.container}>
-        <div className={styles.header}>
-          <h2>Shift History</h2>
-          <Link href="/driver/go-online" className={styles.goOnlineBtn}>
+        {/* Same page header as the Vehicles workspace: breadcrumb, title + count, compact action. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 16px', gap: 12, flexWrap: 'wrap' }} className="header-mobile-row">
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>My fleet / Shifts</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Shifts</h1>
+              <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{shifts?.length ?? 0}</span>
+            </div>
+          </div>
+          <Link
+            href="/driver/go-online"
+            className="fleetHover"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}
+          >
             <PlayIcon />
-            Start Shift
+            Start shift
           </Link>
         </div>
 

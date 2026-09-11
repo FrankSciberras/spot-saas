@@ -102,6 +102,19 @@ export interface BrandedEmailOptions {
    * internal mail where the raw URL is just noise.
    */
   showLinkFallback?: boolean;
+  /**
+   * Optional secondary (outlined) button rendered next to the primary one,
+   * e.g. "Contact us" beside "Open your fleet".
+   */
+  secondaryActionUrl?: string;
+  secondaryActionLabel?: string;
+  /**
+   * TRUSTED pre-rendered HTML inserted between the body paragraphs and the
+   * buttons — for richer layouts (link lists, checklists) that plain `body`
+   * text can't express. Never pass user-supplied content here unescaped; build
+   * it with the exported `emailBlocks` helpers, which escape for you.
+   */
+  sectionsHtml?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -175,16 +188,27 @@ export function renderBrandedEmail(opts: BrandedEmailOptions): string {
 
   // Bulletproof-ish button: the background lives on the <td> so clients that
   // drop padding or radius on the <a> still render a solid green block.
+  const secondary =
+    opts.secondaryActionUrl
+      ? `
+                  <td width="12" style="font-size:0;line-height:0;">&nbsp;</td>
+                  <td align="center" bgcolor="${BRAND.cardBg}" style="border:1px solid ${BRAND.line};border-radius:10px;">
+                    <a href="${escapeAttr(opts.secondaryActionUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:13px 26px;font-family:${FONT};font-size:15px;font-weight:600;line-height:1;color:${BRAND.text1};text-decoration:none;border-radius:10px;">${escapeHtml(opts.secondaryActionLabel || 'Learn more')}</a>
+                  </td>`
+      : '';
+
   const button = opts.actionUrl
     ? `
               <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:6px 0 4px;">
                 <tr>
                   <td align="center" bgcolor="${BRAND.accent}" style="border-radius:10px;">
                     <a href="${escapeAttr(opts.actionUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 30px;font-family:${FONT};font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:10px;">${escapeHtml(opts.actionLabel || 'Open')}</a>
-                  </td>
+                  </td>${secondary}
                 </tr>
               </table>`
     : '';
+
+  const sections = opts.sectionsHtml ?? '';
 
   // Kept small, muted and below the button — a raw action link is a fallback,
   // not the main event. It used to be pasted into the body above the button,
@@ -245,6 +269,7 @@ export function renderBrandedEmail(opts: BrandedEmailOptions): string {
               ${greeting}
               ${paragraphs}
               ${codeBlock}
+              ${sections}
               ${button}
               ${linkFallback}
             </td>
@@ -267,3 +292,73 @@ export function renderBrandedEmail(opts: BrandedEmailOptions): string {
 </body>
 </html>`;
 }
+
+// ─── Rich block helpers ───────────────────────────────────────────────────────
+// Small, escaped building blocks for `sectionsHtml`. Tables + inline styles
+// only, for the same reasons as the shell above.
+
+export interface EmailLinkItem {
+  title: string;
+  description: string;
+  href: string;
+}
+
+export const emailBlocks = {
+  /** A small uppercase section label. */
+  sectionTitle(text: string): string {
+    return `
+              <p style="margin:22px 0 10px;font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.text3};">${escapeHtml(text)}</p>`;
+  },
+
+  /** Numbered steps — each row is a green number badge + title + one-line description. */
+  numberedSteps(items: EmailLinkItem[]): string {
+    const rows = items
+      .map(
+        (it, i) => `
+                <tr>
+                  <td valign="top" width="34" style="padding:0 0 14px;">
+                    <div style="width:26px;height:26px;border-radius:13px;background:${BRAND.accent};color:#ffffff;font-family:${FONT};font-size:13px;font-weight:700;line-height:26px;text-align:center;">${i + 1}</div>
+                  </td>
+                  <td valign="top" style="padding:2px 0 14px;">
+                    <a href="${escapeAttr(it.href)}" target="_blank" rel="noopener" style="font-family:${FONT};font-size:15px;font-weight:600;color:${BRAND.text1};text-decoration:none;">${escapeHtml(it.title)}</a>
+                    <div style="font-family:${FONT};font-size:13.5px;line-height:1.55;color:${BRAND.text2};margin-top:2px;">${escapeHtml(it.description)}</div>
+                  </td>
+                </tr>`,
+      )
+      .join('');
+    return `
+              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin:0 0 6px;">${rows}
+              </table>`;
+  },
+
+  /** Boxed list of guide links (title as link, muted description). */
+  linkList(items: EmailLinkItem[]): string {
+    const rows = items
+      .map(
+        (it, i) => `
+                <tr>
+                  <td style="padding:12px 16px;${i > 0 ? `border-top:1px solid ${BRAND.line};` : ''}">
+                    <a href="${escapeAttr(it.href)}" target="_blank" rel="noopener" style="font-family:${FONT};font-size:14.5px;font-weight:600;color:${BRAND.accent};text-decoration:none;">${escapeHtml(it.title)} &rarr;</a>
+                    <div style="font-family:${FONT};font-size:13px;line-height:1.5;color:${BRAND.text2};margin-top:2px;">${escapeHtml(it.description)}</div>
+                  </td>
+                </tr>`,
+      )
+      .join('');
+    return `
+              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin:0 0 22px;background:${BRAND.panelBg};border:1px solid ${BRAND.line};border-radius:12px;">${rows}
+              </table>`;
+  },
+
+  /** A soft callout panel with a short bold lead and a sentence. */
+  callout(lead: string, text: string): string {
+    return `
+              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin:4px 0 22px;">
+                <tr>
+                  <td style="background:#eef8f2;border:1px solid #bfe3cf;border-radius:12px;padding:14px 16px;">
+                    <span style="font-family:${FONT};font-size:14px;font-weight:700;color:${BRAND.accentDark};">${escapeHtml(lead)}</span>
+                    <span style="font-family:${FONT};font-size:14px;line-height:1.55;color:${BRAND.text2};"> ${escapeHtml(text)}</span>
+                  </td>
+                </tr>
+              </table>`;
+  },
+};

@@ -370,11 +370,72 @@
   cursor: not-allowed;
 }
 
-/* ── Trial divider + footer ── */
-.orTrial {
-  text-align: center;
-  margin: 4px auto 18px;
-  max-width: 460px;
+/* ── Trial-first panel above the plan grid ── */
+.trialPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+  border-radius: 16px;
+  border: 1px solid #bfe3cf;
+  background: linear-gradient(135deg, #f0faf4 0%, #e6f6ec 100%);
+  box-shadow: 0 6px 20px rgba(26, 143, 90, 0.08);
+}
+
+.trialTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.trialSub {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.trialBtn {
+  flex-shrink: 0;
+  min-width: 240px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(26, 143, 90, 0.28);
+}
+
+.orDivider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 auto 18px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.orDivider::before,
+.orDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e3e8f1;
+}
+
+@media (max-width: 640px) {
+  .trialPanel {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .trialBtn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .foot {

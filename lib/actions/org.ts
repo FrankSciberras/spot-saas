@@ -21,6 +21,7 @@ import { getPlans } from '@/lib/billing/plans-data';
 import { getPlanDef, hasStripeTarget } from '@/lib/billing/plans';
 import { isStripeEnabled } from '@/lib/billing/stripe';
 import { createPlanCheckoutSession } from '@/lib/billing/checkout';
+import { sendWelcomeEmail } from '@/lib/email/welcome';
 
 /**
  * Switch the active organization. Validates the caller is actually a member of
@@ -98,6 +99,23 @@ export async function completeOnboardingAction(
     if (modErr) {
       console.error('completeOnboardingAction (modules) failed:', modErr);
     }
+  }
+
+  // Welcome email — best-effort, never blocks onboarding. Sent before the
+  // paid-plan branch because that path can end in a redirect to Stripe.
+  if (user.email) {
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+    await sendWelcomeEmail({
+      to: user.email,
+      fullName: profile?.full_name ?? (user.user_metadata?.full_name as string | undefined) ?? null,
+      fleetName: trimmed,
+      onTrial: plan === 'trial',
+    });
   }
 
   // Paid plan chosen during onboarding.
