@@ -15,22 +15,24 @@
 
 /* Page Container */
 .page {
+  /* Flush with the shell padding, like the fleet dashboard (no inner cap/margin). */
+  max-width: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
   animation: fadeIn 0.5s ease-out;
 }
 
 .dashboardShell {
+  /* Flush with the shell padding, like the fleet dashboard (no inner cap/margin). */
+  max-width: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
   animation: fadeIn 0.5s ease-out;
 }
 

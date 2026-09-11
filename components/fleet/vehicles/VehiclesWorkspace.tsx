@@ -3,6 +3,7 @@
 import { type CSSProperties, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import FleetPageHeader, { fleetPrimaryBtn } from '@/components/fleet/FleetPageHeader';
 import { fmtEUR } from '@/components/fleet/FleetCharts';
 
 export type VehStatus = 'active' | 'idle' | 'service';
@@ -155,24 +156,16 @@ export default function VehiclesWorkspace({ vehicles, canAdd, hrefBase = '/fleet
 
   return (
     <>
-      <div style={st.header} className="header-mobile-row">
-        <div>
-          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>{breadcrumb}</div>
-          <div style={st.titleRow}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Vehicles</h1>
-              <span className="mono tnum" style={{ fontSize: 14, color: 'var(--text-3)' }}>{counts.all}</span>
-            </div>
-            {canAdd && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button style={st.primaryBtn} className="fleetHover" onClick={() => router.push('/fleet/vehicles/new')}>
-                  <FleetIcon name="plus" size={14} stroke={2.2} /> Add vehicle
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <FleetPageHeader
+        breadcrumb={breadcrumb}
+        title="Vehicles"
+        count={counts.all}
+        action={canAdd ? (
+          <button style={fleetPrimaryBtn} className="fleetHover" onClick={() => router.push('/fleet/vehicles/new')}>
+            <FleetIcon name="plus" size={14} stroke={2.2} /> Add vehicle
+          </button>
+        ) : undefined}
+      />
 
       {showStats && (
         <div style={st.statsRow} className="stats-row-mobile">

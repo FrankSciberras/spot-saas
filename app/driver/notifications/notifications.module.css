@@ -1,6 +1,8 @@
 .container {
-  max-width: 1400px;
-  margin: 0 auto;
+  /* Flush with the shell padding, like the fleet dashboard (no inner cap/margin). */
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 .loading {

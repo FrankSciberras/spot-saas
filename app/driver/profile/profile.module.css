@@ -27,12 +27,13 @@
 
 /* Container */
 .container {
+  /* Flush with the shell padding, like the fleet dashboard (no inner cap/margin). */
+  max-width: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 16px;
 }
 
 /* Error Card */
