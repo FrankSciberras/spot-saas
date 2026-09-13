@@ -8,7 +8,18 @@ import RovoraSupportChat from './RovoraSupportChat';
 import MarketingNav from './MarketingNav';
 import MarketingFooter from './MarketingFooter';
 import PricingPlans from './PricingPlans';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import LiteYouTube from './LiteYouTube';
+import HeroVideo from './HeroVideo';
+import TestimonialsCarousel from './TestimonialsCarousel';
+import { liveTestimonials } from './testimonials';
+
+const testimonials = liveTestimonials();
+
+// Checked at render/build time on the server: the hero uses the self-hosted
+// file only when it has actually been committed to public/videos.
+const hasHeroVideo = existsSync(join(process.cwd(), 'public', 'videos', 'hero.mp4'));
 import ReplacesSection from './ReplacesSection';
 import FeaturesAccordion from './FeaturesAccordion';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
@@ -219,9 +230,15 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               obvious thing on the page after the CTA. */}
           <div className="container hero-stage reveal">
             <div className="hero-video">
-              {/* Autoplays muted on a loop, like a living screenshot — visitors
-                  unmute with the player's own controls if they want the audio. */}
-              <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority autoplay />
+              {/* Self-hosted MP4/WebM when the files are in public/videos (full
+                  HD, exactly the encode we ship); otherwise the YouTube embed,
+                  which picks its own — usually sub-HD — quality for muted
+                  autoplay. See public/videos/README.md. */}
+              {hasHeroVideo ? (
+                <HeroVideo title="Rovora — fleet management demo" />
+              ) : (
+                <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority autoplay />
+              )}
             </div>
           </div>
 
@@ -349,6 +366,22 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
         </section>
 
         {/* INTEGRATIONS */}
+        {/* TESTIMONIALS — real customer quotes only; the section stays hidden
+            until components/marketing/testimonials.ts has live entries. */}
+        {testimonials.length > 0 && (
+          <section className="sec-pad" id="testimonials">
+            <div className="container">
+              <div className="sec-head center reveal" style={{ marginBottom: 40 }}>
+                <span className="kicker">What operators say</span>
+                <h2 className="sec-title">Fleets that switched to Rovora</h2>
+              </div>
+              <div className="reveal">
+                <TestimonialsCarousel items={testimonials} />
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="sec-pad" id="integrations" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
           <div className="container">
             <div className="sec-head center reveal" style={{ marginBottom: 56 }}>

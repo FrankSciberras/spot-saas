@@ -38,3 +38,4 @@ next-env.d.ts
 
 # stray expo CLI artifact (mobile/ has the real one)
 /app.json
+public/videos/source.mp4

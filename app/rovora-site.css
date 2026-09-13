@@ -514,6 +514,19 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
   height: calc(100% + 160px);
 }
 .rovora-site button.ytlite-poster { cursor: pointer; }
+
+/* Self-hosted hero video (HeroVideo.tsx). Same 16:9 box as the YouTube embed,
+   plus a quiet pause/play toggle in the corner so the motion can be stopped. */
+.rovora-site .herovid { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; border-radius: inherit; }
+.rovora-site .herovid-el { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.rovora-site .herovid-toggle { position: absolute; right: 14px; bottom: 14px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(0, 0, 0, 0.45); color: #fff; display: grid; place-items: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; backdrop-filter: blur(6px); }
+.rovora-site .herovid:hover .herovid-toggle,
+.rovora-site .herovid-toggle:focus-visible,
+.rovora-site .herovid-toggle[aria-pressed='true'] { opacity: 1; }
+.rovora-site .herovid-toggle:hover { background: rgba(0, 0, 0, 0.65); }
+.rovora-site .herovid-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 74px; height: 74px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.5); }
+.rovora-site .herovid-play svg { margin-left: 3px; }
+@media (max-width: 640px) { .rovora-site .herovid-play { width: 58px; height: 58px; } }
 .rovora-site .ytlite-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .rovora-site .ytlite-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 74px; height: 74px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 12px 34px -8px rgba(0, 0, 0, 0.55); transition: transform 0.15s ease, filter 0.15s ease; }
 .rovora-site .ytlite-play svg { margin-left: 3px; }
@@ -575,6 +588,32 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 @media (max-width: 640px) {
   .rovora-site .platforms-row { gap: 24px; }
   .rovora-site .pmark { font-size: 21px; }
+}
+
+/* ─── Testimonials carousel ─── */
+.rovora-site .tst { max-width: 760px; margin: 0 auto; }
+.rovora-site .tst-card { margin: 0; padding: 36px 40px; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 18px; box-shadow: 0 20px 50px -36px rgba(15, 18, 26, 0.35); animation: tst-in .35s cubic-bezier(.22, .61, .36, 1); }
+@keyframes tst-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rovora-site .tst-stars { display: inline-flex; align-items: center; gap: 3px; }
+.rovora-site .tst-star { position: relative; width: 18px; height: 18px; display: inline-block; }
+.rovora-site .tst-star svg { position: absolute; inset: 0; width: 18px; height: 18px; }
+.rovora-site .tst-star-fill { position: absolute; inset: 0; overflow: hidden; }
+.rovora-site .tst-stars-num { margin-left: 8px; font-size: 13px; font-weight: 500; color: var(--text-3); }
+.rovora-site .tst-quote { margin: 18px 0 0; font-size: 21px; line-height: 1.5; color: var(--text-1); letter-spacing: 0.1px; }
+.rovora-site .tst-who { display: flex; align-items: center; gap: 12px; margin-top: 24px; font-size: 14.5px; }
+.rovora-site .tst-who strong { display: block; font-weight: 500; color: var(--text-1); }
+.rovora-site .tst-role { display: block; color: var(--text-3); font-size: 13.5px; margin-top: 2px; }
+.rovora-site .tst-avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent); font-weight: 500; flex: none; }
+.rovora-site .tst-nav { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 22px; }
+.rovora-site .tst-arrow { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--bg-1); color: var(--text-2); display: grid; place-items: center; cursor: pointer; transition: border-color .15s, color .15s; }
+.rovora-site .tst-arrow:hover { border-color: var(--line-3); color: var(--text-1); }
+.rovora-site .tst-arrow svg { width: 18px; height: 18px; }
+.rovora-site .tst-dots { display: flex; gap: 8px; }
+.rovora-site .tst-dot { width: 8px; height: 8px; border-radius: 50%; border: 0; padding: 0; background: var(--line-3); cursor: pointer; transition: background .15s, transform .15s; }
+.rovora-site .tst-dot.on { background: var(--accent); transform: scale(1.25); }
+@media (max-width: 640px) {
+  .rovora-site .tst-card { padding: 26px 22px; }
+  .rovora-site .tst-quote { font-size: 18px; }
 }
 
 .rovora-site .stats { border-top: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); background: var(--bg-1); }
