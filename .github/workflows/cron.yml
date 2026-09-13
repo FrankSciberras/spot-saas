@@ -40,6 +40,7 @@ on:
     - cron: '*/30 * * * *'  # reminders
     - cron: '40 * * * *'    # open-shift watch (nudge at 14h, auto-close at 24h)
     - cron: '0 5 * * *'     # daily notification rules sweep
+    - cron: '0 7 * * *'     # daily "need a hand?" check-in to admins inactive 7+ days
     - cron: '30 5 * * 1'    # weekly driver safety report (Mondays)
     - cron: '0 8 * * 1'     # weekly package update check
   workflow_dispatch:
@@ -94,6 +95,13 @@ jobs:
           curl -fsS -m 120 --retry 3 --retry-delay 10 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/cron/notifications"
+
+      - name: Inactive-admin check-in (daily)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 7 * * *'
+        run: |
+          curl -fsS -m 120 --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/inactivity"
 
       - name: Driver safety report (Mondays)
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 5 * * 1'
