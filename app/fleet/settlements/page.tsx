@@ -32,7 +32,7 @@ async function SettlementsContent({ user }: { user: FleetUser }) {
   // Fleet-wide default driver share % (legacy fallback split) + default preset.
   const { data: org } = await supabase
     .from('organizations')
-    .select('settlement_driver_share_pct, default_settlement_preset_id')
+    .select('name, legal_name, vat_number, address, contact_email, contact_phone, settlement_driver_share_pct, default_settlement_preset_id')
     .eq('id', user.organization_id)
     .single();
   const orgDriverSharePct = org?.settlement_driver_share_pct ?? 50;
@@ -96,6 +96,7 @@ async function SettlementsContent({ user }: { user: FleetUser }) {
       orgDriverSharePct={orgDriverSharePct}
       presets={presets || []}
       orgDefaultPresetId={org?.default_settlement_preset_id ?? null}
+      fleet={org ? { name: org.name, legalName: org.legal_name, vatNumber: org.vat_number, address: org.address, contactEmail: org.contact_email, contactPhone: org.contact_phone } : null}
       platforms={platforms}
     />
   );

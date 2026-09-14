@@ -5,6 +5,7 @@ import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { SessionUser } from '@/lib/types/database';
 import BrandingSettings from './BrandingSettings';
+import FleetDetailsSettings from './FleetDetailsSettings';
 import styles from './settings.module.css';
 
 export default function SettingsPage() {
@@ -84,7 +85,7 @@ export default function SettingsPage() {
             <div className={styles.titleRow}>
               <h1 className={styles.title}>Settings</h1>
             </div>
-            <p className={styles.subtitle}>Manage system-wide feature toggles and configuration</p>
+            <p className={styles.subtitle}>Your fleet’s details, branding and preferences</p>
           </div>
         </div>
 
@@ -94,6 +95,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {user.role === 'admin' && <FleetDetailsSettings />}
         {user.role === 'admin' && <BrandingSettings />}
 
         <div className={styles.settingsGrid}>

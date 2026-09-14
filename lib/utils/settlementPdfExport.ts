@@ -45,17 +45,58 @@ interface DriverSettlementData {
   notes: string | null;
 }
 
+/** The fleet's identity, printed top-right of every settlement page. */
+export interface FleetIdentity {
+  name: string;
+  legalName?: string | null;
+  vatNumber?: string | null;
+  address?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+}
+
 interface ExportOptions {
   periodLabel: string;
   periodName: string | null;
   settlements: DriverSettlementData[];
+  fleet?: FleetIdentity | null;
+}
+
+/**
+ * Print the fleet's name and business details right-aligned in the header.
+ * Returns the y position below the block so the caller can avoid overlap.
+ */
+function drawFleetIdentity(doc: jsPDF, fleet: FleetIdentity | null | undefined, pageWidth: number, margin: number, top: number): number {
+  if (!fleet?.name) return top;
+  const right = pageWidth - margin;
+  let y = top;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0);
+  doc.text(fleet.name, right, y, { align: 'right' });
+  y += 4.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(100);
+  const lines: string[] = [];
+  if (fleet.legalName && fleet.legalName !== fleet.name) lines.push(fleet.legalName);
+  if (fleet.vatNumber) lines.push(`VAT ${fleet.vatNumber}`);
+  if (fleet.address) lines.push(...fleet.address.split(/\r?\n|,\s*/).map((s) => s.trim()).filter(Boolean).slice(0, 3));
+  const contact = [fleet.contactPhone, fleet.contactEmail].filter(Boolean).join(' · ');
+  if (contact) lines.push(contact);
+  for (const line of lines) {
+    doc.text(line, right, y, { align: 'right' });
+    y += 3.8;
+  }
+  doc.setTextColor(0);
+  return y;
 }
 
 /**
  * Export weekly settlements to PDF - one page per driver with 4 tables
  */
 export function exportSettlementsPdf(options: ExportOptions): void {
-  const { periodLabel, periodName, settlements } = options;
+  const { periodLabel, periodName, settlements, fleet } = options;
   
   if (settlements.length === 0) {
     alert('No settlements to export');
@@ -79,11 +120,13 @@ export function exportSettlementsPdf(options: ExportOptions): void {
       ? settlement.driverAdjustmentsNet
       : calculateAdjustmentsNet(driverAdjustments);
 
-    // Header
+    // Header — fleet identity top-right, settlement title top-left.
+    const identityBottom = drawFleetIdentity(doc, fleet, pageWidth, margin, yPos + 4);
+
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('Driver Settlement', margin, yPos);
-    yPos += 8;
+    doc.text('Driver Settlement', margin, yPos + 4);
+    yPos += 12;
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
@@ -92,7 +135,7 @@ export function exportSettlementsPdf(options: ExportOptions): void {
 
     doc.setFontSize(10);
     doc.setTextColor(100);
-    const periodText = settlement.periodName 
+    const periodText = settlement.periodName
       ? `${settlement.periodName} (${settlement.weekLabel})`
       : settlement.weekLabel;
     doc.text(periodText, margin, yPos);
@@ -100,12 +143,12 @@ export function exportSettlementsPdf(options: ExportOptions): void {
 
     // Status badge
     const statusText = settlement.status === 'finalized' ? 'Finalized' : 'Draft';
-    const paidText = settlement.paidAt 
+    const paidText = settlement.paidAt
       ? ` - Paid ${new Date(settlement.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
       : '';
     doc.text(`Status: ${statusText}${paidText}`, margin, yPos);
     doc.setTextColor(0);
-    yPos += 10;
+    yPos = Math.max(yPos + 10, identityBottom + 6);
 
     // Table 1: Platform Earnings Breakdown
     doc.setFontSize(11);

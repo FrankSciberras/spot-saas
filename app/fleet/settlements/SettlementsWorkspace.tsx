@@ -25,7 +25,7 @@ import {
   scaleWeekly,
   type PlatformEarningsInput
 } from '@/lib/utils/settlementCalculations';
-import { exportMonthlySettlementsPdf, exportSettlementsPdf } from '@/lib/utils/settlementPdfExport';
+import { exportMonthlySettlementsPdf, exportSettlementsPdf, type FleetIdentity } from '@/lib/utils/settlementPdfExport';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment, SettlementPreset } from '@/lib/types/database';
 import styles from './settlements.module.css';
@@ -78,6 +78,8 @@ interface SettlementsWorkspaceProps {
   orgDefaultPresetId: string | null;
   /** The fleet's active platforms (entry-form rows). Resolved server-side. */
   platforms: PlatformConfig[];
+  /** Fleet name + business details, printed on the settlement PDFs. */
+  fleet?: FleetIdentity | null;
 }
 
 export default function SettlementsWorkspace({
@@ -89,6 +91,7 @@ export default function SettlementsWorkspace({
   presets,
   orgDefaultPresetId,
   platforms: platformsProp,
+  fleet = null,
 }: SettlementsWorkspaceProps) {
   const router = useRouter();
 
@@ -555,8 +558,9 @@ export default function SettlementsWorkspace({
       periodLabel: currentPeriod.label,
       periodName: currentPeriod.periodName,
       settlements: settlementsData,
+      fleet,
     });
-  }, [currentPeriod, periodSettlements]);
+  }, [currentPeriod, periodSettlements, fleet]);
 
   // Get driver's settlement status
   const getDriverStatus = useCallback((driverId: string) => {

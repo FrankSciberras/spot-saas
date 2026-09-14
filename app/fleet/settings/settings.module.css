@@ -393,3 +393,59 @@ input:checked + .toggleSlider:before {
     align-items: flex-start;
   }
 }
+
+/* ── Fleet details form ─────────────────────────────────────────────────── */
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px 16px;
+  margin-top: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.field em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-4);
+  margin-left: 6px;
+}
+
+.field input,
+.field textarea {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-1);
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  padding: 10px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(26, 143, 90, 0.12));
+}
+
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
