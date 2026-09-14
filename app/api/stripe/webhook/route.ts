@@ -107,8 +107,16 @@ async function planKeyForPrice(price: Stripe.Price | undefined | null): Promise<
 }
 
 function periodEndIso(sub: Stripe.Subscription): string | null {
-  // `current_period_end` is a unix timestamp (seconds) when present.
-  const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+  // Since Stripe API 2025-03-31 the billing period lives on each subscription
+  // ITEM, not the subscription itself (which is why the old top-level read
+  // always came back null). Take the latest item end; fall back to the legacy
+  // field for any older-shaped payload. Unix seconds → ISO.
+  const items = sub.items?.data ?? [];
+  const itemEnds = items
+    .map((it) => (it as unknown as { current_period_end?: number }).current_period_end)
+    .filter((n): n is number => typeof n === 'number');
+  const legacy = (sub as unknown as { current_period_end?: number }).current_period_end;
+  const end = itemEnds.length ? Math.max(...itemEnds) : legacy;
   return typeof end === 'number' ? new Date(end * 1000).toISOString() : null;
 }
 
