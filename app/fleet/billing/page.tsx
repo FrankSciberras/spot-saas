@@ -4,6 +4,8 @@ import FleetShell from '@/components/fleet/FleetShell';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import { getPlans } from '@/lib/billing/plans-data';
 import { getPlanDef, TRIAL_DAYS } from '@/lib/billing/plans';
+import { listFleetInvoices, hasBillingAccount } from '@/lib/billing/invoices';
+import ManageBillingButton from './ManageBillingButton';
 import styles from './fleetBilling.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -49,10 +51,12 @@ function Meter({ label, used, cap }: { label: string; used: number; cap: number 
 export default async function FleetBillingPage() {
   const user = await requireRole(['admin', 'staff']);
   const isAdmin = user.role === 'admin';
-  const [plans, billing] = await Promise.all([
+  const [plans, billing, invoices] = await Promise.all([
     getPlans(),
     getFleetBilling(user.organization_id),
+    listFleetInvoices(user.organization_id),
   ]);
+  const hasStripeCustomer = invoices.length > 0 || (await hasBillingAccount(user.organization_id));
 
   const currentDef = getPlanDef(plans, billing.plan); // undefined while on trial
   const recommendedDef = getPlanDef(plans, billing.requiredPlan);
@@ -109,13 +113,64 @@ export default async function FleetBillingPage() {
           </div>
           <div className={styles.heroRight}>
             {isAdmin ? (
-              <Link href="/billing" className={styles.btnPrimary}>
-                {ctaLabel} <Arrow />
-              </Link>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                <Link href="/billing" className={styles.btnPrimary}>
+                  {ctaLabel} <Arrow />
+                </Link>
+                {hasStripeCustomer && <ManageBillingButton className={styles.btnGhost} />}
+              </div>
             ) : (
               <div className={styles.staffNote}>Only a fleet admin can change the plan.</div>
             )}
           </div>
+        </div>
+
+        {/* Invoices — straight from Stripe, newest first */}
+        <div className={styles.card} style={{ marginBottom: 16 }}>
+          <div className={styles.cardHead}>Invoices</div>
+          {invoices.length === 0 ? (
+            <div className={styles.cardBody} style={{ fontSize: 13, color: 'var(--text-3)' }}>
+              {billing.onTrial
+                ? 'No invoices yet — nothing is charged during the free trial.'
+                : 'No invoices yet.'}
+            </div>
+          ) : (
+            <div className={styles.tableWrap}>
+              <table className={styles.invoiceTable}>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Invoice</th>
+                    <th>Description</th>
+                    <th className={styles.num}>Amount</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv) => (
+                    <tr key={inv.id}>
+                      <td>{fmtDate(inv.date)}</td>
+                      <td className="mono">{inv.number ?? '—'}</td>
+                      <td>{inv.description}</td>
+                      <td className={`${styles.num} mono`}>
+                        {inv.amount.toLocaleString('en-MT', { style: 'currency', currency: inv.currency })}
+                      </td>
+                      <td>
+                        <span className={`${styles.invStatus} ${inv.status === 'paid' ? styles.invPaid : inv.status === 'open' ? styles.invOpen : ''}`}>
+                          {inv.status === 'paid' ? 'Paid' : inv.status === 'open' ? 'Due' : inv.status}
+                        </span>
+                      </td>
+                      <td className={styles.invLinks}>
+                        {inv.pdfUrl && <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer">PDF</a>}
+                        {inv.hostedUrl && <a href={inv.hostedUrl} target="_blank" rel="noopener noreferrer">{inv.status === 'open' ? 'Pay' : 'View'}</a>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className={styles.grid}>
