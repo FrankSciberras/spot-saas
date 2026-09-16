@@ -35,13 +35,53 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-09-ledger',
+    date: '2026-09-16',
+    dateHuman: 'September 2026',
+    title: 'Book it the moment it happens',
+    summary:
+      'Spent €20 on a car wash today? It goes in today — from your phone, receipt photo and all. Bookkeeping is now a running ledger of dated transactions, the way Xero and QuickBooks work, so there is nothing to remember until the end of the week and nothing to add up on Sunday.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Bookkeeping',
+        text: 'Add an expense or income in one tap from the Bookkeeping page, the dashboard or the “New” menu: amount, date (today by default), category, a note and an optional receipt photo. “Save & add another” for a handful of receipts in a row.',
+      },
+      {
+        tag: 'new',
+        area: 'Bookkeeping',
+        text: 'Totals for today, this week, the last 4 weeks, this month, last month, this quarter, this year or any custom range — worked out from the lines, with a comparison to the range before. No periods to open or close.',
+      },
+      {
+        tag: 'new',
+        area: 'Bookkeeping',
+        text: 'Tag a line to a vehicle or a driver, note who it was paid to, and search or filter the ledger by any of them. Download what you are looking at as a CSV for your accountant.',
+      },
+      {
+        tag: 'improved',
+        area: 'Recurring costs',
+        text: 'Lease, finance, road tax and insurance now behave like repeating bills: set them up once and a line is posted automatically on every due date, marked “Auto”. The Bookkeeping page shows what is coming up next.',
+      },
+      {
+        tag: 'improved',
+        area: 'Financials',
+        text: 'The Financials dashboard, the weekly bulk picker and the Xero & QuickBooks exports now run on individual transactions, so every export line is a real dated transaction rather than a period total.',
+      },
+      {
+        tag: 'improved',
+        area: 'Bookkeeping',
+        text: 'Everything you recorded in the old period sheets was carried over automatically, dated on the day each period ended and marked “Imported”. Your totals are unchanged.',
+      },
+    ],
+  },
+  {
     id: '2026-07-books',
     date: '2026-07-27',
     dateHuman: 'July 2026',
     title: 'Bookkeeping your way — your categories, your periods',
     summary:
       'Books no longer have to be weekly, and no longer have to use our categories. Keep them monthly if that suits your accountant, add the expense lines your fleet actually has, and let vehicle costs fill themselves in.',
-    highlight: true,
     items: [
       {
         tag: 'new',

@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
+import { derivePeriodBounds, parseDate, toISODate } from '@/lib/utils/bookkeepingPeriods';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetDashboard, {
@@ -126,57 +127,73 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
   expiringDocs.sort((a, b) => a.daysLeft - b.daysLeft);
   const topExpiringDocs = expiringDocs.slice(0, 8);
 
-  // Financials (admin only). Categories are per-fleet data, so the expense
-  // breakdown is built from whatever the fleet actually keeps books in rather
-  // than a hardcoded list of eight.
-  const [bookkeepingPeriodsResult, financeCategoriesResult] = isAdmin
+  // Financials (admin only) — the last 12 weeks of the ledger, bucketed by
+  // Mon–Sun week. Categories are per-fleet data, so the expense breakdown is
+  // built from whatever the fleet actually keeps books in.
+  type LedgerRow = { txn_date: string; category_id: string; amount: number };
+  type CategoryRow = { id: string; name: string; kind: string; color: string };
+  const DASHBOARD_WEEKS = 12;
+  const thisWeek = derivePeriodBounds('week', toISODate(new Date()));
+  const windowStart = toISODate(new Date(parseDate(thisWeek.start).getTime() - (DASHBOARD_WEEKS - 1) * 7 * 86_400_000));
+
+  const [transactionsResult, financeCategoriesResult] = isAdmin
     ? await Promise.all([
         supabase
-          .from('bookkeeping_periods')
-          .select('start_date, label, total_income, total_expenses, net_profit, entries:bookkeeping_entries(category_id, amount)')
+          .from('finance_transactions')
+          .select('txn_date, category_id, amount')
           .eq('organization_id', user.organization_id)
-          .order('start_date', { ascending: true }),
+          .gte('txn_date', windowStart)
+          .lte('txn_date', thisWeek.end)
+          .order('txn_date', { ascending: true }),
         supabase
           .from('org_finance_categories')
           .select('id, name, kind, color, sort_order')
-          .eq('organization_id', user.organization_id)
-          .eq('kind', 'expense'),
+          .eq('organization_id', user.organization_id),
       ])
-    : [{ data: [] as any[] }, { data: [] as any[] }];
+    : [{ data: [] as LedgerRow[] }, { data: [] as CategoryRow[] }];
 
-  const bookkeepingEntries = bookkeepingPeriodsResult.data || [];
-  const expenseCategories = financeCategoriesResult.data || [];
+  const ledger = (transactionsResult.data || []) as LedgerRow[];
+  const allCategories = (financeCategoriesResult.data || []) as CategoryRow[];
+  const categoryKind = new Map(allCategories.map((c) => [c.id, c.kind]));
+  const expenseCategories = allCategories.filter((c) => c.kind === 'expense');
 
-  const financialSeries = bookkeepingEntries.map((b: any) => ({
-    label: String(b.label || ''),
-    income: Number(b.total_income) || 0,
-    expenses: Number(b.total_expenses) || 0,
-    profit: Number(b.net_profit) || 0,
-  }));
+  // One point per week in the window, including empty weeks, so the line is
+  // continuous and "vs prev week" always compares real neighbours.
+  const weekBuckets = new Map<string, { label: string; income: number; expenses: number; profit: number }>();
+  for (let i = 0; i < DASHBOARD_WEEKS; i += 1) {
+    const ws = toISODate(new Date(parseDate(windowStart).getTime() + i * 7 * 86_400_000));
+    weekBuckets.set(ws, {
+      label: parseDate(ws).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }),
+      income: 0, expenses: 0, profit: 0,
+    });
+  }
 
-  const totals = bookkeepingEntries.reduce(
-    (acc, b: any) => {
-      acc.income += Number(b.total_income) || 0;
-      acc.expenses += Number(b.total_expenses) || 0;
-      acc.profit += Number(b.net_profit) || 0;
-      return acc;
-    },
-    { income: 0, expenses: 0, profit: 0 }
-  );
-
+  const totals = { income: 0, expenses: 0, profit: 0 };
   const expenseByCategory = new Map<string, number>();
-  for (const period of bookkeepingEntries as any[]) {
-    for (const entry of period.entries || []) {
-      const amount = Number(entry.amount) || 0;
-      if (amount > 0) {
-        expenseByCategory.set(entry.category_id, (expenseByCategory.get(entry.category_id) || 0) + amount);
-      }
+  for (const t of ledger) {
+    const amount = Number(t.amount) || 0;
+    if (amount <= 0) continue;
+    const bucket = weekBuckets.get(derivePeriodBounds('week', t.txn_date.split('T')[0]).start);
+    const isIncome = categoryKind.get(t.category_id) === 'income';
+    if (isIncome) {
+      totals.income += amount;
+      if (bucket) bucket.income += amount;
+    } else {
+      totals.expenses += amount;
+      if (bucket) bucket.expenses += amount;
+      expenseByCategory.set(t.category_id, (expenseByCategory.get(t.category_id) || 0) + amount);
     }
   }
+  totals.profit = totals.income - totals.expenses;
+  for (const b of weekBuckets.values()) b.profit = b.income - b.expenses;
+
+  // Only plot once there is something in the window — an all-zero line is
+  // noise, and the dashboard swaps in the onboarding cards instead.
+  const financialSeries = ledger.length > 0 ? Array.from(weekBuckets.values()) : [];
 
   const expensePalette = ['#f06464', '#f5b54a', '#2bbd7e', '#a78bfa', '#22d3ee', '#3ecf8e', '#ec4899', '#94a3b8'];
   const expenseBreakdown = expenseCategories
-    .map((c: any) => ({
+    .map((c) => ({
       label: String(c.name),
       amount: expenseByCategory.get(c.id) || 0,
       color: c.color as string,

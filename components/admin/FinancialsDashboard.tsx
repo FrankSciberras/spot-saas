@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, BookkeepingPeriodWithEntries } from '@/lib/types/database';
+import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, FinanceTransaction } from '@/lib/types/database';
 import type { FinanceCategory } from '@/lib/config/financeCategories';
 import { buildBookkeepingTxns, toQuickBooksCsv, toXeroCsv } from '@/lib/utils/accountingExport';
-import { splitAcrossMonths } from '@/lib/utils/bookkeepingPeriods';
+import { bucketFor, weekStartOf } from '@/lib/utils/financeRanges';
 import DatePicker from '@/components/shared/DatePicker';
 import WeekMultiSelect, { type WeekOption } from './WeekMultiSelect';
 import styles from './FinancialsDashboard.module.css';
@@ -35,8 +35,12 @@ type SettlementWithRelations = DriverSettlement & {
   settlement_platforms?: SettlementPlatform[];
 };
 
+/** The columns of finance_transactions the dashboard actually reads. */
+export type LedgerLine = Pick<FinanceTransaction, 'id' | 'txn_date' | 'category_id' | 'amount' | 'description' | 'counterparty' | 'source'>;
+
 interface FinancialsDashboardProps {
-  periods: BookkeepingPeriodWithEntries[];
+  /** Every ledger line for the fleet, any order. */
+  transactions: LedgerLine[];
   categories: FinanceCategory[];
   drivers: DriverListItem[];
   settlements: SettlementWithRelations[];
@@ -136,16 +140,6 @@ function addTo(totals: CategoryTotals, categoryId: string | null | undefined, va
   return { ...totals, [categoryId]: (totals[categoryId] || 0) + value };
 }
 
-/** Scale every line — used to weight a period across the months it spans. */
-function scaleTotals(totals: CategoryTotals, factor: number): CategoryTotals {
-  if (factor === 1) return totals;
-  const out: CategoryTotals = {};
-  for (const [key, value] of Object.entries(totals)) {
-    out[key] = value * factor;
-  }
-  return out;
-}
-
 /**
  * Map a settlement's platform_id onto an income category.
  *
@@ -219,7 +213,7 @@ function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
   return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, Number(adj.amount) || 0), 0);
 }
 
-export default function FinancialsDashboard({ periods, categories, drivers, settlements }: FinancialsDashboardProps) {
+export default function FinancialsDashboard({ transactions, categories, drivers, settlements }: FinancialsDashboardProps) {
   const [mode, setMode] = useState<DashboardMode>('fleet');
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
@@ -239,9 +233,13 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
   }, [categories]);
   const platformToCategory = useMemo(() => buildPlatformCategoryMap(categories), [categories]);
 
-  const sortedEntries = useMemo(() => {
-    return [...periods].sort((a, b) => parseISO(a.start_date).getTime() - parseISO(b.start_date).getTime());
-  }, [periods]);
+  // Oldest first. Each line is a point in time, so a report is a date-range
+  // sum — no period straddles a month any more, and nothing needs prorating.
+  const sortedTxns = useMemo(() => {
+    return [...transactions]
+      .map((t) => ({ ...t, txn_date: t.txn_date.split('T')[0] }))
+      .sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+  }, [transactions]);
 
   const sortedSettlements = useMemo(() => {
     return [...settlements].sort((a, b) => parseISO(a.week_start).getTime() - parseISO(b.week_start).getTime());
@@ -252,14 +250,14 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
     const end = safeIso(today);
     const start = safeIso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 365));
 
-    const first = sortedEntries[0]?.start_date?.split('T')[0];
-    const last = sortedEntries[sortedEntries.length - 1]?.end_date?.split('T')[0];
+    const first = sortedTxns[0]?.txn_date;
+    const last = sortedTxns[sortedTxns.length - 1]?.txn_date;
 
     return {
       start: first ?? start,
       end: last ?? end,
     };
-  }, [sortedEntries]);
+  }, [sortedTxns]);
 
   const settlementsRange = useMemo(() => {
     const today = new Date();
@@ -353,19 +351,14 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
     return () => { cancelled = true; };
   }, [mode, startDate, endDate, selectedDriverId]);
 
-  const filteredEntries = useMemo(() => {
-    if (groupBy === 'all_time') return sortedEntries;
-    if (fleetWeekFilter) return sortedEntries.filter((e) => fleetWeekFilter.has(e.id));
+  const filteredTxns = useMemo(() => {
+    if (groupBy === 'all_time') return sortedTxns;
+    // Week keys are the Monday of the week, so the bulk picker can select any
+    // set of weeks — including a 4-week pay cycle that skips one.
+    if (fleetWeekFilter) return sortedTxns.filter((t) => fleetWeekFilter.has(weekStartOf(t.txn_date)));
 
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
-
-    return sortedEntries.filter((e) => {
-      const s = parseISO(e.start_date);
-      const ed = parseISO(e.end_date);
-      return ed >= start && s <= end;
-    });
-  }, [fleetWeekFilter, groupBy, sortedEntries, startDate, endDate]);
+    return sortedTxns.filter((t) => t.txn_date >= startDate && t.txn_date <= endDate);
+  }, [fleetWeekFilter, groupBy, sortedTxns, startDate, endDate]);
 
   const filteredSettlements = useMemo(() => {
     const base = selectedDriverId === 'all' ? sortedSettlements : sortedSettlements.filter((s) => s.driver_id === selectedDriverId);
@@ -385,47 +378,14 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
   const allFleetPeriodOptions = useMemo(() => {
     if (groupBy === 'all_time') return [{ key: 'all_time', label: 'All time', start: bookkeepingRange.start, end: bookkeepingRange.end }];
     const map = new Map<string, { key: string; label: string; start: string; end: string }>();
-    for (const e of sortedEntries) {
-      const weekStart = parseISO(e.start_date.split('T')[0]);
-      let key: string, label: string, start: string, end: string;
-      if (groupBy === 'weekly') {
-        key = e.id;
-        start = e.start_date.split('T')[0];
-        end = e.end_date.split('T')[0];
-        label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
-      } else if (groupBy === 'monthly') {
-        // A period can span two months; offer both as selectable options.
-        for (const slice of splitAcrossMonths(e.start_date.split('T')[0], e.end_date.split('T')[0])) {
-          const mStart = parseISO(slice.month);
-          const monthKey = `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`;
-          if (!map.has(monthKey)) {
-            map.set(monthKey, {
-              key: monthKey,
-              label: mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
-              start: safeIso(startOfMonth(mStart)),
-              end: safeIso(endOfMonth(mStart)),
-            });
-          }
-        }
-        continue;
-      } else if (groupBy === 'quarterly') {
-        const q = getQuarter(weekStart);
-        key = `${weekStart.getFullYear()}-Q${q}`;
-        label = `${weekStart.getFullYear()} Q${q}`;
-        start = safeIso(new Date(weekStart.getFullYear(), (q - 1) * 3, 1));
-        end = safeIso(new Date(weekStart.getFullYear(), q * 3, 0));
-      } else {
-        key = String(weekStart.getFullYear());
-        label = key;
-        start = safeIso(new Date(weekStart.getFullYear(), 0, 1));
-        end = safeIso(new Date(weekStart.getFullYear(), 11, 31));
-      }
-      if (!map.has(key)) map.set(key, { key, label, start, end });
+    for (const t of sortedTxns) {
+      const b = bucketFor(t.txn_date, groupBy);
+      if (!map.has(b.key)) map.set(b.key, b);
     }
     const arr = Array.from(map.values());
-    arr.sort((a, b) => parseISO(a.start).getTime() - parseISO(b.start).getTime());
+    arr.sort((a, b) => a.start.localeCompare(b.start));
     return arr;
-  }, [bookkeepingRange.end, bookkeepingRange.start, groupBy, sortedEntries]);
+  }, [bookkeepingRange.end, bookkeepingRange.start, groupBy, sortedTxns]);
 
   const allDriverPeriodOptions = useMemo(() => {
     if (groupBy === 'all_time') return [{ key: 'all_time', label: 'All time', start: settlementsRange.start, end: settlementsRange.end }];
@@ -492,114 +452,37 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
   const aggregated = useMemo<AggregatedPeriod[]>(() => {
     const map = new Map<string, AggregatedPeriod>();
 
-    /** Fold one period's figures (optionally weighted) into a bucket. */
-    const addToBucket = (
-      bucket: { key: string; label: string; start: string; end: string },
-      income: CategoryTotals,
-      expenses: CategoryTotals,
-      totalIncome: number,
-      totalExpenses: number,
-    ) => {
-      const existing = map.get(bucket.key);
-      if (!existing) {
-        map.set(bucket.key, {
-          ...bucket,
-          income,
-          expenses,
-          total_income: totalIncome,
-          total_expenses: totalExpenses,
-          net_profit: totalIncome - totalExpenses,
-        });
-        return;
-      }
-      map.set(bucket.key, {
-        ...existing,
-        start: parseISO(bucket.start).getTime() < parseISO(existing.start).getTime() ? bucket.start : existing.start,
-        end: parseISO(bucket.end).getTime() > parseISO(existing.end).getTime() ? bucket.end : existing.end,
-        income: mergeTotals(existing.income, income),
-        expenses: mergeTotals(existing.expenses, expenses),
-        total_income: existing.total_income + totalIncome,
-        total_expenses: existing.total_expenses + totalExpenses,
-        net_profit: existing.net_profit + (totalIncome - totalExpenses),
-      });
-    };
+    for (const t of filteredTxns) {
+      const category = categoryById.get(t.category_id);
+      const amount = Number(t.amount) || 0;
+      if (!category || amount === 0) continue;
 
-    for (const e of filteredEntries) {
-      const periodStart = e.start_date.split('T')[0];
-      const periodEnd = e.end_date.split('T')[0];
-      const weekStart = parseISO(periodStart);
+      const bucket = groupBy === 'all_time'
+        ? { key: 'all_time', label: 'All time', start: bookkeepingRange.start, end: bookkeepingRange.end }
+        : bucketFor(t.txn_date, groupBy);
 
-      // Split the entries into income and expense sides by their category.
-      let income = initTotals();
-      let expenses = initTotals();
-      for (const entry of e.entries || []) {
-        const category = categoryById.get(entry.category_id);
-        const amount = Number(entry.amount) || 0;
-        if (!category || amount === 0) continue;
-        if (category.kind === 'income') income = addTo(income, entry.category_id, amount);
-        else expenses = addTo(expenses, entry.category_id, amount);
-      }
+      const existing = map.get(bucket.key) ?? {
+        ...bucket,
+        income: initTotals(),
+        expenses: initTotals(),
+        total_income: 0,
+        total_expenses: 0,
+        net_profit: 0,
+      };
 
-      const totalIncome = Number(e.total_income) || 0;
-      const totalExpenses = Number(e.total_expenses) || 0;
-
-      if (groupBy === 'monthly') {
-        // A period that straddles a month boundary is split by day count, so
-        // each month gets its actual share. Bucketing the whole period by its
-        // start date — as this did before — put every day of a 29 Jun–5 Jul
-        // week into June, which quietly overstated one month's accounts and
-        // understated the next.
-        for (const slice of splitAcrossMonths(periodStart, periodEnd)) {
-          const mStart = parseISO(slice.month);
-          addToBucket(
-            {
-              key: `${mStart.getFullYear()}-${String(mStart.getMonth() + 1).padStart(2, '0')}`,
-              label: mStart.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
-              start: safeIso(startOfMonth(mStart)),
-              end: safeIso(endOfMonth(mStart)),
-            },
-            scaleTotals(income, slice.weight),
-            scaleTotals(expenses, slice.weight),
-            totalIncome * slice.weight,
-            totalExpenses * slice.weight,
-          );
-        }
-        continue;
-      }
-
-      let key: string;
-      let label: string;
-      let start: string;
-      let end: string;
-
-      if (groupBy === 'all_time') {
-        key = 'all_time';
-        start = bookkeepingRange.start;
-        end = bookkeepingRange.end;
-        label = 'All time';
-      } else if (groupBy === 'weekly') {
-        key = e.id;
-        start = periodStart;
-        end = periodEnd;
-        label = `${formatShortDate(start)} – ${formatShortDate(end)}`;
-      } else if (groupBy === 'quarterly') {
-        const q = getQuarter(weekStart);
-        key = `${weekStart.getFullYear()}-Q${q}`;
-        label = `${weekStart.getFullYear()} Q${q}`;
-        start = safeIso(new Date(weekStart.getFullYear(), (q - 1) * 3, 1));
-        end = safeIso(new Date(weekStart.getFullYear(), q * 3, 0));
+      if (category.kind === 'income') {
+        existing.income = addTo(existing.income, t.category_id, amount);
+        existing.total_income += amount;
       } else {
-        key = String(weekStart.getFullYear());
-        label = key;
-        start = safeIso(new Date(weekStart.getFullYear(), 0, 1));
-        end = safeIso(new Date(weekStart.getFullYear(), 11, 31));
+        existing.expenses = addTo(existing.expenses, t.category_id, amount);
+        existing.total_expenses += amount;
       }
-
-      addToBucket({ key, label, start, end }, income, expenses, totalIncome, totalExpenses);
+      existing.net_profit = existing.total_income - existing.total_expenses;
+      map.set(bucket.key, existing);
     }
 
     const arr = Array.from(map.values());
-    arr.sort((a, b) => parseISO(a.start).getTime() - parseISO(b.start).getTime());
+    arr.sort((a, b) => a.start.localeCompare(b.start));
 
     return arr.map((p) => ({
       ...p,
@@ -607,7 +490,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
       total_expenses: Math.round(p.total_expenses * 100) / 100,
       net_profit: Math.round(p.net_profit * 100) / 100,
     }));
-  }, [bookkeepingRange.end, bookkeepingRange.start, filteredEntries, groupBy]);
+  }, [bookkeepingRange.end, bookkeepingRange.start, categoryById, filteredTxns, groupBy]);
 
   const driverAggregated = useMemo<DriverAggregatedPeriod[]>(() => {
     const map = new Map<string, DriverAggregatedPeriod>();
@@ -1148,9 +1031,9 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
   };
 
   // QuickBooks / Xero-ready transaction export over the whole filtered range —
-  // one signed line per bookkeeping category, ready to import as a bank CSV.
+  // one signed line per ledger transaction, ready to import as a bank CSV.
   const exportAccountingCsv = (flavor: 'quickbooks' | 'xero') => {
-    const txns = buildBookkeepingTxns(filteredEntries, categories);
+    const txns = buildBookkeepingTxns(filteredTxns, categories);
     if (txns.length === 0) return;
     const csv = flavor === 'xero' ? toXeroCsv(txns) : toQuickBooksCsv(txns);
     downloadTextFile(`accounting_${flavor}_${startDate}_to_${endDate}.csv`, csv, 'text/csv;charset=utf-8');
@@ -1183,7 +1066,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
               <div className={styles.title}>{mode === 'fleet' ? 'Financial Performance' : 'Driver Performance'}</div>
               <div className={styles.subtitle}>
                 {mode === 'fleet'
-                  ? 'Advanced breakdown from Weekly Bookkeeping entries'
+                  ? 'Built from every transaction in your Bookkeeping ledger'
                   : 'Compare drivers by gross, net and payout from Driver Settlements'}
                 {(startDate !== activeRange.start || endDate !== activeRange.end || weekSelection !== null) &&
                 groupBy !== 'all_time' ? (
@@ -1235,7 +1118,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
                   <button
                     className={styles.actionBtnSecondary}
                     onClick={() => exportAccountingCsv('quickbooks')}
-                    disabled={filteredEntries.length === 0}
+                    disabled={filteredTxns.length === 0}
                     title="Bank-format CSV ready to import into QuickBooks Online"
                   >
                     QuickBooks CSV
@@ -1243,7 +1126,7 @@ export default function FinancialsDashboard({ periods, categories, drivers, sett
                   <button
                     className={styles.actionBtnSecondary}
                     onClick={() => exportAccountingCsv('xero')}
-                    disabled={filteredEntries.length === 0}
+                    disabled={filteredTxns.length === 0}
                     title="Bank statement CSV ready to import into Xero"
                   >
                     Xero CSV

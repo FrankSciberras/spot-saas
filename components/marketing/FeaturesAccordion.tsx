@@ -170,7 +170,7 @@ const FEATURES: Feature[] = [
   {
     key: 'money',
     title: 'Financials & bookkeeping',
-    desc: 'Income, expenses and profit across the fleet — by week, month or your own pay period — with every transaction categorised and VAT-ready, so month-end takes minutes.',
+    desc: 'Record every expense or payout the moment it happens, receipt photo and all — then see income, expenses and profit for any week, month or pay cycle, VAT-ready and exportable to your accountant.',
     points: ['Profit per vehicle and per driver', 'Running costs, fuel and repairs logged against each car', 'Clean CSV for Xero and QuickBooks'],
     href: '/features/flexible-pay',
     shot: (

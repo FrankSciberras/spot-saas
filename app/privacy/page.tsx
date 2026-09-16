@@ -127,7 +127,7 @@ export default function PrivacyPage() {
                     </tr>
                     <tr>
                       <td>Operational &amp; financial</td>
-                      <td>Shifts, rosters, check-in mileage, earnings, settlements (fares, tips, campaigns, fees and tax deductions such as FSS), adjustments and weekly bookkeeping</td>
+                      <td>Shifts, rosters, check-in mileage, earnings, settlements (fares, tips, campaigns, fees and tax deductions such as FSS), adjustments and bookkeeping transactions (including receipt images you attach)</td>
                       <td>To run rosters and reconcile each driver’s weekly pay</td>
                     </tr>
                     <tr>

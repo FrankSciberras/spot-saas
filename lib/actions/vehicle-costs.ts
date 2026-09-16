@@ -14,9 +14,12 @@
 // A cost with vehicle_id NULL is a fleet-wide overhead (yard rent, fleet
 // insurance) rather than one car's.
 //
-// These rows are a TEMPLATE, not a ledger: creating a bookkeeping period
-// prorates whatever was live during it into that period's entries, which the
-// operator can then override. See lib/utils/bookkeepingPeriods.ts#prorateCost.
+// These rows are a TEMPLATE, not a ledger: they behave like repeating bills.
+// On each due date the app posts one finance_transactions line for the full
+// amount (source = 'recurring'), from the daily cron and as a catch-up when the
+// Bookkeeping page loads. See lib/bookkeeping/recurring.ts. posted_through on
+// the row records the last due date handled; a new cost starts posting from
+// its start_date (a past start date back-fills).
 // =============================================================================
 
 import { revalidatePath } from 'next/cache';
@@ -154,7 +157,7 @@ export async function createVehicleCostAction(input: VehicleCostInput): Promise<
   return { ok: true, id: data.id };
 }
 
-/** Edit a recurring cost. Periods already saved keep the figures they captured. */
+/** Edit a recurring cost. Lines already posted to the ledger are left as they are. */
 export async function updateVehicleCostAction(
   costId: string,
   input: VehicleCostInput,
@@ -215,8 +218,8 @@ export async function setVehicleCostActiveAction(
 }
 
 /**
- * Delete a recurring cost. Safe: it is only a template for future periods —
- * amounts already written into a period stay exactly as they were.
+ * Delete a recurring cost. Safe: it is only a template for future due dates —
+ * lines already posted to the ledger stay exactly as they were.
  */
 export async function deleteVehicleCostAction(costId: string): Promise<Result> {
   const user = await requireRole(['admin']);

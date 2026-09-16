@@ -20,6 +20,8 @@
 #                          each run costs ~1 Actions minute).
 #   * notification rules — daily 05:00 (doc-expiry / shift-reminder sweep;
 #                          deduped server-side, safe to re-run).
+#   * recurring costs    — daily 04:00 (posts due lease / insurance / road-tax
+#                          lines to every fleet's bookkeeping ledger; idempotent).
 #   * package updates    — Mondays 08:00 (same slot vercel.json intended).
 #
 # All three endpoints return 401 unless the Bearer secret matches, and each can
@@ -39,6 +41,7 @@ on:
     - cron: '10 * * * *'    # trip builder (trips/stops + GPS retention)
     - cron: '*/30 * * * *'  # reminders
     - cron: '40 * * * *'    # open-shift watch (nudge at 14h, auto-close at 24h)
+    - cron: '0 4 * * *'     # daily recurring bookkeeping costs (repeating bills)
     - cron: '0 5 * * *'     # daily notification rules sweep
     - cron: '0 7 * * *'     # daily "need a hand?" check-in to admins inactive 7+ days
     - cron: '30 5 * * 1'    # weekly driver safety report (Mondays)
@@ -88,6 +91,13 @@ jobs:
           curl -fsS -m 120 --retry 3 --retry-delay 10 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/cron/shifts"
+
+      - name: Recurring bookkeeping costs (daily)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 4 * * *'
+        run: |
+          curl -fsS -m 120 --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/recurring-costs"
 
       - name: Notification rules (daily)
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *'

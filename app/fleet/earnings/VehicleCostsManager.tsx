@@ -7,7 +7,6 @@ import type { VehicleRecurringCost } from '@/lib/types/database';
 import { categoriesOfKind, type FinanceCategory } from '@/lib/config/financeCategories';
 import {
   describeFrequency,
-  prorateCost,
   toISODate,
   type CostFrequency,
 } from '@/lib/utils/bookkeepingPeriods';
@@ -17,7 +16,9 @@ import {
   setVehicleCostActiveAction,
   deleteVehicleCostAction,
 } from '@/lib/actions/vehicle-costs';
-import type { VehicleOption } from './EarningsWorkspace';
+import { nextDueDate } from '@/lib/bookkeeping/recurring';
+import { formatDayHeading, todayISO } from '@/lib/utils/financeRanges';
+import type { VehicleOption } from './TransactionModal';
 
 interface VehicleCostsManagerProps {
   costs: VehicleRecurringCost[];
@@ -55,6 +56,7 @@ export default function VehicleCostsManager({
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [today] = useState(() => todayISO());
 
   const expenseCategories = useMemo(() => categoriesOfKind(categories, 'expense'), [categories]);
   const categoryById = useMemo(() => {
@@ -136,15 +138,12 @@ export default function VehicleCostsManager({
     setError(null);
   };
 
-  // What this list adds up to across a typical month, so the total is legible.
+  // What the active costs add up to per month, so the total is legible
+  // (weekly × 52/12, yearly ÷ 12).
   const monthlyTotal = useMemo(() => {
-    const start = toISODate(new Date());
-    const end = toISODate(new Date(Date.now() + 29 * 86_400_000));
+    const perMonth: Record<CostFrequency, number> = { weekly: 52 / 12, monthly: 1, yearly: 1 / 12 };
     return costs.reduce(
-      (sum, c) => sum + prorateCost(
-        { amount: Number(c.amount), frequency: c.frequency, start_date: c.start_date, end_date: c.end_date, is_active: c.is_active },
-        start, end,
-      ),
+      (sum, c) => sum + (c.is_active ? Number(c.amount) * perMonth[c.frequency] : 0),
       0,
     );
   }, [costs]);
@@ -194,8 +193,9 @@ export default function VehicleCostsManager({
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div>
-          <label style={st.fieldLabel}>Starts</label>
+          <label style={st.fieldLabel}>First due date</label>
           <input type="date" value={draft.start_date} onChange={(e) => setDraft({ ...draft, start_date: e.target.value })} style={st.input} />
+          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 4 }}>Lines post from this date on — a past date back-fills.</div>
         </div>
         <div>
           <label style={st.fieldLabel}>Ends (optional)</label>
@@ -216,9 +216,9 @@ export default function VehicleCostsManager({
       <div style={st.modal} onClick={(e) => e.stopPropagation()}>
         <div style={st.modalHead}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-1)' }}>Vehicle running costs</div>
+            <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-1)' }}>Recurring costs</div>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-              Lease, finance, road tax and insurance — added to every new period automatically.
+              Lease, finance, road tax, insurance — set up once, booked automatically every time it falls due.
             </div>
           </div>
           <button style={st.iconBtn} onClick={onClose}><FleetIcon name="close" size={14} /></button>
@@ -251,7 +251,7 @@ export default function VehicleCostsManager({
             <div style={{ borderTop: '1px solid var(--line-1)' }}>
               {costs.length === 0 && !showAdd && (
                 <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12.5 }}>
-                  No vehicle costs yet. Add a lease or road tax and it will be prorated into every period you create.
+                  No recurring costs yet. Add a lease or road tax once and an expense line is posted on every due date, by itself.
                 </div>
               )}
 
@@ -272,6 +272,10 @@ export default function VehicleCostsManager({
                         <span className="mono">{describeFrequency(Number(cost.amount), cost.frequency)}</span>
                         <span>·</span>
                         <span>{vehicle ? vehicle.registration_number : 'Whole fleet'}</span>
+                        {(() => {
+                          const due = nextDueDate(cost);
+                          return due ? (<><span>·</span><span>next {formatDayHeading(due, today).toLowerCase()}</span></>) : null;
+                        })()}
                         {category && (
                           <>
                             <span>·</span>
@@ -295,7 +299,7 @@ export default function VehicleCostsManager({
                       style={{ ...st.iconBtn, color: 'var(--neg)' }}
                       disabled={pending}
                       onClick={() => run(() => deleteVehicleCostAction(cost.id))}
-                      title="Delete — periods already saved keep their figures"
+                      title="Delete — lines already posted to the ledger stay as they are"
                     >
                       <FleetIcon name="close" size={12} />
                     </button>
@@ -308,8 +312,9 @@ export default function VehicleCostsManager({
           </div>
 
           <div style={{ fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            Costs are spread by day, so a €400/month lease adds about €92 to a week-long period and
-            the full €400 to a month. You can always type over the suggested figure.
+            Each cost posts one expense line for the full amount on its due date — a €400/month lease that
+            starts on the 5th appears on the 5th of every month, marked “Auto”. Pausing stops future lines;
+            anything already posted stays and can be edited like any other line.
           </div>
         </div>
       </div>

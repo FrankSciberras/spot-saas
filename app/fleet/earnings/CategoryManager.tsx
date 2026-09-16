@@ -119,7 +119,7 @@ export default function CategoryManager({ categories, onClose }: CategoryManager
             style={st.iconBtn}
             disabled={pending}
             onClick={() => run(() => setFinanceCategoryActiveAction(category.id, !category.isActive))}
-            title={category.isActive ? 'Hide from new periods' : 'Show again'}
+            title={category.isActive ? 'Hide from new transactions' : 'Show again'}
           >
             {category.isActive ? 'Hide' : 'Show'}
           </button>

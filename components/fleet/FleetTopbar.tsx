@@ -31,6 +31,8 @@ interface NewAction {
 
 /** Quick-create targets for the topbar "New" dropdown (existing /new routes). */
 const NEW_ACTIONS: NewAction[] = [
+  { label: 'expense', hint: 'Book a cost the day it happens', icon: 'euro', href: '/fleet/earnings?add=expense', adminOnly: true, module: 'bookkeeping' },
+  { label: 'income', hint: 'Record a payout or payment received', icon: 'arrow-up', href: '/fleet/earnings?add=income', adminOnly: true, module: 'bookkeeping' },
   { label: 'driver', hint: 'Add a driver & their documents', icon: 'driver', href: '/fleet/drivers/new' },
   { label: 'vehicle', hint: 'Register a car to the fleet', icon: 'vehicle', href: '/fleet/vehicles/new' },
   { label: 'roster', hint: 'Plan a new weekly schedule', icon: 'roster', href: '/fleet/rosters/new', module: 'rostering' },

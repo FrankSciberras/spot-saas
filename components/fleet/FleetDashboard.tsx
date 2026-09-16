@@ -84,13 +84,13 @@ export default function FleetDashboard({
       <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
         <FleetStatusCard stats={stats} />
         <RecentShiftsCard shifts={recentShifts} />
-        {(!isAdmin || financialSeries.length === 0) ? <ExpiringDocsCard docs={expiringDocs} /> : <QuickActionsCard />}
+        {(!isAdmin || financialSeries.length === 0) ? <ExpiringDocsCard docs={expiringDocs} /> : <QuickActionsCard isAdmin={isAdmin} />}
       </div>
 
       {isAdmin && financialSeries.length > 0 && (
         <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, marginBottom: 24 }}>
           <ExpenseBreakdownCard totals={totals} data={expenseBreakdown} />
-          <QuickActionsCard />
+          <QuickActionsCard isAdmin={isAdmin} />
         </div>
       )}
     </>
@@ -158,7 +158,7 @@ function HeroStrip({
         />
         {isAdmin && financialSeries.length > 0 ? (
           <HeroTile
-            label="Income (period)"
+            label="Income (12 wks)"
             value={fmtEUR(totals.income, { decimals: 0, compact: true })}
             accent="var(--pos)"
             delta={incomeDelta !== null ? `${incomeDelta >= 0 ? '+' : ''}${incomeDelta.toFixed(0)}%` : '—'}
@@ -178,7 +178,7 @@ function HeroStrip({
         )}
         {isAdmin && financialSeries.length > 0 ? (
           <HeroTile
-            label="Net profit (period)"
+            label="Net profit (12 wks)"
             value={fmtEUR(totals.profit, { decimals: 0, compact: true })}
             accent={totals.profit >= 0 ? 'var(--pos)' : 'var(--neg)'}
             delta={totals.income > 0 ? `${((totals.profit / totals.income) * 100).toFixed(0)}%` : '—'}
@@ -255,7 +255,7 @@ function EarningsPanel({ data, totals }: { data: EarningsDatum[]; totals: { inco
   const margin = totals.income > 0 ? (totals.profit / totals.income) * 100 : 0;
   return (
     <Card>
-      <CardHeader title="Earnings" subtitle="Income, expenses, profit" />
+      <CardHeader title="Earnings" subtitle="Last 12 weeks, week by week" />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
         <MiniStat label="Income" value={fmtEUR(totals.income, { decimals: 0 })} color="var(--pos)" />
         <MiniStat label="Expenses" value={fmtEUR(totals.expenses, { decimals: 0 })} color="var(--neg)" />
@@ -428,14 +428,17 @@ function ExpenseBreakdownCard({ totals, data }: { totals: { income: number; expe
 }
 
 /* ───────────────────────── Quick actions ───────────────────────── */
-function QuickActionsCard() {
+function QuickActionsCard({ isAdmin = false }: { isAdmin?: boolean }) {
   const enabledModules = useEnabledModules();
-  const actions: { label: string; href: string; icon: string; module?: string }[] = [
+  const actions: { label: string; href: string; icon: string; module?: string; adminOnly?: boolean }[] = [
+    // First, because it is the one people reach for on the go: a €20 car wash
+    // goes into the books now, not at the end of the week.
+    { label: 'Add expense', href: '/fleet/earnings?add=expense', icon: 'euro', module: 'bookkeeping', adminOnly: true },
     { label: 'Add driver', href: '/fleet/drivers/new', icon: 'driver' },
     { label: 'Add vehicle', href: '/fleet/vehicles/new', icon: 'vehicle' },
     { label: 'Manage rosters', href: '/fleet/rosters', icon: 'roster', module: 'rostering' },
     { label: 'View shifts', href: '/fleet/shifts', icon: 'shift', module: 'rostering' },
-  ].filter((a) => !a.module || enabledModules.has(a.module));
+  ].filter((a) => (!a.module || enabledModules.has(a.module)) && (!a.adminOnly || isAdmin));
   return (
     <Card>
       <CardHeader title="Quick actions" subtitle="Common tasks" />

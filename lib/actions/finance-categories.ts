@@ -8,7 +8,7 @@
 // Every action re-checks the admin role server-side via requireRole(['admin'])
 // and writes with the service-role client scoped to the caller's organization_id.
 //
-// Deactivating hides a category from NEW periods; entries already recorded
+// Deactivating hides a category from NEW transactions; lines already recorded
 // against it are untouched and still count in reports. Deleting is only allowed
 // while a category is unused — the DB enforces this too (ON DELETE RESTRICT),
 // this layer just turns that into a sentence a human can act on.
@@ -184,7 +184,7 @@ export async function updateFinanceCategoryAction(
   return { ok: true };
 }
 
-/** Show/hide a category on new periods. Recorded entries are unaffected. */
+/** Show/hide a category for new transactions. Recorded lines are unaffected. */
 export async function setFinanceCategoryActiveAction(
   categoryId: string,
   isActive: boolean,

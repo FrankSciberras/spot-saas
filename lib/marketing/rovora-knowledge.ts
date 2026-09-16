@@ -208,7 +208,7 @@ The pitch: most small fleets run on a patchwork of spreadsheets, paper logs and 
 
 ## Also included
 - Financials: income, expenses and profit across the fleet by day, week or month, always current.
-- Bookkeeping: keep books weekly, monthly or over any custom date range, using your own income and expense categories (fuel, tolls, cleaning, licensing — add whatever your fleet actually spends on). Record each vehicle's running costs (lease, finance, road tax, insurance) once and they are added to every period automatically, split by day count. Everything is VAT-ready and exports to Xero or QuickBooks, so month-end takes minutes.
+- Bookkeeping: a running ledger of dated transactions, the way Xero or QuickBooks work — record each expense or payout the moment it happens (from a phone too: amount, category, note, receipt photo), and totals for today, this week, the last 4 weeks, this month, this quarter or any custom range are worked out automatically, with a comparison to the range before. Your own income and expense categories (fuel, tolls, cleaning, licensing — add whatever your fleet actually spends on). Recurring vehicle costs (lease, finance, road tax, insurance) are set up once and post themselves on every due date like a repeating bill. Everything exports to Xero or QuickBooks as a bank-statement CSV, so month-end takes minutes.
 - Smart alerts: expiring documents, idle cars, services due and pending settlements surfaced before they become problems.
 - Free driver app: drivers clock in, log shifts, complete pre-shift checks and see their earnings — no training needed. If they can use a ride-hail app, they can use Rovora.
 - Unlimited team members on every plan, full audit trail, export your data anytime.

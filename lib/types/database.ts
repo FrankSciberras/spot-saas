@@ -805,8 +805,55 @@ export interface VehicleRecurringCost {
   end_date: string | null;
   is_active: boolean;
   notes: string | null;
+  /**
+   * Last due date already posted to finance_transactions (repeating-bill
+   * behaviour). null = nothing posted yet, so posting starts at start_date.
+   */
+  posted_through: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// =============================================================================
+// Finance Transactions (the ledger) — see 20260916_finance_transactions.sql
+// =============================================================================
+// One row per expense or income event, dated on the day it happened. Weekly /
+// monthly / custom figures are sums over txn_date; there are no periods to
+// open or close. Direction comes from the category's kind.
+
+export type PaymentMethod = 'cash' | 'card' | 'bank' | 'other';
+export type TransactionSource = 'manual' | 'recurring' | 'period_import';
+
+export interface FinanceTransaction {
+  id: string;
+  organization_id: string;
+  txn_date: string;
+  category_id: string;
+  /** Always positive; direction comes from the category's kind. */
+  amount: number;
+  description: string | null;
+  counterparty: string | null;
+  payment_method: PaymentMethod;
+  vehicle_id: string | null;
+  driver_id: string | null;
+  /** Object path in the private `documents` bucket, or null. */
+  receipt_path: string | null;
+  source: TransactionSource;
+  source_ref: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceTransactionInput {
+  txn_date: string;
+  category_id: string;
+  amount: number;
+  description?: string | null;
+  counterparty?: string | null;
+  payment_method?: PaymentMethod;
+  vehicle_id?: string | null;
+  driver_id?: string | null;
 }
 
 export interface VehicleRecurringCostInput {

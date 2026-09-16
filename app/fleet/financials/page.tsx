@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
-import FinancialsDashboard from '@/components/admin/FinancialsDashboard';
+import FinancialsDashboard, { type LedgerLine } from '@/components/admin/FinancialsDashboard';
 import { resolveFinanceCategories } from '@/lib/config/financeCategories';
-import type { BookkeepingPeriodWithEntries } from '@/lib/types/database';
+import { postDueRecurringCosts } from '@/lib/bookkeeping/recurring';
 
 export default async function FinancialsPage() {
   const user = await requireRole(['admin']);
@@ -23,17 +23,21 @@ export default async function FinancialsPage() {
 async function FinancialsContent({ orgId }: { orgId: string }) {
   const supabase = await createClient();
 
+  // Repeating bills due since the last visit — so the numbers here match the
+  // Bookkeeping page even if the daily cron hasn't run yet. Idempotent.
+  await postDueRecurringCosts(createAdminClient(), orgId).catch(() => undefined);
+
   const [
-    { data: periods },
+    { data: transactions },
     { data: categoryRows },
     { data: drivers },
     { data: settlements },
   ] = await Promise.all([
     supabase
-      .from('bookkeeping_periods')
-      .select('*, entries:bookkeeping_entries(*)')
+      .from('finance_transactions')
+      .select('id, txn_date, category_id, amount, description, counterparty, source')
       .eq('organization_id', orgId)
-      .order('start_date', { ascending: true }),
+      .order('txn_date', { ascending: true }),
     supabase
       .from('org_finance_categories')
       .select('id, key, name, kind, icon, color, sort_order, is_active, is_system')
@@ -57,7 +61,7 @@ async function FinancialsContent({ orgId }: { orgId: string }) {
 
   return (
     <FinancialsDashboard
-      periods={(periods || []) as BookkeepingPeriodWithEntries[]}
+      transactions={(transactions || []) as LedgerLine[]}
       categories={resolveFinanceCategories(categoryRows)}
       drivers={drivers || []}
       settlements={settlements || []}
