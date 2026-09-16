@@ -211,6 +211,142 @@
   line-height: 1.45;
 }
 
+/* Quick-pick chips in the new-week form */
+.suggestChips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.suggestChips > span {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.suggestChip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 11px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-1);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.suggestChip:hover {
+  border-color: var(--accent);
+}
+
+.suggestChip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.suggestChipDates {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Collapsed navigator — one line once a week is chosen */
+.navSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  margin-bottom: 14px;
+}
+
+.navSummaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius);
+  color: var(--text-3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.navSummaryBtn:hover {
+  background: var(--bg-2);
+}
+
+.navSummaryBtn svg {
+  flex: none;
+}
+
+.navSummaryCrumb {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.navSummaryCurrent {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.navSummaryDates {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.navSummaryNew {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 6px;
+  border-radius: 100px;
+}
+
+.navSummaryChange {
+  margin-left: 6px;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Payable balance beside each driver in the week list */
+.driverBalance {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.driverBalance.neg {
+  color: var(--neg);
+}
+
+.keyHint {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  align-self: center;
+}
+
 /* Week Cards */
 .weekCards {
   display: flex;

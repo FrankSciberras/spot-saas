@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type FocusEvent, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DatePicker from '@/components/shared/DatePicker';
@@ -27,9 +27,20 @@ import {
 } from '@/lib/utils/settlementCalculations';
 import { exportMonthlySettlementsPdf, exportSettlementsPdf, type FleetIdentity } from '@/lib/utils/settlementPdfExport';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
+import { derivePeriodBounds, parseDate, toISODate, daysInclusive } from '@/lib/utils/bookkeepingPeriods';
 import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment, SettlementPreset } from '@/lib/types/database';
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
+
+function addDaysISO(iso: string, days: number): string {
+  return toISODate(new Date(parseDate(iso).getTime() + days * 86_400_000));
+}
+
+/** "Mon 21 Sep – Sun 27 Sep" for the quick-pick chips. */
+function fmtSuggestionRange(start: string, end: string): string {
+  const f = (iso: string) => parseDate(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return `${f(start)} – ${f(end)}`;
+}
 
 function dateOnly(value: string): string {
   return value.includes('T') ? value.split('T')[0] : value;
@@ -116,7 +127,12 @@ export default function SettlementsWorkspace({
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(() => new Date().getMonth()); // 0-11
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
-  
+  // Once a week is chosen the year/month navigator folds down to a one-line
+  // summary so the entry form gets the screen; "Change week" re-opens it.
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  // The entry panel, for spreadsheet-style Enter → next field.
+  const panelRef = useRef<HTMLDivElement>(null);
+
   // Period creation state
   const [isCreatingPeriod, setIsCreatingPeriod] = useState(false);
   const [newPeriodStart, setNewPeriodStart] = useState('');
@@ -129,13 +145,13 @@ export default function SettlementsWorkspace({
   const [editPeriodName, setEditPeriodName] = useState('');
   const [editPeriodMonth, setEditPeriodMonth] = useState('');
   const [periodSaving, setPeriodSaving] = useState(false);
-  
+
   // Driver selection state
   const [showArchived, setShowArchived] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDriver, setShowAddDriver] = useState(false);
-  
+
   // Form state
   const [periodName, setPeriodName] = useState('');
   const [fssTax, setFssTax] = useState(getDefaultFssTax().toString());
@@ -163,14 +179,14 @@ export default function SettlementsWorkspace({
       campaigns: '0',
     }))
   );
-  
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [selectedDriverAdjustmentsNet, setSelectedDriverAdjustmentsNet] = useState(0);
-  
+
   // Bulk delete state
   const [selectedSettlementIds, setSelectedSettlementIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -200,33 +216,35 @@ export default function SettlementsWorkspace({
     const years = new Set<number>();
     const now = new Date();
     years.add(now.getFullYear()); // Always include current year
-    years.add(now.getFullYear() + 1); // And next year
-    
+    // Next year only once it is close enough to plan for (December) — a bare
+    // "2027" tab in September just reads as a mistake.
+    if (now.getMonth() === 11) years.add(now.getFullYear() + 1);
+
     settlements.forEach(s => {
       if (s.settlement_month) {
         years.add(new Date(s.settlement_month).getFullYear());
       }
       years.add(new Date(s.week_start).getFullYear());
     });
-    
-    return Array.from(years).sort((a, b) => b - a); // Descending
+
+    return Array.from(years).sort((a, b) => a - b); // Ascending, oldest first
   }, [settlements]);
 
   // Get months with data for selected year
   const monthsWithData = useMemo(() => {
     const months = new Map<number, { count: number; total: number }>();
-    
+
     // Initialize all months
     for (let i = 0; i < 12; i++) {
       months.set(i, { count: 0, total: 0 });
     }
-    
+
     settlements.forEach(s => {
       // Use settlement_month if set, otherwise derive from week_start
       const monthDate = s.settlement_month 
         ? new Date(s.settlement_month) 
         : new Date(s.week_start);
-      
+
       if (monthDate.getFullYear() === selectedYear) {
         const month = monthDate.getMonth();
         const current = months.get(month) || { count: 0, total: 0 };
@@ -236,14 +254,14 @@ export default function SettlementsWorkspace({
         });
       }
     });
-    
+
     return months;
   }, [settlements, selectedYear]);
 
   // Get weeks for selected month
   const weeksInMonth = useMemo(() => {
     if (selectedMonth === null) return [];
-    
+
     const weekMap = new Map<string, {
       id: string;
       startISO: string;
@@ -254,16 +272,16 @@ export default function SettlementsWorkspace({
       settlementCount: number;
       totalBalance: number;
     }>();
-    
+
     settlements.forEach(s => {
       // Check if this settlement belongs to the selected month
       const settlementMonthDate = s.settlement_month 
         ? new Date(s.settlement_month)
         : new Date(s.week_start);
-      
+
       if (settlementMonthDate.getFullYear() === selectedYear && 
           settlementMonthDate.getMonth() === selectedMonth) {
-        
+
         if (!weekMap.has(s.week_start)) {
           weekMap.set(s.week_start, {
             id: s.week_start,
@@ -276,13 +294,13 @@ export default function SettlementsWorkspace({
             totalBalance: 0,
           });
         }
-        
+
         const week = weekMap.get(s.week_start)!;
         week.settlementCount++;
         week.totalBalance += s.final_balance || 0;
       }
     });
-    
+
     return Array.from(weekMap.values()).sort((a, b) => 
       new Date(b.startISO).getTime() - new Date(a.startISO).getTime()
     );
@@ -298,7 +316,7 @@ export default function SettlementsWorkspace({
       periodName: string | null;
       settlementMonth: string | null;
     }>();
-    
+
     settlements.forEach(s => {
       if (!periodMap.has(s.week_start)) {
         periodMap.set(s.week_start, {
@@ -311,12 +329,62 @@ export default function SettlementsWorkspace({
         });
       }
     });
-    
+
     // Sort by start date descending (newest first)
     return Array.from(periodMap.values()).sort((a, b) => 
       new Date(b.startISO).getTime() - new Date(a.startISO).getTime()
     );
   }, [settlements]);
+
+  // ── New-week helpers ───────────────────────────────────────────────────────
+  // Quick picks for the new-week form. "Next" continues straight on from the
+  // latest week on file (no gap, no overlap); "Next 4 weeks" is one pay cycle.
+  const weekSuggestions = useMemo(() => {
+    const thisWeek = derivePeriodBounds('week', toISODate(new Date()));
+    const latest = existingPeriods[0]; // newest first
+    const nextStart = latest ? addDaysISO(dateOnly(latest.endISO), 1) : thisWeek.start;
+    const out: { key: string; label: string; start: string; end: string; hint: string }[] = [
+      { key: 'next', label: latest ? 'Next week' : 'This week', start: nextStart, end: addDaysISO(nextStart, 6), hint: latest ? `follows ${latest.periodName || latest.label}` : 'Monday to Sunday' },
+      { key: 'next4', label: latest ? 'Next 4 weeks' : 'This week + 3', start: nextStart, end: addDaysISO(nextStart, 27), hint: 'one 4-week pay cycle' },
+    ];
+    if (latest && thisWeek.start !== nextStart) {
+      out.push({ key: 'this', label: 'This week', start: thisWeek.start, end: thisWeek.end, hint: 'Monday to Sunday' });
+    }
+    return out;
+  }, [existingPeriods]);
+
+  const applyWeekSuggestion = (sug: { start: string; end: string }) => {
+    setNewPeriodStart(sug.start);
+    setNewPeriodEnd(sug.end);
+    // File the week under the month it starts in, and move the navigator there
+    // so the heading and the dates never disagree.
+    const startDate = parseDate(sug.start);
+    const y = startDate.getUTCFullYear();
+    const m = startDate.getUTCMonth();
+    if (y !== selectedYear || m !== selectedMonth) {
+      setSelectedYear(y);
+      setSelectedMonth(m);
+    }
+    setNewPeriodMonth(`${y}-${String(m + 1).padStart(2, '0')}-01`);
+  };
+
+  const newPeriodDays = newPeriodStart && newPeriodEnd && newPeriodEnd >= newPeriodStart
+    ? daysInclusive(newPeriodStart, newPeriodEnd)
+    : 0;
+  const newPeriodWholeWeeks = newPeriodDays > 0 && newPeriodDays % 7 === 0;
+
+  /** Open the new-week form for the selected month. */
+  const startNewWeek = () => {
+    if (selectedMonth === null) return;
+    setIsCreatingPeriod(true);
+    setIsEditingPeriod(false);
+    setSelectedWeekId(null);
+    setSelectedDriverId(null);
+    setNavCollapsed(false);
+    // Pre-fill month - use string construction to avoid timezone issues
+    const month = String(selectedMonth + 1).padStart(2, '0');
+    setNewPeriodMonth(`${selectedYear}-${month}-01`);
+  };
 
   // Get current period info
   const currentPeriod = useMemo(() => {
@@ -337,7 +405,7 @@ export default function SettlementsWorkspace({
         isNew: true,
       };
     }
-    
+
     // Existing period from database
     const period = existingPeriods.find(p => p.id === selectedWeekId);
     if (period) {
@@ -350,7 +418,7 @@ export default function SettlementsWorkspace({
         isNew: false,
       };
     }
-    
+
     return null;
   }, [isCreatingPeriod, newPeriodStart, newPeriodEnd, newPeriodName, newPeriodMonth, periodName, selectedWeekId, existingPeriods]);
 
@@ -819,16 +887,16 @@ export default function SettlementsWorkspace({
   // Load existing settlement data when selecting a driver
   const selectDriver = useCallback((driverId: string) => {
     if (!currentPeriod) return;
-    
+
     setSelectedDriverId(driverId);
     setError(null);
     setSuccessMessage(null);
-    
+
     const existing = settlements.find(s => 
       s.driver_id === driverId && 
       s.week_start === currentPeriod.startISO
     );
-    
+
     if (existing) {
       setPeriodName(existing.period_name || currentPeriod.periodName || '');
       setFssTax(existing.fss_tax.toString());
@@ -1048,7 +1116,7 @@ export default function SettlementsWorkspace({
   // Save settlement
   const handleSave = async (status: 'draft' | 'finalized' = 'draft') => {
     if (!selectedDriverId || !isAdmin || !currentPeriod) return;
-    
+
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
@@ -1056,14 +1124,14 @@ export default function SettlementsWorkspace({
     try {
       // Get settlement month - prioritize: currentPeriod.settlementMonth > selected navigation month
       let settlementMonth = currentPeriod.settlementMonth;
-      
+
       // Fallback: derive from selected month in navigation if not set
       // Use string construction to avoid timezone issues
       if (!settlementMonth && selectedMonth !== null) {
         const month = String(selectedMonth + 1).padStart(2, '0');
         settlementMonth = `${selectedYear}-${month}-01`;
       }
-      
+
       const payload = {
         driver_id: selectedDriverId,
         week_start: currentPeriod.startISO,
@@ -1105,7 +1173,7 @@ export default function SettlementsWorkspace({
       }
 
       setSuccessMessage(`Settlement ${existingSettlement ? 'updated' : 'created'} successfully!`);
-      
+
       // If this was a new week, update the selectedWeekId to the actual week_start
       if (selectedWeekId?.startsWith('new_')) {
         setSelectedWeekId(currentPeriod.startISO);
@@ -1115,9 +1183,9 @@ export default function SettlementsWorkspace({
         setNewPeriodName('');
         setNewPeriodMonth('');
       }
-      
+
       router.refresh();
-      
+
       // Auto-advance to next driver without settlement
       const currentIndex = displayedDrivers.findIndex(d => d.id === selectedDriverId);
       const nextDriver = displayedDrivers.slice(currentIndex + 1).find(d => !hasSettlement(d.id));
@@ -1164,7 +1232,7 @@ export default function SettlementsWorkspace({
   const handleDelete = async () => {
     if (!existingSettlement || !isAdmin) return;
     if (!confirm('Are you sure you want to delete this settlement?')) return;
-    
+
     setLoading(true);
     try {
       const res = await fetch(`/api/settlements/${existingSettlement.id}`, { method: 'DELETE' });
@@ -1186,7 +1254,7 @@ export default function SettlementsWorkspace({
   // Toggle paid status for a settlement
   const togglePaid = async (settlementId: string, currentlyPaid: boolean) => {
     if (!isAdmin) return;
-    
+
     try {
       const res = await fetch(`/api/settlements/${settlementId}`, {
         method: 'PUT',
@@ -1306,7 +1374,38 @@ export default function SettlementsWorkspace({
     setIsCreatingPeriod(false);
     // Set a temporary ID so currentPeriod is populated
     setSelectedWeekId(`new_${newPeriodStart}`);
+    setNavCollapsed(true);
   };
+
+  // ── Spreadsheet-style entry ────────────────────────────────────────────────
+  // Select the whole value on focus so typing replaces the "0" instead of
+  // producing "01500"; Enter hops to the next figure, Shift+Enter back,
+  // Ctrl/⌘+Enter saves a draft.
+  const selectAllOnFocus = (e: FocusEvent<HTMLInputElement>) => e.currentTarget.select();
+  const handleGridKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      if (isAdmin && !loading) handleSave('draft');
+      return;
+    }
+    const root = panelRef.current;
+    if (!root) return;
+    const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input[type="number"]:not(:disabled)'));
+    const i = inputs.indexOf(e.currentTarget);
+    const next = inputs[e.shiftKey ? i - 1 : i + 1];
+    if (next) {
+      next.focus();
+      next.select();
+    } else if (!e.shiftKey) {
+      root.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+    }
+  };
+
+  const prevDriverItem = currentDriverIndex > 0 ? displayedDrivers[currentDriverIndex - 1] : null;
+  const nextDriverItem = currentDriverIndex >= 0 && currentDriverIndex < displayedDrivers.length - 1
+    ? displayedDrivers[currentDriverIndex + 1]
+    : null;
 
   return (
     <div className={styles.workspace}>
@@ -1322,7 +1421,49 @@ export default function SettlementsWorkspace({
         </div>
       )}
 
-      {/* Navigation Header: Year > Month > Week */}
+      {/* Navigation Header: Year > Month > Week — folds to one line once a week is chosen */}
+      {navCollapsed && currentPeriod && !isCreatingPeriod ? (
+        <div className={styles.navSummary}>
+          <button
+            type="button"
+            className={styles.navSummaryBtn}
+            onClick={() => setNavCollapsed(false)}
+            title="Pick a different month or week"
+          >
+            <FleetIcon name="calendar" size={14} />
+            <span className={styles.navSummaryCrumb}>{selectedYear}</span>
+            <FleetIcon name="chevron-right" size={12} />
+            <span className={styles.navSummaryCrumb}>{selectedMonth !== null ? monthNames[selectedMonth] : '—'}</span>
+            <FleetIcon name="chevron-right" size={12} />
+            <span className={styles.navSummaryCurrent}>{currentPeriod.periodName || currentPeriod.label}</span>
+            {currentPeriod.periodName && <span className={styles.navSummaryDates}>{currentPeriod.label}</span>}
+            {currentPeriod.isNew && <span className={styles.navSummaryNew}>New</span>}
+            <span className={styles.navSummaryChange}>Change week</span>
+          </button>
+          {isAdmin && (
+            <div className={styles.monthActions}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleExportMonthPdf}
+                disabled={monthSettlements.length === 0}
+                title="Export all settlements for this month as a PDF"
+                type="button"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <FleetIcon name="download" size={14} /> Export Month PDF
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={startNewWeek}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <FleetIcon name="plus" size={14} stroke={2.2} /> New Week
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className={styles.navHeader}>
         {/* Year Selector */}
         <div className={styles.yearSelector}>
@@ -1350,7 +1491,7 @@ export default function SettlementsWorkspace({
             const data = monthsWithData.get(idx) || { count: 0, total: 0 };
             const isSelected = selectedMonth === idx;
             const hasData = data.count > 0;
-            
+
             return (
               <button
                 key={idx}
@@ -1394,15 +1535,7 @@ export default function SettlementsWorkspace({
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
-                    onClick={() => {
-                      setIsCreatingPeriod(true);
-                      setIsEditingPeriod(false);
-                      setSelectedWeekId(null);
-                      setSelectedDriverId(null);
-                      // Pre-fill month - use string construction to avoid timezone issues
-                      const month = String(selectedMonth + 1).padStart(2, '0');
-                      setNewPeriodMonth(`${selectedYear}-${month}-01`);
-                    }}
+                    onClick={startNewWeek}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     <FleetIcon name="plus" size={14} stroke={2.2} /> New Week
@@ -1418,11 +1551,33 @@ export default function SettlementsWorkspace({
                   <FleetIcon name="calendar-plus" size={15} />
                   New week in {monthNames[selectedMonth]} {selectedYear}
                 </div>
+                <div className={styles.suggestChips}>
+                  <span>Quick pick</span>
+                  {weekSuggestions.map((sug) => {
+                    const on = newPeriodStart === sug.start && newPeriodEnd === sug.end;
+                    return (
+                      <button
+                        key={sug.key}
+                        type="button"
+                        className={`${styles.suggestChip} ${on ? styles.on : ''}`}
+                        onClick={() => applyWeekSuggestion(sug)}
+                        title={sug.hint}
+                      >
+                        <span>{sug.label}</span>
+                        <span className={styles.suggestChipDates}>{fmtSuggestionRange(sug.start, sug.end)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className={styles.formRow}>
                   <span>Starts</span>
                   <DatePicker
                     value={newPeriodStart}
-                    onChange={setNewPeriodStart}
+                    onChange={(v) => {
+                      setNewPeriodStart(v);
+                      // A week is 7 days unless told otherwise.
+                      if (v && (!newPeriodEnd || newPeriodEnd < v)) setNewPeriodEnd(addDaysISO(v, 6));
+                    }}
                     placeholder="Start date"
                   />
                   <span>Ends</span>
@@ -1433,9 +1588,16 @@ export default function SettlementsWorkspace({
                     minDate={newPeriodStart}
                   />
                 </div>
+                {newPeriodDays > 0 && (
+                  <span className={styles.formHint}>
+                    <strong>{newPeriodDays} days</strong> · {newPeriodDays % 7 === 0 ? `${newPeriodDays / 7} week${newPeriodDays === 7 ? '' : 's'}` : `${(newPeriodDays / 7).toFixed(1)} weeks`}
+                    {!newPeriodWholeWeeks && ' — not whole weeks, so weekly rent, fixed wages and flat tax are scaled to the length'}
+                    {newPeriodDays === 28 && ' — one pay cycle; rent and fixed wages count ×4'}
+                  </span>
+                )}
                 <input
                   type="text"
-                  placeholder="Week name (e.g. Week 1)"
+                  placeholder="Name (optional) — e.g. Week 38 or Pay cycle 9"
                   aria-label="Week name"
                   value={newPeriodName}
                   onChange={(e) => {
@@ -1483,7 +1645,7 @@ export default function SettlementsWorkspace({
                   </div>
                 </div>
               )}
-              
+
               {/* Existing weeks */}
               {weeksInMonth.map(week => (
                 <button
@@ -1497,6 +1659,7 @@ export default function SettlementsWorkspace({
                       setIsEditingPeriod(false);
                       setSelectedDriverId(null);
                       setPeriodName(week.periodName || '');
+                      setNavCollapsed(true);
                     }}
                 >
                   <div className={styles.weekCardHeader}>
@@ -1510,7 +1673,7 @@ export default function SettlementsWorkspace({
                 </button>
               ))}
             </div>
-            
+
             {/* Empty state - only show if no weeks and not creating */}
             {weeksInMonth.length === 0 && !isCreatingPeriod && !selectedWeekId?.startsWith('new_') && (
               <div className={styles.emptyWeeks}>
@@ -1527,13 +1690,7 @@ export default function SettlementsWorkspace({
                     type="button"
                     className="btn btn-primary"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    onClick={() => {
-                      setIsCreatingPeriod(true);
-                      setIsEditingPeriod(false);
-                      // Use string construction to avoid timezone issues
-                      const month = String(selectedMonth + 1).padStart(2, '0');
-                      setNewPeriodMonth(`${selectedYear}-${month}-01`);
-                    }}
+                    onClick={startNewWeek}
                   >
                     <FleetIcon name="plus" size={14} stroke={2.2} /> Create first week
                   </button>
@@ -1544,6 +1701,7 @@ export default function SettlementsWorkspace({
         )}
 
       </div>
+      )}
 
       {/* Week Stats when a week is selected */}
       {currentPeriod && !isCreatingPeriod && (
@@ -1793,6 +1951,9 @@ export default function SettlementsWorkspace({
         </div>
       )}
 
+      {/* Hidden while the new-week form is open: the form's Continue is the
+          one way in, so a half-filled week can't be worked on by accident. */}
+      {!isCreatingPeriod && (
       <div className={styles.workspaceMain}>
         {/* Driver List Sidebar - only show when period is selected */}
         {currentPeriod && (
@@ -1838,7 +1999,7 @@ export default function SettlementsWorkspace({
                 </button>
               )}
             </div>
-            
+
             {/* Select All for bulk delete */}
             {isAdmin && periodSettlements.length > 0 && (
               <div className={styles.selectAllRow}>
@@ -1857,7 +2018,7 @@ export default function SettlementsWorkspace({
                 )}
               </div>
             )}
-            
+
             <div className={styles.driverList}>
               {displayedDrivers.map(driver => {
                 const status = getDriverStatus(driver.id);
@@ -1865,7 +2026,7 @@ export default function SettlementsWorkspace({
                 const driverSettlement = periodSettlements.find(s => s.driver_id === driver.id);
                 const isPaid = !!driverSettlement?.paid_at;
                 const isSettlementSelected = driverSettlement ? selectedSettlementIds.has(driverSettlement.id) : false;
-                
+
                 return (
                   <div
                     key={driver.id}
@@ -1892,6 +2053,14 @@ export default function SettlementsWorkspace({
                     >
                       <span className={styles.driverName}>{driver.full_name}</span>
                       <div className={styles.driverIndicators}>
+                        {driverSettlement && (
+                          <span
+                            className={`${styles.driverBalance} ${(driverSettlement.final_balance || 0) < 0 ? styles.neg : ''}`}
+                            title="Payable balance this week"
+                          >
+                            {formatCurrency(driverSettlement.final_balance || 0)}
+                          </span>
+                        )}
                         {isPaid && (
                           <span className={styles.paidBadge} role="img" aria-label="Paid">
                             <FleetIcon name="euro" size={11} stroke={2} />
@@ -1932,7 +2101,7 @@ export default function SettlementsWorkspace({
         )}
 
         {/* Settlement Form */}
-        <div className={styles.settlementPanel}>
+        <div className={styles.settlementPanel} ref={panelRef}>
           {selectedDriverId && selectedDriver ? (
             <>
               {/* Driver Navigation */}
@@ -1945,11 +2114,15 @@ export default function SettlementsWorkspace({
                   aria-label="Previous driver"
                 >
                   <FleetIcon name="chevron-left" size={14} />
-                  <span className={styles.navBtnLabel}>Previous</span>
+                  <span className={styles.navBtnLabel}>{prevDriverItem ? prevDriverItem.full_name : 'Previous'}</span>
                 </button>
                 <div className={styles.currentDriver}>
                   <h3>{selectedDriver.full_name}</h3>
-                  {currentPeriod && <span className={styles.weekLabel}>{currentPeriod.label}</span>}
+                  {currentPeriod && (
+                    <span className={styles.weekLabel}>
+                      {currentPeriod.label} · {currentDriverIndex + 1} of {displayedDrivers.length}
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1958,7 +2131,7 @@ export default function SettlementsWorkspace({
                   disabled={currentDriverIndex >= displayedDrivers.length - 1}
                   aria-label="Next driver"
                 >
-                  <span className={styles.navBtnLabel}>Next</span>
+                  <span className={styles.navBtnLabel}>{nextDriverItem ? nextDriverItem.full_name : 'Next'}</span>
                   <FleetIcon name="chevron-right" size={14} />
                 </button>
               </div>
@@ -2013,6 +2186,8 @@ export default function SettlementsWorkspace({
                               min="0"
                               value={platform.grossFare}
                               onChange={(e) => handlePlatformChange(index, 'grossFare', e.target.value)}
+                              onFocus={selectAllOnFocus}
+                              onKeyDown={handleGridKeyDown}
                               disabled={!isAdmin}
                             />
                           </td>
@@ -2030,6 +2205,8 @@ export default function SettlementsWorkspace({
                                 max="100"
                                 value={platform.platformFeePercent}
                                 onChange={(e) => handlePlatformChange(index, 'platformFeePercent', e.target.value)}
+                                onFocus={selectAllOnFocus}
+                                onKeyDown={handleGridKeyDown}
                                 disabled={!isAdmin}
                                 style={{ width: '50px' }}
                               />
@@ -2053,6 +2230,8 @@ export default function SettlementsWorkspace({
                                 min="0"
                                 value={platform.cashRide}
                                 onChange={(e) => handlePlatformChange(index, 'cashRide', e.target.value)}
+                                onFocus={selectAllOnFocus}
+                                onKeyDown={handleGridKeyDown}
                                 disabled={!isAdmin}
                               />
                             </td>
@@ -2065,6 +2244,8 @@ export default function SettlementsWorkspace({
                                 min="0"
                                 value={platform.tips}
                                 onChange={(e) => handlePlatformChange(index, 'tips', e.target.value)}
+                                onFocus={selectAllOnFocus}
+                                onKeyDown={handleGridKeyDown}
                                 disabled={!isAdmin}
                               />
                             </td>
@@ -2077,6 +2258,8 @@ export default function SettlementsWorkspace({
                                 min="0"
                                 value={platform.campaigns}
                                 onChange={(e) => handlePlatformChange(index, 'campaigns', e.target.value)}
+                                onFocus={selectAllOnFocus}
+                                onKeyDown={handleGridKeyDown}
                                 disabled={!isAdmin}
                               />
                             </td>
@@ -2127,6 +2310,8 @@ export default function SettlementsWorkspace({
                       min="0"
                       value={hoursWorked}
                       onChange={(e) => setHoursWorked(e.target.value)}
+                      onFocus={selectAllOnFocus}
+                      onKeyDown={handleGridKeyDown}
                       disabled={!isAdmin}
                     />
                   </label>
@@ -2169,6 +2354,8 @@ export default function SettlementsWorkspace({
                         setTaxAutoPct(null);
                         setFssTax(e.target.value);
                       }}
+                      onFocus={selectAllOnFocus}
+                      onKeyDown={handleGridKeyDown}
                       disabled={!isAdmin}
                     />
                   </label>
@@ -2223,6 +2410,7 @@ export default function SettlementsWorkspace({
                     )}
                   </div>
                   <div className={styles.actionRight}>
+                    <span className={`${styles.keyHint} hide-mobile`}>Enter = next field · Ctrl+Enter = save draft</span>
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -2272,6 +2460,7 @@ export default function SettlementsWorkspace({
           )}
         </div>
       </div>
+      )}
 
       {/* Quick-add driver modal */}
       <AddDriverModal
