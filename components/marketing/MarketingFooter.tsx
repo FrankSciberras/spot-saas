@@ -65,6 +65,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href="/integrations">Ride-hail platforms</Link>
               <Link href="/integrations">WhatsApp &amp; email</Link>
               <Link href="/integrations">Xero &amp; QuickBooks</Link>
+              <Link href="/docs/api">Developer API</Link>
               <a href="mailto:hello@rovora.eu?subject=Integration%20request">Request an integration</a>
             </div>
 

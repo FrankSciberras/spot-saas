@@ -63,6 +63,14 @@ export interface PlanDef {
   stripePriceId: string | null;
   /** Stripe Product id; checkout resolves its default price when no explicit price is set. */
   stripeProductId: string | null;
+  /** Does this tier include the public REST API? */
+  apiEnabled: boolean;
+  /** Requests per minute per API key. null = unlimited. */
+  apiRateLimitPerMin: number | null;
+  /** Requests per day per API key. null = unlimited. */
+  apiRateLimitPerDay: number | null;
+  /** How many live API keys a fleet on this tier may hold. */
+  apiMaxKeys: number;
 }
 
 export const TRIAL_DAYS = 30;
@@ -92,6 +100,10 @@ export const FALLBACK_PLANS: PlanDef[] = [
     sortOrder: 1,
     stripePriceId: null,
     stripeProductId: null,
+    apiEnabled: false,
+    apiRateLimitPerMin: null,
+    apiRateLimitPerDay: null,
+    apiMaxKeys: 0,
   },
   {
     id: 'growth',
@@ -115,6 +127,10 @@ export const FALLBACK_PLANS: PlanDef[] = [
     sortOrder: 2,
     stripePriceId: null,
     stripeProductId: null,
+    apiEnabled: false,
+    apiRateLimitPerMin: null,
+    apiRateLimitPerDay: null,
+    apiMaxKeys: 0,
   },
   {
     id: 'scale',
@@ -138,6 +154,10 @@ export const FALLBACK_PLANS: PlanDef[] = [
     sortOrder: 3,
     stripePriceId: null,
     stripeProductId: null,
+    apiEnabled: true,
+    apiRateLimitPerMin: 120,
+    apiRateLimitPerDay: 50000,
+    apiMaxKeys: 5,
   },
   {
     id: 'enterprise',
@@ -161,6 +181,10 @@ export const FALLBACK_PLANS: PlanDef[] = [
     sortOrder: 4,
     stripePriceId: null,
     stripeProductId: null,
+    apiEnabled: true,
+    apiRateLimitPerMin: 600,
+    apiRateLimitPerDay: 500000,
+    apiMaxKeys: 25,
   },
 ];
 

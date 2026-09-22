@@ -38,6 +38,10 @@ function mapRow(r: PlanRow): PlanDef {
     sortOrder: r.sort_order,
     stripePriceId: r.stripe_price_id ?? null,
     stripeProductId: r.stripe_product_id ?? null,
+    apiEnabled: r.api_enabled ?? false,
+    apiRateLimitPerMin: r.api_rate_limit_per_min ?? null,
+    apiRateLimitPerDay: r.api_rate_limit_per_day ?? null,
+    apiMaxKeys: r.api_max_keys ?? 0,
   };
 }
 

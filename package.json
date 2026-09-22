@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-api-isolation.js",
     "build": "next build",
+    "check:api": "node scripts/check-api-isolation.js",
     "start": "next start",
     "lint": "eslint ."
   },

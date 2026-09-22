@@ -61,6 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'notify', name: 'Notify', href: '/fleet/notifications', icon: 'bell', roles: ['admin'] },
       { id: 'permissions', name: 'Permissions', href: '/fleet/permissions', icon: 'doc', roles: ['admin'] },
       { id: 'integrations', name: 'Integrations', href: '/fleet/integrations', icon: 'plug', roles: ['admin'] },
+      { id: 'api', name: 'API', href: '/fleet/api', icon: 'doc', roles: ['admin'] },
       { id: 'settings', name: 'Settings', href: '/fleet/settings', icon: 'adjust', roles: ['admin'] },
     ],
   },

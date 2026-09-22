@@ -1,0 +1,678 @@
+/* =============================================================================
+   API documentation — a two-column docs layout on the marketing site.
+   Uses the .rovora-site tokens (--bg-0/1/2/3, --line-1/2/3, --text-1/2/3,
+   --accent) so it follows the site's light/dark toggle for free.
+   ============================================================================= */
+
+.page {
+  padding: 96px 0 40px;
+}
+
+.shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 44px;
+  align-items: start;
+}
+
+/* ─── Sidebar ─── */
+.sidebar {
+  position: sticky;
+  top: 86px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding-right: 8px;
+  font-size: 13.5px;
+}
+
+.sidebarToggle {
+  display: none;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sidebarInner {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.navGroupLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.navLink,
+.navChild {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  color: var(--text-2);
+  text-decoration: none;
+  line-height: 1.45;
+}
+
+.navLink:hover,
+.navChild:hover {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.navActive {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.navChildren {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 8px 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-1);
+}
+
+.navChild {
+  font-size: 12.5px;
+  padding: 4px 8px;
+}
+
+/* ─── Method badges ─── */
+.m_GET,
+.m_POST,
+.m_PATCH,
+.m_DELETE {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+}
+
+.m_GET {
+  background: rgba(38, 132, 255, 0.14);
+  color: #2684ff;
+}
+
+.m_POST {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.m_PATCH {
+  background: rgba(230, 160, 30, 0.16);
+  color: #c08113;
+}
+
+.m_DELETE {
+  background: rgba(220, 70, 70, 0.14);
+  color: #d64545;
+}
+
+/* ─── Content ─── */
+.content {
+  min-width: 0;
+}
+
+.hero {
+  padding-bottom: 8px;
+  scroll-margin-top: 90px;
+}
+
+.eyebrow {
+  display: inline-block;
+  padding: 5px 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 18px;
+}
+
+.h1 {
+  margin: 0 0 14px;
+  font-size: clamp(34px, 5vw, 46px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text-1);
+  line-height: 1.08;
+}
+
+.lede {
+  margin: 0 0 26px;
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+  max-width: 62ch;
+}
+
+.heroFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--line-1);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.fact {
+  background: var(--bg-1);
+  padding: 13px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.factLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+}
+
+.factValue {
+  font-size: 13.5px;
+  color: var(--text-1);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+code.factValue {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.primaryBtn {
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.ghostBtn {
+  padding: 11px 20px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  color: var(--text-1);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.ghostBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.note {
+  margin: 0;
+  padding: 12px 15px;
+  border-left: 3px solid var(--line-3);
+  background: var(--bg-2);
+  border-radius: 0 8px 8px 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 70ch;
+}
+
+/* ─── Sections ─── */
+.section {
+  padding-top: 52px;
+  scroll-margin-top: 80px;
+}
+
+.h2 {
+  margin: 0 0 14px;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.h3 {
+  margin: 34px 0 10px;
+  font-size: 17.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+
+.p {
+  margin: 0 0 14px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+  max-width: 72ch;
+}
+
+.p a {
+  color: var(--accent);
+}
+
+.list,
+.steps {
+  margin: 0 0 18px;
+  padding-left: 22px;
+  max-width: 72ch;
+}
+
+.list li,
+.steps li {
+  margin-bottom: 9px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+
+.inline {
+  padding: 1.5px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--bg-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+.callout {
+  margin: 20px 0;
+  padding: 15px 18px;
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-2);
+  max-width: 72ch;
+}
+
+/* ─── Code ─── */
+.codeWrap {
+  margin: 16px 0 22px;
+  border: 1px solid var(--line-2);
+  border-radius: 11px;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.codeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px 7px 14px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-3);
+}
+
+.codeLabel {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.copyBtn {
+  padding: 4px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-1);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.copyBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.code {
+  margin: 0;
+  padding: 15px 16px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-1);
+  tab-size: 2;
+}
+
+/* ─── Tables ─── */
+.table {
+  margin: 16px 0 24px;
+  border: 1px solid var(--line-2);
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.tHead,
+.tRow {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 16px;
+  padding: 11px 16px;
+}
+
+.tHead3,
+.tRow3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 11px 16px;
+}
+
+.tRowErr {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--line-1);
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+/* The error table is status / code / meaning across three of the four columns. */
+.tRowErr > span:nth-child(3) {
+  grid-column: 3 / -1;
+}
+
+.tHead,
+.tHead3 {
+  background: var(--bg-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.tRow,
+.tRow3 {
+  border-top: 1px solid var(--line-1);
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.statusCell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* ─── Endpoint cards ─── */
+.endpoint {
+  margin: 26px 0;
+  padding: 20px 22px;
+  border: 1px solid var(--line-2);
+  border-radius: 13px;
+  background: var(--bg-1);
+  scroll-margin-top: 80px;
+}
+
+.endpointHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.endpointPath {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.5px;
+  color: var(--text-1);
+  word-break: break-all;
+}
+
+.endpointTitle {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.endpointDesc {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.68;
+  color: var(--text-2);
+  max-width: 70ch;
+}
+
+.endpointMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--line-1);
+  margin-bottom: 4px;
+}
+
+.metaLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.metaLabel:not(:first-child) {
+  margin-left: 14px;
+}
+
+.metaValue {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.scopeChip {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--bg-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.paramsTitle {
+  margin: 20px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+}
+
+.params {
+  border-top: 1px solid var(--line-1);
+}
+
+.param {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.paramName {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.paramName code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.paramType {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.required {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(220, 70, 70, 0.12);
+  color: #d64545;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.paramDesc {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 70ch;
+}
+
+/* ─── Closing CTA ─── */
+.ctaBand {
+  margin: 44px 0 20px;
+  padding: 32px 30px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--bg-2);
+  text-align: center;
+}
+
+.ctaTitle {
+  margin: 0 0 8px;
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.ctaBody {
+  margin: 0 auto 20px;
+  max-width: 56ch;
+  font-size: 14.5px;
+  line-height: 1.68;
+  color: var(--text-2);
+}
+
+.ctaBand .heroActions {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 960px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .sidebarToggle {
+    display: block;
+  }
+
+  .sidebarInner {
+    display: none;
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    background: var(--bg-1);
+  }
+
+  .sidebarOpen .sidebarInner {
+    display: flex;
+  }
+
+  .tHead,
+  .tRow,
+  .tHead3,
+  .tRow3,
+  .tRowErr {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .tHead,
+  .tHead3 {
+    display: none;
+  }
+
+  .tRowErr > span:nth-child(3) {
+    grid-column: auto;
+  }
+
+  .endpoint {
+    padding: 16px 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding-top: 80px;
+  }
+
+  .shell {
+    padding: 0 16px;
+  }
+}

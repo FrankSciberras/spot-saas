@@ -193,6 +193,14 @@ export interface PlanRow {
   stripe_price_id: string | null;
   /** Stripe Product id; checkout resolves its default price when no explicit price is set. */
   stripe_product_id: string | null;
+  /** Does this tier include the public REST API? (see 20260922_public_api.sql) */
+  api_enabled: boolean;
+  /** Requests per minute per API key. NULL = unlimited. */
+  api_rate_limit_per_min: number | null;
+  /** Requests per day per API key. NULL = unlimited. */
+  api_rate_limit_per_day: number | null;
+  /** How many live API keys a fleet on this tier may hold. */
+  api_max_keys: number;
   created_at: string;
   updated_at: string;
 }

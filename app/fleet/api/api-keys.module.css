@@ -1,0 +1,601 @@
+/* =============================================================================
+   Admin → API — Rovora Fleet flat aesthetic.
+   Uses the fleet design tokens (--bg-1/2/3, --line-1/2/3, --text-1/2/3,
+   --accent, --radius*) so it matches the rest of /fleet in both themes.
+   FleetShell already pads the page, so .container adds none.
+   ============================================================================= */
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+  max-width: 62ch;
+}
+
+.docsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.docsBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ─── Plan allowance strip ─── */
+.limitsBar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--line-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.limit {
+  background: var(--bg-2);
+  padding: 13px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.limitLabel {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.limitValue {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+/* ─── Messages ─── */
+.error {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+
+/* ─── The one-time secret ─── */
+.secretPanel {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft, var(--bg-2));
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+.secretHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.secretBody {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-2);
+  max-width: 70ch;
+}
+
+.secretRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.secretValue {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+}
+
+.copyBtn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.secretDone {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ─── Create ─── */
+.newBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 22px;
+}
+
+.newBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 18px 20px 20px;
+  margin-bottom: 22px;
+}
+
+.formTitle {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.label {
+  display: block;
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.label:first-of-type {
+  margin-top: 0;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+  max-width: 72ch;
+}
+
+.scopeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.scopeCard {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  padding: 13px 14px;
+}
+
+.scopeName {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.scopeBlurb {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.scopeChecks {
+  display: flex;
+  gap: 14px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.primary {
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ghost {
+  padding: 10px 18px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.danger {
+  padding: 8px 14px;
+  border: 1px solid var(--neg);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--neg);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ─── Sections ─── */
+.section {
+  margin-bottom: 30px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.empty {
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius);
+  padding: 28px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13.5px;
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* ─── Key cards ─── */
+.keyList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.keyCard {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 16px 18px;
+}
+
+.keyCard[data-state='revoked'],
+.keyCard[data-state='expired'] {
+  opacity: 0.66;
+}
+
+.keyTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.keyName {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.keyPrefix {
+  display: inline-block;
+  margin-top: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.badge_active,
+.badge_expired,
+.badge_revoked {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge_active {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.badge_expired {
+  background: var(--bg-3);
+  color: var(--text-3);
+}
+
+.badge_revoked {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.keyScopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 12px 0;
+}
+
+.scopeChip {
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.keyMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px 14px;
+  margin: 0 0 14px;
+}
+
+.keyMeta dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+}
+
+.keyMeta dd {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+  word-break: break-word;
+}
+
+.keyActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Request log ─── */
+.logTable {
+  margin-top: 12px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.logRow {
+  display: grid;
+  grid-template-columns: 62px 1fr 52px 74px 170px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-1);
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.logRow:last-child {
+  border-bottom: none;
+}
+
+.logMethod {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.logPath {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logOk {
+  color: var(--pos);
+  font-weight: 500;
+}
+
+.logBad {
+  color: var(--neg);
+  font-weight: 500;
+}
+
+.logTime,
+.logWhen {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .logRow {
+    grid-template-columns: 56px 1fr 46px;
+  }
+
+  .logTime,
+  .logWhen {
+    display: none;
+  }
+}
+
+/* ─── Upgrade panel (plan without API access) ─── */
+.upsell {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 34px 30px;
+  text-align: center;
+  max-width: 620px;
+  margin: 10px auto 0;
+}
+
+.upsellIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  margin-bottom: 14px;
+}
+
+.upsellTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.upsellBody {
+  margin: 0 auto 20px;
+  max-width: 52ch;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+.upsellActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.upsellPrimary {
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.upsellGhost {
+  padding: 10px 18px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 13.5px;
+  text-decoration: none;
+}

@@ -53,6 +53,14 @@ export interface PlanInput {
   stripePriceId?: string | null;
   /** Stripe Product id (prod_...). Empty clears it. */
   stripeProductId?: string | null;
+  /** Does this tier include the public REST API? */
+  apiEnabled?: boolean;
+  /** Requests per minute per API key. null = unlimited. */
+  apiRateLimitPerMin?: number | null;
+  /** Requests per day per API key. null = unlimited. */
+  apiRateLimitPerDay?: number | null;
+  /** How many live API keys a fleet on this tier may hold. */
+  apiMaxKeys?: number;
 }
 
 /** Map a PlanInput to DB columns, omitting undefined keys (partial updates). */
@@ -78,6 +86,10 @@ function toColumns(input: PlanInput): Record<string, unknown> {
   if (input.isPublished !== undefined) col.is_published = input.isPublished;
   if (input.stripePriceId !== undefined) col.stripe_price_id = input.stripePriceId?.trim() || null;
   if (input.stripeProductId !== undefined) col.stripe_product_id = input.stripeProductId?.trim() || null;
+  if (input.apiEnabled !== undefined) col.api_enabled = input.apiEnabled;
+  if (input.apiRateLimitPerMin !== undefined) col.api_rate_limit_per_min = input.apiRateLimitPerMin;
+  if (input.apiRateLimitPerDay !== undefined) col.api_rate_limit_per_day = input.apiRateLimitPerDay;
+  if (input.apiMaxKeys !== undefined) col.api_max_keys = input.apiMaxKeys ?? 0;
   return col;
 }
 

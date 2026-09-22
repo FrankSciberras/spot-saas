@@ -19,8 +19,21 @@ import { isAppRoute } from '@/lib/routes';
 /** API routes authenticate themselves; middleware must not redirect them to HTML. */
 const isApiRoute = (pathname: string) => pathname.startsWith('/api');
 
+/**
+ * The public REST API authenticates with a bearer API key and never reads a
+ * cookie, so refreshing a Supabase session for it is a wasted round-trip on
+ * every single call — and the only session it could ever refresh would belong
+ * to whoever happened to have cookies in that request.
+ */
+const isPublicApiRoute = (pathname: string) =>
+  pathname === '/api/v1' || pathname.startsWith('/api/v1/');
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isPublicApiRoute(pathname)) {
+    return NextResponse.next();
+  }
 
   // Public marketing pages and unknown paths: skip the Supabase session refresh
   // entirely. Touching auth here added a network round-trip to every page view

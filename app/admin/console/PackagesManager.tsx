@@ -72,12 +72,17 @@ interface Draft {
   isPopular: boolean;
   stripePriceId: string;
   stripeProductId: string;
+  apiEnabled: boolean;
+  apiRateLimitPerMin: string;
+  apiRateLimitPerDay: string;
+  apiMaxKeys: string;
 }
 
 const EMPTY_DRAFT: Draft = {
   name: '', blurb: '', priceLabel: '', priceUnit: '/ mo', priceAmount: '', billingNote: '', capLabel: '',
   maxDrivers: '', maxVehicles: '', includedVehicles: '', perVehiclePrice: '', features: '', color: '', ctaLabel: '', ctaHref: '', isCustom: false, isPopular: false,
   stripePriceId: '', stripeProductId: '',
+  apiEnabled: false, apiRateLimitPerMin: '', apiRateLimitPerDay: '', apiMaxKeys: '0',
 };
 
 function rowToDraft(r: PlanRow): Draft {
@@ -101,6 +106,10 @@ function rowToDraft(r: PlanRow): Draft {
     isPopular: r.is_popular,
     stripePriceId: r.stripe_price_id ?? '',
     stripeProductId: r.stripe_product_id ?? '',
+    apiEnabled: r.api_enabled ?? false,
+    apiRateLimitPerMin: r.api_rate_limit_per_min === null || r.api_rate_limit_per_min === undefined ? '' : String(r.api_rate_limit_per_min),
+    apiRateLimitPerDay: r.api_rate_limit_per_day === null || r.api_rate_limit_per_day === undefined ? '' : String(r.api_rate_limit_per_day),
+    apiMaxKeys: String(r.api_max_keys ?? 0),
   };
 }
 
@@ -125,6 +134,10 @@ function draftToInput(d: Draft): PlanInput {
     isPopular: d.isPopular,
     stripePriceId: d.stripePriceId,
     stripeProductId: d.stripeProductId,
+    apiEnabled: d.apiEnabled,
+    apiRateLimitPerMin: intOrNull(d.apiRateLimitPerMin),
+    apiRateLimitPerDay: intOrNull(d.apiRateLimitPerDay),
+    apiMaxKeys: Number(d.apiMaxKeys) || 0,
   };
 }
 
@@ -211,6 +224,27 @@ const DraftFields = ({ d, set, disabled }: { d: Draft; set: (patch: Partial<Draf
       <div style={field(2, 200)}>
         <label style={lbl}>Stripe price ID (optional — overrides product&apos;s default price)</label>
         <input style={inp} value={d.stripePriceId} placeholder="price_…" disabled={disabled} onChange={(e) => set({ stripePriceId: e.target.value })} />
+      </div>
+    </div>
+    {/* Public REST API entitlement — what /api/v1 checks on every call. */}
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={field(1, 180)}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--text-2)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={d.apiEnabled} disabled={disabled} onChange={(e) => set({ apiEnabled: e.target.checked })} />
+          Includes the REST API
+        </label>
+      </div>
+      <div style={field(1, 120)}>
+        <label style={lbl}>API req / min (blank = ∞)</label>
+        <input style={inp} type="number" value={d.apiRateLimitPerMin} placeholder="∞" disabled={disabled || !d.apiEnabled} onChange={(e) => set({ apiRateLimitPerMin: e.target.value })} />
+      </div>
+      <div style={field(1, 120)}>
+        <label style={lbl}>API req / day (blank = ∞)</label>
+        <input style={inp} type="number" value={d.apiRateLimitPerDay} placeholder="∞" disabled={disabled || !d.apiEnabled} onChange={(e) => set({ apiRateLimitPerDay: e.target.value })} />
+      </div>
+      <div style={field(1, 110)}>
+        <label style={lbl}>Max API keys</label>
+        <input style={inp} type="number" value={d.apiMaxKeys} placeholder="0" disabled={disabled || !d.apiEnabled} onChange={(e) => set({ apiMaxKeys: e.target.value })} />
       </div>
     </div>
     <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
