@@ -12,6 +12,10 @@
 // fees, cash the driver collected (when the preset deducts cash), tax and rent.
 // The amount owed is the total of those weeks minus the weeks already marked
 // paid. A negative amount is printed with a minus: the driver owes the fleet.
+//
+// Each driver gets exactly one page: the page is drawn at the roomiest
+// density that fits (see drawOnOnePage) and only flows onto a second page
+// when even the tightest density can't hold it.
 // =============================================================================
 
 import jsPDF from 'jspdf';
@@ -103,6 +107,8 @@ export function settlementPayable(s: Pick<PdfSettlement, 'finalBalance' | 'total
 export interface OwedWeek {
   label: string;
   status: string;
+  /** Gross fares that week (context only). */
+  gross?: number;
   /** What the week is worth to the driver (negative = driver owes the fleet). */
   amount: number;
   paidAt: string | null;
@@ -142,6 +148,7 @@ function owedWeeksOf(rows: PdfSettlement[], currentId?: string): OwedWeek[] {
     .map((s) => ({
       label: periodTitle(s),
       status: s.status,
+      gross: round2(s.platforms.reduce((sum, p) => sum + num(p.gross_fare), 0)),
       amount: settlementPayable(s),
       paidAt: s.paidAt,
       current: s.id === currentId,
@@ -155,7 +162,7 @@ type Audience = 'fleet' | 'driver';
 
 const MARGIN = 15;
 /** Space kept clear at the bottom of every page for the footer. */
-const FOOTER_SPACE = 18;
+const FOOTER_SPACE = 16;
 const TABLE_MARGIN = { left: MARGIN, right: MARGIN, top: MARGIN, bottom: FOOTER_SPACE };
 const HEAD_STYLES = { fillColor: [66, 66, 66] as RGB, textColor: 255, fontStyle: 'bold' as const };
 const TOTAL_FILL: RGB = [240, 240, 240];
@@ -164,6 +171,30 @@ const OWES_FILL: RGB = [254, 226, 226];
 const OWED_TEXT: RGB = [21, 128, 61];
 const OWES_TEXT: RGB = [185, 28, 28];
 const MUTED_TEXT: RGB = [110, 110, 110];
+
+/** How tightly a page is set: table font (pt), cell padding and gap between sections (mm). */
+interface Density {
+  font: number;
+  pad: number;
+  gap: number;
+}
+
+/** Roomiest first; drawOnOnePage steps down until a driver fits on one page. */
+const DENSITIES: Density[] = [
+  { font: 8.5, pad: 1.3, gap: 6 },
+  { font: 8, pad: 1, gap: 4.5 },
+  { font: 7.2, pad: 0.7, gap: 3.5 },
+];
+const ROOMY = DENSITIES[0];
+
+/** Height (mm) of one table row at this density. */
+function rowMm(d: Density): number {
+  return (d.font * 1.15 * 25.4) / 72 + d.pad * 2;
+}
+
+function tableStyles(d: Density) {
+  return { fontSize: d.font, cellPadding: { top: d.pad, bottom: d.pad, left: 2, right: 2 } };
+}
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -214,73 +245,8 @@ function fileSafe(value: string): string {
 
 // ── Page furniture ───────────────────────────────────────────────────────────
 
-/** The fleet's identity, printed top-right of every settlement page. */
-export interface FleetIdentity {
-  name: string;
-  legalName?: string | null;
-  vatNumber?: string | null;
-  address?: string | null;
-  contactEmail?: string | null;
-  contactPhone?: string | null;
-}
-
-/**
- * Print the fleet's name and business details right-aligned in the header.
- * Returns the y position below the block so the caller can avoid overlap.
- */
-function drawFleetIdentity(doc: jsPDF, fleet: FleetIdentity | null | undefined, top: number): number {
-  if (!fleet?.name) return top;
-  const right = doc.internal.pageSize.getWidth() - MARGIN;
-  let y = top;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(0);
-  doc.text(fleet.name, right, y, { align: 'right' });
-  y += 4.5;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(100);
-  const lines: string[] = [];
-  if (fleet.legalName && fleet.legalName !== fleet.name) lines.push(fleet.legalName);
-  if (fleet.vatNumber) lines.push(`VAT ${fleet.vatNumber}`);
-  if (fleet.address) lines.push(...fleet.address.split(/\r?\n|,\s*/).map((s) => s.trim()).filter(Boolean).slice(0, 3));
-  const contact = [fleet.contactPhone, fleet.contactEmail].filter(Boolean).join(' · ');
-  if (contact) lines.push(contact);
-  for (const line of lines) {
-    doc.text(line, right, y, { align: 'right' });
-    y += 3.8;
-  }
-  doc.setTextColor(0);
-  return y;
-}
-
-/** Title / name / sub-lines top-left, fleet identity top-right. Returns the y to continue from. */
-function drawPageHeader(
-  doc: jsPDF,
-  title: string,
-  name: string,
-  subLines: string[],
-  fleet: FleetIdentity | null | undefined
-): number {
-  const identityBottom = drawFleetIdentity(doc, fleet, MARGIN + 4);
-  let y = MARGIN + 4;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(0);
-  doc.text(title, MARGIN, y);
-  y += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.text(name, MARGIN, y);
-  y += 5.5;
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  for (const line of subLines) {
-    doc.text(line, MARGIN, y);
-    y += 4.5;
-  }
-  doc.setTextColor(0);
-  return Math.max(y + 4, identityBottom + 6);
+function newDoc(): jsPDF {
+  return new jsPDF('portrait', 'mm', 'a4');
 }
 
 function tableEndY(doc: jsPDF): number {
@@ -291,6 +257,31 @@ function contentWidth(doc: jsPDF): number {
   return doc.internal.pageSize.getWidth() - MARGIN * 2;
 }
 
+/**
+ * One compact header row: the title (and an optional status line) top-left,
+ * the driver's name with the date under it top-right. Returns the y to continue from.
+ */
+function drawPageHeader(doc: jsPDF, title: string, name: string, date: string, status?: string): number {
+  const right = doc.internal.pageSize.getWidth() - MARGIN;
+  const top = MARGIN + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(0);
+  doc.text(title, MARGIN, top + 1);
+  doc.setFontSize(12);
+  doc.text(name, right, top, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(100);
+  doc.text(date, right, top + 5.5, { align: 'right' });
+  if (status) doc.text(status, MARGIN, top + 6.5);
+
+  doc.setTextColor(0);
+  return top + 11;
+}
+
 /** Start a new page when fewer than `needed` mm are left above the footer. */
 function ensureSpace(doc: jsPDF, y: number, needed: number): number {
   if (y + needed <= doc.internal.pageSize.getHeight() - FOOTER_SPACE) return y;
@@ -298,40 +289,38 @@ function ensureSpace(doc: jsPDF, y: number, needed: number): number {
   return MARGIN + 4;
 }
 
-/** Approximate height (mm) of a 9pt table row — used to keep short tables on one page. */
-const ROW_MM = 7.4;
-
 /**
  * Bold section heading — moved to the next page rather than left orphaned.
  * `keepTogether` is the height of what follows; when it fits on a fresh page,
  * the whole section moves over instead of splitting.
  */
-function sectionTitle(doc: jsPDF, text: string, y: number, keepTogether = 24): number {
+function sectionTitle(doc: jsPDF, text: string, y: number, keepTogether = 20): number {
   const usable = doc.internal.pageSize.getHeight() - FOOTER_SPACE - MARGIN - 6;
-  const top = ensureSpace(doc, y, Math.min(keepTogether, usable));
+  const top = ensureSpace(doc, y + 3.5, Math.min(keepTogether, usable));
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.setTextColor(0);
   doc.text(text, MARGIN, top);
-  return top + 2;
+  return top + 1.8;
 }
 
 /** Small grey explanation under a table. Returns the y below it. */
 function footnote(doc: jsPDF, text: string, y: number): number {
+  const lineMm = 3.1;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   const lines = doc.splitTextToSize(text, contentWidth(doc)) as string[];
-  const top = ensureSpace(doc, y + 4, lines.length * 3.6);
+  const top = ensureSpace(doc, y + 3.3, lines.length * lineMm);
   doc.setTextColor(...MUTED_TEXT);
   doc.text(lines, MARGIN, top);
   doc.setTextColor(0);
-  return top + lines.length * 3.6;
+  return top + (lines.length - 1) * lineMm + 1;
 }
 
-/** The big "amount owed" box at the top of a driver page. Returns the y below it. */
+/** The "amount owed" box at the top of a driver page. Returns the y below it. */
 function drawOwedHeadline(doc: jsPDF, y: number, owed: number, label: string, detail: string): number {
   const width = contentWidth(doc);
-  const height = 17;
+  const height = 14;
   const top = ensureSpace(doc, y, height + 4);
   const negative = round2(owed) < 0;
 
@@ -339,19 +328,19 @@ function drawOwedHeadline(doc: jsPDF, y: number, owed: number, label: string, de
   doc.roundedRect(MARGIN, top, width, height, 2, 2, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.setTextColor(0);
-  doc.text(label, MARGIN + 5, top + 7);
+  doc.text(label, MARGIN + 5, top + 6);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(80);
-  doc.text(detail, MARGIN + 5, top + 12.5, { maxWidth: width * 0.66 });
+  doc.text(detail, MARGIN + 5, top + 10.6, { maxWidth: width * 0.68 });
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
+  doc.setFontSize(16);
   doc.setTextColor(...(negative ? OWES_TEXT : OWED_TEXT));
-  doc.text(money(owed), MARGIN + width - 5, top + 11, { align: 'right' });
+  doc.text(money(owed), MARGIN + width - 5, top + 9.3, { align: 'right' });
 
   doc.setTextColor(0);
   return top + height;
@@ -373,10 +362,27 @@ function drawFooters(doc: jsPDF): void {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(150);
-    doc.text(generated, MARGIN, pageHeight - 10);
-    doc.text(`Page ${i} of ${count}`, pageWidth - MARGIN, pageHeight - 10, { align: 'right' });
+    doc.text(generated, MARGIN, pageHeight - 9);
+    doc.text(`Page ${i} of ${count}`, pageWidth - MARGIN, pageHeight - 9, { align: 'right' });
   }
   doc.setTextColor(0);
+}
+
+/**
+ * Draw one driver's page at the roomiest density that fits on a single page:
+ * each density is tried on a scratch document first. If nothing fits (a very
+ * long month), the tightest density is used and the page flows on.
+ */
+function drawOnOnePage(doc: jsPDF, draw: (target: jsPDF, d: Density) => void): void {
+  for (const d of DENSITIES) {
+    const probe = newDoc();
+    draw(probe, d);
+    if (probe.getNumberOfPages() === 1) {
+      draw(doc, d);
+      return;
+    }
+  }
+  draw(doc, DENSITIES[DENSITIES.length - 1]);
 }
 
 // ── Pay lines ────────────────────────────────────────────────────────────────
@@ -454,6 +460,11 @@ function payLinesOf(rows: PdfSettlement[]): PayLines {
   return { ...rounded, on };
 }
 
+/** Whether the per-platform table has anything to show (pure-wage fleets may have no fares). */
+function hasPlatformEarnings(l: PayLines): boolean {
+  return l.gross !== 0 || l.cash !== 0 || l.tips !== 0 || l.campaigns !== 0;
+}
+
 /** The shared % when every settlement used the same one, else null. */
 function uniformPct(rows: PdfSettlement[], pick: (s: PdfSettlement) => number): number | null {
   if (rows.length === 0) return null;
@@ -461,8 +472,8 @@ function uniformPct(rows: PdfSettlement[], pick: (s: PdfSettlement) => number): 
   return rows.every((s) => round2(pick(s)) === first) ? first : null;
 }
 
-function withPct(label: string, pct: number | null, suffix = ''): string {
-  return pct !== null && pct < 100 ? `${label} (${pct}%${suffix})` : label;
+function withPct(label: string, pct: number | null): string {
+  return pct !== null && pct < 100 ? `${label} (${pct}%)` : label;
 }
 
 interface SummaryRow {
@@ -471,34 +482,21 @@ interface SummaryRow {
   tone?: 'subtotal' | 'result';
 }
 
-/** The settlement maths top to bottom; every line adds up to the result (the last row). */
+/**
+ * From the platform balance down to what the driver is owed. The fares, fees,
+ * cash, tips and campaigns behind the platform balance are itemised in the
+ * platform table, so they aren't repeated here. Every line adds up to the result.
+ */
 function payLineRows(rows: PdfSettlement[], resultLabel: string): SummaryRow[] {
   const l = payLinesOf(rows);
   const out: SummaryRow[] = [];
 
-  if (l.on.share || l.on.fee || l.gross > 0) {
-    out.push({ label: 'Gross fares', value: money(l.gross) });
-    if (l.on.share) {
-      const sharePct = uniformPct(rows, (s) => s.driverSharePct);
-      out.push({ label: sharePct !== null ? `Driver share (${sharePct}%)` : 'Driver share', value: money(l.share) });
-    }
-    if (l.on.fee) out.push({ label: 'Platform fees', value: minusMoney(l.fee) });
-    out.push({ label: 'Net', value: money(l.net), tone: 'subtotal' });
-  }
-  if (l.on.cash) out.push({ label: 'Cash already collected by driver', value: minusMoney(l.cash) });
-  if (l.on.tips) {
-    out.push({ label: withPct('Tips', uniformPct(rows, (s) => s.tipsDriverPct), ' to driver'), value: signedMoney(l.tips) });
-  }
-  if (l.on.campaigns) {
-    out.push({
-      label: withPct('Campaigns', uniformPct(rows, (s) => s.campaignsDriverPct), ' to driver'),
-      value: signedMoney(l.campaigns),
-    });
-  }
+  if (hasPlatformEarnings(l)) out.push({ label: 'Platform balance (from the table above)', value: money(l.balance) });
   if (l.wage > 0 || l.on.hours || l.on.fixed) {
     out.push({ label: l.hours > 0 ? `Wage (${l.hours}h)` : 'Wage', value: signedMoney(l.wage) });
   }
-  out.push({ label: 'Balance before tax', value: money(l.balanceBeforeTax), tone: 'subtotal' });
+  // One line above already IS the balance before tax; repeat it only as a subtotal of two.
+  if (out.length !== 1) out.push({ label: 'Balance before tax', value: money(l.balanceBeforeTax), tone: 'subtotal' });
   if (l.on.tax || l.tax > 0) out.push({ label: 'FSS / Tax', value: minusMoney(l.tax) });
   if (l.rent > 0) out.push({ label: 'Vehicle rent', value: minusMoney(l.rent) });
   if (l.adjustments !== 0) out.push({ label: 'Driver adjustments', value: signedMoney(l.adjustments) });
@@ -506,16 +504,25 @@ function payLineRows(rows: PdfSettlement[], resultLabel: string): SummaryRow[] {
   return out;
 }
 
-function drawSummaryTable(doc: jsPDF, rows: PdfSettlement[], title: string, resultLabel: string, startY: number): number {
+// ── Tables ───────────────────────────────────────────────────────────────────
+
+function drawSummaryTable(
+  doc: jsPDF,
+  rows: PdfSettlement[],
+  title: string,
+  resultLabel: string,
+  startY: number,
+  d: Density
+): number {
   const width = contentWidth(doc);
   const negative = payLinesOf(rows).payable < 0;
   const summary = payLineRows(rows, resultLabel);
-  const top = sectionTitle(doc, title, startY, 8 + summary.length * ROW_MM);
+  const top = sectionTitle(doc, title, startY, 6 + summary.length * rowMm(d));
   autoTable(doc, {
     startY: top,
     body: summary.map((r) => [r.label, r.value]),
     margin: TABLE_MARGIN,
-    styles: { fontSize: 9, cellPadding: 1.8 },
+    styles: tableStyles(d),
     columnStyles: {
       0: { halign: 'left', cellWidth: width * 0.65 },
       1: { halign: 'right', cellWidth: width * 0.35 },
@@ -527,7 +534,7 @@ function drawSummaryTable(doc: jsPDF, rows: PdfSettlement[], title: string, resu
         data.cell.styles.fillColor = TOTAL_FILL;
       } else if (tone === 'result') {
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fontSize = 10;
+        data.cell.styles.fontSize = d.font + 1;
         data.cell.styles.fillColor = negative ? OWES_FILL : OWED_FILL;
       }
     },
@@ -535,12 +542,10 @@ function drawSummaryTable(doc: jsPDF, rows: PdfSettlement[], title: string, resu
   return tableEndY(doc);
 }
 
-// ── Tables ───────────────────────────────────────────────────────────────────
-
 /** Per-platform earnings (summed over the given settlements). Null when there are no fares at all. */
-function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, startY: number): number | null {
+function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, startY: number, d: Density): number | null {
   const lines = payLinesOf(rows);
-  if (lines.gross === 0 && lines.cash === 0 && lines.tips === 0 && lines.campaigns === 0) return null;
+  if (!hasPlatformEarnings(lines)) return null;
 
   const byPlatform = new Map<string, PlatformLines & { name: string }>();
   for (const s of rows) {
@@ -563,15 +568,17 @@ function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, sta
   }
 
   const on = lines.on;
-  const tipsPct = uniformPct(rows, (s) => s.tipsDriverPct);
+  const sharePct = uniformPct(rows, (s) => s.driverSharePct);
   const columns: { title: string; cell: (a: PlatformLines) => string }[] = [
     ...(on.share || on.fee || lines.gross > 0 ? [{ title: 'Gross', cell: (a: PlatformLines) => money(a.gross) }] : []),
-    ...(on.share ? [{ title: 'Share', cell: (a: PlatformLines) => money(a.share) }] : []),
+    ...(on.share ? [{ title: sharePct !== null ? `Share ${sharePct}%` : 'Share', cell: (a: PlatformLines) => money(a.share) }] : []),
     ...(on.fee ? [{ title: 'Fee', cell: (a: PlatformLines) => minusMoney(a.fee) }] : []),
     ...(on.share || on.fee ? [{ title: 'Net', cell: (a: PlatformLines) => money(a.net) }] : []),
-    ...(on.cash ? [{ title: 'Cash', cell: (a: PlatformLines) => minusMoney(a.cash) }] : []),
-    ...(on.tips ? [{ title: withPct('Tips', tipsPct), cell: (a: PlatformLines) => signedMoney(a.tips) }] : []),
-    ...(on.campaigns ? [{ title: 'Campaigns', cell: (a: PlatformLines) => signedMoney(a.campaigns) }] : []),
+    ...(on.cash ? [{ title: 'Cash kept', cell: (a: PlatformLines) => minusMoney(a.cash) }] : []),
+    ...(on.tips ? [{ title: withPct('Tips', uniformPct(rows, (s) => s.tipsDriverPct)), cell: (a: PlatformLines) => signedMoney(a.tips) }] : []),
+    ...(on.campaigns
+      ? [{ title: withPct('Campaigns', uniformPct(rows, (s) => s.campaignsDriverPct)), cell: (a: PlatformLines) => signedMoney(a.campaigns) }]
+      : []),
     { title: 'Balance', cell: (a) => money(a.balance) },
   ];
 
@@ -583,19 +590,19 @@ function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, sta
 
   const width = contentWidth(doc);
   const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth?: number }> = {
-    0: { halign: 'left', cellWidth: width * 0.2 },
+    0: { halign: 'left', cellWidth: width * 0.17 },
   };
   columns.forEach((_, i) => {
     columnStyles[i + 1] = { halign: 'right' };
   });
 
-  const top = sectionTitle(doc, title, startY);
+  const top = sectionTitle(doc, title, startY, 6 + (body.length + 1) * rowMm(d));
   autoTable(doc, {
     startY: top,
     head: [['Platform', ...columns.map((c) => c.title)]],
     body,
     margin: TABLE_MARGIN,
-    styles: { fontSize: 8.5, cellPadding: 1.8 },
+    styles: tableStyles(d),
     headStyles: HEAD_STYLES,
     columnStyles,
     didParseCell: (data) => {
@@ -610,7 +617,13 @@ function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, sta
 }
 
 /** The itemised driver adjustments (fuel, fines, bonuses…). Null when there are none. */
-function drawAdjustmentsTable(doc: jsPDF, adjustments: DriverAdjustment[], title: string, startY: number): number | null {
+function drawAdjustmentsTable(
+  doc: jsPDF,
+  adjustments: DriverAdjustment[],
+  title: string,
+  startY: number,
+  d: Density
+): number | null {
   if (adjustments.length === 0) return null;
   const sorted = [...adjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const body = sorted.map((a) => [
@@ -622,13 +635,13 @@ function drawAdjustmentsTable(doc: jsPDF, adjustments: DriverAdjustment[], title
   body.push(['', '', 'TOTAL', signedMoney(calculateAdjustmentsNet(sorted))]);
 
   const width = contentWidth(doc);
-  const top = sectionTitle(doc, title, startY);
+  const top = sectionTitle(doc, title, startY, 6 + (body.length + 1) * rowMm(d));
   autoTable(doc, {
     startY: top,
     head: [['Date', 'Type', 'Description', 'Amount']],
     body,
     margin: TABLE_MARGIN,
-    styles: { fontSize: 8.5, cellPadding: 1.8 },
+    styles: tableStyles(d),
     headStyles: HEAD_STYLES,
     columnStyles: {
       0: { halign: 'left', cellWidth: width * 0.14 },
@@ -649,52 +662,67 @@ function drawAdjustmentsTable(doc: jsPDF, adjustments: DriverAdjustment[], title
 
 /**
  * The payment statement: every week with its amount and whether it was paid,
- * then total earned − already paid = still owed.
+ * then total earned, less already paid = still owed.
  */
-function drawOwedStatement(doc: jsPDF, weeks: OwedWeek[], title: string, owedLabel: string, startY: number): number {
+function drawOwedStatement(
+  doc: jsPDF,
+  weeks: OwedWeek[],
+  title: string,
+  owedLabel: string,
+  startY: number,
+  d: Density
+): number {
   const t = summarizeOwed(weeks);
+  const showGross = weeks.some((w) => (w.gross ?? 0) !== 0);
+  const grossCell = (value: number) => (showGross ? [money(value)] : []);
+
   const body = weeks.map((w) => [
     w.label,
     w.status === 'finalized' ? 'Finalized' : 'Draft',
+    ...grossCell(w.gross ?? 0),
     money(w.amount),
     w.paidAt ? `Paid ${shortDate(w.paidAt)}` : 'Not paid yet',
   ]);
   const firstTotal = body.length;
-  body.push(['Total earned', '', money(t.earned), '']);
-  body.push(['Less: already paid', '', money(t.paid), '']);
-  body.push([owedLabel, '', money(t.owed), '']);
+  const blank = showGross ? ['', ''] : [''];
+  body.push(['Total earned', '', ...grossCell(weeks.reduce((sum, w) => sum + (w.gross ?? 0), 0)), money(t.earned), '']);
+  body.push(['Less: already paid', ...blank, money(t.paid), '']);
+  body.push([owedLabel, ...blank, money(t.owed), '']);
 
   const width = contentWidth(doc);
-  const top = sectionTitle(doc, title, startY, 8 + (body.length + 1) * ROW_MM);
+  const amountCol = showGross ? 3 : 2;
+  const widths = showGross ? [0.4, 0.12, 0.14, 0.14, 0.2] : [0.46, 0.14, 0.18, 0.22];
+  const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth: number }> = {};
+  widths.forEach((w, i) => {
+    columnStyles[i] = { halign: i >= 2 && i <= amountCol ? 'right' : 'left', cellWidth: width * w };
+  });
+
+  const top = sectionTitle(doc, title, startY, 6 + (body.length + 1) * rowMm(d));
   autoTable(doc, {
     startY: top,
-    head: [['Week', 'Status', 'Amount', 'Paid']],
+    head: [['Week', 'Status', ...(showGross ? ['Gross'] : []), 'Amount', 'Paid']],
     body,
     margin: TABLE_MARGIN,
-    styles: { fontSize: 9, cellPadding: 1.8 },
+    styles: tableStyles(d),
     headStyles: HEAD_STYLES,
-    columnStyles: {
-      0: { halign: 'left', cellWidth: width * 0.46 },
-      1: { halign: 'left', cellWidth: width * 0.14 },
-      2: { halign: 'right', cellWidth: width * 0.18 },
-      3: { halign: 'left', cellWidth: width * 0.22 },
-    },
+    columnStyles,
     didParseCell: (data) => {
+      const col = data.column.index;
       if (data.section === 'head') {
-        if (data.column.index === 2) data.cell.styles.halign = 'right';
+        if (col >= 2 && col <= amountCol) data.cell.styles.halign = 'right';
         return;
       }
       const i = data.row.index;
       if (i < firstTotal) {
         const week = weeks[i];
         if (week.current) data.cell.styles.fontStyle = 'bold';
-        if (data.column.index === 2 && week.amount < 0) data.cell.styles.textColor = OWES_TEXT;
-        if (data.column.index === 3) data.cell.styles.textColor = week.paidAt ? OWED_TEXT : MUTED_TEXT;
+        if (col === amountCol && week.amount < 0) data.cell.styles.textColor = OWES_TEXT;
+        if (col === amountCol + 1) data.cell.styles.textColor = week.paidAt ? OWED_TEXT : MUTED_TEXT;
         return;
       }
       data.cell.styles.fontStyle = 'bold';
       if (i === body.length - 1) {
-        data.cell.styles.fontSize = 10;
+        data.cell.styles.fontSize = d.font + 1;
         data.cell.styles.fillColor = t.owed < 0 ? OWES_FILL : OWED_FILL;
       } else {
         data.cell.styles.fillColor = TOTAL_FILL;
@@ -728,63 +756,6 @@ function owedFootnote(rows: PdfSettlement[], weeks: OwedWeek[], audience: Audien
   return sentences.join(' ');
 }
 
-/** Week-by-week detail for a month: gross per platform, net, tax, amount. */
-function drawWeekByWeek(doc: jsPDF, rows: PdfSettlement[], title: string, startY: number): number {
-  const sorted = [...rows].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
-  const lines = payLinesOf(sorted);
-  const platformNames = lines.gross > 0
-    ? Array.from(new Set(sorted.flatMap((r) => r.platforms.map((p) => p.platform_name)))).sort()
-    : [];
-  const grossOf = (r: PdfSettlement, name: string) =>
-    r.platforms.filter((p) => p.platform_name === name).reduce((sum, p) => sum + num(p.gross_fare), 0);
-  const netOf = (r: PdfSettlement) => r.platforms.reduce((sum, p) => sum + num(p.net), 0);
-
-  const columns: { title: string; cell: (r: PdfSettlement) => number; total: number }[] = [
-    ...platformNames.map((name) => ({
-      title: `${name} gross`,
-      cell: (r: PdfSettlement) => grossOf(r, name),
-      total: sorted.reduce((sum, r) => sum + grossOf(r, name), 0),
-    })),
-    ...(lines.on.share || lines.on.fee ? [{ title: 'Net', cell: netOf, total: lines.net }] : []),
-    ...(lines.wage > 0 ? [{ title: 'Wage', cell: (r: PdfSettlement) => r.wageAmount, total: lines.wage }] : []),
-    ...(lines.on.tax || lines.tax > 0 ? [{ title: 'Tax', cell: (r: PdfSettlement) => r.fssTax, total: lines.tax }] : []),
-    { title: 'Amount', cell: settlementPayable, total: lines.payable },
-  ];
-
-  const body = [
-    ...sorted.map((r) => [periodTitle(r), ...columns.map((c) => money(c.cell(r)))]),
-    ['TOTAL', ...columns.map((c) => money(c.total))],
-  ];
-
-  const width = contentWidth(doc);
-  const weekWidth = width * 0.3;
-  const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth: number }> = {
-    0: { halign: 'left', cellWidth: weekWidth },
-  };
-  columns.forEach((_, i) => {
-    columnStyles[i + 1] = { halign: 'right', cellWidth: (width - weekWidth) / columns.length };
-  });
-
-  const top = sectionTitle(doc, title, startY);
-  autoTable(doc, {
-    startY: top,
-    head: [['Week', ...columns.map((c) => c.title)]],
-    body,
-    margin: TABLE_MARGIN,
-    styles: { fontSize: 8, cellPadding: 1.8 },
-    headStyles: HEAD_STYLES,
-    columnStyles,
-    didParseCell: (data) => {
-      if (data.section === 'head' && data.column.index > 0) data.cell.styles.halign = 'right';
-      if (data.section === 'body' && data.row.index === body.length - 1) {
-        data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = TOTAL_FILL;
-      }
-    },
-  });
-  return tableEndY(doc);
-}
-
 // ── Driver pages ─────────────────────────────────────────────────────────────
 
 /**
@@ -797,11 +768,10 @@ function drawPeriodDriverPage(
   s: PdfSettlement,
   monthRows: PdfSettlement[],
   adjustments: DriverAdjustment[],
-  fleet: FleetIdentity | null | undefined
+  d: Density
 ): void {
-  const statusText = s.status === 'finalized' ? 'Finalized' : 'Draft';
-  const paidText = s.paidAt ? ` - Paid ${shortDate(s.paidAt)}` : ' - Not paid yet';
-  let y = drawPageHeader(doc, 'Driver Settlement', s.driverName, [periodTitle(s), `Status: ${statusText}${paidText}`], fleet);
+  const status = `${s.status === 'finalized' ? 'Finalized' : 'Draft'} · ${s.paidAt ? `Paid ${shortDate(s.paidAt)}` : 'Not paid yet'}`;
+  let y = drawPageHeader(doc, 'Driver Settlement', s.driverName, periodTitle(s), status);
 
   const weeks = owedWeeksOf(monthRows, s.id);
   const t = summarizeOwed(weeks);
@@ -811,38 +781,41 @@ function drawPeriodDriverPage(
     : s.paidAt
       ? `This period was paid on ${shortDate(s.paidAt)}`
       : 'This period has not been paid yet';
-  y = drawOwedHeadline(doc, y, t.owed, 'Amount owed to driver', detail) + 8;
+  y = drawOwedHeadline(doc, y, t.owed, 'Amount owed to driver', detail) + d.gap - 2;
 
   let n = 1;
-  const platformEnd = drawPlatformTable(doc, [s], `${n}. Earnings by platform`, y);
+  const platformEnd = drawPlatformTable(doc, [s], `${n}. Earnings by platform`, y, d);
   if (platformEnd !== null) {
     n++;
-    y = platformEnd + 8;
+    y = platformEnd + d.gap;
   }
 
-  const adjustmentsEnd = drawAdjustmentsTable(doc, adjustments, `${n}. Driver adjustments`, y);
+  const adjustmentsEnd = drawAdjustmentsTable(doc, adjustments, `${n}. Driver adjustments`, y, d);
   if (adjustmentsEnd !== null) {
     n++;
-    y = adjustmentsEnd + 8;
+    y = adjustmentsEnd + d.gap;
   }
 
-  y = drawSummaryTable(doc, [s], `${n++}. This period`, 'PAYABLE FOR THIS PERIOD', y) + 8;
+  y = drawSummaryTable(doc, [s], `${n++}. This period`, 'PAYABLE FOR THIS PERIOD', y, d) + d.gap;
 
-  y = drawOwedStatement(doc, weeks, `${n++}. Amount owed - ${month} so far`, 'STILL OWED TO DRIVER', y);
-  y = footnote(doc, owedFootnote(monthRows, weeks, 'fleet'), y) + 6;
+  y = drawOwedStatement(doc, weeks, `${n++}. Amount owed - ${month} so far`, 'STILL OWED TO DRIVER', y, d);
+  y = footnote(doc, owedFootnote(monthRows, weeks, 'fleet'), y) + d.gap;
 
   if (s.notes) {
-    y = ensureSpace(doc, y, 14);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(d.font);
+    const lines = doc.splitTextToSize(s.notes, contentWidth(doc)) as string[];
+    y = ensureSpace(doc, y + 2, 5 + lines.length * 3.8);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.text('Notes:', MARGIN, y);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(doc.splitTextToSize(s.notes, contentWidth(doc)), MARGIN, y + 4.5);
+    doc.setFontSize(d.font);
+    doc.text(lines, MARGIN, y + 4.5);
   }
 }
 
-/** One driver, one month: owed headline, summary, payment statement, detail. */
+/** One driver, one month: owed headline, platform earnings, summary, payment statement. */
 function drawMonthDriverPage(
   doc: jsPDF,
   driverName: string,
@@ -850,9 +823,9 @@ function drawMonthDriverPage(
   rows: PdfSettlement[],
   adjustments: DriverAdjustment[],
   audience: Audience,
-  fleet: FleetIdentity | null | undefined
+  d: Density
 ): void {
-  let y = drawPageHeader(doc, 'Monthly Settlement', driverName, [monthLabel], fleet);
+  let y = drawPageHeader(doc, 'Monthly Settlement', driverName, monthLabel);
 
   const weeks = owedWeeksOf(rows);
   const t = summarizeOwed(weeks);
@@ -862,33 +835,32 @@ function drawMonthDriverPage(
     t.owed,
     audience === 'driver' ? 'Amount owed to you' : 'Amount owed to driver',
     `Earned ${money(t.earned)} this month, already paid ${money(t.paid)} (${t.paidWeeks} of ${t.weeks} ${t.weeks === 1 ? 'week' : 'weeks'})`
-  ) + 8;
+  ) + d.gap - 2;
 
-  y = drawSummaryTable(doc, rows, '1. Month summary', 'TOTAL EARNED THIS MONTH', y) + 8;
+  let n = 1;
+  const platformEnd = drawPlatformTable(doc, rows, `${n}. Earnings by platform`, y, d);
+  if (platformEnd !== null) {
+    n++;
+    y = platformEnd + d.gap;
+  }
+
+  const adjustmentsEnd = drawAdjustmentsTable(doc, adjustments, `${n}. Driver adjustments`, y, d);
+  if (adjustmentsEnd !== null) {
+    n++;
+    y = adjustmentsEnd + d.gap;
+  }
+
+  y = drawSummaryTable(doc, rows, `${n++}. Month summary`, 'TOTAL EARNED THIS MONTH', y, d) + d.gap;
 
   y = drawOwedStatement(
     doc,
     weeks,
-    '2. Payments & amount owed',
+    `${n++}. Payments & amount owed`,
     audience === 'driver' ? 'STILL OWED TO YOU' : 'STILL OWED TO DRIVER',
-    y
+    y,
+    d
   );
-  y = footnote(doc, owedFootnote(rows, weeks, audience), y) + 6;
-
-  let n = 3;
-  const platformEnd = drawPlatformTable(doc, rows, `${n}. Earnings by platform`, y);
-  if (platformEnd !== null) {
-    n++;
-    y = platformEnd + 8;
-  }
-
-  const adjustmentsEnd = drawAdjustmentsTable(doc, adjustments, `${n}. Driver adjustments`, y);
-  if (adjustmentsEnd !== null) {
-    n++;
-    y = adjustmentsEnd + 8;
-  }
-
-  drawWeekByWeek(doc, rows, `${n}. Week by week`, y);
+  footnote(doc, owedFootnote(rows, weeks, audience), y);
 }
 
 function groupByDriver(rows: PdfSettlement[]): { driverName: string; rows: PdfSettlement[] }[] {
@@ -920,13 +892,12 @@ interface PeriodPdfOptions {
   history?: PdfSettlement[];
   /** Frozen adjustments, keyed by settlement id. */
   adjustmentsBySettlement?: Record<string, DriverAdjustment[]>;
-  fleet?: FleetIdentity | null;
 }
 
 /** One settlement period: a page per driver. */
 export function buildSettlementsPdf(options: PeriodPdfOptions): jsPDF {
-  const { settlements, history = [], adjustmentsBySettlement, fleet } = options;
-  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const { settlements, history = [], adjustmentsBySettlement } = options;
+  const doc = newDoc();
   const ordered = [...settlements].sort((a, b) => a.driverName.localeCompare(b.driverName));
 
   ordered.forEach((s, index) => {
@@ -934,7 +905,8 @@ export function buildSettlementsPdf(options: PeriodPdfOptions): jsPDF {
     const earlier = history.filter(
       (h) => h.driverId === s.driverId && h.monthKey === s.monthKey && h.weekStart < s.weekStart && h.id !== s.id
     );
-    drawPeriodDriverPage(doc, s, [...earlier, s], adjustmentsBySettlement?.[s.id] ?? [], fleet);
+    const adjustments = adjustmentsBySettlement?.[s.id] ?? [];
+    drawOnOnePage(doc, (target, d) => drawPeriodDriverPage(target, s, [...earlier, s], adjustments, d));
   });
 
   drawFooters(doc);
@@ -956,13 +928,12 @@ interface MonthPdfOptions {
   settlements: PdfSettlement[];
   /** Frozen adjustments, keyed by settlement id. */
   adjustmentsBySettlement?: Record<string, DriverAdjustment[]>;
-  fleet?: FleetIdentity | null;
 }
 
 /** One month for the whole fleet: an overview of what's owed, then a page per driver. */
 export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
-  const { monthLabel, settlements, adjustmentsBySettlement, fleet } = options;
-  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const { monthLabel, settlements, adjustmentsBySettlement } = options;
+  const doc = newDoc();
   const width = contentWidth(doc);
   const drivers = groupByDriver(settlements).map((d) => {
     const weeks = owedWeeksOf(d.rows);
@@ -970,7 +941,12 @@ export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
   });
 
   // Overview page.
-  let y = drawPageHeader(doc, 'Monthly Settlements', monthLabel, [`${drivers.length} ${drivers.length === 1 ? 'driver' : 'drivers'}`], fleet);
+  let y = drawPageHeader(
+    doc,
+    'Monthly Settlements',
+    monthLabel,
+    `${drivers.length} ${drivers.length === 1 ? 'driver' : 'drivers'}`
+  );
 
   // Money owed to one driver can't be offset against another driver's debt,
   // so the headline sums only the positive balances.
@@ -980,7 +956,7 @@ export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
   const detail = owedByDrivers < 0
     ? `${owingCount} ${owingCount === 1 ? 'driver' : 'drivers'} still to pay · drivers owing the fleet: ${money(owedByDrivers)}`
     : `${owingCount} ${owingCount === 1 ? 'driver' : 'drivers'} still to pay`;
-  y = drawOwedHeadline(doc, y, owedToDrivers, 'Total owed to drivers', detail) + 8;
+  y = drawOwedHeadline(doc, y, owedToDrivers, 'Total owed to drivers', detail) + 6;
 
   const all = summarizeOwed(drivers.flatMap((d) => d.weeks));
   const body = [
@@ -999,7 +975,7 @@ export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
     head: [['Driver', 'Weeks paid', 'Earned', 'Already paid', 'Owed to driver']],
     body,
     margin: TABLE_MARGIN,
-    styles: { fontSize: 9, cellPadding: 2 },
+    styles: tableStyles(ROOMY),
     headStyles: HEAD_STYLES,
     columnStyles: {
       0: { halign: 'left', cellWidth: width * 0.34 },
@@ -1028,9 +1004,12 @@ export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
   });
   footnote(doc, owedFootnote(settlements, drivers.flatMap((d) => d.weeks), 'fleet'), tableEndY(doc));
 
-  for (const d of drivers) {
+  for (const driver of drivers) {
     doc.addPage();
-    drawMonthDriverPage(doc, d.driverName, monthLabel, d.rows, adjustmentsFor(d.rows, adjustmentsBySettlement), 'fleet', fleet);
+    const adjustments = adjustmentsFor(driver.rows, adjustmentsBySettlement);
+    drawOnOnePage(doc, (target, d) =>
+      drawMonthDriverPage(target, driver.driverName, monthLabel, driver.rows, adjustments, 'fleet', d)
+    );
   }
 
   drawFooters(doc);
@@ -1055,15 +1034,17 @@ interface DriverMonthPdfOptions {
 
 /** The driver's own month, from the driver app. */
 export function buildDriverMonthlySettlementPdf(options: DriverMonthPdfOptions): jsPDF {
-  const doc = new jsPDF('portrait', 'mm', 'a4');
-  drawMonthDriverPage(
-    doc,
-    options.driverName,
-    options.monthLabel,
-    options.settlements,
-    options.driverAdjustments ?? [],
-    'driver',
-    null
+  const doc = newDoc();
+  drawOnOnePage(doc, (target, d) =>
+    drawMonthDriverPage(
+      target,
+      options.driverName,
+      options.monthLabel,
+      options.settlements,
+      options.driverAdjustments ?? [],
+      'driver',
+      d
+    )
   );
   drawFooters(doc);
   return doc;

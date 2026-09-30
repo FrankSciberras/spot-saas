@@ -25,12 +25,7 @@ import {
   scaleWeekly,
   type PlatformEarningsInput
 } from '@/lib/utils/settlementCalculations';
-import {
-  exportMonthlySettlementsPdf,
-  exportSettlementsPdf,
-  toPdfSettlement,
-  type FleetIdentity,
-} from '@/lib/utils/settlementPdfExport';
+import { exportMonthlySettlementsPdf, exportSettlementsPdf, toPdfSettlement } from '@/lib/utils/settlementPdfExport';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 import { derivePeriodBounds, parseDate, toISODate, daysInclusive } from '@/lib/utils/bookkeepingPeriods';
 import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment, SettlementPreset } from '@/lib/types/database';
@@ -112,8 +107,6 @@ interface SettlementsWorkspaceProps {
   orgDefaultPresetId: string | null;
   /** The fleet's active platforms (entry-form rows). Resolved server-side. */
   platforms: PlatformConfig[];
-  /** Fleet name + business details, printed on the settlement PDFs. */
-  fleet?: FleetIdentity | null;
 }
 
 export default function SettlementsWorkspace({
@@ -125,7 +118,6 @@ export default function SettlementsWorkspace({
   presets,
   orgDefaultPresetId,
   platforms: platformsProp,
-  fleet = null,
 }: SettlementsWorkspaceProps) {
   const router = useRouter();
 
@@ -550,9 +542,8 @@ export default function SettlementsWorkspace({
       monthLabel: `${monthNames[selectedMonth]} ${selectedYear}`,
       settlements: monthSettlements.map((s) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver')),
       adjustmentsBySettlement: await fetchFrozenAdjustments(monthSettlements.map((s) => s.id)),
-      fleet,
     });
-  }, [monthNames, monthSettlements, selectedMonth, selectedYear, fleet]);
+  }, [monthNames, monthSettlements, selectedMonth, selectedYear]);
 
   // Export PDF handler — one page per driver for the selected period, each
   // ending with what's owed so far this month (earlier weeks come from history).
@@ -568,9 +559,8 @@ export default function SettlementsWorkspace({
       settlements: periodSettlements.map(toPdf),
       history: settlements.filter((s) => driverIds.has(s.driver_id)).map(toPdf),
       adjustmentsBySettlement: await fetchFrozenAdjustments(periodSettlements.map((s) => s.id)),
-      fleet,
     });
-  }, [currentPeriod, periodSettlements, settlements, fleet]);
+  }, [currentPeriod, periodSettlements, settlements]);
 
   // Get driver's settlement status
   const getDriverStatus = useCallback((driverId: string) => {
