@@ -6,7 +6,8 @@
 // A guided, plain-English Q&A for fleet operators. The headline question is
 // "How do you pay your drivers?" and the follow-ups BRANCH from the answer:
 //
-//   • Share of earnings  → % split (+ optional weekly rent), tips, campaigns, fee
+//   • Share of earnings  → % split (+ optional weekly rent), tips, campaigns, fee,
+//                          and whether cash fares are deducted from the payout
 //   • Hourly wage        → €/hour (hours auto-fill from shifts) + tips
 //   • Fixed weekly wage  → flat €/week + tips
 //   • Wage + commission  → €/hour base AND a % of fares
@@ -109,6 +110,7 @@ const SHARE_QUICK_PICKS = ['40', '45', '50', '55', '60'];
 // Figures used for the live example on the review step.
 const SAMPLE_GROSS = 1000;
 const SAMPLE_TIPS = 40;
+const SAMPLE_CASH = 150;
 const SAMPLE_HOURS = 40;
 
 function fmtNum(n: number): string {
@@ -159,6 +161,8 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
   const [campaignsAll, setCampaignsAll] = useState(true);
   const [campaignsPct, setCampaignsPct] = useState('50');
   const [feeWho, setFeeWho] = useState<FeeWho>('driver');
+  // Driver keeps the cash passengers pay → it comes off what the fleet owes them.
+  const [cashDeducted, setCashDeducted] = useState(true);
 
   const [taxChoice, setTaxChoice] = useState<TaxChoice>('flat');
   const [taxValue, setTaxValue] = useState('22');
@@ -209,7 +213,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
     () => ({
       share: shareBased,
       fee: shareBased,
-      cash: shareBased,
+      cash: shareBased && cashDeducted,
       // Share models always have a tips line (split by tipsPct); wage models
       // include it only when the driver keeps their tips.
       tips: shareBased ? true : tipsAll,
@@ -219,7 +223,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
       tax: taxChoice !== 'none',
       rent: effectiveRent > 0,
     }),
-    [shareBased, usesHours, usesFixed, taxChoice, tipsAll, effectiveRent]
+    [shareBased, usesHours, usesFixed, taxChoice, tipsAll, effectiveRent, cashDeducted]
   );
 
   const scheme: SettlementScheme = useMemo(
@@ -269,7 +273,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
           platformId: 'example',
           grossFare: shareBased ? SAMPLE_GROSS : 0,
           platformFeePercent: avgFee,
-          cashRide: 0,
+          cashRide: shareBased ? SAMPLE_CASH : 0,
           tips: SAMPLE_TIPS,
           campaigns: 0,
         },
@@ -523,6 +527,11 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
             ? 'The fleet absorbs the platform commission'
             : 'Platform commission is split 50/50'
       );
+      lines.push(
+        cashDeducted
+          ? 'Cash the driver collects from passengers is deducted from what you owe them'
+          : 'Drivers hand cash fares in to the fleet, so cash is not deducted'
+      );
     } else {
       lines.push(tipsAll ? 'Drivers keep their tips' : 'Tips are not tracked in settlements');
     }
@@ -582,7 +591,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
               </li>
               <li className={styles.welcomeItem}>
                 <span className={styles.welcomeNum}>2</span>
-                <span>Fine-tune <strong>tips, tax and any weekly charges</strong> in plain English.</span>
+                <span>Fine-tune <strong>tips, cash, tax and any weekly charges</strong> in plain English.</span>
               </li>
               <li className={styles.welcomeItem}>
                 <span className={styles.welcomeNum}>3</span>
@@ -889,6 +898,22 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     </button>
                   </div>
                 </div>
+
+                <div className={styles.subQuestion}>
+                  <div className={styles.subQuestionLabel}>When a passenger pays in cash, who keeps the money?</div>
+                  <div className={styles.subQuestionHint}>
+                    Cash fares go straight into the driver&apos;s pocket, so most fleets take them off what
+                    they owe the driver at settlement time.
+                  </div>
+                  <div className={styles.pillRow}>
+                    <button type="button" className={`${styles.quickPick} ${cashDeducted ? styles.quickPickActive : ''}`} onClick={() => setCashDeducted(true)}>
+                      The driver keeps it, deduct it
+                    </button>
+                    <button type="button" className={`${styles.quickPick} ${!cashDeducted ? styles.quickPickActive : ''}`} onClick={() => setCashDeducted(false)}>
+                      They hand it in, don&apos;t deduct
+                    </button>
+                  </div>
+                </div>
               </>
             )}
           </>
@@ -1042,8 +1067,9 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
               <div className={styles.exampleCard}>
                 <div className={styles.exampleIntro}>
                   A driver who{shareBased ? ` earned ${formatCurrency(SAMPLE_GROSS)} in fares` : ''}
+                  {components.cash ? ` (${formatCurrency(SAMPLE_CASH)} of it paid in cash)` : ''}
                   {usesHours ? `${shareBased ? ',' : ''} worked ${SAMPLE_HOURS} hours` : ''}
-                  {' '}and got {formatCurrency(SAMPLE_TIPS)} in tips this week would take home:
+                  {' '}and got {formatCurrency(SAMPLE_TIPS)} in tips this week {components.cash ? 'would be owed:' : 'would take home:'}
                 </div>
                 <div className={styles.exampleRows}>
                   {components.share && (
@@ -1056,6 +1082,12 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     <div className={styles.exampleRow}>
                       <span>Platform fee</span>
                       <span className={styles.exampleNeg}>-{formatCurrency(example.calc.totalFee)}</span>
+                    </div>
+                  )}
+                  {components.cash && (
+                    <div className={styles.exampleRow}>
+                      <span>Cash they already collected</span>
+                      <span className={styles.exampleNeg}>-{formatCurrency(SAMPLE_CASH)}</span>
                     </div>
                   )}
                   {components.hours && (
@@ -1089,7 +1121,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     </div>
                   )}
                   <div className={`${styles.exampleRow} ${styles.exampleFinal}`}>
-                    <span>Driver takes home</span>
+                    <span>{components.cash ? 'You pay the driver' : 'Driver takes home'}</span>
                     <span className={example.final >= 0 ? styles.examplePos : styles.exampleNeg}>{formatCurrency(example.final)}</span>
                   </div>
                 </div>

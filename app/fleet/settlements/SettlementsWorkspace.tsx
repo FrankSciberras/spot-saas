@@ -25,7 +25,12 @@ import {
   scaleWeekly,
   type PlatformEarningsInput
 } from '@/lib/utils/settlementCalculations';
-import { exportMonthlySettlementsPdf, exportSettlementsPdf, type FleetIdentity } from '@/lib/utils/settlementPdfExport';
+import {
+  exportMonthlySettlementsPdf,
+  exportSettlementsPdf,
+  toPdfSettlement,
+  type FleetIdentity,
+} from '@/lib/utils/settlementPdfExport';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 import { derivePeriodBounds, parseDate, toISODate, daysInclusive } from '@/lib/utils/bookkeepingPeriods';
 import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment, SettlementPreset } from '@/lib/types/database';
@@ -44,6 +49,24 @@ function fmtSuggestionRange(start: string, end: string): string {
 
 function dateOnly(value: string): string {
   return value.includes('T') ? value.split('T')[0] : value;
+}
+
+/** The adjustments frozen onto these settlements, keyed by settlement id (for the PDFs). */
+async function fetchFrozenAdjustments(settlementIds: string[]): Promise<Record<string, DriverAdjustment[]>> {
+  const bySettlement: Record<string, DriverAdjustment[]> = {};
+  if (settlementIds.length === 0) return bySettlement;
+  try {
+    const res = await fetch(`/api/adjustments?settlement_ids=${encodeURIComponent(settlementIds.join(','))}`);
+    const json = await res.json();
+    if (res.ok && Array.isArray(json.data)) {
+      for (const adj of json.data as DriverAdjustment[]) {
+        if (adj.settlement_id) (bySettlement[adj.settlement_id] ||= []).push(adj);
+      }
+    }
+  } catch {
+    // Export without the itemised list; the amounts come from the frozen totals.
+  }
+  return bySettlement;
 }
 
 /** Spoken/hover text for the per-driver status dot in the sidebar. */
@@ -523,112 +546,31 @@ export default function SettlementsWorkspace({
   const handleExportMonthPdf = useCallback(async () => {
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
-    const monthLabel = `${monthNames[selectedMonth]} ${selectedYear}`;
-
-    // Frozen adjustments linked to this month's settlements (not a live query).
-    let adjustmentsByDriver: Record<string, DriverAdjustment[]> = {};
-    const monthSettlementIds = monthSettlements.map((s) => s.id).filter(Boolean);
-    if (monthSettlementIds.length > 0) {
-      try {
-        const res = await fetch(`/api/adjustments?settlement_ids=${encodeURIComponent(monthSettlementIds.join(','))}`);
-        const json = await res.json();
-        if (res.ok) {
-          const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
-          adjustments.forEach((adj) => {
-            adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
-            adjustmentsByDriver[adj.driver_id].push(adj);
-          });
-        }
-      } catch {
-        adjustmentsByDriver = {};
-      }
-    }
-
-    const exportRows = monthSettlements.map(s => ({
-      driverId: s.driver_id,
-      driverName: s.drivers?.full_name || 'Unknown Driver',
-      weekStart: s.week_start,
-      weekLabel: s.week_label,
-      periodName: s.period_name,
-      status: s.status,
-      paidAt: s.paid_at,
-      totalGrossFare: s.total_gross_fare,
-      totalNet: s.total_net,
-      fssTax: s.fss_tax,
-      finalBalance: s.final_balance,
-      platforms: s.settlement_platforms || [],
-    }));
-
     exportMonthlySettlementsPdf({
-      monthLabel,
-      settlements: exportRows,
-      driverAdjustmentsByDriver: adjustmentsByDriver,
+      monthLabel: `${monthNames[selectedMonth]} ${selectedYear}`,
+      settlements: monthSettlements.map((s) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver')),
+      adjustmentsBySettlement: await fetchFrozenAdjustments(monthSettlements.map((s) => s.id)),
+      fleet,
     });
-  }, [monthNames, monthSettlements, selectedMonth, selectedYear]);
+  }, [monthNames, monthSettlements, selectedMonth, selectedYear, fleet]);
 
-  // Export PDF handler
+  // Export PDF handler — one page per driver for the selected period, each
+  // ending with what's owed so far this month (earlier weeks come from history).
   const handleExportPdf = useCallback(async () => {
     if (!currentPeriod || periodSettlements.length === 0) return;
 
-    // Frozen adjustments linked to this period's settlements (not a live query).
-    let adjustmentsByDriver: Record<string, DriverAdjustment[]> = {};
-    const periodSettlementIds = periodSettlements.map((s) => s.id).filter(Boolean);
-    if (periodSettlementIds.length > 0) {
-      try {
-        const res = await fetch(`/api/adjustments?settlement_ids=${encodeURIComponent(periodSettlementIds.join(','))}`);
-        const json = await res.json();
-        if (res.ok) {
-          const adjustments: Array<DriverAdjustment> = Array.isArray(json.data) ? json.data : [];
-          adjustments.forEach((adj) => {
-            adjustmentsByDriver[adj.driver_id] = adjustmentsByDriver[adj.driver_id] || [];
-            adjustmentsByDriver[adj.driver_id].push(adj);
-          });
-        }
-      } catch {
-        adjustmentsByDriver = {};
-      }
-    }
-
-    const settlementsData = periodSettlements.map(s => {
-      const platforms = s.settlement_platforms || [];
-      const driverAdjustments = adjustmentsByDriver[s.driver_id] || [];
-      const driverAdjustmentsNet = calculateAdjustmentsNet(driverAdjustments);
-      return {
-        driverName: s.drivers?.full_name || 'Unknown Driver',
-        weekLabel: s.week_label,
-        periodName: s.period_name,
-        platforms,
-        totalGrossFare: s.total_gross_fare,
-        totalFiftyPercent: platforms.reduce((sum, p) => sum + p.fifty_percent, 0),
-        totalFee: platforms.reduce((sum, p) => sum + p.fee, 0),
-        totalNet: s.total_net,
-        totalCashRide: platforms.reduce((sum, p) => sum + p.cash_ride, 0),
-        totalTips: platforms.reduce((sum, p) => sum + p.tips, 0),
-        totalCampaigns: platforms.reduce((sum, p) => sum + p.campaigns, 0),
-        totalBalanceBeforeTax: s.total_balance_before_tax,
-        fssTax: s.fss_tax,
-        finalBalance: s.final_balance,
-        wageAmount: s.wage_amount ?? 0,
-        hoursWorked: s.hours_worked ?? 0,
-        rentAmount: s.rent_amount ?? 0,
-        driverAdjustments,
-        driverAdjustmentsNet,
-        status: s.status,
-        paidAt: s.paid_at,
-        notes: s.notes,
-      };
-    });
-
-    // Sort by driver name
-    settlementsData.sort((a, b) => a.driverName.localeCompare(b.driverName));
+    const driverIds = new Set(periodSettlements.map((s) => s.driver_id));
+    const toPdf = (s: SettlementWithRelations) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver');
 
     exportSettlementsPdf({
       periodLabel: currentPeriod.label,
       periodName: currentPeriod.periodName,
-      settlements: settlementsData,
+      settlements: periodSettlements.map(toPdf),
+      history: settlements.filter((s) => driverIds.has(s.driver_id)).map(toPdf),
+      adjustmentsBySettlement: await fetchFrozenAdjustments(periodSettlements.map((s) => s.id)),
       fleet,
     });
-  }, [currentPeriod, periodSettlements, fleet]);
+  }, [currentPeriod, periodSettlements, settlements, fleet]);
 
   // Get driver's settlement status
   const getDriverStatus = useCallback((driverId: string) => {

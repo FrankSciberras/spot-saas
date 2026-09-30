@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DriverAdjustment, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import { formatCurrency } from '@/lib/utils/settlementCalculations';
-import { exportDriverMonthlySettlementPdf } from '@/lib/utils/settlementPdfExport';
+import { exportDriverMonthlySettlementPdf, toPdfSettlement } from '@/lib/utils/settlementPdfExport';
 import styles from './driver-settlements.module.css';
 
 interface SettlementWithPlatforms extends DriverSettlement {
@@ -351,18 +351,7 @@ export default function MonthlySettlementsClient({
     exportDriverMonthlySettlementPdf({
       driverName,
       monthLabel,
-      settlements: monthSettlements.map(s => ({
-        weekStart: s.week_start,
-        weekLabel: s.week_label,
-        periodName: s.period_name,
-        status: s.status,
-        paidAt: s.paid_at,
-        totalGrossFare: s.total_gross_fare,
-        totalNet: s.total_net,
-        fssTax: s.fss_tax,
-        finalBalance: s.final_balance,
-        platforms: s.settlement_platforms || [],
-      })),
+      settlements: monthSettlements.map(s => toPdfSettlement(s, driverName)),
       driverAdjustments: monthAdjustments,
     });
   }, [driverName, monthAdjustments, monthLabel, monthSettlements, selectedMonth]);

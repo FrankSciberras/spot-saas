@@ -217,7 +217,7 @@ export const COMPONENT_META: {
   { key: 'tips', label: 'Tips', hint: 'Tips line on the settlement', group: 'earnings' },
   { key: 'campaigns', label: 'Campaigns', hint: 'Platform campaign bonuses', group: 'earnings' },
   { key: 'fee', label: 'Platform fee', hint: 'Driver bears (part of) the platform commission', group: 'deductions' },
-  { key: 'cash', label: 'Cash collected', hint: 'Cash the driver already holds is deducted', group: 'deductions' },
+  { key: 'cash', label: 'Cash collected', hint: 'Driver keeps cash fares, so they come off what you owe them. Untick if drivers hand cash in', group: 'deductions' },
   { key: 'tax', label: 'FSS / Tax', hint: 'Flat tax is per week and scales with the period; percent tax is a % of the balance', group: 'deductions' },
   { key: 'rent', label: 'Weekly rent', hint: 'Per week — scaled to the settlement period (a 4-week period deducts 4×)', group: 'deductions' },
 ];

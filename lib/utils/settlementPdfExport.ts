@@ -1,49 +1,218 @@
+// =============================================================================
+// Settlement PDFs
+// =============================================================================
+// Three exports share one set of building blocks:
+//   exportSettlementsPdf             — fleet, one period (a week or a 4-week
+//                                      cycle): one driver per page
+//   exportMonthlySettlementsPdf      — fleet, one month: overview + a page per driver
+//   exportDriverMonthlySettlementPdf — the driver's own month
+//
+// Every driver page leads with WHAT THE FLEET OWES. Each week is worth
+// final_balance + total_adjustments to the driver — already after platform
+// fees, cash the driver collected (when the preset deducts cash), tax and rent.
+// The amount owed is the total of those weeks minus the weeks already marked
+// paid. A negative amount is printed with a minus: the driver owes the fleet.
+// =============================================================================
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { DriverAdjustment, SettlementPlatform } from '@/lib/types/database';
+import type { DriverAdjustment, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
+import {
+  COMPONENT_KEYS,
+  DEFAULT_SCHEME,
+  resolveComponents,
+  type SettlementComponents,
+} from '@/lib/config/settlements';
+import { calculateAdjustmentsNet, signedAdjustmentAmount } from './adjustments';
 import { formatCurrency, round2 } from './settlementCalculations';
 
-function signedAdjustmentAmount(type: DriverAdjustment['type'], amount: number): number {
-  if (type === 'expense' || type === 'deduction') return -amount;
-  if (type === 'bonus' || type === 'reimbursement') return amount;
-  return 0;
-}
+// ── Input ────────────────────────────────────────────────────────────────────
 
-function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
-  return adjustments.reduce((sum, adj) => sum + signedAdjustmentAmount(adj.type, Number(adj.amount) || 0), 0);
-}
-
-function formatSignedCurrency(value: number): string {
-  const abs = Math.abs(value);
-  return `${value >= 0 ? '+' : '-'}${formatCurrency(abs)}`;
-}
-
-interface DriverSettlementData {
+/** One saved settlement, flattened for the PDFs. Build it with toPdfSettlement(). */
+export interface PdfSettlement {
+  id: string;
+  driverId: string;
   driverName: string;
+  weekStart: string;
   weekLabel: string;
   periodName: string | null;
-  platforms: SettlementPlatform[];
-  totalGrossFare: number;
-  totalFiftyPercent: number;
-  totalFee: number;
-  totalNet: number;
-  totalCashRide: number;
-  totalTips: number;
-  totalCampaigns: number;
-  totalBalanceBeforeTax: number;
-  fssTax: number;
-  finalBalance: number;
-  /** Wage line (hourly + fixed) for wage-based presets. 0/undefined = none. */
-  wageAmount?: number;
-  hoursWorked?: number;
-  /** Weekly vehicle rent deducted. 0/undefined = none. */
-  rentAmount?: number;
-  driverAdjustments?: DriverAdjustment[];
-  driverAdjustmentsNet?: number;
+  /** 'YYYY-MM' the settlement is filed under (settlement_month, else week_start). */
+  monthKey: string;
   status: string;
   paidAt: string | null;
   notes: string | null;
+  platforms: SettlementPlatform[];
+  totalBalanceBeforeTax: number;
+  fssTax: number;
+  rentAmount: number;
+  wageAmount: number;
+  hoursWorked: number;
+  /** Platform balances + wage − tax − rent (excludes adjustments). */
+  finalBalance: number;
+  /** Frozen net of the adjustments linked to this settlement. */
+  totalAdjustments: number;
+  /** The frozen component toggles this settlement was priced with. */
+  components: SettlementComponents;
+  driverSharePct: number;
+  tipsDriverPct: number;
+  campaignsDriverPct: number;
 }
+
+function num(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export function toPdfSettlement(
+  s: DriverSettlement & { settlement_platforms?: SettlementPlatform[] | null },
+  driverName: string
+): PdfSettlement {
+  return {
+    id: s.id,
+    driverId: s.driver_id,
+    driverName,
+    weekStart: (s.week_start || '').slice(0, 10),
+    weekLabel: s.week_label,
+    periodName: s.period_name,
+    monthKey: (s.settlement_month || s.week_start || '').slice(0, 7),
+    status: s.status,
+    paidAt: s.paid_at,
+    notes: s.notes,
+    platforms: s.settlement_platforms ?? [],
+    totalBalanceBeforeTax: num(s.total_balance_before_tax),
+    fssTax: num(s.fss_tax),
+    rentAmount: num(s.rent_amount),
+    wageAmount: num(s.wage_amount),
+    hoursWorked: num(s.hours_worked),
+    finalBalance: num(s.final_balance),
+    totalAdjustments: num(s.total_adjustments),
+    components: resolveComponents(s.components),
+    driverSharePct: num(s.driver_share_pct, DEFAULT_SCHEME.driverSharePct),
+    tipsDriverPct: num(s.tips_driver_pct, DEFAULT_SCHEME.tipsDriverPct),
+    campaignsDriverPct: num(s.campaigns_driver_pct, DEFAULT_SCHEME.campaignsDriverPct),
+  };
+}
+
+/** What one settlement is worth to the driver: final balance + its adjustments. */
+export function settlementPayable(s: Pick<PdfSettlement, 'finalBalance' | 'totalAdjustments'>): number {
+  return round2(s.finalBalance + s.totalAdjustments);
+}
+
+// ── Amount owed ──────────────────────────────────────────────────────────────
+
+export interface OwedWeek {
+  label: string;
+  status: string;
+  /** What the week is worth to the driver (negative = driver owes the fleet). */
+  amount: number;
+  paidAt: string | null;
+  /** The settlement this page is about (printed bold). */
+  current?: boolean;
+}
+
+export interface OwedSummary {
+  /** Sum of every week's amount. */
+  earned: number;
+  /** Sum of the weeks already marked paid. */
+  paid: number;
+  /** earned − paid: what the fleet still owes (negative = driver owes the fleet). */
+  owed: number;
+  weeks: number;
+  paidWeeks: number;
+  drafts: number;
+}
+
+export function summarizeOwed(weeks: OwedWeek[]): OwedSummary {
+  const earned = round2(weeks.reduce((sum, w) => sum + w.amount, 0));
+  const paidWeeks = weeks.filter((w) => !!w.paidAt);
+  const paid = round2(paidWeeks.reduce((sum, w) => sum + w.amount, 0));
+  return {
+    earned,
+    paid,
+    owed: round2(earned - paid),
+    weeks: weeks.length,
+    paidWeeks: paidWeeks.length,
+    drafts: weeks.filter((w) => w.status !== 'finalized').length,
+  };
+}
+
+function owedWeeksOf(rows: PdfSettlement[], currentId?: string): OwedWeek[] {
+  return [...rows]
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+    .map((s) => ({
+      label: periodTitle(s),
+      status: s.status,
+      amount: settlementPayable(s),
+      paidAt: s.paidAt,
+      current: s.id === currentId,
+    }));
+}
+
+// ── Formatting ───────────────────────────────────────────────────────────────
+
+type RGB = [number, number, number];
+type Audience = 'fleet' | 'driver';
+
+const MARGIN = 15;
+/** Space kept clear at the bottom of every page for the footer. */
+const FOOTER_SPACE = 18;
+const TABLE_MARGIN = { left: MARGIN, right: MARGIN, top: MARGIN, bottom: FOOTER_SPACE };
+const HEAD_STYLES = { fillColor: [66, 66, 66] as RGB, textColor: 255, fontStyle: 'bold' as const };
+const TOTAL_FILL: RGB = [240, 240, 240];
+const OWED_FILL: RGB = [220, 252, 231];
+const OWES_FILL: RGB = [254, 226, 226];
+const OWED_TEXT: RGB = [21, 128, 61];
+const OWES_TEXT: RGB = [185, 28, 28];
+const MUTED_TEXT: RGB = [110, 110, 110];
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** €12.50 / -€12.50 — the minus goes in front of the euro sign. */
+function money(value: number): string {
+  const v = round2(value);
+  return v < 0 ? `-${formatCurrency(-v)}` : formatCurrency(v);
+}
+
+/** Always signed, for additions and adjustments: +€12.50 / -€12.50. */
+function signedMoney(value: number): string {
+  const v = round2(value);
+  return v < 0 ? `-${formatCurrency(-v)}` : `+${formatCurrency(v)}`;
+}
+
+/** A deduction printed as a subtraction: -€12.50. */
+function minusMoney(value: number): string {
+  const v = Math.abs(round2(value));
+  return v === 0 ? formatCurrency(0) : `-${formatCurrency(v)}`;
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function periodTitle(s: { periodName: string | null; weekLabel: string }): string {
+  return s.periodName ? `${s.periodName} (${s.weekLabel})` : s.weekLabel;
+}
+
+/** 'YYYY-MM' → 'September 2026'. */
+function monthKeyLabel(key: string): string {
+  const [year, month] = key.split('-').map(Number);
+  const name = MONTH_NAMES[(month || 0) - 1];
+  return name ? `${name} ${year}` : key;
+}
+
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+function fileSafe(value: string): string {
+  return value.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+// ── Page furniture ───────────────────────────────────────────────────────────
 
 /** The fleet's identity, printed top-right of every settlement page. */
 export interface FleetIdentity {
@@ -55,20 +224,13 @@ export interface FleetIdentity {
   contactPhone?: string | null;
 }
 
-interface ExportOptions {
-  periodLabel: string;
-  periodName: string | null;
-  settlements: DriverSettlementData[];
-  fleet?: FleetIdentity | null;
-}
-
 /**
  * Print the fleet's name and business details right-aligned in the header.
  * Returns the y position below the block so the caller can avoid overlap.
  */
-function drawFleetIdentity(doc: jsPDF, fleet: FleetIdentity | null | undefined, pageWidth: number, margin: number, top: number): number {
+function drawFleetIdentity(doc: jsPDF, fleet: FleetIdentity | null | undefined, top: number): number {
   if (!fleet?.name) return top;
-  const right = pageWidth - margin;
+  const right = doc.internal.pageSize.getWidth() - MARGIN;
   let y = top;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -92,1037 +254,826 @@ function drawFleetIdentity(doc: jsPDF, fleet: FleetIdentity | null | undefined, 
   return y;
 }
 
-/**
- * Export weekly settlements to PDF - one page per driver with 4 tables
- */
-export function exportSettlementsPdf(options: ExportOptions): void {
-  const { periodLabel, periodName, settlements, fleet } = options;
-  
-  if (settlements.length === 0) {
-    alert('No settlements to export');
-    return;
+/** Title / name / sub-lines top-left, fleet identity top-right. Returns the y to continue from. */
+function drawPageHeader(
+  doc: jsPDF,
+  title: string,
+  name: string,
+  subLines: string[],
+  fleet: FleetIdentity | null | undefined
+): number {
+  const identityBottom = drawFleetIdentity(doc, fleet, MARGIN + 4);
+  let y = MARGIN + 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(0);
+  doc.text(title, MARGIN, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.text(name, MARGIN, y);
+  y += 5.5;
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  for (const line of subLines) {
+    doc.text(line, MARGIN, y);
+    y += 4.5;
   }
-
-  const doc = new jsPDF('portrait', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 15;
-  const contentWidth = pageWidth - (margin * 2);
-
-  settlements.forEach((settlement, index) => {
-    if (index > 0) {
-      doc.addPage();
-    }
-
-    let yPos = margin;
-
-    const driverAdjustments = Array.isArray(settlement.driverAdjustments) ? settlement.driverAdjustments : [];
-    const driverAdjustmentsNet = typeof settlement.driverAdjustmentsNet === 'number'
-      ? settlement.driverAdjustmentsNet
-      : calculateAdjustmentsNet(driverAdjustments);
-
-    // Header — fleet identity top-right, settlement title top-left.
-    const identityBottom = drawFleetIdentity(doc, fleet, pageWidth, margin, yPos + 4);
-
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Driver Settlement', margin, yPos + 4);
-    yPos += 12;
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(settlement.driverName, margin, yPos);
-    yPos += 6;
-
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    const periodText = settlement.periodName
-      ? `${settlement.periodName} (${settlement.weekLabel})`
-      : settlement.weekLabel;
-    doc.text(periodText, margin, yPos);
-    yPos += 4;
-
-    // Status badge
-    const statusText = settlement.status === 'finalized' ? 'Finalized' : 'Draft';
-    const paidText = settlement.paidAt
-      ? ` - Paid ${new Date(settlement.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
-      : '';
-    doc.text(`Status: ${statusText}${paidText}`, margin, yPos);
-    doc.setTextColor(0);
-    yPos = Math.max(yPos + 10, identityBottom + 6);
-
-    // Table 1: Platform Earnings Breakdown
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('1. Platform Earnings', margin, yPos);
-    yPos += 2;
-
-    const platformHeaders = ['Platform', 'Gross', '50%', 'Fee %', 'Fee', 'Net'];
-    const platformData = settlement.platforms.map(p => [
-      p.platform_name,
-      formatCurrency(p.gross_fare),
-      formatCurrency(p.fifty_percent),
-      `${round2(p.platform_fee_percent)}%`,
-      formatCurrency(p.fee),
-      formatCurrency(p.net),
-    ]);
-    
-    // Add totals row
-    platformData.push([
-      'TOTAL',
-      formatCurrency(settlement.totalGrossFare),
-      formatCurrency(settlement.totalFiftyPercent),
-      '-',
-      formatCurrency(settlement.totalFee),
-      formatCurrency(settlement.totalNet),
-    ]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [platformHeaders],
-      body: platformData,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: 30 },
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right', cellWidth: 18 },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-      },
-      footStyles: { fontStyle: 'bold' },
-      didParseCell: (data) => {
-        if (data.row.index === platformData.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-      },
-    });
-
-    yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-    if (driverAdjustments.length > 0) {
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Driver Adjustments', margin, yPos);
-      yPos += 2;
-
-      const adjHeaders = ['Date', 'Type', 'Description', 'Amount'];
-      const sorted = [...driverAdjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-      const adjRows = sorted.map((a) => {
-        const signed = signedAdjustmentAmount(a.type, Number(a.amount) || 0);
-        return [
-          a.date,
-          a.type,
-          a.description,
-          formatSignedCurrency(signed),
-        ];
-      });
-
-      adjRows.push(['', '', 'TOTAL', formatSignedCurrency(driverAdjustmentsNet)]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [adjHeaders],
-        body: adjRows,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-        columnStyles: {
-          0: { halign: 'left', cellWidth: 22 },
-          1: { halign: 'left', cellWidth: 28 },
-          2: { halign: 'left' },
-          3: { halign: 'right', cellWidth: 26 },
-        },
-        didParseCell: (data) => {
-          if (data.row.index === adjRows.length - 1) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [240, 240, 240];
-          }
-        },
-      });
-
-      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-    }
-
-    // Table 2: Adjustments (Cash, Tips, Campaigns)
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('2. Adjustments by Platform', margin, yPos);
-    yPos += 2;
-
-    const adjustmentHeaders = ['Platform', 'Cash Ride', 'Tips', 'Campaigns', 'Balance'];
-    const adjustmentData = settlement.platforms.map(p => [
-      p.platform_name,
-      `-${formatCurrency(p.cash_ride)}`,
-      `+${formatCurrency(p.tips)}`,
-      `+${formatCurrency(p.campaigns)}`,
-      formatCurrency(p.balance),
-    ]);
-    
-    // Add totals row
-    adjustmentData.push([
-      'TOTAL',
-      `-${formatCurrency(settlement.totalCashRide)}`,
-      `+${formatCurrency(settlement.totalTips)}`,
-      `+${formatCurrency(settlement.totalCampaigns)}`,
-      formatCurrency(settlement.totalBalanceBeforeTax),
-    ]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [adjustmentHeaders],
-      body: adjustmentData,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: 30 },
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-      },
-      didParseCell: (data) => {
-        if (data.row.index === adjustmentData.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-      },
-    });
-
-    yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-    // Table 3: Summary Totals
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('3. Summary', margin, yPos);
-    yPos += 2;
-
-    const summaryData = [
-      ['Total Gross Fare', formatCurrency(settlement.totalGrossFare)],
-      ['Driver Share (50%)', formatCurrency(settlement.totalFiftyPercent)],
-      ['Platform Fees', `-${formatCurrency(settlement.totalFee)}`],
-      ['Total Net', formatCurrency(settlement.totalNet)],
-      ['Cash Rides', `-${formatCurrency(settlement.totalCashRide)}`],
-      ['Tips', `+${formatCurrency(settlement.totalTips)}`],
-      ['Campaigns', `+${formatCurrency(settlement.totalCampaigns)}`],
-      // Wage line for wage-based presets, so the balance below adds up.
-      ...((settlement.wageAmount ?? 0) > 0
-        ? [[
-            `Wage${(settlement.hoursWorked ?? 0) > 0 ? ` (${settlement.hoursWorked}h)` : ''}`,
-            `+${formatCurrency(settlement.wageAmount ?? 0)}`,
-          ]]
-        : []),
-      ['Balance Before Tax', formatCurrency(settlement.totalBalanceBeforeTax)],
-      ['Driver Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
-    ];
-
-    autoTable(doc, {
-      startY: yPos,
-      body: summaryData,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: contentWidth * 0.6 },
-        1: { halign: 'right', cellWidth: contentWidth * 0.4 },
-      },
-      alternateRowStyles: { fillColor: [248, 248, 248] },
-    });
-
-    yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-    // Table 4: Final Calculation
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('4. Final Settlement', margin, yPos);
-    yPos += 2;
-
-    const payableBalance = round2((settlement.finalBalance || 0) + driverAdjustmentsNet);
-    const finalData = [
-      ['Balance Before Tax', formatCurrency(settlement.totalBalanceBeforeTax)],
-      ['FSS / Tax Deduction', `-${formatCurrency(settlement.fssTax)}`],
-      // Rent line for rent presets, so Final Balance visibly adds up.
-      ...((settlement.rentAmount ?? 0) > 0
-        ? [['Vehicle Rent', `-${formatCurrency(settlement.rentAmount ?? 0)}`]]
-        : []),
-      ['Final Balance (Settlement)', formatCurrency(settlement.finalBalance)],
-      ['Driver Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
-      ['PAYABLE BALANCE', formatCurrency(payableBalance)],
-    ];
-
-    autoTable(doc, {
-      startY: yPos,
-      body: finalData,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 10, cellPadding: 3 },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: contentWidth * 0.6 },
-        1: { halign: 'right', cellWidth: contentWidth * 0.4, fontStyle: 'bold' },
-      },
-      didParseCell: (data) => {
-        if (data.row.index === finalData.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = payableBalance >= 0 
-            ? [220, 252, 231] // green
-            : [254, 226, 226]; // red
-          data.cell.styles.fontSize = 11;
-        }
-      },
-    });
-
-    yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-    // Notes (if any)
-    if (settlement.notes) {
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Notes:', margin, yPos);
-      yPos += 4;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      const splitNotes = doc.splitTextToSize(settlement.notes, contentWidth);
-      doc.text(splitNotes, margin, yPos);
-    }
-
-    // Footer
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text(
-      `Generated on ${new Date().toLocaleDateString('en-GB', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`,
-      margin,
-      doc.internal.pageSize.getHeight() - 10
-    );
-    doc.text(
-      `Page ${index + 1} of ${settlements.length}`,
-      pageWidth - margin - 25,
-      doc.internal.pageSize.getHeight() - 10
-    );
-    doc.setTextColor(0);
-  });
-
-  // Generate filename
-  const sanitizedPeriod = (periodName || periodLabel).replace(/[^a-zA-Z0-9]/g, '_');
-  const filename = `Settlements_${sanitizedPeriod}.pdf`;
-  
-  doc.save(filename);
+  doc.setTextColor(0);
+  return Math.max(y + 4, identityBottom + 6);
 }
 
-export function exportMonthlySettlementsPdf(options: {
-  monthLabel: string;
-  settlements: Array<{
-    driverId: string;
-    driverName: string;
-    weekStart: string;
-    weekLabel: string;
-    periodName: string | null;
-    status: string;
-    paidAt: string | null;
-    totalGrossFare: number;
-    totalNet: number;
-    fssTax: number;
-    finalBalance: number;
-    platforms: SettlementPlatform[];
-  }>;
-  driverAdjustmentsByDriver?: Record<string, DriverAdjustment[]>;
-}): void {
-  const { monthLabel, settlements } = options;
+function tableEndY(doc: jsPDF): number {
+  return (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+}
 
-  type MonthlySettlementRow = (typeof settlements)[number];
+function contentWidth(doc: jsPDF): number {
+  return doc.internal.pageSize.getWidth() - MARGIN * 2;
+}
 
-  if (settlements.length === 0) {
-    alert('No settlements to export');
-    return;
-  }
+/** Start a new page when fewer than `needed` mm are left above the footer. */
+function ensureSpace(doc: jsPDF, y: number, needed: number): number {
+  if (y + needed <= doc.internal.pageSize.getHeight() - FOOTER_SPACE) return y;
+  doc.addPage();
+  return MARGIN + 4;
+}
 
-  const doc = new jsPDF('portrait', 'mm', 'a4');
+/** Approximate height (mm) of a 9pt table row — used to keep short tables on one page. */
+const ROW_MM = 7.4;
+
+/**
+ * Bold section heading — moved to the next page rather than left orphaned.
+ * `keepTogether` is the height of what follows; when it fits on a fresh page,
+ * the whole section moves over instead of splitting.
+ */
+function sectionTitle(doc: jsPDF, text: string, y: number, keepTogether = 24): number {
+  const usable = doc.internal.pageSize.getHeight() - FOOTER_SPACE - MARGIN - 6;
+  const top = ensureSpace(doc, y, Math.min(keepTogether, usable));
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0);
+  doc.text(text, MARGIN, top);
+  return top + 2;
+}
+
+/** Small grey explanation under a table. Returns the y below it. */
+function footnote(doc: jsPDF, text: string, y: number): number {
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const lines = doc.splitTextToSize(text, contentWidth(doc)) as string[];
+  const top = ensureSpace(doc, y + 4, lines.length * 3.6);
+  doc.setTextColor(...MUTED_TEXT);
+  doc.text(lines, MARGIN, top);
+  doc.setTextColor(0);
+  return top + lines.length * 3.6;
+}
+
+/** The big "amount owed" box at the top of a driver page. Returns the y below it. */
+function drawOwedHeadline(doc: jsPDF, y: number, owed: number, label: string, detail: string): number {
+  const width = contentWidth(doc);
+  const height = 17;
+  const top = ensureSpace(doc, y, height + 4);
+  const negative = round2(owed) < 0;
+
+  doc.setFillColor(...(negative ? OWES_FILL : OWED_FILL));
+  doc.roundedRect(MARGIN, top, width, height, 2, 2, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0);
+  doc.text(label, MARGIN + 5, top + 7);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(80);
+  doc.text(detail, MARGIN + 5, top + 12.5, { maxWidth: width * 0.66 });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(17);
+  doc.setTextColor(...(negative ? OWES_TEXT : OWED_TEXT));
+  doc.text(money(owed), MARGIN + width - 5, top + 11, { align: 'right' });
+
+  doc.setTextColor(0);
+  return top + height;
+}
+
+function drawFooters(doc: jsPDF): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15;
-  const contentWidth = pageWidth - (margin * 2);
-
-  const driverMap = new Map<string, {
-    driverId: string;
-    driverName: string;
-    rows: MonthlySettlementRow[];
-  }>();
-
-  settlements.forEach(s => {
-    const key = s.driverId || s.driverName;
-    const existing = driverMap.get(key);
-    if (existing) {
-      existing.rows.push(s);
-    } else {
-      driverMap.set(key, { driverId: s.driverId, driverName: s.driverName, rows: [s] });
-    }
-  });
-
-  const drivers = Array.from(driverMap.values()).sort((a, b) => a.driverName.localeCompare(b.driverName));
-
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Monthly Settlements', margin, margin);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100);
-  doc.text(monthLabel, margin, margin + 8);
+  const generated = `Generated on ${new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+  const count = doc.getNumberOfPages();
+  for (let i = 1; i <= count; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(generated, MARGIN, pageHeight - 10);
+    doc.text(`Page ${i} of ${count}`, pageWidth - MARGIN, pageHeight - 10, { align: 'right' });
+  }
   doc.setTextColor(0);
+}
 
-  const summaryHeaders = ['Driver', 'Settlements (Finalized)', 'Adjustments', 'Payable Total', 'Paid'];
-  const summaryRows = drivers.map(d => {
-    const finalized = d.rows.filter(r => r.status === 'finalized');
-    const finalizedTotal = round2(finalized.reduce((sum, r) => sum + (r.finalBalance || 0), 0));
-    const paidFinalized = finalized.filter(r => !!r.paidAt).length;
+// ── Pay lines ────────────────────────────────────────────────────────────────
 
-    const adj = options.driverAdjustmentsByDriver?.[d.driverId] || [];
-    const adjNet = round2(calculateAdjustmentsNet(adj));
-    const payable = round2(finalizedTotal + adjNet);
-    return [
-      d.driverName,
-      formatCurrency(finalizedTotal),
-      formatSignedCurrency(adjNet),
-      formatCurrency(payable),
-      finalized.length === 0 ? '-' : `${paidFinalized}/${finalized.length}`,
-    ];
-  });
+interface PlatformLines {
+  gross: number;
+  share: number;
+  fee: number;
+  net: number;
+  /** Cash the driver holds, when the settlement deducts it. */
+  cash: number;
+  /** Tips / campaigns after the driver's % — what actually reached the balance. */
+  tips: number;
+  campaigns: number;
+  balance: number;
+}
 
-  const monthFinalizedTotal = round2(drivers.reduce((sum, d) => {
-    return sum + d.rows.filter(r => r.status === 'finalized').reduce((s2, r) => s2 + (r.finalBalance || 0), 0);
-  }, 0));
+/** One platform row's lines, exactly as calculatePlatformEarnings priced them. */
+function platformLines(p: SettlementPlatform, s: PdfSettlement): PlatformLines {
+  const c = s.components;
+  return {
+    gross: num(p.gross_fare),
+    share: num(p.fifty_percent),
+    fee: num(p.fee),
+    net: num(p.net),
+    cash: c.cash ? num(p.cash_ride) : 0,
+    tips: c.tips ? round2(num(p.tips) * (s.tipsDriverPct / 100)) : 0,
+    campaigns: c.campaigns ? round2(num(p.campaigns) * (s.campaignsDriverPct / 100)) : 0,
+    balance: num(p.balance),
+  };
+}
 
-  const monthAdjustmentsTotal = round2(drivers.reduce((sum, d) => {
-    const adj = options.driverAdjustmentsByDriver?.[d.driverId] || [];
-    return sum + calculateAdjustmentsNet(adj);
-  }, 0));
+interface PayLines extends PlatformLines {
+  wage: number;
+  hours: number;
+  balanceBeforeTax: number;
+  tax: number;
+  rent: number;
+  adjustments: number;
+  payable: number;
+  /** Components switched on in at least one of the settlements. */
+  on: SettlementComponents;
+}
 
-  const monthPayableTotal = round2(monthFinalizedTotal + monthAdjustmentsTotal);
+function payLinesOf(rows: PdfSettlement[]): PayLines {
+  const on = Object.fromEntries(COMPONENT_KEYS.map((k) => [k, false])) as SettlementComponents;
+  const t = {
+    gross: 0, share: 0, fee: 0, net: 0, cash: 0, tips: 0, campaigns: 0, balance: 0,
+    wage: 0, hours: 0, balanceBeforeTax: 0, tax: 0, rent: 0, adjustments: 0, payable: 0,
+  };
+  for (const s of rows) {
+    for (const key of COMPONENT_KEYS) {
+      if (s.components[key]) on[key] = true;
+    }
+    for (const p of s.platforms) {
+      const l = platformLines(p, s);
+      t.gross += l.gross;
+      t.share += l.share;
+      t.fee += l.fee;
+      t.net += l.net;
+      t.cash += l.cash;
+      t.tips += l.tips;
+      t.campaigns += l.campaigns;
+      t.balance += l.balance;
+    }
+    t.wage += s.wageAmount;
+    t.hours += s.hoursWorked;
+    t.balanceBeforeTax += s.totalBalanceBeforeTax;
+    t.tax += s.fssTax;
+    t.rent += s.rentAmount;
+    t.adjustments += s.totalAdjustments;
+    t.payable += settlementPayable(s);
+  }
+  const rounded = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, round2(v)])) as typeof t;
+  return { ...rounded, on };
+}
 
-  summaryRows.push([
-    'TOTAL',
-    formatCurrency(monthFinalizedTotal),
-    formatSignedCurrency(monthAdjustmentsTotal),
-    formatCurrency(monthPayableTotal),
-    '-',
-  ]);
+/** The shared % when every settlement used the same one, else null. */
+function uniformPct(rows: PdfSettlement[], pick: (s: PdfSettlement) => number): number | null {
+  if (rows.length === 0) return null;
+  const first = round2(pick(rows[0]));
+  return rows.every((s) => round2(pick(s)) === first) ? first : null;
+}
 
+function withPct(label: string, pct: number | null, suffix = ''): string {
+  return pct !== null && pct < 100 ? `${label} (${pct}%${suffix})` : label;
+}
+
+interface SummaryRow {
+  label: string;
+  value: string;
+  tone?: 'subtotal' | 'result';
+}
+
+/** The settlement maths top to bottom; every line adds up to the result (the last row). */
+function payLineRows(rows: PdfSettlement[], resultLabel: string): SummaryRow[] {
+  const l = payLinesOf(rows);
+  const out: SummaryRow[] = [];
+
+  if (l.on.share || l.on.fee || l.gross > 0) {
+    out.push({ label: 'Gross fares', value: money(l.gross) });
+    if (l.on.share) {
+      const sharePct = uniformPct(rows, (s) => s.driverSharePct);
+      out.push({ label: sharePct !== null ? `Driver share (${sharePct}%)` : 'Driver share', value: money(l.share) });
+    }
+    if (l.on.fee) out.push({ label: 'Platform fees', value: minusMoney(l.fee) });
+    out.push({ label: 'Net', value: money(l.net), tone: 'subtotal' });
+  }
+  if (l.on.cash) out.push({ label: 'Cash already collected by driver', value: minusMoney(l.cash) });
+  if (l.on.tips) {
+    out.push({ label: withPct('Tips', uniformPct(rows, (s) => s.tipsDriverPct), ' to driver'), value: signedMoney(l.tips) });
+  }
+  if (l.on.campaigns) {
+    out.push({
+      label: withPct('Campaigns', uniformPct(rows, (s) => s.campaignsDriverPct), ' to driver'),
+      value: signedMoney(l.campaigns),
+    });
+  }
+  if (l.wage > 0 || l.on.hours || l.on.fixed) {
+    out.push({ label: l.hours > 0 ? `Wage (${l.hours}h)` : 'Wage', value: signedMoney(l.wage) });
+  }
+  out.push({ label: 'Balance before tax', value: money(l.balanceBeforeTax), tone: 'subtotal' });
+  if (l.on.tax || l.tax > 0) out.push({ label: 'FSS / Tax', value: minusMoney(l.tax) });
+  if (l.rent > 0) out.push({ label: 'Vehicle rent', value: minusMoney(l.rent) });
+  if (l.adjustments !== 0) out.push({ label: 'Driver adjustments', value: signedMoney(l.adjustments) });
+  out.push({ label: resultLabel, value: money(l.payable), tone: 'result' });
+  return out;
+}
+
+function drawSummaryTable(doc: jsPDF, rows: PdfSettlement[], title: string, resultLabel: string, startY: number): number {
+  const width = contentWidth(doc);
+  const negative = payLinesOf(rows).payable < 0;
+  const summary = payLineRows(rows, resultLabel);
+  const top = sectionTitle(doc, title, startY, 8 + summary.length * ROW_MM);
   autoTable(doc, {
-    startY: margin + 14,
-    head: [summaryHeaders],
-    body: summaryRows,
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
+    startY: top,
+    body: summary.map((r) => [r.label, r.value]),
+    margin: TABLE_MARGIN,
+    styles: { fontSize: 9, cellPadding: 1.8 },
     columnStyles: {
-      0: { halign: 'left', cellWidth: contentWidth * 0.42 },
-      1: { halign: 'right', cellWidth: contentWidth * 0.19 },
-      2: { halign: 'right', cellWidth: contentWidth * 0.15 },
-      3: { halign: 'right', cellWidth: contentWidth * 0.16 },
-      4: { halign: 'center', cellWidth: contentWidth * 0.08 },
+      0: { halign: 'left', cellWidth: width * 0.65 },
+      1: { halign: 'right', cellWidth: width * 0.35 },
     },
     didParseCell: (data) => {
-      if (data.row.index === summaryRows.length - 1) {
+      const tone = summary[data.row.index]?.tone;
+      if (tone === 'subtotal') {
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = [240, 240, 240];
+        data.cell.styles.fillColor = TOTAL_FILL;
+      } else if (tone === 'result') {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontSize = 10;
+        data.cell.styles.fillColor = negative ? OWES_FILL : OWED_FILL;
       }
     },
   });
-
-  drivers.forEach((driver) => {
-    doc.addPage();
-    let yPos = margin;
-
-    const rowsSorted = [...driver.rows].sort((a, b) => (a.weekStart || '').localeCompare(b.weekStart || ''));
-
-    const driverAdjustments = options.driverAdjustmentsByDriver?.[driver.driverId] || [];
-    const driverAdjustmentsNet2 = round2(calculateAdjustmentsNet(driverAdjustments));
-
-    const driverSums = rowsSorted.reduce((acc, r) => {
-      (r.platforms || []).forEach(p => {
-        acc.gross += p.gross_fare || 0;
-        acc.fifty += p.fifty_percent || 0;
-        acc.fee += p.fee || 0;
-        acc.net += p.net || 0;
-        acc.cash += p.cash_ride || 0;
-        acc.tips += p.tips || 0;
-        acc.campaigns += p.campaigns || 0;
-        acc.balance += p.balance || 0;
-      });
-      return acc;
-    }, { gross: 0, fifty: 0, fee: 0, net: 0, cash: 0, tips: 0, campaigns: 0, balance: 0 });
-
-    const feePercentDisplay = driverSums.gross > 0
-      ? `${round2((driverSums.fee / driverSums.gross) * 100)}%`
-      : '-';
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(driver.driverName, margin, yPos);
-    yPos += 7;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(monthLabel, margin, yPos);
-    doc.setTextColor(0);
-    yPos += 6;
-
-    const finalBalance = round2(driverSums.balance + driverAdjustmentsNet2);
-
-    const summaryRows: Array<[string, string]> = [
-      ['Gross', formatCurrency(round2(driverSums.gross))],
-      ['50%', formatCurrency(round2(driverSums.fifty))],
-      ['Fee %', feePercentDisplay],
-      ['Fee', `-${formatCurrency(round2(driverSums.fee))}`],
-      ['Net', formatCurrency(round2(driverSums.net))],
-      ['Cash', `-${formatCurrency(round2(driverSums.cash))}`],
-      ['Tips', `+${formatCurrency(round2(driverSums.tips))}`],
-      ['Campaigns', `+${formatCurrency(round2(driverSums.campaigns))}`],
-      ['Adjustments', formatSignedCurrency(driverAdjustmentsNet2)],
-      ['Balance', formatCurrency(finalBalance)],
-    ];
-
-    const netRowIndex = 4;
-    const balanceRowIndex = summaryRows.length - 1;
-
-    autoTable(doc, {
-      startY: yPos,
-      body: summaryRows,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 10, cellPadding: 3 },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: contentWidth * 0.65 },
-        1: { halign: 'right', cellWidth: contentWidth * 0.35, fontStyle: 'bold' },
-      },
-      didParseCell: (data) => {
-        if (data.row.index === netRowIndex) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-        if (data.row.index === balanceRowIndex) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = finalBalance >= 0
-            ? [220, 252, 231]
-            : [254, 226, 226];
-          data.cell.styles.fontSize = 11;
-        }
-      },
-    });
-
-    yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-    const platformTotals = new Map<string, {
-      platformName: string;
-      gross: number;
-      net: number;
-      cash: number;
-      tips: number;
-      campaigns: number;
-      balance: number;
-    }>();
-
-    rowsSorted.forEach(r => {
-      (r.platforms || []).forEach(p => {
-        const key = p.platform_id || p.platform_name;
-        const cur = platformTotals.get(key) || {
-          platformName: p.platform_name,
-          gross: 0,
-          net: 0,
-          cash: 0,
-          tips: 0,
-          campaigns: 0,
-          balance: 0,
-        };
-        cur.gross += p.gross_fare || 0;
-        cur.net += p.net || 0;
-        cur.cash += p.cash_ride || 0;
-        cur.tips += p.tips || 0;
-        cur.campaigns += p.campaigns || 0;
-        cur.balance += p.balance || 0;
-        platformTotals.set(key, cur);
-      });
-    });
-
-    const platformBreakdownRows: Array<Array<string>> = Array.from(platformTotals.values())
-      .sort((a, b) => a.platformName.localeCompare(b.platformName))
-      .map(p => ([
-        p.platformName,
-        formatCurrency(round2(p.gross)),
-        formatCurrency(round2(p.net)),
-        formatCurrency(round2(p.cash)),
-        formatCurrency(round2(p.tips)),
-        formatCurrency(round2(p.campaigns)),
-        formatCurrency(round2(p.balance)),
-      ]));
-
-    if (platformBreakdownRows.length > 0) {
-      platformBreakdownRows.push([
-        'TOTAL',
-        formatCurrency(round2(driverSums.gross)),
-        formatCurrency(round2(driverSums.net)),
-        formatCurrency(round2(driverSums.cash)),
-        formatCurrency(round2(driverSums.tips)),
-        formatCurrency(round2(driverSums.campaigns)),
-        formatCurrency(round2(driverSums.balance)),
-      ]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Platform', 'Gross', 'Net', 'Cash', 'Tips', 'Campaigns', 'Balance']],
-        body: platformBreakdownRows,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-        columnStyles: {
-          0: { halign: 'left', cellWidth: contentWidth * 0.25 },
-          1: { halign: 'right', cellWidth: contentWidth * 0.12 },
-          2: { halign: 'right', cellWidth: contentWidth * 0.12 },
-          3: { halign: 'right', cellWidth: contentWidth * 0.12 },
-          4: { halign: 'right', cellWidth: contentWidth * 0.12 },
-          5: { halign: 'right', cellWidth: contentWidth * 0.13 },
-          6: { halign: 'right', cellWidth: contentWidth * 0.14 },
-        },
-        didParseCell: (data) => {
-          if (data.row.index === platformBreakdownRows.length - 1) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [240, 240, 240];
-          }
-        },
-      });
-
-      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-    }
-
-    if (driverAdjustments.length > 0) {
-      const adjHeaders = ['Date', 'Type', 'Description', 'Amount'];
-      const sorted = [...driverAdjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-      const adjRows = sorted.map((a) => {
-        const signed = signedAdjustmentAmount(a.type, Number(a.amount) || 0);
-        return [a.date, a.type, a.description, formatSignedCurrency(signed)];
-      });
-      adjRows.push(['', '', 'TOTAL', formatSignedCurrency(driverAdjustmentsNet2)]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [adjHeaders],
-        body: adjRows,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-        columnStyles: {
-          0: { halign: 'left', cellWidth: contentWidth * 0.14 },
-          1: { halign: 'left', cellWidth: contentWidth * 0.14 },
-          2: { halign: 'left', cellWidth: contentWidth * 0.52 },
-          3: { halign: 'right', cellWidth: contentWidth * 0.20 },
-        },
-        didParseCell: (data) => {
-          if (data.row.index === adjRows.length - 1) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [240, 240, 240];
-          }
-        },
-      });
-
-      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-    }
-
-    const platformNamesSet = new Set<string>();
-    rowsSorted.forEach(r => (r.platforms || []).forEach(p => platformNamesSet.add(p.platform_name)));
-    const platformNames = Array.from(platformNamesSet).sort();
-    const hasPlatforms = platformNames.length > 0;
-    const grossColHeaders = hasPlatforms ? platformNames.map(n => `${n} Gross`) : ['Gross'];
-
-    const weekHeaders = ['Week', 'Status', 'Paid', ...grossColHeaders, 'Net', 'FSS', 'Final'];
-    const weekRows = rowsSorted.map(r => {
-      const statusText = r.status === 'finalized' ? 'Finalized' : 'Draft';
-      const paidText = r.paidAt ? new Date(r.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
-      const weekText = r.periodName ? `${r.periodName} (${r.weekLabel})` : r.weekLabel;
-      const grossCells = hasPlatforms
-        ? platformNames.map(name => {
-            const plat = (r.platforms || []).find(p => p.platform_name === name);
-            return formatCurrency(round2(plat?.gross_fare || 0));
-          })
-        : [formatCurrency(r.totalGrossFare)];
-      return [
-        weekText,
-        statusText,
-        paidText,
-        ...grossCells,
-        formatCurrency(r.totalNet),
-        formatCurrency(r.fssTax),
-        formatCurrency(r.finalBalance),
-      ];
-    });
-
-    const totalGrossCells = hasPlatforms
-      ? platformNames.map(name => {
-          const total = rowsSorted.reduce((sum, r) => {
-            const plat = (r.platforms || []).find(p => p.platform_name === name);
-            return sum + (plat?.gross_fare || 0);
-          }, 0);
-          return formatCurrency(round2(total));
-        })
-      : [formatCurrency(round2(rowsSorted.reduce((s, r) => s + (r.totalGrossFare || 0), 0)))];
-    weekRows.push([
-      'TOTAL',
-      '',
-      '',
-      ...totalGrossCells,
-      formatCurrency(round2(rowsSorted.reduce((s, r) => s + (r.totalNet || 0), 0))),
-      formatCurrency(round2(rowsSorted.reduce((s, r) => s + (r.fssTax || 0), 0))),
-      formatCurrency(round2(rowsSorted.reduce((s, r) => s + (r.finalBalance || 0), 0))),
-    ]);
-
-    const fixedWeek = 0.27;
-    const fixedStatus = 0.09;
-    const fixedPaid = 0.09;
-    const fixedNet = 0.10;
-    const fixedFss = 0.09;
-    const fixedFinal = 0.12;
-    const platformShareTotal = 1 - (fixedWeek + fixedStatus + fixedPaid + fixedNet + fixedFss + fixedFinal);
-    const perPlatformWidth = platformShareTotal / grossColHeaders.length;
-
-    const weekColumnStyles: Record<number, { halign: 'left' | 'right' | 'center'; cellWidth: number }> = {
-      0: { halign: 'left', cellWidth: contentWidth * fixedWeek },
-      1: { halign: 'left', cellWidth: contentWidth * fixedStatus },
-      2: { halign: 'left', cellWidth: contentWidth * fixedPaid },
-    };
-    grossColHeaders.forEach((_, i) => {
-      weekColumnStyles[3 + i] = { halign: 'right', cellWidth: contentWidth * perPlatformWidth };
-    });
-    const tailOffset = 3 + grossColHeaders.length;
-    weekColumnStyles[tailOffset] = { halign: 'right', cellWidth: contentWidth * fixedNet };
-    weekColumnStyles[tailOffset + 1] = { halign: 'right', cellWidth: contentWidth * fixedFss };
-    weekColumnStyles[tailOffset + 2] = { halign: 'right', cellWidth: contentWidth * fixedFinal };
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [weekHeaders],
-      body: weekRows,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-      columnStyles: weekColumnStyles,
-      didParseCell: (data) => {
-        if (data.row.index === weekRows.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-      },
-    });
-  });
-
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text(
-      `Generated on ${new Date().toLocaleDateString('en-GB', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`,
-      margin,
-      pageHeight - 10
-    );
-    doc.text(
-      `Page ${i} of ${pageCount}`,
-      pageWidth - margin - 25,
-      pageHeight - 10
-    );
-    doc.setTextColor(0);
-  }
-
-  const sanitizedMonth = monthLabel.replace(/[^a-zA-Z0-9]/g, '_');
-  const filename = `Settlements_${sanitizedMonth}.pdf`;
-  doc.save(filename);
+  return tableEndY(doc);
 }
 
-export function exportDriverMonthlySettlementPdf(options: {
-  driverName: string;
-  monthLabel: string;
-  settlements: Array<{
-    weekStart: string;
-    weekLabel: string;
-    periodName: string | null;
-    status: string;
-    paidAt: string | null;
-    totalGrossFare: number;
-    totalNet: number;
-    fssTax: number;
-    finalBalance: number;
-    platforms: SettlementPlatform[];
-  }>;
-  driverAdjustments?: DriverAdjustment[];
-}): void {
-  const { driverName, monthLabel, settlements } = options;
+// ── Tables ───────────────────────────────────────────────────────────────────
 
-  if (settlements.length === 0) {
+/** Per-platform earnings (summed over the given settlements). Null when there are no fares at all. */
+function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, startY: number): number | null {
+  const lines = payLinesOf(rows);
+  if (lines.gross === 0 && lines.cash === 0 && lines.tips === 0 && lines.campaigns === 0) return null;
+
+  const byPlatform = new Map<string, PlatformLines & { name: string }>();
+  for (const s of rows) {
+    for (const p of s.platforms) {
+      const key = p.platform_id || p.platform_name;
+      const cur = byPlatform.get(key) ?? {
+        name: p.platform_name, gross: 0, share: 0, fee: 0, net: 0, cash: 0, tips: 0, campaigns: 0, balance: 0,
+      };
+      const l = platformLines(p, s);
+      cur.gross += l.gross;
+      cur.share += l.share;
+      cur.fee += l.fee;
+      cur.net += l.net;
+      cur.cash += l.cash;
+      cur.tips += l.tips;
+      cur.campaigns += l.campaigns;
+      cur.balance += l.balance;
+      byPlatform.set(key, cur);
+    }
+  }
+
+  const on = lines.on;
+  const tipsPct = uniformPct(rows, (s) => s.tipsDriverPct);
+  const columns: { title: string; cell: (a: PlatformLines) => string }[] = [
+    ...(on.share || on.fee || lines.gross > 0 ? [{ title: 'Gross', cell: (a: PlatformLines) => money(a.gross) }] : []),
+    ...(on.share ? [{ title: 'Share', cell: (a: PlatformLines) => money(a.share) }] : []),
+    ...(on.fee ? [{ title: 'Fee', cell: (a: PlatformLines) => minusMoney(a.fee) }] : []),
+    ...(on.share || on.fee ? [{ title: 'Net', cell: (a: PlatformLines) => money(a.net) }] : []),
+    ...(on.cash ? [{ title: 'Cash', cell: (a: PlatformLines) => minusMoney(a.cash) }] : []),
+    ...(on.tips ? [{ title: withPct('Tips', tipsPct), cell: (a: PlatformLines) => signedMoney(a.tips) }] : []),
+    ...(on.campaigns ? [{ title: 'Campaigns', cell: (a: PlatformLines) => signedMoney(a.campaigns) }] : []),
+    { title: 'Balance', cell: (a) => money(a.balance) },
+  ];
+
+  const platforms = [...byPlatform.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const body = [
+    ...platforms.map((a) => [a.name, ...columns.map((c) => c.cell(a))]),
+    ['TOTAL', ...columns.map((c) => c.cell(lines))],
+  ];
+
+  const width = contentWidth(doc);
+  const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth?: number }> = {
+    0: { halign: 'left', cellWidth: width * 0.2 },
+  };
+  columns.forEach((_, i) => {
+    columnStyles[i + 1] = { halign: 'right' };
+  });
+
+  const top = sectionTitle(doc, title, startY);
+  autoTable(doc, {
+    startY: top,
+    head: [['Platform', ...columns.map((c) => c.title)]],
+    body,
+    margin: TABLE_MARGIN,
+    styles: { fontSize: 8.5, cellPadding: 1.8 },
+    headStyles: HEAD_STYLES,
+    columnStyles,
+    didParseCell: (data) => {
+      if (data.section === 'head' && data.column.index > 0) data.cell.styles.halign = 'right';
+      if (data.section === 'body' && data.row.index === body.length - 1) {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = TOTAL_FILL;
+      }
+    },
+  });
+  return tableEndY(doc);
+}
+
+/** The itemised driver adjustments (fuel, fines, bonuses…). Null when there are none. */
+function drawAdjustmentsTable(doc: jsPDF, adjustments: DriverAdjustment[], title: string, startY: number): number | null {
+  if (adjustments.length === 0) return null;
+  const sorted = [...adjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const body = sorted.map((a) => [
+    a.date,
+    a.type.charAt(0).toUpperCase() + a.type.slice(1),
+    a.description,
+    signedMoney(signedAdjustmentAmount(a.type, a.amount)),
+  ]);
+  body.push(['', '', 'TOTAL', signedMoney(calculateAdjustmentsNet(sorted))]);
+
+  const width = contentWidth(doc);
+  const top = sectionTitle(doc, title, startY);
+  autoTable(doc, {
+    startY: top,
+    head: [['Date', 'Type', 'Description', 'Amount']],
+    body,
+    margin: TABLE_MARGIN,
+    styles: { fontSize: 8.5, cellPadding: 1.8 },
+    headStyles: HEAD_STYLES,
+    columnStyles: {
+      0: { halign: 'left', cellWidth: width * 0.14 },
+      1: { halign: 'left', cellWidth: width * 0.16 },
+      2: { halign: 'left', cellWidth: width * 0.5 },
+      3: { halign: 'right', cellWidth: width * 0.2 },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'head' && data.column.index === 3) data.cell.styles.halign = 'right';
+      if (data.section === 'body' && data.row.index === body.length - 1) {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = TOTAL_FILL;
+      }
+    },
+  });
+  return tableEndY(doc);
+}
+
+/**
+ * The payment statement: every week with its amount and whether it was paid,
+ * then total earned − already paid = still owed.
+ */
+function drawOwedStatement(doc: jsPDF, weeks: OwedWeek[], title: string, owedLabel: string, startY: number): number {
+  const t = summarizeOwed(weeks);
+  const body = weeks.map((w) => [
+    w.label,
+    w.status === 'finalized' ? 'Finalized' : 'Draft',
+    money(w.amount),
+    w.paidAt ? `Paid ${shortDate(w.paidAt)}` : 'Not paid yet',
+  ]);
+  const firstTotal = body.length;
+  body.push(['Total earned', '', money(t.earned), '']);
+  body.push(['Less: already paid', '', money(t.paid), '']);
+  body.push([owedLabel, '', money(t.owed), '']);
+
+  const width = contentWidth(doc);
+  const top = sectionTitle(doc, title, startY, 8 + (body.length + 1) * ROW_MM);
+  autoTable(doc, {
+    startY: top,
+    head: [['Week', 'Status', 'Amount', 'Paid']],
+    body,
+    margin: TABLE_MARGIN,
+    styles: { fontSize: 9, cellPadding: 1.8 },
+    headStyles: HEAD_STYLES,
+    columnStyles: {
+      0: { halign: 'left', cellWidth: width * 0.46 },
+      1: { halign: 'left', cellWidth: width * 0.14 },
+      2: { halign: 'right', cellWidth: width * 0.18 },
+      3: { halign: 'left', cellWidth: width * 0.22 },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'head') {
+        if (data.column.index === 2) data.cell.styles.halign = 'right';
+        return;
+      }
+      const i = data.row.index;
+      if (i < firstTotal) {
+        const week = weeks[i];
+        if (week.current) data.cell.styles.fontStyle = 'bold';
+        if (data.column.index === 2 && week.amount < 0) data.cell.styles.textColor = OWES_TEXT;
+        if (data.column.index === 3) data.cell.styles.textColor = week.paidAt ? OWED_TEXT : MUTED_TEXT;
+        return;
+      }
+      data.cell.styles.fontStyle = 'bold';
+      if (i === body.length - 1) {
+        data.cell.styles.fontSize = 10;
+        data.cell.styles.fillColor = t.owed < 0 ? OWES_FILL : OWED_FILL;
+      } else {
+        data.cell.styles.fillColor = TOTAL_FILL;
+      }
+    },
+  });
+  return tableEndY(doc);
+}
+
+/** Plain-English note under the statement: what each amount already includes. */
+function owedFootnote(rows: PdfSettlement[], weeks: OwedWeek[], audience: Audience): string {
+  const l = payLinesOf(rows);
+  const parts: string[] = [];
+  if (l.on.fee && l.fee > 0) parts.push('platform fees');
+  if (l.on.cash) parts.push(audience === 'driver' ? 'the cash you already collected' : 'the cash the driver already collected');
+  if (l.tax > 0) parts.push('tax');
+  if (l.rent > 0) parts.push('vehicle rent');
+  if (l.adjustments !== 0) parts.push('adjustments');
+
+  const t = summarizeOwed(weeks);
+  const sentences = [
+    parts.length > 0
+      ? `Each amount is already after ${joinList(parts)}.`
+      : 'Each amount is what the week is worth to the driver.',
+    'Still owed = total earned less the weeks already marked as paid.',
+    audience === 'driver' ? 'A minus means you owe the fleet.' : 'A minus means the driver owes the fleet.',
+  ];
+  if (t.drafts > 0) {
+    sentences.push(`Includes ${t.drafts} draft ${t.drafts === 1 ? 'week' : 'weeks'} that may still change.`);
+  }
+  return sentences.join(' ');
+}
+
+/** Week-by-week detail for a month: gross per platform, net, tax, amount. */
+function drawWeekByWeek(doc: jsPDF, rows: PdfSettlement[], title: string, startY: number): number {
+  const sorted = [...rows].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  const lines = payLinesOf(sorted);
+  const platformNames = lines.gross > 0
+    ? Array.from(new Set(sorted.flatMap((r) => r.platforms.map((p) => p.platform_name)))).sort()
+    : [];
+  const grossOf = (r: PdfSettlement, name: string) =>
+    r.platforms.filter((p) => p.platform_name === name).reduce((sum, p) => sum + num(p.gross_fare), 0);
+  const netOf = (r: PdfSettlement) => r.platforms.reduce((sum, p) => sum + num(p.net), 0);
+
+  const columns: { title: string; cell: (r: PdfSettlement) => number; total: number }[] = [
+    ...platformNames.map((name) => ({
+      title: `${name} gross`,
+      cell: (r: PdfSettlement) => grossOf(r, name),
+      total: sorted.reduce((sum, r) => sum + grossOf(r, name), 0),
+    })),
+    ...(lines.on.share || lines.on.fee ? [{ title: 'Net', cell: netOf, total: lines.net }] : []),
+    ...(lines.wage > 0 ? [{ title: 'Wage', cell: (r: PdfSettlement) => r.wageAmount, total: lines.wage }] : []),
+    ...(lines.on.tax || lines.tax > 0 ? [{ title: 'Tax', cell: (r: PdfSettlement) => r.fssTax, total: lines.tax }] : []),
+    { title: 'Amount', cell: settlementPayable, total: lines.payable },
+  ];
+
+  const body = [
+    ...sorted.map((r) => [periodTitle(r), ...columns.map((c) => money(c.cell(r)))]),
+    ['TOTAL', ...columns.map((c) => money(c.total))],
+  ];
+
+  const width = contentWidth(doc);
+  const weekWidth = width * 0.3;
+  const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth: number }> = {
+    0: { halign: 'left', cellWidth: weekWidth },
+  };
+  columns.forEach((_, i) => {
+    columnStyles[i + 1] = { halign: 'right', cellWidth: (width - weekWidth) / columns.length };
+  });
+
+  const top = sectionTitle(doc, title, startY);
+  autoTable(doc, {
+    startY: top,
+    head: [['Week', ...columns.map((c) => c.title)]],
+    body,
+    margin: TABLE_MARGIN,
+    styles: { fontSize: 8, cellPadding: 1.8 },
+    headStyles: HEAD_STYLES,
+    columnStyles,
+    didParseCell: (data) => {
+      if (data.section === 'head' && data.column.index > 0) data.cell.styles.halign = 'right';
+      if (data.section === 'body' && data.row.index === body.length - 1) {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = TOTAL_FILL;
+      }
+    },
+  });
+  return tableEndY(doc);
+}
+
+// ── Driver pages ─────────────────────────────────────────────────────────────
+
+/**
+ * One driver, one settlement period. `monthRows` are the driver's settlements
+ * in the same month up to and including this one — they feed the "owed so far"
+ * statement, so earlier unpaid (or negative) weeks carry into what's owed.
+ */
+function drawPeriodDriverPage(
+  doc: jsPDF,
+  s: PdfSettlement,
+  monthRows: PdfSettlement[],
+  adjustments: DriverAdjustment[],
+  fleet: FleetIdentity | null | undefined
+): void {
+  const statusText = s.status === 'finalized' ? 'Finalized' : 'Draft';
+  const paidText = s.paidAt ? ` - Paid ${shortDate(s.paidAt)}` : ' - Not paid yet';
+  let y = drawPageHeader(doc, 'Driver Settlement', s.driverName, [periodTitle(s), `Status: ${statusText}${paidText}`], fleet);
+
+  const weeks = owedWeeksOf(monthRows, s.id);
+  const t = summarizeOwed(weeks);
+  const month = monthKeyLabel(s.monthKey);
+  const detail = weeks.length > 1
+    ? `${month} so far: earned ${money(t.earned)}, already paid ${money(t.paid)}`
+    : s.paidAt
+      ? `This period was paid on ${shortDate(s.paidAt)}`
+      : 'This period has not been paid yet';
+  y = drawOwedHeadline(doc, y, t.owed, 'Amount owed to driver', detail) + 8;
+
+  let n = 1;
+  const platformEnd = drawPlatformTable(doc, [s], `${n}. Earnings by platform`, y);
+  if (platformEnd !== null) {
+    n++;
+    y = platformEnd + 8;
+  }
+
+  const adjustmentsEnd = drawAdjustmentsTable(doc, adjustments, `${n}. Driver adjustments`, y);
+  if (adjustmentsEnd !== null) {
+    n++;
+    y = adjustmentsEnd + 8;
+  }
+
+  y = drawSummaryTable(doc, [s], `${n++}. This period`, 'PAYABLE FOR THIS PERIOD', y) + 8;
+
+  y = drawOwedStatement(doc, weeks, `${n++}. Amount owed - ${month} so far`, 'STILL OWED TO DRIVER', y);
+  y = footnote(doc, owedFootnote(monthRows, weeks, 'fleet'), y) + 6;
+
+  if (s.notes) {
+    y = ensureSpace(doc, y, 14);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Notes:', MARGIN, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(doc.splitTextToSize(s.notes, contentWidth(doc)), MARGIN, y + 4.5);
+  }
+}
+
+/** One driver, one month: owed headline, summary, payment statement, detail. */
+function drawMonthDriverPage(
+  doc: jsPDF,
+  driverName: string,
+  monthLabel: string,
+  rows: PdfSettlement[],
+  adjustments: DriverAdjustment[],
+  audience: Audience,
+  fleet: FleetIdentity | null | undefined
+): void {
+  let y = drawPageHeader(doc, 'Monthly Settlement', driverName, [monthLabel], fleet);
+
+  const weeks = owedWeeksOf(rows);
+  const t = summarizeOwed(weeks);
+  y = drawOwedHeadline(
+    doc,
+    y,
+    t.owed,
+    audience === 'driver' ? 'Amount owed to you' : 'Amount owed to driver',
+    `Earned ${money(t.earned)} this month, already paid ${money(t.paid)} (${t.paidWeeks} of ${t.weeks} ${t.weeks === 1 ? 'week' : 'weeks'})`
+  ) + 8;
+
+  y = drawSummaryTable(doc, rows, '1. Month summary', 'TOTAL EARNED THIS MONTH', y) + 8;
+
+  y = drawOwedStatement(
+    doc,
+    weeks,
+    '2. Payments & amount owed',
+    audience === 'driver' ? 'STILL OWED TO YOU' : 'STILL OWED TO DRIVER',
+    y
+  );
+  y = footnote(doc, owedFootnote(rows, weeks, audience), y) + 6;
+
+  let n = 3;
+  const platformEnd = drawPlatformTable(doc, rows, `${n}. Earnings by platform`, y);
+  if (platformEnd !== null) {
+    n++;
+    y = platformEnd + 8;
+  }
+
+  const adjustmentsEnd = drawAdjustmentsTable(doc, adjustments, `${n}. Driver adjustments`, y);
+  if (adjustmentsEnd !== null) {
+    n++;
+    y = adjustmentsEnd + 8;
+  }
+
+  drawWeekByWeek(doc, rows, `${n}. Week by week`, y);
+}
+
+function groupByDriver(rows: PdfSettlement[]): { driverName: string; rows: PdfSettlement[] }[] {
+  const map = new Map<string, { driverName: string; rows: PdfSettlement[] }>();
+  for (const s of rows) {
+    const key = s.driverId || s.driverName;
+    const cur = map.get(key);
+    if (cur) cur.rows.push(s);
+    else map.set(key, { driverName: s.driverName, rows: [s] });
+  }
+  return [...map.values()].sort((a, b) => a.driverName.localeCompare(b.driverName));
+}
+
+function adjustmentsFor(rows: PdfSettlement[], bySettlement: Record<string, DriverAdjustment[]> | undefined): DriverAdjustment[] {
+  return rows.flatMap((s) => bySettlement?.[s.id] ?? []);
+}
+
+// ── Exports ──────────────────────────────────────────────────────────────────
+
+interface PeriodPdfOptions {
+  periodLabel: string;
+  periodName: string | null;
+  /** This period's settlements, one per driver. */
+  settlements: PdfSettlement[];
+  /**
+   * The same drivers' other settlements. Earlier weeks in the same month feed
+   * the "amount owed so far" statement; without them it covers this period only.
+   */
+  history?: PdfSettlement[];
+  /** Frozen adjustments, keyed by settlement id. */
+  adjustmentsBySettlement?: Record<string, DriverAdjustment[]>;
+  fleet?: FleetIdentity | null;
+}
+
+/** One settlement period: a page per driver. */
+export function buildSettlementsPdf(options: PeriodPdfOptions): jsPDF {
+  const { settlements, history = [], adjustmentsBySettlement, fleet } = options;
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const ordered = [...settlements].sort((a, b) => a.driverName.localeCompare(b.driverName));
+
+  ordered.forEach((s, index) => {
+    if (index > 0) doc.addPage();
+    const earlier = history.filter(
+      (h) => h.driverId === s.driverId && h.monthKey === s.monthKey && h.weekStart < s.weekStart && h.id !== s.id
+    );
+    drawPeriodDriverPage(doc, s, [...earlier, s], adjustmentsBySettlement?.[s.id] ?? [], fleet);
+  });
+
+  drawFooters(doc);
+  return doc;
+}
+
+export function exportSettlementsPdf(options: PeriodPdfOptions): void {
+  if (options.settlements.length === 0) {
     alert('No settlements to export');
     return;
   }
+  const doc = buildSettlementsPdf(options);
+  doc.save(`Settlements_${fileSafe(options.periodName || options.periodLabel)}.pdf`);
+}
 
+interface MonthPdfOptions {
+  monthLabel: string;
+  /** Every settlement filed under the month. */
+  settlements: PdfSettlement[];
+  /** Frozen adjustments, keyed by settlement id. */
+  adjustmentsBySettlement?: Record<string, DriverAdjustment[]>;
+  fleet?: FleetIdentity | null;
+}
+
+/** One month for the whole fleet: an overview of what's owed, then a page per driver. */
+export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
+  const { monthLabel, settlements, adjustmentsBySettlement, fleet } = options;
   const doc = new jsPDF('portrait', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15;
-  const contentWidth = pageWidth - (margin * 2);
-
-  const rowsSorted = [...settlements].sort((a, b) => (a.weekStart || '').localeCompare(b.weekStart || ''));
-  const finalizedRows = rowsSorted.filter(r => r.status === 'finalized');
-
-  const driverAdjustments = Array.isArray(options.driverAdjustments) ? options.driverAdjustments : [];
-  const driverAdjustmentsNet = round2(calculateAdjustmentsNet(driverAdjustments));
-
-  const finalizedTotal = round2(finalizedRows.reduce((sum, r) => sum + (r.finalBalance || 0), 0));
-  const payableTotal = round2(finalizedTotal + driverAdjustmentsNet);
-
-  const monthGrossTotal = round2(finalizedRows.reduce((sum, r) => sum + (r.totalGrossFare || 0), 0));
-  const monthNetTotal = round2(finalizedRows.reduce((sum, r) => sum + (r.totalNet || 0), 0));
-  const monthFssTaxTotal = round2(finalizedRows.reduce((sum, r) => sum + (r.fssTax || 0), 0));
-
-  const paidFinalized = finalizedRows.filter(r => !!r.paidAt).length;
-
-  const platformTotals = new Map<string, {
-    platformName: string;
-    gross: number;
-    net: number;
-    cash: number;
-    tips: number;
-    campaigns: number;
-    balance: number;
-  }>();
-
-  rowsSorted.forEach(r => {
-    (r.platforms || []).forEach(p => {
-      const key = p.platform_id || p.platform_name;
-      const cur = platformTotals.get(key) || {
-        platformName: p.platform_name,
-        gross: 0,
-        net: 0,
-        cash: 0,
-        tips: 0,
-        campaigns: 0,
-        balance: 0,
-      };
-      cur.gross += p.gross_fare || 0;
-      cur.net += p.net || 0;
-      cur.cash += p.cash_ride || 0;
-      cur.tips += p.tips || 0;
-      cur.campaigns += p.campaigns || 0;
-      cur.balance += p.balance || 0;
-      platformTotals.set(key, cur);
-    });
+  const width = contentWidth(doc);
+  const drivers = groupByDriver(settlements).map((d) => {
+    const weeks = owedWeeksOf(d.rows);
+    return { ...d, weeks, totals: summarizeOwed(weeks) };
   });
 
-  const monthTotals = Array.from(platformTotals.values()).reduce((acc, p) => {
-    return {
-      gross: acc.gross + p.gross,
-      net: acc.net + p.net,
-      cash: acc.cash + p.cash,
-      tips: acc.tips + p.tips,
-      campaigns: acc.campaigns + p.campaigns,
-      balance: acc.balance + p.balance,
-    };
-  }, { gross: 0, net: 0, cash: 0, tips: 0, campaigns: 0, balance: 0 });
+  // Overview page.
+  let y = drawPageHeader(doc, 'Monthly Settlements', monthLabel, [`${drivers.length} ${drivers.length === 1 ? 'driver' : 'drivers'}`], fleet);
 
-  let yPos = margin;
+  // Money owed to one driver can't be offset against another driver's debt,
+  // so the headline sums only the positive balances.
+  const owedToDrivers = round2(drivers.reduce((sum, d) => sum + Math.max(0, d.totals.owed), 0));
+  const owedByDrivers = round2(drivers.reduce((sum, d) => sum + Math.min(0, d.totals.owed), 0));
+  const owingCount = drivers.filter((d) => d.totals.owed > 0).length;
+  const detail = owedByDrivers < 0
+    ? `${owingCount} ${owingCount === 1 ? 'driver' : 'drivers'} still to pay · drivers owing the fleet: ${money(owedByDrivers)}`
+    : `${owingCount} ${owingCount === 1 ? 'driver' : 'drivers'} still to pay`;
+  y = drawOwedHeadline(doc, y, owedToDrivers, 'Total owed to drivers', detail) + 8;
 
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Monthly Settlement', margin, yPos);
-  yPos += 8;
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(driverName, margin, yPos);
-  yPos += 6;
-
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(monthLabel, margin, yPos);
-  doc.setTextColor(0);
-  yPos += 10;
-
-  const summaryData = [
-    ['Gross', formatCurrency(monthGrossTotal)],
-    ['Tips', `+${formatCurrency(round2(monthTotals.tips))}`],
-    ['Campaigns', `+${formatCurrency(round2(monthTotals.campaigns))}`],
-    ['Cash Collected', `-${formatCurrency(round2(monthTotals.cash))}`],
-    ['Net', formatCurrency(monthNetTotal)],
-    ['FSS / Tax', `-${formatCurrency(monthFssTaxTotal)}`],
-    ['Final', formatCurrency(finalizedTotal)],
-    ['Adjustments', formatSignedCurrency(driverAdjustmentsNet)],
-    ['Payable', formatCurrency(payableTotal)],
+  const all = summarizeOwed(drivers.flatMap((d) => d.weeks));
+  const body = [
+    ...drivers.map((d) => [
+      d.driverName,
+      `${d.totals.paidWeeks}/${d.totals.weeks}`,
+      money(d.totals.earned),
+      money(d.totals.paid),
+      money(d.totals.owed),
+    ]),
+    ['TOTAL', `${all.paidWeeks}/${all.weeks}`, money(all.earned), money(all.paid), money(all.owed)],
   ];
 
   autoTable(doc, {
-    startY: yPos,
-    body: summaryData,
-    margin: { left: margin, right: margin },
+    startY: y,
+    head: [['Driver', 'Weeks paid', 'Earned', 'Already paid', 'Owed to driver']],
+    body,
+    margin: TABLE_MARGIN,
     styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: HEAD_STYLES,
     columnStyles: {
-      0: { halign: 'left', cellWidth: contentWidth * 0.68 },
-      1: { halign: 'right', cellWidth: contentWidth * 0.32, fontStyle: 'bold' },
+      0: { halign: 'left', cellWidth: width * 0.34 },
+      1: { halign: 'center', cellWidth: width * 0.12 },
+      2: { halign: 'right', cellWidth: width * 0.18 },
+      3: { halign: 'right', cellWidth: width * 0.18 },
+      4: { halign: 'right', cellWidth: width * 0.18 },
     },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
-  });
-
-  yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-  if (driverAdjustments.length > 0) {
-    const adjHeaders = ['Date', 'Type', 'Description', 'Amount'];
-    const sorted = [...driverAdjustments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    const adjRows = sorted.map((a) => {
-      const signed = signedAdjustmentAmount(a.type, Number(a.amount) || 0);
-      return [a.date, a.type, a.description, formatSignedCurrency(signed)];
-    });
-    adjRows.push(['', '', 'TOTAL', formatSignedCurrency(driverAdjustmentsNet)]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [adjHeaders],
-      body: adjRows,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: contentWidth * 0.14 },
-        1: { halign: 'left', cellWidth: contentWidth * 0.14 },
-        2: { halign: 'left', cellWidth: contentWidth * 0.52 },
-        3: { halign: 'right', cellWidth: contentWidth * 0.20 },
-      },
-      didParseCell: (data) => {
-        if (data.row.index === adjRows.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-      },
-    });
-
-    yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-  }
-
-  const weekHeaders = ['Week', 'Status', 'Paid', 'Gross', 'Net', 'FSS', 'Final'];
-  const weekRows = rowsSorted.map(r => {
-    const statusText = r.status === 'finalized' ? 'Finalized' : 'Draft';
-    const paidText = r.paidAt ? new Date(r.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
-    const weekText = r.periodName ? `${r.periodName} (${r.weekLabel})` : r.weekLabel;
-    return [
-      weekText,
-      statusText,
-      paidText,
-      formatCurrency(r.totalGrossFare),
-      formatCurrency(r.totalNet),
-      formatCurrency(r.fssTax),
-      formatCurrency(r.finalBalance),
-    ];
-  });
-
-  autoTable(doc, {
-    startY: yPos,
-    head: [weekHeaders],
-    body: weekRows,
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-    columnStyles: {
-      0: { halign: 'left', cellWidth: contentWidth * 0.35 },
-      1: { halign: 'left', cellWidth: contentWidth * 0.10 },
-      2: { halign: 'left', cellWidth: contentWidth * 0.10 },
-      3: { halign: 'right', cellWidth: contentWidth * 0.11 },
-      4: { halign: 'right', cellWidth: contentWidth * 0.11 },
-      5: { halign: 'right', cellWidth: contentWidth * 0.11 },
-      6: { halign: 'right', cellWidth: contentWidth * 0.12 },
+    didParseCell: (data) => {
+      if (data.section === 'head') {
+        if (data.column.index === 1) data.cell.styles.halign = 'center';
+        if (data.column.index >= 2) data.cell.styles.halign = 'right';
+        return;
+      }
+      const isTotal = data.row.index === body.length - 1;
+      if (isTotal) {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = TOTAL_FILL;
+      }
+      if (data.column.index === 4) {
+        const owed = isTotal ? all.owed : drivers[data.row.index].totals.owed;
+        data.cell.styles.fontStyle = 'bold';
+        if (owed < 0) data.cell.styles.textColor = OWES_TEXT;
+      }
     },
   });
+  footnote(doc, owedFootnote(settlements, drivers.flatMap((d) => d.weeks), 'fleet'), tableEndY(doc));
 
-  yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-  const platformHeaders = ['Platform', 'Gross', 'Net', 'Cash', 'Tips', 'Campaigns', 'Balance'];
-  const platformRows = Array.from(platformTotals.values())
-    .sort((a, b) => a.platformName.localeCompare(b.platformName))
-    .map(p => ([
-      p.platformName,
-      formatCurrency(round2(p.gross)),
-      formatCurrency(round2(p.net)),
-      formatCurrency(round2(p.cash)),
-      formatCurrency(round2(p.tips)),
-      formatCurrency(round2(p.campaigns)),
-      formatCurrency(round2(p.balance)),
-    ]));
-
-  if (platformRows.length > 0) {
-    platformRows.push([
-      'TOTAL',
-      formatCurrency(round2(monthTotals.gross)),
-      formatCurrency(round2(monthTotals.net)),
-      formatCurrency(round2(monthTotals.cash)),
-      formatCurrency(round2(monthTotals.tips)),
-      formatCurrency(round2(monthTotals.campaigns)),
-      formatCurrency(round2(monthTotals.balance)),
-    ]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [platformHeaders],
-      body: platformRows,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: contentWidth * 0.25 },
-        1: { halign: 'right', cellWidth: contentWidth * 0.12 },
-        2: { halign: 'right', cellWidth: contentWidth * 0.12 },
-        3: { halign: 'right', cellWidth: contentWidth * 0.12 },
-        4: { halign: 'right', cellWidth: contentWidth * 0.12 },
-        5: { halign: 'right', cellWidth: contentWidth * 0.13 },
-        6: { halign: 'right', cellWidth: contentWidth * 0.14 },
-      },
-      didParseCell: (data) => {
-        if (data.row.index === platformRows.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-      },
-    });
+  for (const d of drivers) {
+    doc.addPage();
+    drawMonthDriverPage(doc, d.driverName, monthLabel, d.rows, adjustmentsFor(d.rows, adjustmentsBySettlement), 'fleet', fleet);
   }
 
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text(
-      `Generated on ${new Date().toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`,
-      margin,
-      pageHeight - 10
-    );
-    doc.text(
-      `Page ${i} of ${pageCount}`,
-      pageWidth - margin - 25,
-      pageHeight - 10
-    );
-    doc.setTextColor(0);
-  }
+  drawFooters(doc);
+  return doc;
+}
 
-  const sanitizedMonth = monthLabel.replace(/[^a-zA-Z0-9]/g, '_');
-  const sanitizedDriver = driverName.replace(/[^a-zA-Z0-9]/g, '_');
-  const filename = `Settlement_${sanitizedDriver}_${sanitizedMonth}.pdf`;
-  doc.save(filename);
+export function exportMonthlySettlementsPdf(options: MonthPdfOptions): void {
+  if (options.settlements.length === 0) {
+    alert('No settlements to export');
+    return;
+  }
+  const doc = buildMonthlySettlementsPdf(options);
+  doc.save(`Settlements_${fileSafe(options.monthLabel)}.pdf`);
+}
+
+interface DriverMonthPdfOptions {
+  driverName: string;
+  monthLabel: string;
+  settlements: PdfSettlement[];
+  driverAdjustments?: DriverAdjustment[];
+}
+
+/** The driver's own month, from the driver app. */
+export function buildDriverMonthlySettlementPdf(options: DriverMonthPdfOptions): jsPDF {
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  drawMonthDriverPage(
+    doc,
+    options.driverName,
+    options.monthLabel,
+    options.settlements,
+    options.driverAdjustments ?? [],
+    'driver',
+    null
+  );
+  drawFooters(doc);
+  return doc;
+}
+
+export function exportDriverMonthlySettlementPdf(options: DriverMonthPdfOptions): void {
+  if (options.settlements.length === 0) {
+    alert('No settlements to export');
+    return;
+  }
+  const doc = buildDriverMonthlySettlementPdf(options);
+  doc.save(`Settlement_${fileSafe(options.driverName)}_${fileSafe(options.monthLabel)}.pdf`);
 }
