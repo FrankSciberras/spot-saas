@@ -5,7 +5,16 @@ import { colors } from '../lib/theme';
 
 const IOS = Platform.OS === 'ios';
 
-const COPY: Record<LocationProblem, { title: string; body: string; button: string; hint: string | null }> = {
+/** A location-access problem, or 'sharing_off': on shift, access is fine, but sharing isn't running. */
+export type ModalReason = LocationProblem | 'sharing_off';
+
+const COPY: Record<ModalReason, { title: string; body: string; button: string; hint: string | null }> = {
+  sharing_off: {
+    title: 'Location sharing is off',
+    body: "You're on shift, but your fleet can't see you on the live map.",
+    button: 'Turn on sharing',
+    hint: null,
+  },
   services_off: {
     title: 'Turn on location',
     body: "Location is switched off on this phone, so your fleet can't see you on the live map.",
@@ -42,7 +51,7 @@ const COPY: Record<LocationProblem, { title: string; body: string; button: strin
 
 interface Props {
   /** null hides the modal. */
-  problem: LocationProblem | null;
+  reason: ModalReason | null;
   fixing: boolean;
   onFix: () => void;
   onDismiss: () => void;
@@ -50,34 +59,37 @@ interface Props {
 
 /**
  * Shown when the driver starts sharing (going online starts it) but the phone
- * isn't set up for background tracking. Doubles as the prominent disclosure
- * Google Play / the App Store require before asking for background location.
+ * isn't set up for background tracking, and again while they're on shift
+ * without sharing. Doubles as the prominent disclosure Google Play / the App
+ * Store require before asking for background location.
  */
-export default function LocationAccessModal({ problem, fixing, onFix, onDismiss }: Props) {
+export default function LocationAccessModal({ reason, fixing, onFix, onDismiss }: Props) {
   // Keep the last content on screen while the modal fades out.
-  const lastRef = useRef<LocationProblem>('no_permission');
-  if (problem) lastRef.current = problem;
-  const copy = COPY[problem ?? lastRef.current];
-  const needsServices = (problem ?? lastRef.current) === 'services_off';
+  const lastRef = useRef<ModalReason>('no_permission');
+  if (reason) lastRef.current = reason;
+  const shown = reason ?? lastRef.current;
+  const copy = COPY[shown];
 
   return (
-    <Modal visible={problem !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
+    <Modal visible={reason !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>{copy.title}</Text>
           <Text style={styles.body}>{copy.body}</Text>
 
-          <View style={styles.checklist}>
-            <Text style={styles.checklistHead}>Needed for live tracking</Text>
-            {needsServices ? (
-              <Text style={styles.checkItem}>• Location: On</Text>
-            ) : (
-              <>
-                <Text style={styles.checkItem}>• Location: {ALWAYS_LABEL}</Text>
-                <Text style={styles.checkItem}>• {PRECISE_LABEL}: On</Text>
-              </>
-            )}
-          </View>
+          {shown !== 'sharing_off' && (
+            <View style={styles.checklist}>
+              <Text style={styles.checklistHead}>Needed for live tracking</Text>
+              {shown === 'services_off' ? (
+                <Text style={styles.checkItem}>• Location: On</Text>
+              ) : (
+                <>
+                  <Text style={styles.checkItem}>• Location: {ALWAYS_LABEL}</Text>
+                  <Text style={styles.checkItem}>• {PRECISE_LABEL}: On</Text>
+                </>
+              )}
+            </View>
+          )}
 
           {copy.hint && <Text style={styles.hint}>{copy.hint}</Text>}
 

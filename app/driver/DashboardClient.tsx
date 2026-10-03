@@ -14,6 +14,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import ShiftSharingStatus from '@/components/driver/ShiftSharingStatus';
 import { formatCurrency, safeNumber } from '@/lib/utils/settlementCalculations';
 import styles from './driver.module.css';
 
@@ -170,7 +171,7 @@ export default function DashboardClient(props: {
           <div className={styles.dashboardMeta}>
             {props.hasActiveShift && (
               <>
-                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>● On shift — sharing location</span>
+                <ShiftSharingStatus />
                 <span className={styles.metaDot} />
               </>
             )}

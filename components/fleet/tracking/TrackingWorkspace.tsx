@@ -46,10 +46,18 @@ export interface ActivityItem {
   occurredAt: string;
 }
 
+/** A driver with an open shift — they're expected to be sharing. */
+export interface OnShiftItem {
+  driverId: string;
+  name: string;
+  startTime: string;
+}
+
 interface TrackingWorkspaceProps {
   orgId: string;
   canManage: boolean;
   initialPositions: PositionItem[];
+  onShift: OnShiftItem[];
   initialZones: ZoneItem[];
   initialActivity: ActivityItem[];
   initialSpeedLimit: number | null;
@@ -128,6 +136,7 @@ export default function TrackingWorkspace({
   orgId,
   canManage,
   initialPositions,
+  onShift: initialOnShift,
   initialZones,
   initialActivity,
   initialSpeedLimit,
@@ -342,7 +351,27 @@ export default function TrackingWorkspace({
     setActivity(merged);
   }, [supabase, orgId]);
 
-  // Polling: clock tick + activity refresh + positions fallback if realtime is down.
+  const [onShift, setOnShift] = useState<OnShiftItem[]>(initialOnShift);
+  const refetchOnShift = useCallback(async () => {
+    const { data } = await supabase
+      .from('driver_shifts')
+      .select('driver_id, start_time, drivers:driver_id (full_name)')
+      .eq('organization_id', orgId)
+      .is('end_time', null)
+      .order('start_time', { ascending: true });
+    if (!data) return;
+    type Row = { driver_id: string; start_time: string; drivers: DriverRel | DriverRel[] | null };
+    type DriverRel = { full_name: string | null };
+    setOnShift(
+      (data as unknown as Row[]).map((s) => ({
+        driverId: s.driver_id,
+        name: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.full_name || 'Unknown driver',
+        startTime: s.start_time,
+      }))
+    );
+  }, [supabase, orgId]);
+
+  // Polling: clock tick + activity + on-shift refresh + positions fallback if realtime is down.
   useEffect(() => {
     const refetchPositions = async () => {
       const { data } = await supabase
@@ -382,10 +411,11 @@ export default function TrackingWorkspace({
     const interval = setInterval(() => {
       setNow(Date.now());
       void refetchActivity();
+      void refetchOnShift();
       if (realtimeOk !== true) void refetchPositions();
     }, 20_000);
     return () => clearInterval(interval);
-  }, [supabase, orgId, realtimeOk, refetchActivity]);
+  }, [supabase, orgId, realtimeOk, refetchActivity, refetchOnShift]);
 
   // Sync driver markers with state.
   useEffect(() => {
@@ -622,6 +652,9 @@ export default function TrackingWorkspace({
     return a.name.localeCompare(b.name);
   });
   const liveCount = list.filter((p) => statusOf(p, now) === 'live').length;
+  // On shift but not sharing: never sent a position, or sharing is switched off.
+  // (A sharing driver who went quiet already shows as Stale/Offline in the list.)
+  const notSharing = onShift.filter((d) => !positions.get(d.driverId)?.isTracking);
 
   const activityIcon = (a: ActivityItem) => {
     if (a.kind === 'speed') return '⚠';
@@ -678,6 +711,23 @@ export default function TrackingWorkspace({
           <div style={st.list}>
             {realtimeOk === false && (
               <div style={st.pollNote}>Live stream unavailable — refreshing every 20s.</div>
+            )}
+            {notSharing.length > 0 && (
+              <div style={st.notSharing}>
+                <div style={st.notSharingTitle}>
+                  ⚠ On shift, not sharing location ({notSharing.length})
+                </div>
+                {notSharing.map((d) => (
+                  <div key={d.driverId} style={st.notSharingRow}>
+                    <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span> · shift started{' '}
+                    {agoLabel(d.startTime, now)}
+                  </div>
+                ))}
+                <div style={st.notSharingHint}>
+                  Their phone may be blocking location for the Rovora Driver app, or they started the
+                  shift from a web browser.
+                </div>
+              </div>
             )}
             {list.length === 0 && (
               <div style={st.empty}>
@@ -1000,6 +1050,19 @@ const st: Record<string, CSSProperties> = {
     marginBottom: 4,
   },
   empty: { padding: '36px 18px', textAlign: 'center', color: 'var(--text-3)' },
+  notSharing: {
+    margin: '2px 2px 10px',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(245, 181, 74, 0.35)',
+    background: 'rgba(245, 181, 74, 0.08)',
+    fontSize: 12.5,
+    color: 'var(--text-2)',
+    lineHeight: 1.5,
+  },
+  notSharingTitle: { color: 'var(--warn, #f5b54a)', fontWeight: 600, marginBottom: 4 },
+  notSharingRow: { padding: '1px 0' },
+  notSharingHint: { marginTop: 6, fontSize: 11.5, color: 'var(--text-3)' },
   row: {
     display: 'flex',
     alignItems: 'center',

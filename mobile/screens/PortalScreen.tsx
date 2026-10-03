@@ -2,13 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
-import LocationAccessModal from '../components/LocationAccessModal';
-import {
-  checkLocationAccess,
-  fixLocationAccess,
-  problemMessage,
-  type LocationProblem,
-} from '../lib/locationAccess';
+import LocationAccessModal, { type ModalReason } from '../components/LocationAccessModal';
+import { checkLocationAccess, fixLocationAccess, problemMessage } from '../lib/locationAccess';
 import { supabase } from '../lib/supabase';
 import {
   isTracking,
@@ -23,6 +18,7 @@ import { startMotionDetection } from '../lib/motionDetector';
 import { colors } from '../lib/theme';
 
 const PORTAL_URL = process.env.EXPO_PUBLIC_PORTAL_URL || 'https://rovora.eu/driver';
+const REMIND_SNOOZE_MS = 5 * 60_000;
 
 /**
  * The whole driver experience is the Rovora web portal in a WebView.
@@ -40,13 +36,23 @@ export default function PortalScreen() {
   // can't tell them apart (and .single() errors on two rows).
   const driverCtxRef = useRef<{ driverId: string; organizationId: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
-  // Location access isn't set up for tracking: the modal is up and a start is
-  // waiting on the driver fixing it (re-checked when they come back from Settings).
-  const [accessProblem, setAccessProblem] = useState<LocationProblem | null>(null);
+  // The location modal: a location-access problem (a start is then pending
+  // until the driver fixes it — re-checked when they come back from Settings),
+  // or 'sharing_off' (on shift, access is fine, but sharing isn't running).
+  const [modalReason, setModalReason] = useState<ModalReason | null>(null);
+  const modalReasonRef = useRef<ModalReason | null>(null);
   const [fixing, setFixing] = useState(false);
   const pendingStartRef = useRef(false);
   const fixingRef = useRef(false);
   const verifyingRef = useRef(false);
+  const nagRunningRef = useRef(false);
+  // "Not now" / a manual stop quiets the on-shift reminder for a few minutes.
+  const snoozeUntilRef = useRef(0);
+
+  const showModal = useCallback((reason: ModalReason | null) => {
+    modalReasonRef.current = reason;
+    setModalReason(reason);
+  }, []);
 
   const sendStatus = useCallback(async (extraError?: string) => {
     const status = {
@@ -128,8 +134,9 @@ export default function PortalScreen() {
     const ctx = await resolveContext();
     if (typeof ctx === 'string') return void sendStatus(ctx);
     await startTracking(ctx);
+    if (modalReasonRef.current === 'sharing_off') showModal(null);
     void sendStatus();
-  }, [resolveContext, sendStatus]);
+  }, [resolveContext, sendStatus, showModal]);
 
   // Start sharing (going online sends this too). Verify location access first,
   // without prompting: all set → start straight away; anything missing → the
@@ -141,27 +148,53 @@ export default function PortalScreen() {
       const problem = await checkLocationAccess();
       if (problem) {
         pendingStartRef.current = true;
-        setAccessProblem(problem);
+        showModal(problem);
         return;
       }
       pendingStartRef.current = false;
-      setAccessProblem(null);
+      showModal(null);
       await beginTracking();
     } catch (e) {
       pendingStartRef.current = false;
-      setAccessProblem(null);
+      showModal(null);
       void sendStatus(e instanceof Error ? e.message : 'Failed to start tracking.');
     } finally {
       verifyingRef.current = false;
     }
-  }, [beginTracking, sendStatus]);
+  }, [beginTracking, sendStatus, showModal]);
+
+  // On shift but not sharing → ask again: when the portal hands over the
+  // session, whenever the app comes back to the foreground, and every minute
+  // while it stays open (every few minutes after a "Not now").
+  const remindIfOnShift = useCallback(async () => {
+    if (AppState.currentState !== 'active' || !driverCtxRef.current) return;
+    if (nagRunningRef.current || modalReasonRef.current || verifyingRef.current || fixingRef.current) return;
+    if (Date.now() < snoozeUntilRef.current) return;
+    nagRunningRef.current = true;
+    try {
+      if (await isTracking()) return;
+      const ctx = await resolveContext();
+      if (typeof ctx === 'string' || !ctx.shiftId) return;
+      const problem = await checkLocationAccess();
+      // A start (or the modal) may have begun while we were checking.
+      if (modalReasonRef.current || verifyingRef.current || fixingRef.current || (await isTracking())) return;
+      pendingStartRef.current = problem !== null;
+      showModal(problem ?? 'sharing_off');
+    } catch {
+      // best effort — the next foreground or tick tries again
+    } finally {
+      nagRunningRef.current = false;
+    }
+  }, [resolveContext, showModal]);
 
   const handleFix = useCallback(async () => {
-    if (!accessProblem || fixingRef.current) return;
+    const reason = modalReasonRef.current;
+    if (!reason || fixingRef.current) return;
+    if (reason === 'sharing_off') return void handleStart();
     fixingRef.current = true;
     setFixing(true);
     try {
-      await fixLocationAccess(accessProblem);
+      await fixLocationAccess(reason);
     } catch {
       // the re-check below shows what's still missing
     } finally {
@@ -169,32 +202,42 @@ export default function PortalScreen() {
       setFixing(false);
     }
     if (pendingStartRef.current) await handleStart();
-  }, [accessProblem, handleStart]);
+  }, [handleStart]);
 
   const handleNotNow = useCallback(() => {
-    const problem = accessProblem;
+    const reason = modalReasonRef.current;
     pendingStartRef.current = false;
-    setAccessProblem(null);
-    if (!problem) return;
+    snoozeUntilRef.current = Date.now() + REMIND_SNOOZE_MS;
+    showModal(null);
+    if (!reason || reason === 'sharing_off') return void sendStatus();
     // Approximate location still tracks, just less precisely — better than nothing.
-    if (problem === 'approximate') {
+    if (reason === 'approximate') {
       beginTracking().catch((e) => void sendStatus(e instanceof Error ? e.message : 'Failed to start tracking.'));
       return;
     }
-    void sendStatus(problemMessage(problem));
-  }, [accessProblem, beginTracking, sendStatus]);
+    void sendStatus(problemMessage(reason));
+  }, [beginTracking, sendStatus, showModal]);
 
-  // Back from Settings or a system prompt: re-check, and start if it's fixed now.
+  // Back from Settings or a system prompt: re-check, and start if it's fixed
+  // now. Otherwise remind an on-shift driver who isn't sharing — on every
+  // return to the app and once a minute while it's open.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && pendingStartRef.current && !fixingRef.current) void handleStart();
+      if (state !== 'active' || fixingRef.current) return;
+      if (pendingStartRef.current) void handleStart();
+      else void remindIfOnShift();
     });
-    return () => sub.remove();
-  }, [handleStart]);
+    const interval = setInterval(() => void remindIfOnShift(), 60_000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
+  }, [handleStart, remindIfOnShift]);
 
   const handleStop = useCallback(async () => {
     pendingStartRef.current = false;
-    setAccessProblem(null);
+    snoozeUntilRef.current = Date.now() + REMIND_SNOOZE_MS;
+    showModal(null);
     try {
       const known = driverCtxRef.current;
       if (known) {
@@ -220,7 +263,7 @@ export default function PortalScreen() {
     } catch (e) {
       void sendStatus(e instanceof Error ? e.message : 'Failed to stop tracking.');
     }
-  }, [sendStatus]);
+  }, [sendStatus, showModal]);
 
   const onMessage = useCallback(
     async (event: WebViewMessageEvent) => {
@@ -253,6 +296,7 @@ export default function PortalScreen() {
                 organizationId: msg.organization_id ?? null,
               };
             }
+            void remindIfOnShift();
             break;
           case 'signed-out':
             await handleStop();
@@ -272,7 +316,7 @@ export default function PortalScreen() {
         // ignore malformed messages
       }
     },
-    [handleStart, handleStop, sendStatus]
+    [handleStart, handleStop, remindIfOnShift, sendStatus]
   );
 
   return (
@@ -299,7 +343,7 @@ export default function PortalScreen() {
         </View>
       )}
       <LocationAccessModal
-        problem={accessProblem}
+        reason={modalReason}
         fixing={fixing}
         onFix={() => void handleFix()}
         onDismiss={handleNotNow}
