@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
-import * as Location from 'expo-location';
+import LocationAccessModal from '../components/LocationAccessModal';
+import {
+  checkLocationAccess,
+  fixLocationAccess,
+  problemMessage,
+  type LocationProblem,
+} from '../lib/locationAccess';
 import { supabase } from '../lib/supabase';
 import {
   isTracking,
@@ -34,6 +40,13 @@ export default function PortalScreen() {
   // can't tell them apart (and .single() errors on two rows).
   const driverCtxRef = useRef<{ driverId: string; organizationId: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
+  // Location access isn't set up for tracking: the modal is up and a start is
+  // waiting on the driver fixing it (re-checked when they come back from Settings).
+  const [accessProblem, setAccessProblem] = useState<LocationProblem | null>(null);
+  const [fixing, setFixing] = useState(false);
+  const pendingStartRef = useRef(false);
+  const fixingRef = useRef(false);
+  const verifyingRef = useRef(false);
 
   const sendStatus = useCallback(async (extraError?: string) => {
     const status = {
@@ -89,28 +102,6 @@ export default function PortalScreen() {
     return () => sub.remove();
   }, []);
 
-  const requestPermissions = useCallback(async (): Promise<string | null> => {
-    const fg = await Location.requestForegroundPermissionsAsync();
-    if (fg.status !== 'granted') {
-      Alert.alert(
-        'Location needed',
-        'Rovora needs location access to share your position with your fleet. Enable it in Settings.',
-        [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
-      );
-      return 'Location permission not granted.';
-    }
-    const bg = await Location.requestBackgroundPermissionsAsync();
-    if (bg.status !== 'granted') {
-      Alert.alert(
-        'Background location needed',
-        'To keep sharing while you use other apps, set location access to "Allow all the time" in Settings.',
-        [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
-      );
-      return 'Background location not set to "Allow all the time".';
-    }
-    return null;
-  }, []);
-
   const resolveContext = useCallback(async (): Promise<TrackingContext | string> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return 'Still connecting — try again in a few seconds.';
@@ -133,34 +124,77 @@ export default function PortalScreen() {
     return { driverId: driver.id, organizationId: driver.organization_id, shiftId: shift?.id ?? null };
   }, []);
 
-  const handleStart = useCallback(() => {
-    // Prominent disclosure (required by Google Play / App Store for background location).
-    Alert.alert(
-      'Share your location?',
-      'Rovora will collect your location, including in the background, to share your live position ' +
-        'with your fleet operator while sharing is on. You can stop at any time.',
-      [
-        { text: 'Cancel', style: 'cancel', onPress: () => void sendStatus() },
-        {
-          text: 'Agree & start',
-          onPress: async () => {
-            try {
-              const permissionError = await requestPermissions();
-              if (permissionError) return void sendStatus(permissionError);
-              const ctx = await resolveContext();
-              if (typeof ctx === 'string') return void sendStatus(ctx);
-              await startTracking(ctx);
-              void sendStatus();
-            } catch (e) {
-              void sendStatus(e instanceof Error ? e.message : 'Failed to start tracking.');
-            }
-          },
-        },
-      ]
-    );
-  }, [requestPermissions, resolveContext, sendStatus]);
+  const beginTracking = useCallback(async () => {
+    const ctx = await resolveContext();
+    if (typeof ctx === 'string') return void sendStatus(ctx);
+    await startTracking(ctx);
+    void sendStatus();
+  }, [resolveContext, sendStatus]);
+
+  // Start sharing (going online sends this too). Verify location access first,
+  // without prompting: all set → start straight away; anything missing → the
+  // modal, which stays up until it's fixed or the driver taps "Not now".
+  const handleStart = useCallback(async () => {
+    if (verifyingRef.current) return;
+    verifyingRef.current = true;
+    try {
+      const problem = await checkLocationAccess();
+      if (problem) {
+        pendingStartRef.current = true;
+        setAccessProblem(problem);
+        return;
+      }
+      pendingStartRef.current = false;
+      setAccessProblem(null);
+      await beginTracking();
+    } catch (e) {
+      pendingStartRef.current = false;
+      setAccessProblem(null);
+      void sendStatus(e instanceof Error ? e.message : 'Failed to start tracking.');
+    } finally {
+      verifyingRef.current = false;
+    }
+  }, [beginTracking, sendStatus]);
+
+  const handleFix = useCallback(async () => {
+    if (!accessProblem || fixingRef.current) return;
+    fixingRef.current = true;
+    setFixing(true);
+    try {
+      await fixLocationAccess(accessProblem);
+    } catch {
+      // the re-check below shows what's still missing
+    } finally {
+      fixingRef.current = false;
+      setFixing(false);
+    }
+    if (pendingStartRef.current) await handleStart();
+  }, [accessProblem, handleStart]);
+
+  const handleNotNow = useCallback(() => {
+    const problem = accessProblem;
+    pendingStartRef.current = false;
+    setAccessProblem(null);
+    if (!problem) return;
+    // Approximate location still tracks, just less precisely — better than nothing.
+    if (problem === 'approximate') {
+      beginTracking().catch((e) => void sendStatus(e instanceof Error ? e.message : 'Failed to start tracking.'));
+      return;
+    }
+    void sendStatus(problemMessage(problem));
+  }, [accessProblem, beginTracking, sendStatus]);
+
+  // Back from Settings or a system prompt: re-check, and start if it's fixed now.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && pendingStartRef.current && !fixingRef.current) void handleStart();
+    });
+    return () => sub.remove();
+  }, [handleStart]);
 
   const handleStop = useCallback(async () => {
+    pendingStartRef.current = false;
+    setAccessProblem(null);
     try {
       const known = driverCtxRef.current;
       if (known) {
@@ -225,7 +259,7 @@ export default function PortalScreen() {
             await supabase.auth.signOut();
             break;
           case 'start-tracking':
-            handleStart();
+            void handleStart();
             break;
           case 'stop-tracking':
             void handleStop();
@@ -264,6 +298,12 @@ export default function PortalScreen() {
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
       )}
+      <LocationAccessModal
+        problem={accessProblem}
+        fixing={fixing}
+        onFix={() => void handleFix()}
+        onDismiss={handleNotNow}
+      />
     </View>
   );
 }
