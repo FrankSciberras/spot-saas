@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 import { usePathname } from 'next/navigation';
 import { chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type SignupVerifyType } from '@/lib/actions/auth-email';
 import { submitChatLeadAction } from '@/lib/actions/contact';
+import { SIGNUP_RESEND_COOLDOWN } from '@/lib/auth/email-limits';
 
 // =============================================================================
 // ROVORA WEBSITE ASSISTANT
@@ -754,7 +755,7 @@ function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => v
       setVerifyType(res.verifyType ?? 'signup');
       setNote(`We've emailed a 6-digit code to ${email}.`);
       setStep('code');
-      setCooldown(60);
+      setCooldown(SIGNUP_RESEND_COOLDOWN);
     } catch {
       setErr('Something went wrong. Please try again.');
     } finally {
@@ -783,10 +784,14 @@ function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => v
     setBusy(true);
     try {
       const res = await resendSignupCodeAction(email);
-      if (!res.ok) { setErr(res.error || 'Could not send a new code.'); return; }
+      if (!res.ok) {
+        setErr(res.error || 'Could not send a new code.');
+        if (res.retryAfter) setCooldown(res.retryAfter);
+        return;
+      }
       setVerifyType(res.verifyType ?? 'email');
       setNote(`A fresh code is on its way to ${email}.`);
-      setCooldown(60);
+      setCooldown(SIGNUP_RESEND_COOLDOWN);
     } finally {
       setBusy(false);
     }
@@ -858,7 +863,7 @@ function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => v
           </button>
           <p className="chat-form-fine">
             {cooldown > 0 ? (
-              <>Didn&rsquo;t get it? Resend in {cooldown}s</>
+              <>Didn&rsquo;t get it? Resend in {cooldown > 90 ? `${Math.ceil(cooldown / 60)} min` : `${cooldown}s`}</>
             ) : (
               <>
                 Didn&rsquo;t get it?{' '}

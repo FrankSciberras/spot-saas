@@ -999,6 +999,10 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .auth-foot { text-align: center; margin-top: 22px; font-size: 14px; color: var(--text-2); }
 .rovora-site .auth-foot a { color: var(--accent); font-weight: 500; }
 .rovora-site .auth-foot a:hover { text-decoration: underline; }
+/* Quiet helper copy inside the card ("check your spam folder…"). */
+.rovora-site .auth-note { font-size: 14px; line-height: 1.5; color: var(--text-2); margin: 0 0 18px; }
+/* Countdown digits shouldn't jiggle the button label every second. */
+.rovora-site .auth-card .btn.tabular { font-variant-numeric: tabular-nums; }
 /* Mode switches inside the auth card (Forgot password, Create a fleet account,
    Resend code…). They change the form rather than navigate, so they're real
    <button>s reset to read as links. The explicit cursor matters: these used to
