@@ -4,6 +4,7 @@ import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
+import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
 import TrackingWorkspace, {
   type ActivityItem,
   type OnShiftItem,
@@ -37,7 +38,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes, orgRes, distancesRes, speedingRes, healthRes, openShiftsRes] = await Promise.all([
+  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes, orgRes, distancesRes, speedingRes, healthRes, openShiftsRes, liveTracking] = await Promise.all([
     supabase
       .from('driver_positions')
       .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, battery_pct, battery_charging, gps_enabled, location_permission, drivers:driver_id (full_name)')
@@ -82,6 +83,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true }),
+    getLiveTrackingSettings(orgId),
   ]);
 
   const maxSpeedByDriver = new Map<string, number>(
@@ -181,6 +183,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       canManage={canManage}
       initialPositions={positions}
       onShift={onShift}
+      expectSharing={liveTracking.trackOnShift}
       initialZones={zones}
       initialActivity={activity}
       initialSpeedLimit={(orgRes.data as any)?.speed_limit_kmh ?? null}

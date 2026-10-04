@@ -24,12 +24,22 @@ export default function NativeBridge() {
 
       let driver_id: string | null = null;
       let organization_id: string | null = null;
+      // Whether the fleet wants live location during shifts (Settings). null =
+      // unknown, and the shell keeps its default (on).
+      let live_tracking: boolean | null = null;
       try {
-        const res = await fetch('/api/auth/user', { cache: 'no-store' });
-        if (res.ok) {
-          const me = await res.json();
+        const [meRes, trackingRes] = await Promise.all([
+          fetch('/api/auth/user', { cache: 'no-store' }),
+          fetch('/api/fleet/live-tracking', { cache: 'no-store' }).catch(() => null),
+        ]);
+        if (meRes.ok) {
+          const me = await meRes.json();
           driver_id = me.driver_id ?? null;
           organization_id = me.organization_id ?? null;
+        }
+        if (trackingRes?.ok) {
+          const t = await trackingRes.json();
+          if (typeof t.active === 'boolean') live_tracking = t.active;
         }
       } catch {
         // Fall back to the shell's own lookup.
@@ -42,6 +52,7 @@ export default function NativeBridge() {
           refresh_token: session.refresh_token,
           driver_id,
           organization_id,
+          live_tracking,
         })
       );
     };

@@ -67,6 +67,8 @@ export default function DashboardClient(props: {
   nextShift: NextShift;
   totalShifts: number;
   hasActiveShift: boolean;
+  /** The fleet expects location sharing during shifts. */
+  liveTracking: boolean;
 }) {
   const router = useRouter();
   const [ending, setEnding] = useState(false);
@@ -171,7 +173,7 @@ export default function DashboardClient(props: {
           <div className={styles.dashboardMeta}>
             {props.hasActiveShift && (
               <>
-                <ShiftSharingStatus />
+                <ShiftSharingStatus expectSharing={props.liveTracking} />
                 <span className={styles.metaDot} />
               </>
             )}

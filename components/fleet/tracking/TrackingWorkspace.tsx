@@ -58,6 +58,8 @@ interface TrackingWorkspaceProps {
   canManage: boolean;
   initialPositions: PositionItem[];
   onShift: OnShiftItem[];
+  /** The fleet's "Live location during shifts" setting — off = no "not sharing" flags. */
+  expectSharing: boolean;
   initialZones: ZoneItem[];
   initialActivity: ActivityItem[];
   initialSpeedLimit: number | null;
@@ -137,6 +139,7 @@ export default function TrackingWorkspace({
   canManage,
   initialPositions,
   onShift: initialOnShift,
+  expectSharing,
   initialZones,
   initialActivity,
   initialSpeedLimit,
@@ -411,11 +414,11 @@ export default function TrackingWorkspace({
     const interval = setInterval(() => {
       setNow(Date.now());
       void refetchActivity();
-      void refetchOnShift();
+      if (expectSharing) void refetchOnShift();
       if (realtimeOk !== true) void refetchPositions();
     }, 20_000);
     return () => clearInterval(interval);
-  }, [supabase, orgId, realtimeOk, refetchActivity, refetchOnShift]);
+  }, [supabase, orgId, realtimeOk, refetchActivity, refetchOnShift, expectSharing]);
 
   // Sync driver markers with state.
   useEffect(() => {
@@ -654,7 +657,7 @@ export default function TrackingWorkspace({
   const liveCount = list.filter((p) => statusOf(p, now) === 'live').length;
   // On shift but not sharing: never sent a position, or sharing is switched off.
   // (A sharing driver who went quiet already shows as Stale/Offline in the list.)
-  const notSharing = onShift.filter((d) => !positions.get(d.driverId)?.isTracking);
+  const notSharing = expectSharing ? onShift.filter((d) => !positions.get(d.driverId)?.isTracking) : [];
 
   const activityIcon = (a: ActivityItem) => {
     if (a.kind === 'speed') return '⚠';
@@ -734,7 +737,9 @@ export default function TrackingWorkspace({
                 <FleetIcon name="live" size={28} stroke={1.4} />
                 <div style={{ marginTop: 10, fontWeight: 500, color: 'var(--text-2)' }}>No locations yet</div>
                 <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 }}>
-                  Positions appear here as soon as a driver shares their location from the driver app.
+                  {expectSharing
+                    ? 'Positions appear here as soon as a driver shares their location from the driver app.'
+                    : 'Live location during shifts is turned off in Settings, so drivers only appear here if they share their location manually.'}
                 </div>
               </div>
             )}

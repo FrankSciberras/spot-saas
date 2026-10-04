@@ -18,8 +18,10 @@ const getShell = (): NativeShell | null =>
  * and "Turn on" hands back to it, which checks location access and shows its
  * fix-it modal if needed. In a plain browser nothing shares from this page
  * (browser GPS only runs while Share Location is open), so it says so.
+ * When the fleet doesn't track location on shift, "not sharing" is expected
+ * and the line stays a plain "On shift".
  */
-export default function ShiftSharingStatus() {
+export default function ShiftSharingStatus({ expectSharing = true }: { expectSharing?: boolean }) {
   // The app's message bridge: undefined while server-rendering (unknown yet),
   // null in a plain browser.
   const native = useSyncExternalStore(noSubscribe, getShell, () => undefined);
@@ -49,7 +51,8 @@ export default function ShiftSharingStatus() {
 
   const sharing = native === null ? false : native === undefined ? null : appSharing;
 
-  if (sharing === null) {
+  // The fleet turned location during shifts off: nothing to warn about.
+  if (sharing === null || (!expectSharing && !sharing)) {
     return <span style={{ fontWeight: 600 }}>● On shift</span>;
   }
 

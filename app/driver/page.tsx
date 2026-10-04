@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import DashboardClient from './DashboardClient';
 import { safeNumber } from '@/lib/utils/settlementCalculations';
+import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
 import styles from './driver.module.css';
 
 /**
@@ -127,6 +128,9 @@ export default async function DriverDashboardPage() {
     .limit(1)
     .maybeSingle();
 
+  // Does this fleet expect location sharing on shift? (Settings → Live location.)
+  const liveTracking = activeShift ? (await getLiveTrackingSettings(user.organization_id)).active : true;
+
   return (
     <FleetShell user={user} variant="driver" title="Dashboard">
       <DashboardClient
@@ -135,6 +139,7 @@ export default async function DriverDashboardPage() {
         nextShift={nextShift}
         totalShifts={safeNumber(totalShifts)}
         hasActiveShift={Boolean(activeShift)}
+        liveTracking={liveTracking}
       />
     </FleetShell>
   );
