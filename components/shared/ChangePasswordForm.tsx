@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { requestPasswordResetAction } from '@/lib/actions/auth-email';
 import styles from './ChangePasswordForm.module.css';
 
 /**
  * ChangePasswordForm - Allows users to change their password
- * Requires current password verification for security
+ * Requires current password verification for security.
+ *
+ * People who only ever signed in with Google have no password to verify, so
+ * they get a "create a password" path instead: we email them the same secure
+ * (rate-limited, single-use) link as Forgot password, which proves they own the
+ * inbox before a password can be added to the account.
  */
 export default function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -15,6 +21,37 @@ export default function ChangePasswordForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Set when the account has no email/password identity (Google-only).
+  const [googleOnlyEmail, setGoogleOnlyEmail] = useState('');
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data: { user } }) => {
+        const providers = user?.identities?.map((i) => i.provider) ?? [];
+        if (user?.email && providers.length > 0 && !providers.includes('email')) {
+          setGoogleOnlyEmail(user.email);
+        }
+      });
+  }, []);
+
+  const sendCreatePasswordLink = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const res = await requestPasswordResetAction(googleOnlyEmail);
+      if (!res.ok) {
+        setError(res.error || 'Could not send the link. Please try again.');
+        return;
+      }
+      setSuccess(`We’ve emailed a link to ${googleOnlyEmail}. Open it to create your password.`);
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +119,8 @@ export default function ChangePasswordForm() {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className={styles.form}>
+  const alerts = (
+    <>
       {error && (
         <div className={styles.error}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -104,6 +141,35 @@ export default function ChangePasswordForm() {
           {success}
         </div>
       )}
+    </>
+  );
+
+  if (googleOnlyEmail) {
+    return (
+      <div className={styles.form}>
+        {alerts}
+        <p>
+          You sign in with Google, so there’s no Rovora password to change. Want to sign in with your
+          email and a password as well — for example in the Rovora Driver app? We’ll email you a secure
+          link to create one.
+        </p>
+        <button type="button" className={styles.submitBtn} onClick={sendCreatePasswordLink} disabled={loading}>
+          {loading ? (
+            <>
+              <span className={styles.spinner}></span>
+              Sending...
+            </>
+          ) : (
+            'Email me a link to create a password'
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className={styles.form}>
+      {alerts}
 
       <div className={styles.field}>
         <label htmlFor="currentPassword" className={styles.label}>

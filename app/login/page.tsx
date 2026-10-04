@@ -15,6 +15,7 @@ import { rovoraFontVars } from '@/lib/rovoraFonts';
 import { safeInternalPath } from '@/lib/utils/safeRedirect';
 import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 import PasswordInput from '@/components/shared/PasswordInput';
+import GoogleSignInButton from '@/components/shared/GoogleSignInButton';
 
 type Mode = 'login' | 'forgot' | 'signup' | 'confirm';
 
@@ -329,6 +330,23 @@ function LoginPageContent() {
 
           {error && <div className="auth-alert err">{error}</div>}
           {successMessage && <div className="auth-alert ok">{successMessage}</div>}
+
+          {(mode === 'login' || mode === 'signup') && (
+            // Same component on both screens; `key` gives each its own button
+            // wording and a fresh nonce when switching between them.
+            <GoogleSignInButton
+              key={mode}
+              intent={mode === 'signup' ? 'signup' : 'signin'}
+              // New Google accounts have no fleet yet — /dashboard sends them on
+              // to onboarding, existing ones to the right dashboard.
+              redirectTo={mode === 'signup' ? '/dashboard' : redirectTo}
+              onStart={() => {
+                setError('');
+                setSuccessMessage('');
+              }}
+              onError={setError}
+            />
+          )}
 
           {mode === 'signup' && (
             <form onSubmit={handleSignup}>
