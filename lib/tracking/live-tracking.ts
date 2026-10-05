@@ -8,6 +8,10 @@ export interface LiveTrackingSettings {
   moduleEnabled: boolean;
   /** Both on: starting a shift shares location and the app enforces it. */
   active: boolean;
+  /** The fleet rule as set: shifts only from the app, with location working. */
+  requireRule: boolean;
+  /** The rule in force (it needs live location on, too). */
+  requireForShift: boolean;
 }
 
 /**
@@ -20,11 +24,14 @@ export interface LiveTrackingSettings {
 export async function getLiveTrackingSettings(organizationId: string): Promise<LiveTrackingSettings> {
   const admin = createAdminClient();
   const [orgRes, modulesRes] = await Promise.all([
-    admin.from('organizations').select('track_location_on_shift').eq('id', organizationId).maybeSingle(),
+    // '*' so a column a migration hasn't added yet can't fail the whole read.
+    admin.from('organizations').select('*').eq('id', organizationId).maybeSingle(),
     admin.from('org_modules').select('module_key, is_enabled').eq('organization_id', organizationId),
   ]);
-  const trackOnShift =
-    (orgRes.data as { track_location_on_shift?: boolean } | null)?.track_location_on_shift !== false;
+  const org = orgRes.data as { track_location_on_shift?: boolean; require_location_for_shift?: boolean } | null;
+  const trackOnShift = org?.track_location_on_shift !== false;
   const moduleEnabled = resolveEnabledModules(modulesRes.data ?? []).has('tracking');
-  return { trackOnShift, moduleEnabled, active: trackOnShift && moduleEnabled };
+  const active = trackOnShift && moduleEnabled;
+  const requireRule = org?.require_location_for_shift === true;
+  return { trackOnShift, moduleEnabled, active, requireRule, requireForShift: active && requireRule };
 }

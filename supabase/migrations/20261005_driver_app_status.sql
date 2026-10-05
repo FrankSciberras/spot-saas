@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS public.driver_app_status (
   access_checked_at   TIMESTAMPTZ,
   -- Driver tapped "Not now" on the app's share-location prompt (app 1.0.3+).
   prompt_dismissed_at TIMESTAMPTZ,
+  -- The app restarted sharing on its own after the phone stopped it (1.0.3+).
+  auto_restarted_at   TIMESTAMPTZ,
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

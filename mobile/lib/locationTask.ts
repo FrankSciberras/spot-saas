@@ -146,8 +146,11 @@ export async function startTracking(ctx: TrackingContext): Promise<void> {
   void startMotionDetection();
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.Balanced,
-    timeInterval: 15_000,
-    distanceInterval: 25,
+    // No distance threshold: a driver parked at a rank still sends a fix every
+    // ~20s (Android). With 25 m the phone went silent while stationary and the
+    // Live Map showed a perfectly healthy driver as "Offline".
+    timeInterval: 20_000,
+    distanceInterval: 0,
     deferredUpdatesInterval: 30_000,
     pausesUpdatesAutomatically: false,
     activityType: Location.ActivityType.AutomotiveNavigation,
@@ -158,6 +161,20 @@ export async function startTracking(ctx: TrackingContext): Promise<void> {
       notificationColor: '#2bbd7e',
     },
   });
+}
+
+/**
+ * The context saved when sharing started. stopTracking() clears it, so a saved
+ * context while the location task ISN'T running means the phone stopped it
+ * (battery saver, app swiped away, reboot) — not the driver.
+ */
+export async function storedContext(): Promise<TrackingContext | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CTX_KEY);
+    return raw ? (JSON.parse(raw) as TrackingContext) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function stopTracking(driverId?: string): Promise<void> {

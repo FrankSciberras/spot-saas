@@ -193,6 +193,55 @@ export default function GoOnlinePage() {
     return publicUrl;
   };
 
+  /**
+   * When the fleet requires location for shifts: only from the Rovora Driver
+   * app, and only once the app confirms location is set up. Throws a message
+   * for the driver otherwise. Apps too old to answer (pre-1.0.3) are let
+   * through rather than locking drivers out until they update.
+   */
+  const ensureLocationReady = async () => {
+    const setting = await fetch('/api/fleet/live-tracking', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    if (setting?.require_effective !== true) return;
+
+    const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+    if (!native) {
+      throw new Error(
+        'Your fleet needs to see your location during shifts, so shifts can only be started from the Rovora Driver app. Open the app to go online.'
+      );
+    }
+
+    const requestId = String(Date.now());
+    const problem = await new Promise<string | null | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        window.removeEventListener('rovora-native-access', onReply);
+        resolve(undefined); // no answer: an older app
+      }, 3000);
+      function onReply(ev: Event) {
+        try {
+          const reply = JSON.parse((ev as CustomEvent<string>).detail);
+          if (reply.requestId !== requestId) return;
+          clearTimeout(timer);
+          window.removeEventListener('rovora-native-access', onReply);
+          resolve(reply.problem ?? null);
+        } catch {
+          // not ours
+        }
+      }
+      window.addEventListener('rovora-native-access', onReply);
+      native.postMessage(JSON.stringify({ type: 'check-access', requestId }));
+    });
+
+    if (problem) {
+      // The app's own screen walks them through the fix.
+      native.postMessage(JSON.stringify({ type: 'start-tracking' }));
+      throw new Error(
+        'Your fleet needs your location to be working before you go online. Follow the steps the app is showing you, then tap Go online again.'
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -226,6 +275,9 @@ export default function GoOnlinePage() {
         setChecklistError(msg);
         throw new Error(msg);
       }
+
+      // Fleet rule "Require location to start a shift" (Settings).
+      await ensureLocationReady();
 
       // One open shift across ALL their fleets: the phone sends location for the
       // open shift's fleet, so a second shift elsewhere would be tracked wrong.

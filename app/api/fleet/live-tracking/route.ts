@@ -22,7 +22,13 @@ export async function GET() {
 
   const s = await getLiveTrackingSettings(user.organization_id);
   return NextResponse.json(
-    { track_location_on_shift: s.trackOnShift, module_enabled: s.moduleEnabled, active: s.active },
+    {
+      track_location_on_shift: s.trackOnShift,
+      module_enabled: s.moduleEnabled,
+      active: s.active,
+      require_location_for_shift: s.requireRule,
+      require_effective: s.requireForShift,
+    },
     { headers: { 'Cache-Control': 'private, no-store' } }
   );
 }
@@ -36,15 +42,20 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 
-  const { value } = await request.json();
-  if (typeof value !== 'boolean') {
-    return NextResponse.json({ error: 'value must be a boolean' }, { status: 400 });
+  // { value } = "Live location during shifts"; { require } = the fleet rule
+  // "Require location to start a shift".
+  const { value, require: requireRule } = await request.json();
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (typeof value === 'boolean') update.track_location_on_shift = value;
+  if (typeof requireRule === 'boolean') update.require_location_for_shift = requireRule;
+  if (Object.keys(update).length === 1) {
+    return NextResponse.json({ error: 'value or require must be a boolean' }, { status: 400 });
   }
 
   const admin = createAdminClient();
   const { error } = await admin
     .from('organizations')
-    .update({ track_location_on_shift: value, updated_at: new Date().toISOString() })
+    .update(update)
     .eq('id', user.organization_id);
 
   if (error) {
@@ -52,11 +63,17 @@ export async function PUT(request: Request) {
     // Column missing = the 20261004_track_location_on_shift migration hasn't run.
     const missingColumn = error.code === 'PGRST204' || error.code === '42703';
     return NextResponse.json(
-      { error: missingColumn ? 'This setting needs a database update first (migration 20261004).' : 'Failed to update setting' },
+      { error: missingColumn ? 'This setting needs a database update first (migrations 20261004 / 20261005_tracking_recovery).' : 'Failed to update setting' },
       { status: 500 }
     );
   }
 
   const s = await getLiveTrackingSettings(user.organization_id);
-  return NextResponse.json({ track_location_on_shift: s.trackOnShift, module_enabled: s.moduleEnabled, active: s.active });
+  return NextResponse.json({
+    track_location_on_shift: s.trackOnShift,
+    module_enabled: s.moduleEnabled,
+    active: s.active,
+    require_location_for_shift: s.requireRule,
+    require_effective: s.requireForShift,
+  });
 }

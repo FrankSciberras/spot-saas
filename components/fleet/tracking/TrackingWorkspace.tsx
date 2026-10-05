@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import type { Map as LeafletMap, Marker, Circle, Polyline } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { diagnoseNotSharing } from '@/lib/tracking/sharing-diagnosis';
+import { diagnoseNotSharing, diagnoseSilent, type SharingDiagnosis } from '@/lib/tracking/sharing-diagnosis';
 import { loadSharingInfo, type SharingInfo } from '@/lib/tracking/sharing-info';
+import { loadActivity, type ActivityItem } from '@/lib/tracking/activity';
 import 'leaflet/dist/leaflet.css';
 
 export interface PositionItem {
@@ -38,20 +39,13 @@ export interface ZoneItem {
   active: boolean;
 }
 
-export interface ActivityItem {
-  id: string;
-  kind: 'tracking' | 'zone' | 'speed' | 'health';
-  event: string;
-  driverName: string;
-  zoneName: string | null;
-  detail: string | null;
-  occurredAt: string;
-}
+export type { ActivityItem } from '@/lib/tracking/activity';
 
 /** A driver with an open shift — they're expected to be sharing. */
 export interface OnShiftItem {
   driverId: string;
   name: string;
+  phone: string | null;
   startTime: string;
 }
 
@@ -76,6 +70,84 @@ const ZONE_COLOR = '#3b6ad9';
 
 type LiveStatus = 'live' | 'stale' | 'offline';
 type Tab = 'drivers' | 'zones' | 'activity';
+
+/** Sharing but no position for this long → in the "not on the map" box. */
+const SILENT_MS = 5 * 60_000;
+
+/** wa.me wants digits only, with the country code (Malta numbers default to 356). */
+function whatsappNumber(phone: string): string | null {
+  let digits = phone.replace(/[^\d+]/g, '');
+  if (digits.startsWith('+')) digits = digits.slice(1);
+  else if (digits.startsWith('00')) digits = digits.slice(2);
+  else if (digits.length === 8) digits = `356${digits}`;
+  return digits.length >= 8 ? digits : null;
+}
+
+/**
+ * Ways to reach a driver who isn't on the map: WhatsApp with the exact fix
+ * pre-written, a phone call, or a Rovora alert (notification + email, logged
+ * in the Activity feed). Rendered under each driver in the problem box.
+ */
+function DriverAlertActions({ driverId, name, phone, message }: { driverId: string; name: string; phone: string | null; message: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [note, setNote] = useState('');
+  const first = name.split(' ')[0];
+  const wa = phone ? whatsappNumber(phone) : null;
+
+  const sendAlert = async () => {
+    setState('sending');
+    setNote('');
+    try {
+      const res = await fetch('/api/tracking/nudge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driverId, reason: message }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setState('error');
+        setNote(body.error || 'Could not send the alert.');
+        return;
+      }
+      setState('sent');
+      setNote(body.channels?.includes('email') ? 'Sent — in the app and by email.' : 'Sent in the app.');
+    } catch {
+      setState('error');
+      setNote('Could not send the alert.');
+    }
+  };
+
+  return (
+    <div style={st.actionsRow}>
+      {wa && (
+        <a
+          href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${first}, ${message}`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fleetHover"
+          style={st.actionBtn}
+        >
+          WhatsApp
+        </a>
+      )}
+      {phone && (
+        <a href={`tel:${phone.replace(/\s+/g, '')}`} className="fleetHover" style={st.actionBtn}>
+          Call
+        </a>
+      )}
+      <button
+        type="button"
+        className="fleetHover"
+        style={st.actionBtn}
+        onClick={sendAlert}
+        disabled={state === 'sending' || state === 'sent'}
+      >
+        {state === 'sending' ? 'Sending…' : state === 'sent' ? 'Alert sent ✓' : 'Send alert'}
+      </button>
+      {note && <span style={{ ...st.whyMeta, marginTop: 0, color: state === 'error' ? 'var(--neg, #f06464)' : 'var(--text-3)' }}>{note}</span>}
+    </div>
+  );
+}
 
 function statusOf(p: PositionItem, now: number): LiveStatus {
   const age = now - new Date(p.recordedAt).getTime();
@@ -288,75 +360,7 @@ export default function TrackingWorkspace({
   }, [supabase, orgId]);
 
   const refetchActivity = useCallback(async () => {
-    const [trackingRes, zoneRes, speedRes, healthRes] = await Promise.all([
-      supabase
-        .from('driver_tracking_events')
-        .select('id, event, occurred_at, drivers:driver_id (full_name)')
-        .eq('organization_id', orgId)
-        .order('occurred_at', { ascending: false })
-        .limit(30),
-      supabase
-        .from('geofence_events')
-        .select('id, event, occurred_at, drivers:driver_id (full_name), geofences:geofence_id (name)')
-        .eq('organization_id', orgId)
-        .order('occurred_at', { ascending: false })
-        .limit(30),
-      supabase
-        .from('speeding_events')
-        .select('id, speed_kmh, limit_kmh, occurred_at, drivers:driver_id (full_name)')
-        .eq('organization_id', orgId)
-        .order('occurred_at', { ascending: false })
-        .limit(20),
-      supabase
-        .from('device_health_events')
-        .select('id, event, detail, occurred_at, drivers:driver_id (full_name)')
-        .eq('organization_id', orgId)
-        .order('occurred_at', { ascending: false })
-        .limit(20),
-    ]);
-    const nameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.full_name || 'Unknown driver';
-    const zoneNameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.name || 'zone';
-    const merged: ActivityItem[] = [
-      ...((trackingRes.data || []) as any[]).map((e) => ({
-        id: `t-${e.id}`,
-        kind: 'tracking' as const,
-        event: e.event as string,
-        driverName: nameOf(e.drivers),
-        zoneName: null,
-        detail: null,
-        occurredAt: e.occurred_at as string,
-      })),
-      ...((zoneRes.data || []) as any[]).map((e) => ({
-        id: `z-${e.id}`,
-        kind: 'zone' as const,
-        event: e.event as string,
-        driverName: nameOf(e.drivers),
-        zoneName: zoneNameOf(e.geofences),
-        detail: null,
-        occurredAt: e.occurred_at as string,
-      })),
-      ...((speedRes.data || []) as any[]).map((e) => ({
-        id: `s-${e.id}`,
-        kind: 'speed' as const,
-        event: 'speeding',
-        driverName: nameOf(e.drivers),
-        zoneName: null,
-        detail: `${e.speed_kmh} km/h (limit ${e.limit_kmh})`,
-        occurredAt: e.occurred_at as string,
-      })),
-      ...((healthRes.data || []) as any[]).map((e) => ({
-        id: `h-${e.id}`,
-        kind: 'health' as const,
-        event: e.event as string,
-        driverName: nameOf(e.drivers),
-        zoneName: null,
-        detail: (e.detail as string) ?? null,
-        occurredAt: e.occurred_at as string,
-      })),
-    ]
-      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
-      .slice(0, 40);
-    setActivity(merged);
+    setActivity(await loadActivity(supabase, orgId));
   }, [supabase, orgId]);
 
   const [onShift, setOnShift] = useState<OnShiftItem[]>(initialOnShift);
@@ -364,16 +368,17 @@ export default function TrackingWorkspace({
   const refetchOnShift = useCallback(async () => {
     const { data } = await supabase
       .from('driver_shifts')
-      .select('driver_id, start_time, drivers:driver_id (full_name)')
+      .select('driver_id, start_time, drivers:driver_id (full_name, phone)')
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true });
     if (!data) return;
     type Row = { driver_id: string; start_time: string; drivers: DriverRel | DriverRel[] | null };
-    type DriverRel = { full_name: string | null };
+    type DriverRel = { full_name: string | null; phone: string | null };
     const next = (data as unknown as Row[]).map((s) => ({
       driverId: s.driver_id,
       name: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.full_name || 'Unknown driver',
+      phone: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.phone ?? null,
       startTime: s.start_time,
     }));
     setOnShift(next);
@@ -665,18 +670,53 @@ export default function TrackingWorkspace({
   // On shift but not sharing: never sent a position, or sharing is switched off.
   // (A sharing driver who went quiet already shows as Stale/Offline in the list.)
   const notSharing = expectSharing ? onShift.filter((d) => !positions.get(d.driverId)?.isTracking) : [];
+  // On shift and sharing, but the phone has gone quiet.
+  const silent = expectSharing
+    ? onShift.filter((d) => {
+        const p = positions.get(d.driverId);
+        return !!p?.isTracking && now - new Date(p.recordedAt).getTime() >= SILENT_MS;
+      })
+    : [];
+  const problems: { driver: OnShiftItem; why: SharingDiagnosis }[] = [
+    ...silent.map((d) => {
+      const p = positions.get(d.driverId)!;
+      return {
+        driver: d,
+        why: diagnoseSilent({
+          lastPosition: { recordedAt: p.recordedAt, speed: p.speed, batteryPct: p.batteryPct, batteryCharging: p.batteryCharging },
+          app: sharingInfo.app[d.driverId],
+          now,
+        }),
+      };
+    }),
+    ...notSharing.map((d) => {
+      const pos = positions.get(d.driverId);
+      return {
+        driver: d,
+        why: diagnoseNotSharing({
+          shiftStart: d.startTime,
+          app: sharingInfo.app[d.driverId],
+          lastTrackingEvent: sharingInfo.lastEvent[d.driverId],
+          position: pos ? { recordedAt: pos.recordedAt, gpsEnabled: pos.gpsEnabled, locationPermission: pos.locationPermission } : undefined,
+          now,
+        }),
+      };
+    }),
+  ];
 
   const activityIcon = (a: ActivityItem) => {
     if (a.kind === 'speed') return '⚠';
     if (a.kind === 'health') return a.event === 'low_battery' || a.event === 'battery_critical' ? '🔋' : '⚠';
-    if (a.kind === 'tracking') return a.event === 'started' ? '▶' : a.event === 'lost' ? '⚡' : '⏹';
+    if (a.kind === 'nudge') return '🔔';
+    if (a.kind === 'tracking') return a.event === 'started' ? '▶' : a.event === 'lost' ? '⚡' : a.event === 'resumed' ? '↻' : '⏹';
     return a.event === 'enter' ? '⊕' : '⊖';
   };
   const activityColor = (a: ActivityItem) => {
     if (a.kind === 'speed') return 'var(--neg, #f06464)';
     if (a.kind === 'health') return a.event === 'low_battery' ? 'var(--warn, #f5b54a)' : 'var(--neg, #f06464)';
+    if (a.kind === 'nudge') return 'var(--accent, #2bbd7e)';
     if (a.kind === 'tracking') {
-      if (a.event === 'started') return 'var(--pos, #2bbd7e)';
+      if (a.event === 'started' || a.event === 'resumed') return 'var(--pos, #2bbd7e)';
       if (a.event === 'lost') return 'var(--neg, #f06464)';
       return 'var(--text-3)';
     }
@@ -692,8 +732,14 @@ export default function TrackingWorkspace({
         ? `${a.driverName} removed the app's location access`
         : `${a.driverName} limited location to “while using the app”`;
     }
+    if (a.kind === 'nudge') {
+      return a.detail
+        ? `${a.detail} sent ${a.driverName} an alert to share their location`
+        : `Rovora automatically alerted ${a.driverName} to share their location`;
+    }
     if (a.kind === 'tracking') {
-      if (a.event === 'lost') return `${a.driverName}'s tracking signal was lost`;
+      if (a.event === 'lost') return `${a.driverName}'s tracking signal was lost${a.detail ? ` — ${a.detail}` : ''}`;
+      if (a.event === 'resumed') return `${a.driverName}'s signal came back${a.detail ? ` ${a.detail}` : ''}`;
       return `${a.driverName} ${a.event === 'started' ? 'started sharing' : 'stopped sharing'}`;
     }
     return `${a.driverName} ${a.event === 'enter' ? 'entered' : 'left'} “${a.zoneName}”`;
@@ -722,37 +768,24 @@ export default function TrackingWorkspace({
             {realtimeOk === false && (
               <div style={st.pollNote}>Live stream unavailable — refreshing every 20s.</div>
             )}
-            {notSharing.length > 0 && (
+            {problems.length > 0 && (
               <div style={st.notSharing}>
-                <div style={st.notSharingTitle}>
-                  ⚠ On shift, not sharing location ({notSharing.length})
-                </div>
-                {notSharing.map((d) => {
-                  const pos = positions.get(d.driverId);
-                  const why = diagnoseNotSharing({
-                    shiftStart: d.startTime,
-                    app: sharingInfo.app[d.driverId],
-                    lastTrackingEvent: sharingInfo.lastEvent[d.driverId],
-                    position: pos
-                      ? { recordedAt: pos.recordedAt, gpsEnabled: pos.gpsEnabled, locationPermission: pos.locationPermission }
-                      : undefined,
-                    now,
-                  });
-                  return (
-                    <div key={d.driverId} style={st.notSharingRow}>
-                      <div>
-                        <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span> · shift started{' '}
-                        {agoLabel(d.startTime, now)}
-                      </div>
-                      <div style={{ ...st.whyTitle, color: why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--text-1)' }}>
-                        {why.title}
-                      </div>
-                      {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
-                      <div style={st.whyFix}>→ {why.fix}</div>
-                      {why.meta && <div style={st.whyMeta}>{why.meta}</div>}
+                <div style={st.notSharingTitle}>⚠ On shift, not on the map ({problems.length})</div>
+                {problems.map(({ driver: d, why }) => (
+                  <div key={d.driverId} style={st.notSharingRow}>
+                    <div>
+                      <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span> · shift started{' '}
+                      {agoLabel(d.startTime, now)}
                     </div>
-                  );
-                })}
+                    <div style={{ ...st.whyTitle, color: why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--text-1)' }}>
+                      {why.title}
+                    </div>
+                    {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
+                    <div style={st.whyFix}>→ {why.fix}</div>
+                    {why.meta && <div style={st.whyMeta}>{why.meta}</div>}
+                    <DriverAlertActions driverId={d.driverId} name={d.name} phone={d.phone} message={why.tell} />
+                  </div>
+                ))}
               </div>
             )}
             {list.length === 0 && (
@@ -785,7 +818,7 @@ export default function TrackingWorkspace({
                       <span style={st.rowName}>{p.name}</span>
                       <span style={st.rowMeta}>
                         <span style={{ ...st.dot, background: STATUS_COLOR[status] }} />
-                        {status === 'live' ? 'Live' : status === 'stale' ? 'Stale' : 'Offline'} · {agoLabel(p.recordedAt, now)}
+                        {status === 'live' ? (p.speed != null && p.speed < 0.5 ? 'Parked' : 'Live') : status === 'stale' ? 'Stale' : 'Offline'} · {agoLabel(p.recordedAt, now)}
                         {km != null && ` · ${km} km`}
                         {p.batteryPct != null && (
                           <span
@@ -1094,6 +1127,20 @@ const st: Record<string, CSSProperties> = {
   whyDetail: { marginTop: 2, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.45 },
   whyFix: { marginTop: 3, fontSize: 12, color: 'var(--text-1)', lineHeight: 1.45 },
   whyMeta: { marginTop: 3, fontSize: 11, color: 'var(--text-3)' },
+  actionsRow: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 7 },
+  actionBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 10px',
+    borderRadius: 7,
+    border: '1px solid var(--line-2)',
+    background: 'var(--bg-1)',
+    color: 'var(--text-1)',
+    fontSize: 12,
+    fontWeight: 500,
+    textDecoration: 'none',
+    cursor: 'pointer',
+  },
   row: {
     display: 'flex',
     alignItems: 'center',

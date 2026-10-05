@@ -13,6 +13,7 @@ import {
   reportDeviceHealth,
   startTracking,
   stopTracking,
+  storedContext,
   type TrackingContext,
 } from '../lib/locationTask';
 import { startMotionDetection } from '../lib/motionDetector';
@@ -58,6 +59,8 @@ export default function PortalScreen() {
   // result, and when the driver last tapped "Not now" (cleared once sharing).
   const lastAccessRef = useRef<{ access: LocationProblem | 'ok'; at: string } | null>(null);
   const promptDismissedAtRef = useRef<string | null>(null);
+  // When sharing last restarted by itself after the phone had stopped it.
+  const autoRestartedAtRef = useRef<string | null>(null);
 
   const showModal = useCallback((reason: ModalReason | null) => {
     modalReasonRef.current = reason;
@@ -72,6 +75,7 @@ export default function PortalScreen() {
       access: lastAccessRef.current?.access ?? null,
       accessCheckedAt: lastAccessRef.current?.at ?? null,
       promptDismissedAt: promptDismissedAtRef.current,
+      autoRestartedAt: autoRestartedAtRef.current,
       appVersion: appConfig.expo.version,
       platform: Platform.OS,
     };
@@ -195,9 +199,18 @@ export default function PortalScreen() {
       if (typeof ctx === 'string' || !ctx.shiftId) return;
       const problem = await checkLocationAccess();
       lastAccessRef.current = { access: problem ?? 'ok', at: new Date().toISOString() };
-      void sendStatus();
       // A start (or the modal) may have begun while we were checking.
       if (modalReasonRef.current || verifyingRef.current || fixingRef.current || (await isTracking())) return;
+      // They were sharing THIS shift and the phone stopped it (only the driver's
+      // own stop clears the saved context): restart straight away, no question.
+      const saved = await storedContext();
+      if (!problem && saved?.shiftId && saved.shiftId === ctx.shiftId) {
+        await beginTracking();
+        autoRestartedAtRef.current = new Date().toISOString();
+        void sendStatus();
+        return;
+      }
+      void sendStatus();
       pendingStartRef.current = problem !== null;
       showModal(problem ?? 'sharing_off');
     } catch {
@@ -205,7 +218,7 @@ export default function PortalScreen() {
     } finally {
       nagRunningRef.current = false;
     }
-  }, [resolveContext, sendStatus, showModal]);
+  }, [beginTracking, resolveContext, sendStatus, showModal]);
 
   const handleFix = useCallback(async () => {
     const reason = modalReasonRef.current;
@@ -337,6 +350,17 @@ export default function PortalScreen() {
           case 'get-status':
             void sendStatus();
             break;
+          case 'check-access': {
+            // The portal's go-online page asks before starting a shift when the
+            // fleet requires location (answers on the 'rovora-native-access' event).
+            const problem = await checkLocationAccess();
+            lastAccessRef.current = { access: problem ?? 'ok', at: new Date().toISOString() };
+            const reply = JSON.stringify({ requestId: msg.requestId ?? null, problem });
+            webViewRef.current?.injectJavaScript(
+              `window.dispatchEvent(new CustomEvent('rovora-native-access', { detail: ${JSON.stringify(reply)} })); true;`
+            );
+            break;
+          }
         }
       } catch {
         // ignore malformed messages

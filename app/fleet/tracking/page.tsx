@@ -6,8 +6,8 @@ import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
 import { loadSharingInfo } from '@/lib/tracking/sharing-info';
+import { loadActivity } from '@/lib/tracking/activity';
 import TrackingWorkspace, {
-  type ActivityItem,
   type OnShiftItem,
   type PositionItem,
   type ZoneItem,
@@ -39,7 +39,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [positionsRes, zonesRes, maxSpeedsRes, trackingEventsRes, zoneEventsRes, orgRes, distancesRes, speedingRes, healthRes, openShiftsRes, liveTracking] = await Promise.all([
+  const [positionsRes, zonesRes, maxSpeedsRes, orgRes, distancesRes, openShiftsRes, liveTracking, activity] = await Promise.all([
     supabase
       .from('driver_positions')
       .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, battery_pct, battery_charging, gps_enabled, location_permission, drivers:driver_id (full_name)')
@@ -51,40 +51,17 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       .eq('organization_id', orgId)
       .order('created_at', { ascending: true }),
     supabase.rpc('driver_max_speeds', { p_since: startOfDay.toISOString() }),
-    supabase
-      .from('driver_tracking_events')
-      .select('id, event, occurred_at, drivers:driver_id (full_name)')
-      .eq('organization_id', orgId)
-      .order('occurred_at', { ascending: false })
-      .limit(30),
-    supabase
-      .from('geofence_events')
-      .select('id, event, occurred_at, drivers:driver_id (full_name), geofences:geofence_id (name)')
-      .eq('organization_id', orgId)
-      .order('occurred_at', { ascending: false })
-      .limit(30),
     supabase.from('organizations').select('speed_limit_kmh').eq('id', orgId).single(),
     supabase.rpc('driver_distances', { p_since: startOfDay.toISOString() }),
-    supabase
-      .from('speeding_events')
-      .select('id, speed_kmh, limit_kmh, occurred_at, drivers:driver_id (full_name)')
-      .eq('organization_id', orgId)
-      .order('occurred_at', { ascending: false })
-      .limit(20),
-    supabase
-      .from('device_health_events')
-      .select('id, event, detail, occurred_at, drivers:driver_id (full_name)')
-      .eq('organization_id', orgId)
-      .order('occurred_at', { ascending: false })
-      .limit(20),
     // Who's on shift right now — the map flags those not sharing their location.
     supabase
       .from('driver_shifts')
-      .select('driver_id, start_time, drivers:driver_id (full_name)')
+      .select('driver_id, start_time, drivers:driver_id (full_name, phone)')
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true }),
     getLiveTrackingSettings(orgId),
+    loadActivity(supabase, orgId),
   ]);
 
   const maxSpeedByDriver = new Map<string, number>(
@@ -133,53 +110,11 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const onShift: OnShiftItem[] = ((openShiftsRes.data || []) as unknown as OpenShiftRow[]).map((s) => ({
     driverId: s.driver_id,
     name: nameOf(s.drivers),
+    phone: (Array.isArray(s.drivers) ? s.drivers[0] : (s.drivers as { phone?: string | null } | null))?.phone ?? null,
     startTime: s.start_time,
   }));
   // Why the on-shift drivers who aren't sharing aren't (the Live Map explains it).
   const sharingInfo = await loadSharingInfo(supabase, orgId, onShift);
-
-  const zoneNameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.name || 'zone';
-
-  const activity: ActivityItem[] = [
-    ...((trackingEventsRes.data || []) as any[]).map((e) => ({
-      id: `t-${e.id}`,
-      kind: 'tracking' as const,
-      event: e.event as string,
-      driverName: nameOf(e.drivers),
-      zoneName: null,
-      detail: null,
-      occurredAt: e.occurred_at as string,
-    })),
-    ...((zoneEventsRes.data || []) as any[]).map((e) => ({
-      id: `z-${e.id}`,
-      kind: 'zone' as const,
-      event: e.event as string,
-      driverName: nameOf(e.drivers),
-      zoneName: zoneNameOf(e.geofences),
-      detail: null,
-      occurredAt: e.occurred_at as string,
-    })),
-    ...((speedingRes.data || []) as any[]).map((e) => ({
-      id: `s-${e.id}`,
-      kind: 'speed' as const,
-      event: 'speeding',
-      driverName: nameOf(e.drivers),
-      zoneName: null,
-      detail: `${e.speed_kmh} km/h (limit ${e.limit_kmh})`,
-      occurredAt: e.occurred_at as string,
-    })),
-    ...((healthRes.data || []) as any[]).map((e) => ({
-      id: `h-${e.id}`,
-      kind: 'health' as const,
-      event: e.event as string,
-      driverName: nameOf(e.drivers),
-      zoneName: null,
-      detail: (e.detail as string) ?? null,
-      occurredAt: e.occurred_at as string,
-    })),
-  ]
-    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
-    .slice(0, 40);
 
   return (
     <TrackingWorkspace

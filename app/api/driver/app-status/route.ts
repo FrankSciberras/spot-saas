@@ -65,14 +65,20 @@ export async function POST(request: Request) {
       row.access_checked_at = isoOrNull(s.accessCheckedAt) ?? now;
     }
     if ('promptDismissedAt' in s) row.prompt_dismissed_at = isoOrNull(s.promptDismissedAt);
+    const autoRestartedAt = isoOrNull(s.autoRestartedAt);
+    if (autoRestartedAt) row.auto_restarted_at = autoRestartedAt;
     const appVersion = shortText(s.appVersion, 20);
     if (appVersion) row.app_version = appVersion;
     if (typeof s.platform === 'string' && PLATFORMS.has(s.platform)) row.platform = s.platform;
   }
 
-  const { error } = await createAdminClient()
-    .from('driver_app_status')
-    .upsert(row, { onConflict: 'driver_id' });
+  const admin = createAdminClient();
+  let { error } = await admin.from('driver_app_status').upsert(row, { onConflict: 'driver_id' });
+  if (error?.code === 'PGRST204' && 'auto_restarted_at' in row) {
+    // Column added by 20261005_tracking_recovery — keep the rest if it's not there yet.
+    delete row.auto_restarted_at;
+    ({ error } = await admin.from('driver_app_status').upsert(row, { onConflict: 'driver_id' }));
+  }
   if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
     console.error('driver app-status upsert failed:', error);
   }

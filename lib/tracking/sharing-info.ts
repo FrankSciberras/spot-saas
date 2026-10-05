@@ -49,6 +49,7 @@ export async function loadSharingInfo(
       locationAccess: (r.location_access as string) ?? null,
       accessCheckedAt: (r.access_checked_at as string) ?? null,
       promptDismissedAt: (r.prompt_dismissed_at as string) ?? null,
+      autoRestartedAt: (r.auto_restarted_at as string) ?? null,
       updatedAt: (r.updated_at as string) ?? null,
     };
   }

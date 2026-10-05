@@ -15,6 +15,9 @@ export default function SettingsPage() {
   const [savingDriverPush, setSavingDriverPush] = useState(false);
   const [liveTracking, setLiveTracking] = useState<{ on: boolean; moduleOn: boolean } | null>(null);
   const [savingLiveTracking, setSavingLiveTracking] = useState(false);
+  // Fleet rule: shifts only start from the app, with location working.
+  const [requireLocation, setRequireLocation] = useState(false);
+  const [savingRequire, setSavingRequire] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -38,6 +41,7 @@ export default function SettingsPage() {
       if (trackingRes.ok) {
         const t = await trackingRes.json();
         setLiveTracking({ on: t.track_location_on_shift !== false, moduleOn: t.module_enabled !== false });
+        setRequireLocation(t.require_location_for_shift === true);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -91,6 +95,27 @@ export default function SettingsPage() {
       showMessage('error', error instanceof Error ? error.message : 'Failed to update setting');
     } finally {
       setSavingLiveTracking(false);
+    }
+  };
+
+  const toggleRequireLocation = async () => {
+    const next = !requireLocation;
+    setSavingRequire(true);
+    try {
+      const res = await fetch('/api/fleet/live-tracking', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ require: next }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Failed to update setting');
+      setRequireLocation(body.require_location_for_shift === true);
+      showMessage('success', next ? 'Drivers now need location working to start a shift' : 'Location is no longer required to start a shift');
+    } catch (error) {
+      console.error('Error updating require-location setting:', error);
+      showMessage('error', error instanceof Error ? error.message : 'Failed to update setting');
+    } finally {
+      setSavingRequire(false);
     }
   };
 
@@ -165,6 +190,34 @@ export default function SettingsPage() {
                 <span className={styles.statusLabel}>
                   {liveTracking.on ? 'Enabled' : 'Disabled'}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {user.role === 'admin' && liveTracking !== null && liveTracking.on && (
+            <div className={styles.settingCard}>
+              <div className={styles.settingIcon}>🛡️</div>
+              <div className={styles.settingContent}>
+                <div className={styles.settingLabel}>Require location to start a shift</div>
+                <div className={styles.settingDescription}>
+                  When on, drivers can only go online from the Rovora Driver app, and only once their
+                  phone&apos;s location is set up properly — the app shows them exactly what to fix.
+                  Shifts can no longer be started from a web browser. Drivers on an older version of
+                  the app are let through until they update.
+                </div>
+              </div>
+              <div className={styles.settingAction}>
+                <label className={`${styles.toggle} ${savingRequire ? styles.toggleDisabled : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={requireLocation}
+                    onChange={toggleRequireLocation}
+                    disabled={savingRequire}
+                    aria-label="Require location to start a shift"
+                  />
+                  <span className={styles.toggleSlider}></span>
+                </label>
+                <span className={styles.statusLabel}>{requireLocation ? 'Required' : 'Optional'}</span>
               </div>
             </div>
           )}
