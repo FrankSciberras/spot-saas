@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /** One line in the Live Map's Activity feed. */
 export interface ActivityItem {
   id: string;
-  kind: 'tracking' | 'zone' | 'speed' | 'health' | 'nudge';
+  kind: 'tracking' | 'zone' | 'speed' | 'health';
   event: string;
   driverName: string;
   zoneName: string | null;
@@ -16,14 +16,14 @@ const one = (rel: Rel) => (Array.isArray(rel) ? rel[0] : rel);
 const nameOf = (rel: Rel) => one(rel)?.full_name || 'Unknown driver';
 
 /**
- * The Activity feed: tracking on/off/lost/back, zone entries, speeding, phone
- * health and driver alerts, newest first. Shared by the page (server) and the
+ * The Activity feed: tracking on/off/lost/back, zone entries, speeding and
+ * phone health, newest first. Shared by the page (server) and the
  * Live Map's polling (browser) so both build it identically. Selects use '*'
  * where a newer column may not exist yet, and a missing table just contributes
  * nothing — the feed never fails because a migration hasn't run.
  */
 export async function loadActivity(supabase: SupabaseClient, orgId: string): Promise<ActivityItem[]> {
-  const [trackingRes, zoneRes, speedRes, healthRes, nudgeRes] = await Promise.all([
+  const [trackingRes, zoneRes, speedRes, healthRes] = await Promise.all([
     supabase
       .from('driver_tracking_events')
       .select('*, drivers:driver_id (full_name)')
@@ -47,12 +47,6 @@ export async function loadActivity(supabase: SupabaseClient, orgId: string): Pro
       .select('id, event, detail, occurred_at, drivers:driver_id (full_name)')
       .eq('organization_id', orgId)
       .order('occurred_at', { ascending: false })
-      .limit(20),
-    supabase
-      .from('driver_nudges')
-      .select('id, sent_by, created_at, drivers:driver_id (full_name), users:sent_by (full_name)')
-      .eq('organization_id', orgId)
-      .order('created_at', { ascending: false })
       .limit(20),
   ]);
 
@@ -93,16 +87,6 @@ export async function loadActivity(supabase: SupabaseClient, orgId: string): Pro
       zoneName: null,
       detail: (e.detail as string) ?? null,
       occurredAt: e.occurred_at as string,
-    })),
-    ...((nudgeRes.data || []) as any[]).map((e) => ({
-      id: `n-${e.id}`,
-      kind: 'nudge' as const,
-      event: e.sent_by ? 'manual' : 'auto',
-      driverName: nameOf(e.drivers),
-      zoneName: null,
-      // Who sent it (null for automatic alerts).
-      detail: e.sent_by ? one(e.users)?.full_name || 'a team member' : null,
-      occurredAt: e.created_at as string,
     })),
   ];
   /* eslint-enable @typescript-eslint/no-explicit-any */

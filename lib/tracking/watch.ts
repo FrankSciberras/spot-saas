@@ -1,7 +1,4 @@
 import { createAdminClient } from '@/lib/supabase/server';
-import { sendDriverNudge } from '@/lib/tracking/nudge';
-import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
-import { HEARTBEAT_APP_VERSION, versionAtLeast } from '@/lib/tracking/sharing-diagnosis';
 
 // =============================================================================
 // TRACKING WATCH — notice when a sharing phone goes quiet, and when it's back
@@ -13,14 +10,12 @@ import { HEARTBEAT_APP_VERSION, versionAtLeast } from '@/lib/tracking/sharing-di
 //  * lost    — still marked sharing, but no position for SILENCE_MINUTES:
 //              log it (with what they were last doing) and alert the admins.
 //  * resumed — a position arrived after a 'lost': log "back after N min".
-//  * nudge   — silent for NUDGE_MINUTES on an open shift, on an app that sends
-//              a heartbeat while parked (1.0.3+): alert the driver themselves.
-//              Older apps go quiet whenever the car is parked, so they're left
-//              to the fleet's judgement (the Live Map says so).
+// Reminding the driver is the app's job (mobile/lib/reminders.ts — a phone
+// notification, no push service needed). Alerts the fleet can send from here
+// wait for real push notifications.
 // =============================================================================
 
 const SILENCE_MINUTES = 5;
-const NUDGE_MINUTES = 10;
 const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 
 const clock = (iso: string) =>
@@ -52,13 +47,12 @@ async function logEvent(admin: AdminClient, row: Record<string, unknown>) {
 export interface WatchReport {
   lost: number;
   resumed: number;
-  nudged: number;
 }
 
 export async function runTrackingWatch(): Promise<WatchReport> {
   const admin = createAdminClient();
   const now = Date.now();
-  const report: WatchReport = { lost: 0, resumed: 0, nudged: 0 };
+  const report: WatchReport = { lost: 0, resumed: 0 };
 
   const { data: sharing } = await admin
     .from('driver_positions')
@@ -77,12 +71,6 @@ export async function runTrackingWatch(): Promise<WatchReport> {
     .order('occurred_at', { ascending: false });
   const lastEvent = new Map<string, { event: string; occurred_at: string }>();
   for (const e of events ?? []) if (!lastEvent.has(e.driver_id)) lastEvent.set(e.driver_id, e);
-
-  const settingsCache = new Map<string, Awaited<ReturnType<typeof getLiveTrackingSettings>>>();
-  const settingsFor = async (orgId: string) => {
-    if (!settingsCache.has(orgId)) settingsCache.set(orgId, await getLiveTrackingSettings(orgId));
-    return settingsCache.get(orgId)!;
-  };
 
   for (const row of rows) {
     const silentMin = (now - Date.parse(row.recorded_at)) / 60_000;
@@ -136,32 +124,6 @@ export async function runTrackingWatch(): Promise<WatchReport> {
       });
     }
 
-    // ── Nudge the driver (heartbeat apps only — silence there is real) ────
-    if (silentMin >= NUDGE_MINUTES) {
-      const { data: shift } = await admin
-        .from('driver_shifts')
-        .select('id')
-        .eq('driver_id', row.driver_id)
-        .is('end_time', null)
-        .limit(1)
-        .maybeSingle();
-      if (!shift) continue;
-      const { data: status } = await admin
-        .from('driver_app_status')
-        .select('app_version')
-        .eq('driver_id', row.driver_id)
-        .maybeSingle();
-      if (!versionAtLeast(status?.app_version, HEARTBEAT_APP_VERSION)) continue;
-      if (!(await settingsFor(row.organization_id)).active) continue;
-
-      const res = await sendDriverNudge({
-        organizationId: row.organization_id,
-        driverId: row.driver_id,
-        sentBy: null,
-        reason: `We last received your location at ${clock(row.recorded_at)}.`,
-      });
-      if (res.ok) report.nudged++;
-    }
   }
 
   return report;

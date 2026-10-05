@@ -17,6 +17,7 @@ import {
   type TrackingContext,
 } from '../lib/locationTask';
 import { startMotionDetection } from '../lib/motionDetector';
+import { registerShiftCheck, rememberDriver, setupNotifications } from '../lib/reminders';
 import { colors } from '../lib/theme';
 
 const PORTAL_URL = process.env.EXPO_PUBLIC_PORTAL_URL || 'https://rovora.eu/driver';
@@ -329,6 +330,9 @@ export default function PortalScreen() {
                 driverId: msg.driver_id,
                 organizationId: msg.organization_id ?? null,
               };
+              // Background shift checks (reminders, fleet alerts) need it too.
+              void rememberDriver(msg.driver_id, msg.organization_id ?? null);
+              void setupNotifications().then(registerShiftCheck);
             }
             {
               const liveTracking = (msg as Record<string, unknown>).live_tracking;

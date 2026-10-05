@@ -45,7 +45,6 @@ export type { ActivityItem } from '@/lib/tracking/activity';
 export interface OnShiftItem {
   driverId: string;
   name: string;
-  phone: string | null;
   startTime: string;
 }
 
@@ -73,81 +72,6 @@ type Tab = 'drivers' | 'zones' | 'activity';
 
 /** Sharing but no position for this long → in the "not on the map" box. */
 const SILENT_MS = 5 * 60_000;
-
-/** wa.me wants digits only, with the country code (Malta numbers default to 356). */
-function whatsappNumber(phone: string): string | null {
-  let digits = phone.replace(/[^\d+]/g, '');
-  if (digits.startsWith('+')) digits = digits.slice(1);
-  else if (digits.startsWith('00')) digits = digits.slice(2);
-  else if (digits.length === 8) digits = `356${digits}`;
-  return digits.length >= 8 ? digits : null;
-}
-
-/**
- * Ways to reach a driver who isn't on the map: WhatsApp with the exact fix
- * pre-written, a phone call, or a Rovora alert (notification + email, logged
- * in the Activity feed). Rendered under each driver in the problem box.
- */
-function DriverAlertActions({ driverId, name, phone, message }: { driverId: string; name: string; phone: string | null; message: string }) {
-  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [note, setNote] = useState('');
-  const first = name.split(' ')[0];
-  const wa = phone ? whatsappNumber(phone) : null;
-
-  const sendAlert = async () => {
-    setState('sending');
-    setNote('');
-    try {
-      const res = await fetch('/api/tracking/nudge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverId, reason: message }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setState('error');
-        setNote(body.error || 'Could not send the alert.');
-        return;
-      }
-      setState('sent');
-      setNote(body.channels?.includes('email') ? 'Sent — in the app and by email.' : 'Sent in the app.');
-    } catch {
-      setState('error');
-      setNote('Could not send the alert.');
-    }
-  };
-
-  return (
-    <div style={st.actionsRow}>
-      {wa && (
-        <a
-          href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${first}, ${message}`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fleetHover"
-          style={st.actionBtn}
-        >
-          WhatsApp
-        </a>
-      )}
-      {phone && (
-        <a href={`tel:${phone.replace(/\s+/g, '')}`} className="fleetHover" style={st.actionBtn}>
-          Call
-        </a>
-      )}
-      <button
-        type="button"
-        className="fleetHover"
-        style={st.actionBtn}
-        onClick={sendAlert}
-        disabled={state === 'sending' || state === 'sent'}
-      >
-        {state === 'sending' ? 'Sending…' : state === 'sent' ? 'Alert sent ✓' : 'Send alert'}
-      </button>
-      {note && <span style={{ ...st.whyMeta, marginTop: 0, color: state === 'error' ? 'var(--neg, #f06464)' : 'var(--text-3)' }}>{note}</span>}
-    </div>
-  );
-}
 
 function statusOf(p: PositionItem, now: number): LiveStatus {
   const age = now - new Date(p.recordedAt).getTime();
@@ -368,17 +292,16 @@ export default function TrackingWorkspace({
   const refetchOnShift = useCallback(async () => {
     const { data } = await supabase
       .from('driver_shifts')
-      .select('driver_id, start_time, drivers:driver_id (full_name, phone)')
+      .select('driver_id, start_time, drivers:driver_id (full_name)')
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true });
     if (!data) return;
     type Row = { driver_id: string; start_time: string; drivers: DriverRel | DriverRel[] | null };
-    type DriverRel = { full_name: string | null; phone: string | null };
+    type DriverRel = { full_name: string | null };
     const next = (data as unknown as Row[]).map((s) => ({
       driverId: s.driver_id,
       name: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.full_name || 'Unknown driver',
-      phone: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.phone ?? null,
       startTime: s.start_time,
     }));
     setOnShift(next);
@@ -707,14 +630,12 @@ export default function TrackingWorkspace({
   const activityIcon = (a: ActivityItem) => {
     if (a.kind === 'speed') return '⚠';
     if (a.kind === 'health') return a.event === 'low_battery' || a.event === 'battery_critical' ? '🔋' : '⚠';
-    if (a.kind === 'nudge') return '🔔';
     if (a.kind === 'tracking') return a.event === 'started' ? '▶' : a.event === 'lost' ? '⚡' : a.event === 'resumed' ? '↻' : '⏹';
     return a.event === 'enter' ? '⊕' : '⊖';
   };
   const activityColor = (a: ActivityItem) => {
     if (a.kind === 'speed') return 'var(--neg, #f06464)';
     if (a.kind === 'health') return a.event === 'low_battery' ? 'var(--warn, #f5b54a)' : 'var(--neg, #f06464)';
-    if (a.kind === 'nudge') return 'var(--accent, #2bbd7e)';
     if (a.kind === 'tracking') {
       if (a.event === 'started' || a.event === 'resumed') return 'var(--pos, #2bbd7e)';
       if (a.event === 'lost') return 'var(--neg, #f06464)';
@@ -731,11 +652,6 @@ export default function TrackingWorkspace({
       return a.detail === 'denied'
         ? `${a.driverName} removed the app's location access`
         : `${a.driverName} limited location to “while using the app”`;
-    }
-    if (a.kind === 'nudge') {
-      return a.detail
-        ? `${a.detail} sent ${a.driverName} an alert to share their location`
-        : `Rovora automatically alerted ${a.driverName} to share their location`;
     }
     if (a.kind === 'tracking') {
       if (a.event === 'lost') return `${a.driverName}'s tracking signal was lost${a.detail ? ` — ${a.detail}` : ''}`;
@@ -783,7 +699,6 @@ export default function TrackingWorkspace({
                     {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
                     <div style={st.whyFix}>→ {why.fix}</div>
                     {why.meta && <div style={st.whyMeta}>{why.meta}</div>}
-                    <DriverAlertActions driverId={d.driverId} name={d.name} phone={d.phone} message={why.tell} />
                   </div>
                 ))}
               </div>
@@ -1127,20 +1042,6 @@ const st: Record<string, CSSProperties> = {
   whyDetail: { marginTop: 2, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.45 },
   whyFix: { marginTop: 3, fontSize: 12, color: 'var(--text-1)', lineHeight: 1.45 },
   whyMeta: { marginTop: 3, fontSize: 11, color: 'var(--text-3)' },
-  actionsRow: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 7 },
-  actionBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '4px 10px',
-    borderRadius: 7,
-    border: '1px solid var(--line-2)',
-    background: 'var(--bg-1)',
-    color: 'var(--text-1)',
-    fontSize: 12,
-    fontWeight: 500,
-    textDecoration: 'none',
-    cursor: 'pointer',
-  },
   row: {
     display: 'flex',
     alignItems: 'center',

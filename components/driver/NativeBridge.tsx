@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { compareVersions } from '@/lib/app-release';
 
 /**
  * When the driver portal runs inside the Rovora Driver app's WebView, hand the
@@ -37,7 +38,21 @@ function reportAppStatus(body: { context: 'app' | 'browser'; status?: Record<str
 
 const BROWSER_SEEN_KEY = 'rovora-browser-seen';
 
+/** Apps before 1.0.3 don't report their version — treat silence as this. */
+const LAST_UNREPORTED_VERSION = '1.0.2';
+
+interface UpdateNeeded {
+  latest: string;
+  installed: string | null;
+  storeUrl: string;
+}
+
 export default function NativeBridge() {
+  // Set when the app is older than the version drivers must be on — shows the
+  // full-screen "update to continue" page (works for every app version, since
+  // it's drawn by the portal, not the app).
+  const [update, setUpdate] = useState<UpdateNeeded | null>(null);
+
   useEffect(() => {
     const native = (window as any).ReactNativeWebView;
     if (!native) {
@@ -56,6 +71,12 @@ export default function NativeBridge() {
     const supabase = createClient();
     const platform = /android/i.test(navigator.userAgent) ? 'android' : /iphone|ipad|ipod/i.test(navigator.userAgent) ? 'ios' : undefined;
 
+    // The installed app version, from its status: undefined = not heard yet,
+    // null = it answered without one (an app older than 1.0.3).
+    let installedVersion: string | null | undefined;
+    let requiredMinimum: string | null = null;
+    let cancelled = false;
+
     // The app re-sends its status every few seconds while sharing; pass on
     // real changes straight away, otherwise at most once a minute.
     let lastKey = '';
@@ -68,6 +89,9 @@ export default function NativeBridge() {
         return;
       }
       if (!status || typeof status !== 'object') return;
+      installedVersion = typeof status.appVersion === 'string' ? status.appVersion : null;
+      // A late answer from an up-to-date app lifts the update screen again.
+      if (installedVersion && requiredMinimum && compareVersions(installedVersion, requiredMinimum) >= 0) setUpdate(null);
       // lastSentAt ticks with every location sent — not a change worth reporting.
       const meaningful = { ...status };
       delete meaningful.lastSentAt;
@@ -79,6 +103,25 @@ export default function NativeBridge() {
     };
     window.addEventListener('rovora-native', onNativeStatus);
     reportAppStatus({ context: 'app', status: { platform } });
+
+    // Is this app too old to keep using? Ask the server which version is
+    // required, then wait (up to 8 s) to hear the app's own version.
+    void (async () => {
+      const info = await fetch('/api/app/version')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (!info?.minimum || typeof info.storeUrl !== 'string') return;
+      requiredMinimum = info.minimum;
+      const deadline = Date.now() + 8000;
+      while (installedVersion === undefined && Date.now() < deadline && !cancelled) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      if (cancelled) return;
+      const installed = installedVersion ?? null;
+      if (compareVersions(installed ?? LAST_UNREPORTED_VERSION, info.minimum) < 0) {
+        setUpdate({ latest: info.latest ?? info.minimum, installed, storeUrl: info.storeUrl });
+      }
+    })();
 
     const post = async (session: { access_token: string; refresh_token: string } | null) => {
       if (!session?.access_token || !session?.refresh_token) return;
@@ -134,11 +177,68 @@ export default function NativeBridge() {
       }
     });
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
       window.removeEventListener(ACTIVE_ORG_CHANGED_EVENT, onOrgChanged);
       window.removeEventListener('rovora-native', onNativeStatus);
     };
   }, []);
 
-  return null;
+  return update ? <UpdateRequired {...update} /> : null;
+}
+
+/** Full-screen, no way past it: the button opens Rovora Driver in the Play Store. */
+function UpdateRequired({ latest, installed, storeUrl }: UpdateNeeded) {
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="update-title"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100000,
+        display: 'grid',
+        placeItems: 'center',
+        padding: 24,
+        background: 'var(--bg-0, #f6f7f9)',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: 380, textAlign: 'center' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-full.png" alt="Rovora" style={{ height: 34, marginBottom: 28 }} />
+        <h1 id="update-title" style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 600, color: 'var(--text-1, #0e1116)' }}>
+          Update Rovora Driver
+        </h1>
+        <p style={{ margin: '0 0 24px', fontSize: 15, lineHeight: 1.5, color: 'var(--text-2, #4a5260)' }}>
+          A new version of the app is available. Please update to keep using Rovora — it only takes a minute.
+        </p>
+        <a
+          href={storeUrl}
+          style={{
+            display: 'block',
+            padding: '14px 18px',
+            borderRadius: 12,
+            background: 'var(--accent, #1a8f5a)',
+            color: '#fff',
+            fontSize: 16,
+            fontWeight: 600,
+            textDecoration: 'none',
+          }}
+        >
+          Update now
+        </a>
+        <p style={{ margin: '16px 0 0', fontSize: 13, color: 'var(--text-3, #7a8290)' }}>
+          {installed ? `You have version ${installed}` : 'You have an older version'} · newest is {latest}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          style={{ marginTop: 10, padding: 6, border: 0, background: 'none', color: 'var(--accent, #1a8f5a)', fontSize: 13.5, fontWeight: 500, cursor: 'pointer' }}
+        >
+          Already updated? Check again
+        </button>
+      </div>
+    </div>
+  );
 }

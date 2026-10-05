@@ -56,7 +56,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
     // Who's on shift right now — the map flags those not sharing their location.
     supabase
       .from('driver_shifts')
-      .select('driver_id, start_time, drivers:driver_id (full_name, phone)')
+      .select('driver_id, start_time, drivers:driver_id (full_name)')
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true }),
@@ -110,7 +110,6 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const onShift: OnShiftItem[] = ((openShiftsRes.data || []) as unknown as OpenShiftRow[]).map((s) => ({
     driverId: s.driver_id,
     name: nameOf(s.drivers),
-    phone: (Array.isArray(s.drivers) ? s.drivers[0] : (s.drivers as { phone?: string | null } | null))?.phone ?? null,
     startTime: s.start_time,
   }));
   // Why the on-shift drivers who aren't sharing aren't (the Live Map explains it).

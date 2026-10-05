@@ -61,7 +61,15 @@
           "motionPermission": "Rovora uses motion data to detect harsh braking and acceleration for your fleet's safety reports while location sharing is on."
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-background-task",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#2bbd7e"
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"

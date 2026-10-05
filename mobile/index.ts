@@ -3,6 +3,8 @@ import { registerRootComponent } from 'expo';
 // Define the background location task in the global scope so it runs even
 // when the app is launched headless by the OS for a location update.
 import './lib/locationTask';
+// Same for the every-15-minutes shift check (reminders + fleet alerts).
+import './lib/reminders';
 
 import App from './App';
 
