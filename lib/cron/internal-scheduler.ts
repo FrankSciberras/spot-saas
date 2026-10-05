@@ -25,6 +25,13 @@ export function startInternalScheduler(): void {
       await runTrackingWatch();
     } catch (err) {
       console.error('[internal-scheduler] tracking watch failed:', err);
+    }
+    try {
+      // "Still on shift?" — ask, and end shifts nobody answered for.
+      const { runShiftCheck } = await import('@/lib/shifts/shift-check');
+      await runShiftCheck();
+    } catch (err) {
+      console.error('[internal-scheduler] shift check failed:', err);
     } finally {
       running = false;
     }
@@ -34,5 +41,5 @@ export function startInternalScheduler(): void {
   // keeps a shutting-down process alive.
   setTimeout(() => void tick(), 30_000).unref?.();
   setInterval(() => void tick(), TRACKING_WATCH_MS).unref?.();
-  console.log('[internal-scheduler] tracking watch every 60s');
+  console.log('[internal-scheduler] tracking watch + shift check every 60s');
 }

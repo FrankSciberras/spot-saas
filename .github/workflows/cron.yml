@@ -40,7 +40,7 @@ on:
     - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
     - cron: '10 * * * *'    # trip builder (trips/stops + GPS retention)
     - cron: '*/30 * * * *'  # reminders
-    - cron: '40 * * * *'    # open-shift watch (nudge at 14h, auto-close at 24h)
+    - cron: '40 * * * *'    # "still on shift?" check (backup — also runs every minute in-app)
     - cron: '0 4 * * *'     # daily recurring bookkeeping costs (repeating bills)
     - cron: '0 5 * * *'     # daily notification rules sweep
     - cron: '0 7 * * *'     # daily "need a hand?" check-in to admins inactive 7+ days

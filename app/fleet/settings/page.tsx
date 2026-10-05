@@ -18,6 +18,10 @@ export default function SettingsPage() {
   // Fleet rule: shifts only start from the app, with location working.
   const [requireLocation, setRequireLocation] = useState(false);
   const [savingRequire, setSavingRequire] = useState(false);
+  // "Still on shift?" check: ask after N hours, end the shift if no answer.
+  const [shiftCheck, setShiftCheck] = useState<{ enabled: boolean; afterHours: number; graceMinutes: number } | null>(null);
+  const [shiftCheckDraft, setShiftCheckDraft] = useState({ afterHours: '12', graceMinutes: '30' });
+  const [savingShiftCheck, setSavingShiftCheck] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -42,6 +46,13 @@ export default function SettingsPage() {
         const t = await trackingRes.json();
         setLiveTracking({ on: t.track_location_on_shift !== false, moduleOn: t.module_enabled !== false });
         setRequireLocation(t.require_location_for_shift === true);
+      }
+
+      const shiftCheckRes = await fetch('/api/fleet/shift-check', { cache: 'no-store' });
+      if (shiftCheckRes.ok) {
+        const sc = await shiftCheckRes.json();
+        setShiftCheck(sc);
+        setShiftCheckDraft({ afterHours: String(sc.afterHours), graceMinutes: String(sc.graceMinutes) });
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -116,6 +127,26 @@ export default function SettingsPage() {
       showMessage('error', error instanceof Error ? error.message : 'Failed to update setting');
     } finally {
       setSavingRequire(false);
+    }
+  };
+
+  const saveShiftCheck = async (patch: { enabled?: boolean; afterHours?: number; graceMinutes?: number }) => {
+    setSavingShiftCheck(true);
+    try {
+      const res = await fetch('/api/fleet/shift-check', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Failed to save');
+      setShiftCheck(body);
+      setShiftCheckDraft({ afterHours: String(body.afterHours), graceMinutes: String(body.graceMinutes) });
+      showMessage('success', 'Shift check saved');
+    } catch (error) {
+      showMessage('error', error instanceof Error ? error.message : 'Failed to save');
+    } finally {
+      setSavingShiftCheck(false);
     }
   };
 
@@ -218,6 +249,85 @@ export default function SettingsPage() {
                   <span className={styles.toggleSlider}></span>
                 </label>
                 <span className={styles.statusLabel}>{requireLocation ? 'Required' : 'Optional'}</span>
+              </div>
+            </div>
+          )}
+
+          {user.role === 'admin' && shiftCheck !== null && (
+            <div className={styles.settingCard}>
+              <div className={styles.settingIcon}>⏱️</div>
+              <div className={styles.settingContent}>
+                <div className={styles.settingLabel}>“Still on shift?” check</div>
+                <div className={styles.settingDescription}>
+                  Catches shifts drivers forget to end. After the hours below, Rovora asks the driver if
+                  they&apos;re still working (a phone notification from the app, plus in-app and email).
+                  Opening the app answers it and the shift carries on — they&apos;re asked again after the
+                  same number of hours. If there&apos;s no answer in time, the shift ends at the moment we
+                  asked and you&apos;re notified.
+                  {!shiftCheck.enabled && ' While off, shifts still open after 24 hours are ended automatically.'}
+                </div>
+                {shiftCheck.enabled && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 12, fontSize: 14 }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      Ask after
+                      <input
+                        type="number"
+                        min={1}
+                        max={23}
+                        step={0.5}
+                        value={shiftCheckDraft.afterHours}
+                        onChange={(e) => setShiftCheckDraft((d) => ({ ...d, afterHours: e.target.value }))}
+                        style={{ width: 64, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line-2, #d0d5dd)', background: 'var(--bg-1, #fff)', color: 'inherit' }}
+                        aria-label="Ask after hours on shift"
+                      />
+                      hours on shift
+                    </label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      · end the shift if no answer within
+                      <input
+                        type="number"
+                        min={15}
+                        max={240}
+                        step={5}
+                        value={shiftCheckDraft.graceMinutes}
+                        onChange={(e) => setShiftCheckDraft((d) => ({ ...d, graceMinutes: e.target.value }))}
+                        style={{ width: 64, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line-2, #d0d5dd)', background: 'var(--bg-1, #fff)', color: 'inherit' }}
+                        aria-label="Minutes to wait for an answer"
+                      />
+                      minutes
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={
+                        savingShiftCheck ||
+                        (shiftCheckDraft.afterHours === String(shiftCheck.afterHours) &&
+                          shiftCheckDraft.graceMinutes === String(shiftCheck.graceMinutes))
+                      }
+                      onClick={() =>
+                        saveShiftCheck({
+                          afterHours: Number(shiftCheckDraft.afterHours),
+                          graceMinutes: Number(shiftCheckDraft.graceMinutes),
+                        })
+                      }
+                    >
+                      {savingShiftCheck ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className={styles.settingAction}>
+                <label className={`${styles.toggle} ${savingShiftCheck ? styles.toggleDisabled : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={shiftCheck.enabled}
+                    onChange={() => saveShiftCheck({ enabled: !shiftCheck.enabled })}
+                    disabled={savingShiftCheck}
+                    aria-label="Still on shift check"
+                  />
+                  <span className={styles.toggleSlider}></span>
+                </label>
+                <span className={styles.statusLabel}>{shiftCheck.enabled ? 'Enabled' : 'Disabled'}</span>
               </div>
             </div>
           )}

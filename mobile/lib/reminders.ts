@@ -4,13 +4,17 @@ import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { isTracking, startTracking, storedContext } from './locationTask';
+import { isTracking, startTracking, stopTracking, storedContext } from './locationTask';
 
 /**
  * Phone notifications without a push service (no Firebase): Android runs this
  * check every ~15 minutes in the background (WorkManager), even with the app
- * closed. While the driver is on shift it restarts sharing if the phone had
- * stopped it this shift, and otherwise reminds them that their location is off.
+ * closed. While the driver is on shift it:
+ *  - passes on the fleet's "Are you still on shift?" question (opening the
+ *    app answers it — the portal's ShiftCheckConfirmer);
+ *  - restarts sharing if the phone had stopped it this shift, and otherwise
+ *    reminds them that their location is off;
+ *  - stops sharing once the shift has ended (e.g. ended automatically).
  * Limits: Android decides the exact timing (15 min at best, later on strict
  * battery savers), and nothing runs after a force-stop in Settings.
  */
@@ -18,6 +22,7 @@ import { isTracking, startTracking, storedContext } from './locationTask';
 export const SHIFT_CHECK_TASK = 'rovora-shift-check';
 const DRIVER_KEY = 'rovora.lastDriver';
 const LAST_REMINDER_KEY = 'rovora.lastShiftReminderAt';
+const SHIFT_CHECK_NOTIFIED_KEY = 'rovora.shiftCheckNotified';
 const REMINDER_GAP_MS = 30 * 60_000;
 const CHANNEL_ID = 'shift-reminders';
 
@@ -75,14 +80,38 @@ export async function runShiftCheck(): Promise<void> {
   }
   if (!driverId) return;
 
-  const { data: shift } = await supabase
+  // '*' so this keeps working whether or not the shift-check columns exist.
+  const { data: shift, error } = await supabase
     .from('driver_shifts')
-    .select('id')
+    .select('*')
     .eq('driver_id', driverId)
     .is('end_time', null)
     .limit(1)
     .maybeSingle();
-  if (!shift) return;
+  if (error) return; // offline / server trouble — try again next time
+  if (!shift) {
+    // The shift is over (ended in the portal, or automatically) — stop sharing.
+    if (saved && (await isTracking())) await stopTracking(saved.driverId);
+    return;
+  }
+
+  // The fleet asked "Are you still on shift?" — show it once per question.
+  const askedAt = shift.check_requested_at as string | null | undefined;
+  if (askedAt && (await AsyncStorage.getItem(SHIFT_CHECK_NOTIFIED_KEY)) !== askedAt) {
+    await AsyncStorage.setItem(SHIFT_CHECK_NOTIFIED_KEY, askedAt);
+    // One notification at a time: hold the "location is off" reminder for a while.
+    await AsyncStorage.setItem(LAST_REMINDER_KEY, String(Date.now()));
+    const deadline = shift.check_deadline_at as string | null | undefined;
+    const by = deadline
+      ? new Date(deadline).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      : null;
+    await notify(
+      'Are you still on shift?',
+      by
+        ? `Tap to carry on. If we don’t hear from you by ${by}, your shift will end automatically.`
+        : 'Tap to carry on, or your shift will end automatically soon.'
+    );
+  }
 
   // Sharing was running this shift and the phone stopped it: try to restart.
   if (saved && saved.shiftId === shift.id && !(await isTracking())) {

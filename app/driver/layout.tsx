@@ -1,5 +1,6 @@
 import BrandingShell from '@/components/shared/BrandingShell';
 import NativeBridge from '@/components/driver/NativeBridge';
+import ShiftCheckConfirmer from '@/components/driver/ShiftCheckConfirmer';
 import { FleetThemeRoot } from '@/components/fleet/FleetThemeRoot';
 import '../fleet/fleet-theme.css';
 
@@ -22,7 +23,11 @@ export default async function DriverLayout({
   return (
     <BrandingShell>
       <NativeBridge />
-      <FleetThemeRoot>{children}</FleetThemeRoot>
+      <FleetThemeRoot>
+        {/* Opening the portal answers "Are you still on shift?" */}
+        <ShiftCheckConfirmer />
+        {children}
+      </FleetThemeRoot>
     </BrandingShell>
   );
 }

@@ -258,6 +258,10 @@ export default function PortalScreen() {
   // return to the app and once a minute while it's open.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
+      // Tell the portal the driver is back — answers "Are you still on shift?".
+      if (state === 'active') {
+        webViewRef.current?.injectJavaScript("window.dispatchEvent(new Event('rovora:app-resumed')); true;");
+      }
       if (state !== 'active' || fixingRef.current) return;
       if (pendingStartRef.current) void handleStart();
       else void remindIfOnShift();
