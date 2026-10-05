@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { DeviceMotion, type DeviceMotionMeasurement } from 'expo-sensors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -98,8 +99,15 @@ export async function startMotionDetection(): Promise<void> {
   try {
     if (subscription) return;
     if (!(await DeviceMotion.isAvailableAsync())) return;
-    const { status } = await DeviceMotion.requestPermissionsAsync();
-    if (status !== 'granted') return;
+    // On Android, expo-sensors asks for ACTIVITY_RECOGNITION ("physical
+    // activity") here, but the sensors DeviceMotion reads (accelerometer,
+    // gyroscope) need no permission. That permission makes Google Play treat
+    // the app as a health app, so it's removed from the manifest
+    // (app.json blockedPermissions) and the request is skipped on Android.
+    if (Platform.OS !== 'android') {
+      const { status } = await DeviceMotion.requestPermissionsAsync();
+      if (status !== 'granted') return;
+    }
     DeviceMotion.setUpdateInterval(SAMPLE_MS);
     overCount = 0;
     peak = 0;
