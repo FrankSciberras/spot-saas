@@ -45,7 +45,7 @@ export default function DeleteDriverButton({ driverId, driverName }: DeleteDrive
         className="btn btn-danger"
         onClick={() => setShowConfirm(true)}
       >
-        Delete
+        Delete driver
       </button>
     );
   }
@@ -54,8 +54,9 @@ export default function DeleteDriverButton({ driverId, driverName }: DeleteDrive
     <div className={styles.deleteConfirm}>
       <h4>Confirm Deletion</h4>
       <p>
-        Are you sure you want to delete <strong>{driverName}</strong>? 
-        This action cannot be undone. All associated data including shifts will be permanently removed.
+        Are you sure you want to delete <strong>{driverName}</strong>? This cannot be undone: their
+        shifts, earnings, settlements and location history are permanently removed. To keep their
+        history, set their status to Inactive instead.
       </p>
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-md)' }}>
