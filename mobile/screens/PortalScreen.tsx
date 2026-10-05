@@ -48,6 +48,10 @@ export default function PortalScreen() {
   const nagRunningRef = useRef(false);
   // "Not now" / a manual stop quiets the on-shift reminder for a few minutes.
   const snoozeUntilRef = useRef(0);
+  // The fleet's "Live location during shifts" setting, sent by the portal with
+  // the session. Off = no on-shift reminders (the portal also won't start
+  // sharing at shift start). Defaults to on for older portal builds.
+  const liveTrackingRef = useRef(true);
 
   const showModal = useCallback((reason: ModalReason | null) => {
     modalReasonRef.current = reason;
@@ -167,7 +171,7 @@ export default function PortalScreen() {
   // session, whenever the app comes back to the foreground, and every minute
   // while it stays open (every few minutes after a "Not now").
   const remindIfOnShift = useCallback(async () => {
-    if (AppState.currentState !== 'active' || !driverCtxRef.current) return;
+    if (AppState.currentState !== 'active' || !driverCtxRef.current || !liveTrackingRef.current) return;
     if (nagRunningRef.current || modalReasonRef.current || verifyingRef.current || fixingRef.current) return;
     if (Date.now() < snoozeUntilRef.current) return;
     nagRunningRef.current = true;
@@ -296,6 +300,11 @@ export default function PortalScreen() {
                 organizationId: msg.organization_id ?? null,
               };
             }
+            {
+              const liveTracking = (msg as Record<string, unknown>).live_tracking;
+              if (typeof liveTracking === 'boolean') liveTrackingRef.current = liveTracking;
+              if (!liveTrackingRef.current && modalReasonRef.current === 'sharing_off') showModal(null);
+            }
             void remindIfOnShift();
             break;
           case 'signed-out':
@@ -316,7 +325,7 @@ export default function PortalScreen() {
         // ignore malformed messages
       }
     },
-    [handleStart, handleStop, remindIfOnShift, sendStatus]
+    [handleStart, handleStop, remindIfOnShift, sendStatus, showModal]
   );
 
   return (

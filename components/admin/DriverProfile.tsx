@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import DeleteDriverButton from '@/components/admin/DeleteDriverButton';
 import styles from './DriverProfile.module.css';
 
 /* ─── Types ─── */
@@ -828,6 +829,22 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
                 {resettingPassword ? 'Resetting...' : 'Reset Password'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Remove Driver ── */}
+      {isAdmin && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconRed}`}><FleetIcon name="trash" size={16} /></div>
+            <h3 className={styles.sectionTitle}>Remove Driver</h3>
+          </div>
+          <div className={styles.sectionBody}>
+            <p className={styles.passwordHint}>
+              Permanently delete this driver from your fleet{driver.user_id ? ' and remove their login' : ''}.
+            </p>
+            <DeleteDriverButton driverId={driver.id} driverName={driver.full_name} />
           </div>
         </div>
       )}

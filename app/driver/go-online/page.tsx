@@ -354,14 +354,21 @@ export default function GoOnlinePage() {
         console.error('Service check failed:', checkError);
       }
 
-      // Starting a shift starts everything: kick off live location tracking.
+      // Starting a shift starts everything: kick off live location tracking —
+      // unless the fleet turned "Live location during shifts" off in Settings.
       // Inside the Rovora Driver app this hands off to the native shell, which
-      // shows the background-location disclosure, requests permission and tracks
-      // in the background. In a plain browser there's nothing to start here
-      // (browser GPS can't run once we navigate away).
+      // checks location access (fix-it pop-up if needed) and tracks in the
+      // background. In a plain browser there's nothing to start here (browser
+      // GPS can't run once we navigate away).
       const native = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
       if (native) {
-        native.postMessage(JSON.stringify({ type: 'start-tracking' }));
+        // Fail open: if the setting can't be read, track as before.
+        const setting = await fetch('/api/fleet/live-tracking', { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+        if (setting?.active !== false) {
+          native.postMessage(JSON.stringify({ type: 'start-tracking' }));
+        }
       }
 
       setSuccess(true);

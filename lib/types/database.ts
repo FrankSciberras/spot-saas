@@ -1137,6 +1137,8 @@ export interface Organization {
   default_settlement_preset_id: string | null;
   /** When true, drivers without push enabled see the "Stay in the loop" prompt on login. */
   prompt_drivers_push: boolean;
+  /** When true, starting a shift in the driver app starts live location sharing. */
+  track_location_on_shift: boolean;
   created_at: string;
   updated_at: string;
 }

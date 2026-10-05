@@ -32,6 +32,8 @@ export default function DriverTrackingPage() {
   const [lastSentAt, setLastSentAt] = useState<Date | null>(null);
   const [pointCount, setPointCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // The fleet's "Live location during shifts" setting (on unless it says otherwise).
+  const [autoOnShift, setAutoOnShift] = useState(true);
 
   const watchIdRef = useRef<number | null>(null);
   const lastPositionSentRef = useRef(0);
@@ -94,8 +96,15 @@ export default function DriverTrackingPage() {
       // Resolve the driver row: the one with an open shift (in any fleet) first,
       // so location reaches the fleet they're working for; else the ACTIVE
       // fleet's row (a driver in two fleets has two; the server knows which).
-      const meRes = await fetch('/api/auth/user', { cache: 'no-store' });
+      const [meRes, trackingRes] = await Promise.all([
+        fetch('/api/auth/user', { cache: 'no-store' }),
+        fetch('/api/fleet/live-tracking', { cache: 'no-store' }).catch(() => null),
+      ]);
       const me = meRes.ok ? await meRes.json() : null;
+      if (trackingRes?.ok) {
+        const t = await trackingRes.json();
+        if (t.active === false) setAutoOnShift(false);
+      }
       const trackedId: string | undefined = me?.open_shift?.driver_id ?? me?.driver_id;
       const driverQuery = supabase.from('drivers').select('id, organization_id');
       const { data: driverRow } = trackedId
@@ -259,10 +268,12 @@ export default function DriverTrackingPage() {
             ? nativeMode
               ? 'Your fleet can see your live position — it keeps working with the screen off or while using other apps.'
               : 'Your fleet can see your live position on the map. Keep this page open while you drive.'
-            : 'Sharing starts automatically when you start a shift and stops when you end it. You can also start or stop it manually here.'}
+            : autoOnShift
+              ? 'Sharing starts automatically when you start a shift and stops when you end it. You can also start or stop it manually here.'
+              : 'Your fleet doesn’t share your location during shifts automatically. You can still share it manually here.'}
         </p>
 
-        {shiftId === null && !sharing && (
+        {shiftId === null && !sharing && autoOnShift && (
           <p className={styles.hint}>No active shift found — you can still share, but starting a shift first links your route to it.</p>
         )}
 
