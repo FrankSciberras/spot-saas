@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface DeleteStaffButtonProps {
@@ -38,34 +38,45 @@ export default function DeleteStaffButton({ staffId, staffName, isDualRole = fal
 
   if (showConfirm) {
     return (
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span style={{ fontSize: '14px', color: 'var(--danger)' }}>
-          {isDualRole ? `Remove staff access for ${staffName}?` : `Delete ${staffName}?`}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13.5, color: 'var(--text-1)' }}>
+          {isDualRole
+            ? `Remove ${staffName}’s staff access? They stay a driver.`
+            : `Remove ${staffName} from your fleet?`}
         </span>
-        <button
-          className="btn btn-sm btn-danger"
-          onClick={handleDelete}
-          disabled={loading}
-        >
-          {loading ? 'Deleting...' : 'Yes'}
+        <button type="button" style={{ ...btn, ...danger }} onClick={handleDelete} disabled={loading}>
+          {loading ? 'Removing…' : 'Yes, remove'}
         </button>
-        <button
-          className="btn btn-sm btn-secondary"
-          onClick={() => setShowConfirm(false)}
-          disabled={loading}
-        >
-          No
+        <button type="button" style={btn} onClick={() => setShowConfirm(false)} disabled={loading}>
+          Cancel
         </button>
       </div>
     );
   }
 
+  // Removes them from THIS fleet only (/api/users/:id) — their account and any
+  // other fleets are untouched unless this was their last one.
   return (
-    <button
-      className="btn btn-danger"
-      onClick={() => setShowConfirm(true)}
-    >
-      {isDualRole ? 'Remove Staff Access' : 'Delete'}
+    <button type="button" style={{ ...btn, ...dangerOutline }} onClick={() => setShowConfirm(true)}>
+      {isDualRole ? 'Remove staff access' : 'Remove from fleet'}
     </button>
   );
 }
+
+// Fleet design tokens, so it sits with the page's other chip buttons.
+const btn: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  padding: '6px 12px',
+  borderRadius: 7,
+  fontSize: 13,
+  fontWeight: 500,
+  border: '1px solid var(--line-2)',
+  background: 'var(--bg-1)',
+  color: 'var(--text-1)',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+const dangerOutline: CSSProperties = { color: 'var(--neg)', borderColor: 'var(--neg-soft)' };
+const danger: CSSProperties = { background: 'var(--neg)', borderColor: 'var(--neg)', color: '#fff' };
