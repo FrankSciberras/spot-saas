@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import type { Map as LeafletMap, Marker, Circle, Polyline } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import FleetIcon from '@/components/fleet/FleetIcon';
@@ -69,6 +69,34 @@ const ZONE_COLOR = '#3b6ad9';
 
 type LiveStatus = 'live' | 'stale' | 'offline';
 type Tab = 'drivers' | 'zones' | 'activity';
+
+// Whether the "not on the map" box is minimised — remembered on this device
+// (falls back to memory when storage is blocked).
+const PROBLEMS_HIDDEN_KEY = 'rovora-trk-problems-hidden';
+let problemsHiddenMemory = false;
+const problemsHiddenListeners = new Set<() => void>();
+function subscribeProblemsHidden(listener: () => void) {
+  problemsHiddenListeners.add(listener);
+  return () => {
+    problemsHiddenListeners.delete(listener);
+  };
+}
+function readProblemsHidden(): boolean {
+  try {
+    return localStorage.getItem(PROBLEMS_HIDDEN_KEY) === '1';
+  } catch {
+    return problemsHiddenMemory;
+  }
+}
+function toggleProblemsHidden() {
+  problemsHiddenMemory = !readProblemsHidden();
+  try {
+    localStorage.setItem(PROBLEMS_HIDDEN_KEY, problemsHiddenMemory ? '1' : '0');
+  } catch {
+    // not remembered across visits — fine
+  }
+  problemsHiddenListeners.forEach((l) => l());
+}
 
 /** Sharing but no position for this long → in the "not on the map" box. */
 const SILENT_MS = 5 * 60_000;
@@ -289,6 +317,17 @@ export default function TrackingWorkspace({
 
   const [onShift, setOnShift] = useState<OnShiftItem[]>(initialOnShift);
   const [sharingInfo, setSharingInfo] = useState<SharingInfo>(initialSharingInfo);
+  // "On shift, not on the map": the whole box can be minimised (remembered on
+  // this device), and each driver is one line until opened.
+  const problemsHidden = useSyncExternalStore(subscribeProblemsHidden, readProblemsHidden, () => false);
+  const [openProblems, setOpenProblems] = useState<Set<string>>(() => new Set());
+  const toggleProblem = (driverId: string) =>
+    setOpenProblems((prev) => {
+      const next = new Set(prev);
+      if (next.has(driverId)) next.delete(driverId);
+      else next.add(driverId);
+      return next;
+    });
   const refetchOnShift = useCallback(async () => {
     const { data } = await supabase
       .from('driver_shifts')
@@ -686,21 +725,40 @@ export default function TrackingWorkspace({
             )}
             {problems.length > 0 && (
               <div style={st.notSharing}>
-                <div style={st.notSharingTitle}>⚠ On shift, not on the map ({problems.length})</div>
-                {problems.map(({ driver: d, why }) => (
-                  <div key={d.driverId} style={st.notSharingRow}>
-                    <div>
-                      <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span> · shift started{' '}
-                      {agoLabel(d.startTime, now)}
-                    </div>
-                    <div style={{ ...st.whyTitle, color: why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--text-1)' }}>
-                      {why.title}
-                    </div>
-                    {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
-                    <div style={st.whyFix}>→ {why.fix}</div>
-                    {why.meta && <div style={st.whyMeta}>{why.meta}</div>}
-                  </div>
-                ))}
+                <button type="button" onClick={toggleProblemsHidden} style={st.problemsHeader} aria-expanded={!problemsHidden}>
+                  <span style={st.notSharingTitle}>⚠ On shift, not on the map ({problems.length})</span>
+                  <span style={st.problemsToggle}>
+                    {problemsHidden ? 'Show' : 'Hide'}
+                    <FleetIcon name={problemsHidden ? 'chevron-down' : 'chevron-right'} size={13} stroke={2} style={problemsHidden ? undefined : { transform: 'rotate(-90deg)' }} />
+                  </span>
+                </button>
+                {!problemsHidden &&
+                  problems.map(({ driver: d, why }) => {
+                    const open = openProblems.has(d.driverId);
+                    return (
+                      <div key={d.driverId} style={st.notSharingRow}>
+                        <button type="button" onClick={() => toggleProblem(d.driverId)} style={st.problemLine} aria-expanded={open}>
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span>
+                            <span style={{ ...st.whyTitle, color: why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--text-2)' }}>
+                              {' '}· {why.title}
+                            </span>
+                          </span>
+                          <FleetIcon name="chevron-right" size={13} stroke={2} style={{ flexShrink: 0, color: 'var(--text-3)', transform: open ? 'rotate(90deg)' : undefined }} />
+                        </button>
+                        {open && (
+                          <>
+                            {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
+                            <div style={st.whyFix}>→ {why.fix}</div>
+                            <div style={st.whyMeta}>
+                              Shift started {agoLabel(d.startTime, now)}
+                              {why.meta ? ` · ${why.meta}` : ''}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             )}
             {list.length === 0 && (
@@ -1036,9 +1094,38 @@ const st: Record<string, CSSProperties> = {
     color: 'var(--text-2)',
     lineHeight: 1.5,
   },
-  notSharingTitle: { color: 'var(--warn, #f5b54a)', fontWeight: 600, marginBottom: 4 },
-  notSharingRow: { padding: '8px 0', borderTop: '1px solid var(--line-1)' },
-  whyTitle: { marginTop: 3, fontWeight: 600, fontSize: 12.5 },
+  notSharingTitle: { color: 'var(--warn, #f5b54a)', fontWeight: 600 },
+  problemsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    width: '100%',
+    padding: '2px 0 6px',
+    border: 0,
+    background: 'none',
+    font: 'inherit',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  problemsToggle: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-2)', flexShrink: 0 },
+  notSharingRow: { padding: '7px 0', borderTop: '1px solid var(--line-1)' },
+  problemLine: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    width: '100%',
+    padding: 0,
+    border: 0,
+    background: 'none',
+    font: 'inherit',
+    fontSize: 12.5,
+    lineHeight: 1.45,
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  whyTitle: { fontWeight: 600, fontSize: 12.5 },
   whyDetail: { marginTop: 2, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.45 },
   whyFix: { marginTop: 3, fontSize: 12, color: 'var(--text-1)', lineHeight: 1.45 },
   whyMeta: { marginTop: 3, fontSize: 11, color: 'var(--text-3)' },
