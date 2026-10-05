@@ -17,36 +17,92 @@
 //     itself already would.
 // =============================================================================
 
+import { headers } from 'next/headers';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
 import { appUrl } from '@/lib/urls';
+import { AUTH_EMAIL_LIMITS, type AuthEmailKind, type AuthEmailLimit } from '@/lib/auth/email-limits';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+// ─── Rate limiting ───────────────────────────────────────────────────────────
+// The login page has "Resend" buttons, so these limits are what actually stop
+// someone scripting them to flood an inbox or burn our Resend quota. The
+// numbers live in lib/auth/email-limits; they're enforced atomically in the DB
+// (supabase/migrations/20261004_auth_email_rate_limit.sql). The UI countdown
+// is only a courtesy — this is the real gate.
+
+/** Caller's IP as set by our proxy (Traefik overwrites any client-sent value). */
+async function callerIp(): Promise<string | null> {
+  const h = await headers();
+  const fwd = h.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return fwd || h.get('x-real-ip')?.trim() || null;
+}
+
+/** 0 = allowed (and recorded), otherwise seconds until this bucket frees up. */
+async function claimBucket(admin: AdminClient, key: string, limit: AuthEmailLimit): Promise<number> {
+  const { data, error } = await admin.rpc('claim_auth_email', {
+    p_key: key,
+    p_cooldown: limit.cooldown,
+    p_max: limit.max,
+    p_window: limit.window,
+  });
+  if (!error) return Number(data) || 0;
+
+  // Migration not applied yet — fall back to the older cooldown-only throttle so
+  // a deploy that lands first is never unprotected. Fail-open if that's missing
+  // too, so emails never silently stop working.
+  if (limit.cooldown <= 0) return 0;
+  const { data: allowed, error: oldErr } = await admin.rpc('claim_password_reset', {
+    p_email: key,
+    p_cooldown: limit.cooldown,
+  });
+  return !oldErr && allowed === false ? limit.cooldown : 0;
+}
+
+/**
+ * Claims one auth email for this address + caller. Returns 0 when it may be sent,
+ * else seconds to wait. Keyed on the address whether or not an account exists,
+ * so the answer never hints at which emails are registered.
+ */
+async function claimAuthEmail(admin: AdminClient, kind: AuthEmailKind, email: string): Promise<number> {
+  const ip = await callerIp();
+  if (ip) {
+    const wait = await claimBucket(admin, `${kind}-ip:${ip}`, AUTH_EMAIL_LIMITS[kind].ip);
+    if (wait) return wait;
+  }
+  return claimBucket(admin, `${kind}:${email}`, AUTH_EMAIL_LIMITS[kind].email);
+}
+
+/** Friendly "slow down" text. Short waits are the cooldown; long ones the cap. */
+function waitMessage(seconds: number, what: string): string {
+  if (seconds <= 120) return `Please wait ${seconds} seconds before requesting another ${what}.`;
+  const mins = Math.ceil(seconds / 60);
+  return (
+    `You’ve requested several ${what}s in a short time, so we’ve paused sending for about ` +
+    `${mins} minute${mins === 1 ? '' : 's'}. Check your spam or junk folder in the meantime.`
+  );
+}
+
 export async function requestPasswordResetAction(
   email: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; retryAfter?: number }> {
   const clean = email?.trim().toLowerCase() || '';
   if (!EMAIL_RE.test(clean)) return { ok: false, error: 'Enter a valid email address.' };
 
   const admin = createAdminClient();
 
+  // Rate limit BEFORE looking the account up, so real and made-up addresses get
+  // identical answers (no "is this email registered?" probing via the limiter).
+  const wait = await claimAuthEmail(admin, 'reset', clean);
+  if (wait) return { ok: false, retryAfter: wait, error: waitMessage(wait, 'reset link') };
+
   // Only send to a real account — keeps us from emailing arbitrary addresses.
   // Always return ok regardless, so we don't reveal whether an account exists.
   const { data: user } = await admin.from('users').select('id').eq('email', clean).maybeSingle();
   if (!user) return { ok: true };
-
-  // Rate limit: at most one reset email per address per minute. Atomic claim in
-  // the DB (race-safe). Fail-open if the function isn't deployed yet, so the
-  // reset flow never silently breaks before the migration is applied.
-  const { data: allowed, error: throttleErr } = await admin.rpc('claim_password_reset', {
-    p_email: clean,
-    p_cooldown: 60,
-  });
-  if (!throttleErr && allowed === false) {
-    // Within cooldown — pretend success without re-sending.
-    return { ok: true };
-  }
 
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'recovery',
@@ -91,6 +147,8 @@ interface SignupCodeResult {
   ok: boolean;
   error?: string;
   verifyType?: SignupVerifyType;
+  /** Set when rate-limited: seconds until another code may be requested. */
+  retryAfter?: number;
   /** True when Supabase auto-confirmed the account ("Confirm email" still off) —
    *  no code needed; the client can sign straight in with the password. */
   alreadyConfirmed?: boolean;
@@ -110,7 +168,7 @@ async function sendCodeEmail(to: string, code: string): Promise<boolean> {
 }
 
 /** True when the auth user behind this email has already confirmed it. */
-async function isEmailConfirmed(admin: ReturnType<typeof createAdminClient>, email: string): Promise<boolean | null> {
+async function isEmailConfirmed(admin: AdminClient, email: string): Promise<boolean | null> {
   const { data: row } = await admin.from('users').select('id').eq('email', email).maybeSingle();
   if (!row) return null; // unknown — no mirror row
   const { data } = await admin.auth.admin.getUserById((row as { id: string }).id);
@@ -124,6 +182,11 @@ export async function requestSignupCodeAction(email: string, password: string): 
   if (!password || password.length < 6) return { ok: false, error: 'Password must be at least 6 characters.' };
 
   const admin = createAdminClient();
+
+  // Each signup emails a code, so it's rate-limited like a resend — otherwise
+  // the form could be used to mail codes to a list of strangers' addresses.
+  const wait = await claimAuthEmail(admin, 'signup', clean);
+  if (wait) return { ok: false, retryAfter: wait, error: waitMessage(wait, 'code') };
 
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'signup',
@@ -147,11 +210,7 @@ export async function requestSignupCodeAction(email: string, password: string): 
   // The address is already registered. If it's verified, point them at sign-in;
   // if it's a half-finished signup, send a fresh code instead of a dead end.
   if (error && /already|registered|exists/i.test(error.message)) {
-    const confirmed = await isEmailConfirmed(admin, clean);
-    if (confirmed === true) {
-      return { ok: false, error: 'An account with this email already exists — sign in instead.' };
-    }
-    return resendSignupCodeAction(clean);
+    return deliverFreshCode(admin, clean);
   }
 
   console.error('requestSignupCodeAction generateLink failed:', error);
@@ -165,17 +224,14 @@ export async function resendSignupCodeAction(email: string): Promise<SignupCodeR
 
   const admin = createAdminClient();
 
-  // Cooldown: reuse the atomic reset throttle with a distinct key namespace so
-  // signup codes can't be spammed. Fail-open like the reset flow.
-  const { data: allowed, error: throttleErr } = await admin.rpc('claim_password_reset', {
-    p_email: `signup:${clean}`,
-    p_cooldown: 60,
-  });
-  if (!throttleErr && allowed === false) {
-    // Within cooldown — report success without re-sending.
-    return { ok: true, verifyType: 'email' };
-  }
+  const wait = await claimAuthEmail(admin, 'signup', clean);
+  if (wait) return { ok: false, retryAfter: wait, error: waitMessage(wait, 'code') };
 
+  return deliverFreshCode(admin, clean);
+}
+
+/** Emails a new code to an existing account. Caller has already rate-limited. */
+async function deliverFreshCode(admin: AdminClient, clean: string): Promise<SignupCodeResult> {
   const confirmed = await isEmailConfirmed(admin, clean);
   if (confirmed === true) {
     return { ok: false, error: 'This email is already verified — sign in instead.' };

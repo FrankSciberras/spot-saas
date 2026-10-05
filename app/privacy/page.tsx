@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '2 September 2026';
+const LAST_UPDATED = '5 October 2026';
 
 export default function PrivacyPage() {
   return (
@@ -97,7 +97,7 @@ export default function PrivacyPage() {
                   <tbody>
                     <tr>
                       <td>Account &amp; identity</td>
-                      <td>Name, email address, password (stored only as a salted hash), role and fleet membership</td>
+                      <td>Name, email address, password (stored only as a salted hash), role and fleet membership. If you choose “Sign in with Google”, Google shares your name, email address and profile picture with us instead of a password — we never see your Google password or anything else in your Google account</td>
                       <td>To create accounts, authenticate users and control access</td>
                     </tr>
                     <tr>

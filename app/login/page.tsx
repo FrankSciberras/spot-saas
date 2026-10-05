@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -10,12 +10,48 @@ import {
   resendSignupCodeAction,
   type SignupVerifyType,
 } from '@/lib/actions/auth-email';
+import { RESET_RESEND_COOLDOWN, SIGNUP_RESEND_COOLDOWN } from '@/lib/auth/email-limits';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import { safeInternalPath } from '@/lib/utils/safeRedirect';
 import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 import PasswordInput from '@/components/shared/PasswordInput';
+import GoogleSignInButton from '@/components/shared/GoogleSignInButton';
 
 type Mode = 'login' | 'forgot' | 'signup' | 'confirm';
+
+/**
+ * Seconds left until a deadline, re-rendering once a second. Counts against the
+ * clock rather than decrementing, because phones pause timers while the user is
+ * off in their email app — a tick counter would come back still showing 1:45.
+ */
+function useCountdown(): [number, (seconds: number) => void] {
+  const [until, setUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!until) return;
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= until) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [until]);
+
+  const start = useCallback((seconds: number) => {
+    const t = Date.now();
+    setNow(t);
+    setUntil(seconds > 0 ? t + seconds * 1000 : 0);
+  }, []);
+
+  return [until ? Math.max(0, Math.ceil((until - now) / 1000)) : 0, start];
+}
+
+/** 95 → "1:35", 42 → "42s". */
+function formatWait(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
@@ -34,9 +70,13 @@ function LoginPageContent() {
   const [successMessage, setSuccessMessage] = useState('');
   // Email-confirmation code entry (signup verification).
   const [code, setCode] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, startResendCooldown] = useCountdown();
   // Which verifyOtp type matches the code we sent ('signup' fresh / 'email' resent).
   const [verifyType, setVerifyType] = useState<SignupVerifyType>('signup');
+  // Forgot password: the address we last sent a link to (switches the card to
+  // the "Check your inbox" view with its Resend button) + that button's cooldown.
+  const [resetSentTo, setResetSentTo] = useState('');
+  const [resetCooldown, startResetCooldown] = useCountdown();
   // Hide the "Back to home" escape hatch when running inside the Rovora Driver
   // app's WebView — there's no marketing site to go back to there.
   const [inApp, setInApp] = useState(false);
@@ -44,13 +84,6 @@ function LoginPageContent() {
   useEffect(() => {
     if ((window as any).ReactNativeWebView) setInApp(true);
   }, []);
-
-  // Ticks the "Resend code" cooldown down once per second.
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendCooldown]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,9 +102,10 @@ function LoginPageContent() {
           if (res.ok) {
             setVerifyType(res.verifyType ?? 'email');
             setSuccessMessage(`Your email isn’t verified yet. We’ve sent a fresh code to ${email}.`);
-            setResendCooldown(60);
+            startResendCooldown(SIGNUP_RESEND_COOLDOWN);
           } else {
             setSuccessMessage('Your email isn’t verified yet. Use “Resend code” to get a fresh one.');
+            if (res.retryAfter) startResendCooldown(res.retryAfter);
           }
           setMode('confirm');
           return;
@@ -91,29 +125,61 @@ function LoginPageContent() {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Sends (or re-sends) the reset link via Resend — Supabase's mailer is
+  // bypassed, see lib/actions/auth-email. Enumeration-safe: real and unknown
+  // addresses get the same answer, including the same rate limits.
+  const sendResetLink = async (address: string, isResend: boolean) => {
     setError('');
     setSuccessMessage('');
     setLoading(true);
 
     try {
-      // Send the reset link via Resend (Supabase's mailer is bypassed — see
-      // lib/actions/auth-email). Enumeration-safe: always reports success.
-      const { ok, error: resetError } = await requestPasswordResetAction(email);
+      const res = await requestPasswordResetAction(address);
 
-      if (!ok) {
-        setError(resetError || 'Could not send the reset link. Please try again.');
+      // Rate-limited (a recent send, or too many this hour). Show the inbox view
+      // with the countdown so they know when they can try again.
+      if (res.retryAfter) {
+        setResetSentTo(address);
+        startResetCooldown(res.retryAfter);
+        setError(res.error || 'Please wait a moment before requesting another link.');
         return;
       }
 
-      setSuccessMessage('If an account exists for that email, a reset link is on its way. Check your inbox.');
-      setEmail('');
+      if (!res.ok) {
+        setError(res.error || 'Could not send the reset link. Please try again.');
+        return;
+      }
+
+      setResetSentTo(address);
+      startResetCooldown(RESET_RESEND_COOLDOWN);
+      // Supabase keeps one live reset token per account, so the new email
+      // replaces the old one — say so, or people click the stale link first.
+      if (isResend) setSuccessMessage('We’ve sent a new link. Use the newest email — older links no longer work.');
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendResetLink(email.trim(), false);
+  };
+
+  const handleResendReset = () => {
+    if (resetCooldown > 0 || loading || !resetSentTo) return;
+    sendResetLink(resetSentTo, true);
+  };
+
+  // Back to the empty form. The cooldown belonged to the old address — the
+  // server still enforces its own limits on whatever they type next.
+  const changeResetEmail = () => {
+    setResetSentTo('');
+    startResetCooldown(0);
+    setEmail('');
+    setError('');
+    setSuccessMessage('');
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -148,7 +214,7 @@ function LoginPageContent() {
       setVerifyType(res.verifyType ?? 'signup');
       setSuccessMessage(`We emailed a verification code to ${email}.`);
       setMode('confirm');
-      setResendCooldown(60);
+      startResendCooldown(SIGNUP_RESEND_COOLDOWN);
       return;
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -200,11 +266,12 @@ function LoginPageContent() {
       const res = await resendSignupCodeAction(email);
       if (!res.ok) {
         setError(res.error || 'Could not send a new code. Please try again.');
+        if (res.retryAfter) startResendCooldown(res.retryAfter);
         return;
       }
       setVerifyType(res.verifyType ?? 'email');
       setSuccessMessage(`A fresh code is on its way to ${email}.`);
-      setResendCooldown(60);
+      startResendCooldown(SIGNUP_RESEND_COOLDOWN);
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -223,6 +290,7 @@ function LoginPageContent() {
     mode === 'login' ? 'Welcome back'
     : mode === 'signup' ? 'Start your free trial'
     : mode === 'confirm' ? 'Check your email'
+    : resetSentTo ? 'Check your inbox'
     : 'Reset your password';
   const subheading =
     mode === 'login'
@@ -231,7 +299,9 @@ function LoginPageContent() {
         ? 'Create your account and get your fleet on Rovora.'
         : mode === 'confirm'
           ? 'Enter the code we emailed you to verify your address.'
-          : 'We’ll email you a link to set a new password.';
+          : resetSentTo
+            ? `If an account exists for ${resetSentTo}, we’ve emailed it a link to set a new password.`
+            : 'We’ll email you a link to set a new password.';
 
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
@@ -260,6 +330,23 @@ function LoginPageContent() {
 
           {error && <div className="auth-alert err">{error}</div>}
           {successMessage && <div className="auth-alert ok">{successMessage}</div>}
+
+          {(mode === 'login' || mode === 'signup') && (
+            // Same component on both screens; `key` gives each its own button
+            // wording and a fresh nonce when switching between them.
+            <GoogleSignInButton
+              key={mode}
+              intent={mode === 'signup' ? 'signup' : 'signin'}
+              // New Google accounts have no fleet yet — /dashboard sends them on
+              // to onboarding, existing ones to the right dashboard.
+              redirectTo={mode === 'signup' ? '/dashboard' : redirectTo}
+              onStart={() => {
+                setError('');
+                setSuccessMessage('');
+              }}
+              onError={setError}
+            />
+          )}
 
           {mode === 'signup' && (
             <form onSubmit={handleSignup}>
@@ -361,7 +448,7 @@ function LoginPageContent() {
               <p className="auth-foot">
                 Didn’t get it?{' '}
                 {resendCooldown > 0 ? (
-                  <span style={{ color: 'var(--text-3)' }}>Resend in {resendCooldown}s</span>
+                  <span style={{ color: 'var(--text-3)' }}>Resend in {formatWait(resendCooldown)}</span>
                 ) : (
                   <button type="button" className="auth-link" onClick={handleResendCode}>Resend code</button>
                 )}
@@ -372,7 +459,32 @@ function LoginPageContent() {
             </form>
           )}
 
-          {mode === 'forgot' && (
+          {mode === 'forgot' && resetSentTo && (
+            <div>
+              <p className="auth-note">
+                The link expires in 1 hour. Can’t find it? Give it a minute, then check your spam or junk folder.
+              </p>
+              <button
+                type="button"
+                className="btn btn-ghost btn-lg tabular"
+                onClick={handleResendReset}
+                disabled={loading || resetCooldown > 0}
+              >
+                {loading ? 'Sending…'
+                  : resetCooldown > 0 ? `Resend link in ${formatWait(resetCooldown)}`
+                  : 'Resend reset link'}
+              </button>
+              <p className="auth-foot">
+                Wrong address?{' '}
+                <button type="button" className="auth-link" onClick={changeResetEmail}>Use a different email</button>
+              </p>
+              <p className="auth-foot">
+                <button type="button" className="auth-link" onClick={() => switchMode('login')}>← Back to sign in</button>
+              </p>
+            </div>
+          )}
+
+          {mode === 'forgot' && !resetSentTo && (
             <form onSubmit={handleForgotPassword}>
               <div className="field">
                 <label htmlFor="reset-email">Email address</label>
