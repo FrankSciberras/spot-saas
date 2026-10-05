@@ -1003,6 +1003,12 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .auth-note { font-size: 14px; line-height: 1.5; color: var(--text-2); margin: 0 0 18px; }
 /* Countdown digits shouldn't jiggle the button label every second. */
 .rovora-site .auth-card .btn.tabular { font-variant-numeric: tabular-nums; }
+/* /invites — one block per fleet invitation inside the auth card. */
+.rovora-site .invite-item { border: 1px solid var(--line-2); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.rovora-site .invite-title { margin: 0 0 6px; font-size: 15px; line-height: 1.45; color: var(--text-1); }
+.rovora-site .invite-item .auth-note { margin-bottom: 14px; }
+.rovora-site .invite-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rovora-site .auth-card .invite-actions .btn { margin-top: 0; }
 /* "Sign in with Google" — Google renders the button itself (an iframe); we only
    reserve its 44px so the email form doesn't jump when it arrives. */
 .rovora-site .auth-google-slot { min-height: 44px; display: flex; justify-content: center; }

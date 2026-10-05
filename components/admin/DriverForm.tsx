@@ -204,6 +204,20 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
             email: newUserData.email,
             full_name: formData.full_name,
             role: 'driver',
+            // Kept on the invitation if they already have an account, and used to
+            // create their driver record when they accept.
+            driver_details: {
+              phone: formData.phone,
+              address: formData.address,
+              status: formData.status,
+              employment_type: formData.employment_type,
+              id_card_number: formData.id_card_number,
+              id_card_expiry_date: formData.id_card_expiry_date,
+              police_conduct_expiry_date: formData.police_conduct_expiry_date,
+              driving_license_number: formData.driving_license_number,
+              driving_license_expiry_date: formData.driving_license_expiry_date,
+              notes: formData.notes,
+            },
           }),
         });
 
@@ -212,6 +226,20 @@ export default function DriverForm({ driver, vehicles, users, documents = [], mo
 
         if (!userRes.ok) {
           throw new Error(userData.error || 'Failed to invite driver');
+        }
+
+        // Existing Rovora account: they've been invited and must accept first —
+        // no driver record yet (vehicles & documents can be added after).
+        if (userData.data?.pending) {
+          setSuccess(
+            `${newUserData.email} already has a Rovora account, so we’ve sent them an invitation to join your fleet. ` +
+              'They’ll appear in your drivers list once they accept — you can add their vehicle and documents then.'
+          );
+          setTimeout(() => {
+            router.push('/fleet/drivers');
+            router.refresh();
+          }, 4000);
+          return;
         }
 
         userId = userData.data.userId;

@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { pendingInviteItems } from '@/lib/invites';
+import PendingInvites from '@/components/fleet/PendingInvites';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import DriversWorkspace, { type DriverItem, type DocState } from '@/components/fleet/drivers/DriversWorkspace';
@@ -146,5 +148,8 @@ async function DriversContent({ user }: { user: FleetUser }) {
     };
   });
 
-  return <DriversWorkspace drivers={drivers} canAdd={isAdmin} />;
+  // Admins also see invitations still waiting on people who already had an account.
+  const invites = isAdmin ? await pendingInviteItems(createAdminClient(), orgId, ['driver']) : [];
+
+  return <DriversWorkspace drivers={drivers} canAdd={isAdmin} notice={<PendingInvites invites={invites} />} />;
 }

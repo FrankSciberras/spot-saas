@@ -21,6 +21,7 @@ export const APP_ROUTE_PREFIXES = [
   '/dashboard',
   '/billing',
   '/onboarding',
+  '/invites',
 ] as const;
 
 /** True when the path belongs to the authenticated app. */

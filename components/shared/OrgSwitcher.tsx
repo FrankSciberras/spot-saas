@@ -30,7 +30,11 @@ export default function OrgSwitcher({ memberships, activeOrgId }: OrgSwitcherPro
     const next = e.target.value;
     if (next === activeOrgId) return;
     startTransition(async () => {
-      await setActiveOrgAction(next);
+      const res = await setActiveOrgAction(next);
+      if (res?.error) {
+        // e.g. mid-shift — the select snaps back to the active fleet on refresh.
+        window.alert(res.error);
+      }
       router.refresh();
     });
   };

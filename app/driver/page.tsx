@@ -1,6 +1,8 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { Suspense } from 'react';
 import FleetShell from '@/components/fleet/FleetShell';
+import InviteBanner from '@/components/shared/InviteBanner';
 import DashboardClient from './DashboardClient';
 import { safeNumber } from '@/lib/utils/settlementCalculations';
 import styles from './driver.module.css';
@@ -129,6 +131,9 @@ export default async function DriverDashboardPage() {
 
   return (
     <FleetShell user={user} variant="driver" title="Dashboard">
+      <Suspense fallback={null}>
+        <InviteBanner userId={user.id} />
+      </Suspense>
       <DashboardClient
         firstName={driver.full_name?.split(' ')[0] || 'Driver'}
         settlements={(settlements || []) as any}

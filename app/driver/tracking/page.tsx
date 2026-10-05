@@ -91,13 +91,15 @@ export default function DriverTrackingPage() {
         router.push('/login');
         return;
       }
-      // Resolve the driver row for the ACTIVE fleet (a driver in two fleets has
-      // two rows; the server knows which one is active).
+      // Resolve the driver row: the one with an open shift (in any fleet) first,
+      // so location reaches the fleet they're working for; else the ACTIVE
+      // fleet's row (a driver in two fleets has two; the server knows which).
       const meRes = await fetch('/api/auth/user', { cache: 'no-store' });
       const me = meRes.ok ? await meRes.json() : null;
+      const trackedId: string | undefined = me?.open_shift?.driver_id ?? me?.driver_id;
       const driverQuery = supabase.from('drivers').select('id, organization_id');
-      const { data: driverRow } = me?.driver_id
-        ? await driverQuery.eq('id', me.driver_id).maybeSingle()
+      const { data: driverRow } = trackedId
+        ? await driverQuery.eq('id', trackedId).maybeSingle()
         : await driverQuery.eq('user_id', user.id).limit(1).maybeSingle();
       if (!driverRow) {
         setError('Driver profile not found. Please contact your fleet administrator.');

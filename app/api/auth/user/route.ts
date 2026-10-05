@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
+import { findOpenShift } from '@/lib/auth/open-shift';
 
 /**
  * GET /api/auth/user — who am I, in my ACTIVE fleet.
@@ -14,6 +15,10 @@ import { getSession } from '@/lib/auth/session';
  * `driver_id` is the caller's driver row in the active fleet (null for
  * non-drivers). A driver who works for two fleets has two rows, so clients
  * must use this id instead of looking drivers up by user_id.
+ *
+ * `open_shift` is their unfinished shift in ANY fleet ({ driver_id,
+ * organization_id, organization_name } or null). Location tracking must use it
+ * over `driver_id` so a shift's location always reaches that shift's fleet.
  */
 export async function GET() {
   try {
@@ -21,6 +26,16 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+
+    const shift = session.memberships.some((m) => m.role === 'driver') ? await findOpenShift(session.id) : null;
+    const open_shift = shift
+      ? {
+          driver_id: shift.driverId,
+          organization_id: shift.organizationId,
+          organization_name:
+            session.memberships.find((m) => m.organization_id === shift.organizationId)?.organization_name ?? null,
+        }
+      : null;
 
     return NextResponse.json(
       {
@@ -32,6 +47,7 @@ export async function GET() {
         organization_id: session.organization_id,
         organization_name: session.organization_name,
         driver_id: session.driver_id ?? null,
+        open_shift,
         memberships: session.memberships,
         fleet_tour_completed: session.fleet_tour_completed,
       },

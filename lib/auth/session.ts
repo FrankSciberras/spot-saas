@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { countPendingInvites } from '@/lib/invites';
 import { redirect } from 'next/navigation';
 import { loadMemberships, pickActiveMembership } from '@/lib/auth/org-context';
 import type { SessionUser, UserRole } from '@/lib/types/database';
@@ -74,7 +75,10 @@ export async function requireAuth(): Promise<SessionUser> {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // Logged in but belongs to no organization — send to onboarding.
+      // Logged in but belongs to no organization. A fleet may have invited
+      // them (e.g. via the driver app, which never passes /dashboard) — answer
+      // that first, otherwise they'd set up a fleet of their own by mistake.
+      if ((await countPendingInvites(createAdminClient(), user.id)) > 0) redirect('/invites');
       redirect('/onboarding');
     }
     redirect('/login');

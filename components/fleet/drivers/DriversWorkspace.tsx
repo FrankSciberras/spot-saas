@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, useMemo, useState } from 'react';
+import { type CSSProperties, type ReactNode, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { fmtEUR, Sparkline } from '@/components/fleet/FleetCharts';
@@ -25,6 +25,8 @@ export interface DriverItem {
 interface Props {
   drivers: DriverItem[];
   canAdd: boolean;
+  /** Shown under the header — pending invitations to existing Rovora users. */
+  notice?: ReactNode;
 }
 
 const DOC_MAP: Record<DocState, { color: string; bg: string; glyph: string }> = {
@@ -44,7 +46,7 @@ function Avatar({ initials, color, size }: { initials: string; color: string; si
 
 const hasIssue = (d: DriverItem) => Object.values(d.docs).some((s) => s === 'missing' || s === 'expired');
 
-export default function DriversWorkspace({ drivers, canAdd }: Props) {
+export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'on' | 'off' | 'issues'>('all');
   const [search, setSearch] = useState('');
@@ -95,6 +97,8 @@ export default function DriversWorkspace({ drivers, canAdd }: Props) {
           </div>
         </div>
       </div>
+
+      {notice}
 
       <div style={st.statsRow} className="stats-row-mobile">
         <DriverStat label="Active fleet" value={counts.all} sub={`${counts.on} on shift now`} icon="driver" accent="var(--text-1)" />

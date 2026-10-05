@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { derivePeriodBounds, parseDate, toISODate } from '@/lib/utils/bookkeepingPeriods';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import InviteBanner from '@/components/shared/InviteBanner';
 import FleetDashboard, {
   type ExpiringDoc,
   type RecentShift,
@@ -24,6 +25,9 @@ export default async function FleetDashboardPage() {
 
   return (
     <FleetShell user={user} title="Dashboard">
+      <Suspense fallback={null}>
+        <InviteBanner userId={user.id} />
+      </Suspense>
       <Suspense fallback={<FleetDashboardSkeleton isAdmin={isAdmin} />}>
         <DashboardContent user={user} isAdmin={isAdmin} />
       </Suspense>

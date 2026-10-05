@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { getPlatformAdmin } from '@/lib/auth/platform';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { countPendingInvites } from '@/lib/invites';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +19,13 @@ export default async function DashboardResolver() {
 
   const session = await getSession();
   if (!session) {
-    // Authenticated but no fleet yet → onboarding; truly signed out → login.
+    // Authenticated but no fleet yet. If a fleet has invited them, answer that
+    // first — otherwise they'd set up a fleet of their own by mistake.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && (await countPendingInvites(createAdminClient(), user.id)) > 0) {
+      redirect('/invites');
+    }
     redirect('/onboarding');
   }
 

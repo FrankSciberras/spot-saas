@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
 import { setActiveOrgAction } from '@/lib/actions/org';
+import { ACTIVE_ORG_CHANGED_EVENT } from '@/components/driver/NativeBridge';
 import FleetIcon from './FleetIcon';
 import { useFleetTheme } from './FleetThemeRoot';
 
@@ -46,6 +47,8 @@ export default function FleetOrgSwitcher({
   const [mounted, setMounted] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const [pending, startTransition] = useTransition();
+  // Why a switch was refused (e.g. mid-shift); shown at the top of the menu.
+  const [switchError, setSwitchError] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
@@ -66,6 +69,7 @@ export default function FleetOrgSwitcher({
 
   const toggle = () => {
     if (!open) place();
+    setSwitchError('');
     setOpen((o) => !o);
   };
 
@@ -93,10 +97,17 @@ export default function FleetOrgSwitcher({
       setOpen(false);
       return;
     }
+    setSwitchError('');
     startTransition(async () => {
-      await setActiveOrgAction(orgId);
+      const res = await setActiveOrgAction(orgId);
+      if (res?.error) {
+        setSwitchError(res.error);
+        return;
+      }
       setOpen(false);
       onNavigate?.();
+      // Tells the driver app's bridge to hand over the new fleet's driver row.
+      window.dispatchEvent(new Event(ACTIVE_ORG_CHANGED_EVENT));
       router.refresh();
     });
   };
@@ -117,6 +128,7 @@ export default function FleetOrgSwitcher({
   const list = (
     <>
       <div style={s.menuLabel}>{memberships.length > 1 ? 'Your fleets' : 'Fleet'}</div>
+      {switchError && <div role="alert" style={s.switchError}>{switchError}</div>}
 
       {(memberships.length ? memberships : [{
         organization_id: user?.organization_id,
@@ -144,13 +156,18 @@ export default function FleetOrgSwitcher({
         );
       })}
 
-      <div style={s.divider} />
+      {/* Creating a fleet is an owner thing — meaningless in a driver's menu. */}
+      {user?.role === 'admin' && (
+        <>
+          <div style={s.divider} />
 
-      <div style={s.soonRow}>
-        <FleetIcon name="plus" size={15} stroke={2} />
-        <span style={{ flex: 1 }}>Add another fleet</span>
-        <span style={s.soonBadge}>Soon</span>
-      </div>
+          <div style={s.soonRow}>
+            <FleetIcon name="plus" size={15} stroke={2} />
+            <span style={{ flex: 1 }}>Add another fleet</span>
+            <span style={s.soonBadge}>Soon</span>
+          </div>
+        </>
+      )}
     </>
   );
 
@@ -320,6 +337,15 @@ const s: Record<string, CSSProperties> = {
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
     color: 'var(--text-3)',
+  },
+  switchError: {
+    margin: '0 6px 6px',
+    padding: '8px 10px',
+    borderRadius: 8,
+    background: 'var(--warn-soft)',
+    color: 'var(--text-1)',
+    fontSize: 12.5,
+    lineHeight: 1.45,
   },
   orgRow: {
     display: 'flex',

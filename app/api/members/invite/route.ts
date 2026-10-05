@@ -5,6 +5,7 @@ import { checkCapacityToAdd } from '@/lib/billing/fleet-billing';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
 import { appUrl } from '@/lib/urls';
+import { createPendingInvite, sanitizeDriverDetails } from '@/lib/invites';
 import type { UserRole } from '@/lib/types/database';
 
 /**
@@ -16,7 +17,9 @@ import type { UserRole } from '@/lib/types/database';
  *      already resolved per active org by getSession / Phase 4b).
  *   2. Create the auth identity via Supabase invite (sends a "set your password"
  *      email). If the email already belongs to an existing user (e.g. they work
- *      at another fleet), reuse that user — no second account.
+ *      at another fleet), they are NOT added: a pending invite is recorded and
+ *      emailed instead, and they join only if they accept (lib/invites,
+ *      lib/actions/invites). Response: { pending: true }, no userId.
  *   3. Ensure a public.users profile row exists (memberships FK requires it).
  *   4. Insert a membership into session.organization_id with the requested role.
  *      RLS ("Org admins can insert memberships") would also enforce this, but we
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
     // the invite link WITHOUT sending anything; we deliver it via Resend below.
     let userId: string | null = null;
     let inviteLink: string | null = null;
+    let existingAccount = false;
 
     const { data: invited, error: inviteError } = await admin.auth.admin.generateLink({
       type: 'invite',
@@ -92,13 +96,14 @@ export async function POST(request: Request) {
       userId = invited.user.id;
       inviteLink = invited.properties?.action_link ?? null;
     } else if (inviteError) {
-      // Already registered → reuse the existing user (they may work at another
-      // fleet). Look them up by email rather than failing the whole invite.
+      // Already registered (they may work at another fleet) → find their account;
+      // step 1a invites them rather than adding them.
       const alreadyExists = /already|registered|exists/i.test(inviteError.message);
       if (!alreadyExists) {
         console.error('invite generateLink failed:', inviteError);
         return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 });
       }
+      existingAccount = true;
       const { data: existingProfile } = await admin
         .from('users')
         .select('id')
@@ -115,6 +120,74 @@ export async function POST(request: Request) {
 
     if (!userId) {
       return NextResponse.json({ error: 'Could not resolve the invited user' }, { status: 500 });
+    }
+
+    // --- 1a. Existing account: never add them without their say-so -----------
+    // A brand-new person consents by accepting the invite email below. Someone
+    // who already has an account (usually a driver at another fleet) used to be
+    // dropped straight into this fleet with no email and no way to refuse.
+    if (existingAccount) {
+      const { data: existingMembership } = await admin
+        .from('memberships')
+        .select('role')
+        .eq('organization_id', session.organization_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existingMembership) {
+        // Already in this fleet. Their role is left alone — re-adding the owner
+        // as a "driver" used to overwrite their membership and demote them.
+        if (role !== 'driver') {
+          return NextResponse.json({ error: 'This person is already a member of your fleet.' }, { status: 409 });
+        }
+        const { data: existingDriver } = await admin
+          .from('drivers')
+          .select('id')
+          .eq('organization_id', session.organization_id)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (existingDriver) {
+          return NextResponse.json({ error: 'This person is already in your drivers list.' }, { status: 409 });
+        }
+        // A member without a driver profile (e.g. an owner who also drives):
+        // hand back their id so the caller creates the driver record.
+        return NextResponse.json({ data: { userId } }, { status: 200 });
+      }
+
+      // The invite row references public.users — make sure their profile exists
+      // (it may not if they signed up but never finished onboarding).
+      await admin
+        .from('users')
+        .upsert({ id: userId, email, full_name: fullName, role }, { onConflict: 'id', ignoreDuplicates: true });
+
+      const result = await createPendingInvite(admin, {
+        organizationId: session.organization_id,
+        organizationName: session.organization_name || appName(),
+        userId,
+        email,
+        fullName,
+        role,
+        driverDetails: role === 'driver' ? sanitizeDriverDetails(body.driver_details) : {},
+        invitedBy: session.id,
+      });
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status });
+      }
+
+      const actor = await getAuditActor(session.id);
+      await createAuditLogEntry({
+        actor,
+        organizationId: session.organization_id,
+        action: 'create',
+        entityType: 'membership',
+        entityId: userId,
+        summary: `Invited ${email} as ${role} (existing account — awaiting their acceptance)`,
+        details: { email, role, full_name: fullName, pending: true },
+      });
+
+      // `pending` tells the form not to create the driver record: that happens
+      // when (if) they accept.
+      return NextResponse.json({ data: { userId: null, pending: true } }, { status: 202 });
     }
 
     // --- 1b. Deliver the invite email through Resend (new users only) ---------

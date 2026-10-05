@@ -100,11 +100,15 @@ export default function StaffForm({ staff, mode, existingAccounts = [] }: StaffF
           throw new Error(data.error || 'Failed to invite staff member');
         }
 
-        setSuccess('Staff invitation sent!');
+        setSuccess(
+          data.data?.pending
+            ? `${formData.email} already has a Rovora account, so we’ve sent them an invitation. They’ll join your team once they accept.`
+            : 'Staff invitation sent!'
+        );
         setTimeout(() => {
           router.push('/fleet/staff');
           router.refresh();
-        }, 1000);
+        }, data.data?.pending ? 4000 : 1000);
       } else {
         // Update existing staff
         const updateData: Record<string, string | undefined> = {

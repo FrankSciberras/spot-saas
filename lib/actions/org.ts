@@ -16,6 +16,7 @@ import {
   setActiveOrgCookie,
 } from '@/lib/auth/org-context';
 import { FLEET_MODULES } from '@/lib/modules/catalog';
+import { findOpenShift } from '@/lib/auth/open-shift';
 import type { Plan } from '@/lib/billing/plans';
 import { getPlans } from '@/lib/billing/plans-data';
 import { getPlanDef, hasStripeTarget } from '@/lib/billing/plans';
@@ -28,7 +29,7 @@ import { sendWelcomeEmail } from '@/lib/email/welcome';
  * the target org (defence in depth — RLS would block cross-org reads anyway),
  * persists the choice to the active_org cookie, then refreshes.
  */
-export async function setActiveOrgAction(organizationId: string): Promise<void> {
+export async function setActiveOrgAction(organizationId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,14 +37,26 @@ export async function setActiveOrgAction(organizationId: string): Promise<void> 
   if (!user) redirect('/login');
 
   const memberships = await loadMemberships(supabase, user.id);
-  const isMember = memberships.some((m) => m.organization_id === organizationId);
-  if (!isMember) {
+  const target = memberships.find((m) => m.organization_id === organizationId);
+  if (!target) {
     // Not a member — ignore silently rather than leak which orgs exist.
-    return;
+    return {};
+  }
+
+  // Switching to another fleet AS A DRIVER mid-shift would hand the phone that
+  // fleet's driver row, sending this shift's location to the wrong fleet.
+  // Switching to a fleet they manage leaves tracking alone, so that's fine.
+  if (target.role === 'driver') {
+    const open = await findOpenShift(user.id);
+    if (open && open.organizationId !== organizationId) {
+      const fleet = memberships.find((m) => m.organization_id === open.organizationId)?.organization_name;
+      return { error: `You’re on a shift with ${fleet || 'another fleet'}. End that shift before switching fleets.` };
+    }
   }
 
   await setActiveOrgCookie(organizationId);
   revalidatePath('/', 'layout');
+  return {};
 }
 
 /**

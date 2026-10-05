@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { pendingInviteItems } from '@/lib/invites';
+import PendingInvites from '@/components/fleet/PendingInvites';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import StaffWorkspace, { type StaffItem, type RoleBreakdown, type StaffStatus } from '@/components/fleet/staff/StaffWorkspace';
@@ -92,5 +94,10 @@ async function StaffContent({ user }: { user: FleetUser }) {
   }
   const roles: RoleBreakdown[] = Array.from(roleMap.entries()).map(([role, v]) => ({ role, n: v.n, tone: v.tone, perms: v.perms }));
 
-  return <StaffWorkspace members={members} roles={roles} canManage={isAdmin} />;
+  // Admins also see invitations still waiting on people who already had an account.
+  const invites = isAdmin
+    ? await pendingInviteItems(createAdminClient(), user.organization_id, ['staff', 'admin'])
+    : [];
+
+  return <StaffWorkspace members={members} roles={roles} canManage={isAdmin} notice={<PendingInvites invites={invites} />} />;
 }

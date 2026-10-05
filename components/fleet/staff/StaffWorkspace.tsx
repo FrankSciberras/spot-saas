@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, useMemo, useState } from 'react';
+import { type CSSProperties, type ReactNode, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
 
@@ -29,6 +29,8 @@ interface Props {
   members: StaffItem[];
   roles: RoleBreakdown[];
   canManage: boolean;
+  /** Shown under the header — pending invitations to existing Rovora users. */
+  notice?: ReactNode;
 }
 
 const STAFF_STATUS: Record<StaffStatus, { label: string; color: string; bg: string; dot: string }> = {
@@ -69,7 +71,7 @@ function StaffStat({ label, value, sub, icon, accent }: { label: string; value: 
   );
 }
 
-export default function StaffWorkspace({ members, roles, canManage }: Props) {
+export default function StaffWorkspace({ members, roles, canManage, notice }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'active' | 'invited'>('all');
   const [search, setSearch] = useState('');
@@ -112,6 +114,8 @@ export default function StaffWorkspace({ members, roles, canManage }: Props) {
           </div>
         </div>
       </div>
+
+      {notice}
 
       <div style={st.statsRow} className="stats-row-mobile">
         <StaffStat label="Team members" value={counts.all} sub="back-office staff" icon="staff" accent="var(--text-1)" />

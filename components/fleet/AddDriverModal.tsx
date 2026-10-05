@@ -36,21 +36,33 @@ export default function AddDriverModal({ open, onClose, onCreated }: AddDriverMo
   const [status, setStatus] = useState('active');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when the email belonged to an existing Rovora account: they were sent an
+  // invitation to accept, and no driver record exists until they do.
+  const [invitedNotice, setInvitedNotice] = useState<string | null>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
-  // Reset + focus when opened; close on Escape.
+  // Reset + focus when opened. Only on `open` — this used to share the Escape
+  // effect below, so every save finishing (loading → false) wiped the error or
+  // invitation message the save had just set.
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setInvitedNotice(null);
     const t = setTimeout(() => firstFieldRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // Close on Escape (not mid-save).
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) onClose(); };
     document.addEventListener('keydown', onKey);
-    return () => { clearTimeout(t); document.removeEventListener('keydown', onKey); };
+    return () => document.removeEventListener('keydown', onKey);
   }, [open, loading, onClose]);
 
   const reset = () => {
     setFullName(''); setEmail(''); setPhone('');
-    setEmployment('full_time'); setStatus('active'); setError(null);
+    setEmployment('full_time'); setStatus('active'); setError(null); setInvitedNotice(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,10 +82,24 @@ export default function AddDriverModal({ open, onClose, onCreated }: AddDriverMo
       const inviteRes = await fetch('/api/members/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), full_name: fullName.trim(), role: 'driver' }),
+        body: JSON.stringify({
+          email: email.trim(),
+          full_name: fullName.trim(),
+          role: 'driver',
+          // Kept on the invitation if they already have an account, and used to
+          // create their driver record when they accept.
+          driver_details: { phone: phone.trim(), employment_type: employment, status },
+        }),
       });
       const inviteData = await inviteRes.json();
       if (!inviteRes.ok) throw new Error(inviteData.error || 'Failed to invite driver');
+      if (inviteData?.data?.pending) {
+        setInvitedNotice(
+          `${email.trim()} already has a Rovora account, so we’ve sent them an invitation to join your fleet. ` +
+            'They’ll appear in your drivers list once they accept.'
+        );
+        return;
+      }
       const userId: string | undefined = inviteData?.data?.userId;
       if (!userId) throw new Error('Could not resolve the invited user');
 
@@ -131,6 +157,16 @@ export default function AddDriverModal({ open, onClose, onCreated }: AddDriverMo
           </button>
         </div>
 
+        {invitedNotice ? (
+          <div style={st.body}>
+            <div style={st.invited} role="status">{invitedNotice}</div>
+            <div style={st.actions}>
+              <button type="button" className="btn btn-primary" onClick={() => { reset(); onClose(); }}>
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} style={st.body}>
           {error && <div style={st.error}>{error}</div>}
 
@@ -190,6 +226,7 @@ export default function AddDriverModal({ open, onClose, onCreated }: AddDriverMo
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
@@ -264,6 +301,15 @@ const st: Record<string, CSSProperties> = {
     fontSize: 13.5,
     fontFamily: 'inherit',
     outline: 'none',
+  },
+  invited: {
+    padding: '12px 14px',
+    borderRadius: 10,
+    background: 'var(--pos-soft)',
+    border: '1px solid var(--accent-line)',
+    color: 'var(--text-1)',
+    fontSize: 13.5,
+    lineHeight: 1.5,
   },
   error: {
     padding: '10px 12px',

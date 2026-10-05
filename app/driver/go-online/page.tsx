@@ -227,6 +227,18 @@ export default function GoOnlinePage() {
         throw new Error(msg);
       }
 
+      // One open shift across ALL their fleets: the phone sends location for the
+      // open shift's fleet, so a second shift elsewhere would be tracked wrong.
+      const meNow = await fetch('/api/auth/user', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      const elsewhere = meNow?.open_shift;
+      if (elsewhere && elsewhere.driver_id !== driverInfo.id) {
+        throw new Error(
+          `You’re still on a shift with ${elsewhere.organization_name || 'another fleet'}. End that shift before starting one here.`
+        );
+      }
+
       // One open shift at a time — a second "Go online" on top of an unfinished
       // shift used to create a duplicate. (The database enforces this too.)
       const { data: openShift } = await supabase
