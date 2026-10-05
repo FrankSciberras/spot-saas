@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import type { Map as LeafletMap, Marker, Circle, Polyline } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { diagnoseNotSharing } from '@/lib/tracking/sharing-diagnosis';
+import { loadSharingInfo, type SharingInfo } from '@/lib/tracking/sharing-info';
 import 'leaflet/dist/leaflet.css';
 
 export interface PositionItem {
@@ -58,6 +60,8 @@ interface TrackingWorkspaceProps {
   canManage: boolean;
   initialPositions: PositionItem[];
   onShift: OnShiftItem[];
+  /** App status + last tracking event per on-shift driver — explains "not sharing". */
+  initialSharingInfo: SharingInfo;
   /** The fleet's "Live location during shifts" setting — off = no "not sharing" flags. */
   expectSharing: boolean;
   initialZones: ZoneItem[];
@@ -139,6 +143,7 @@ export default function TrackingWorkspace({
   canManage,
   initialPositions,
   onShift: initialOnShift,
+  initialSharingInfo,
   expectSharing,
   initialZones,
   initialActivity,
@@ -355,6 +360,7 @@ export default function TrackingWorkspace({
   }, [supabase, orgId]);
 
   const [onShift, setOnShift] = useState<OnShiftItem[]>(initialOnShift);
+  const [sharingInfo, setSharingInfo] = useState<SharingInfo>(initialSharingInfo);
   const refetchOnShift = useCallback(async () => {
     const { data } = await supabase
       .from('driver_shifts')
@@ -365,13 +371,14 @@ export default function TrackingWorkspace({
     if (!data) return;
     type Row = { driver_id: string; start_time: string; drivers: DriverRel | DriverRel[] | null };
     type DriverRel = { full_name: string | null };
-    setOnShift(
-      (data as unknown as Row[]).map((s) => ({
-        driverId: s.driver_id,
-        name: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.full_name || 'Unknown driver',
-        startTime: s.start_time,
-      }))
-    );
+    const next = (data as unknown as Row[]).map((s) => ({
+      driverId: s.driver_id,
+      name: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.full_name || 'Unknown driver',
+      startTime: s.start_time,
+    }));
+    setOnShift(next);
+    // Keep the "why not sharing" reasons current as drivers open the app.
+    setSharingInfo(await loadSharingInfo(supabase, orgId, next));
   }, [supabase, orgId]);
 
   // Polling: clock tick + activity + on-shift refresh + positions fallback if realtime is down.
@@ -720,16 +727,32 @@ export default function TrackingWorkspace({
                 <div style={st.notSharingTitle}>
                   ⚠ On shift, not sharing location ({notSharing.length})
                 </div>
-                {notSharing.map((d) => (
-                  <div key={d.driverId} style={st.notSharingRow}>
-                    <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span> · shift started{' '}
-                    {agoLabel(d.startTime, now)}
-                  </div>
-                ))}
-                <div style={st.notSharingHint}>
-                  Their phone may be blocking location for the Rovora Driver app, or they started the
-                  shift from a web browser.
-                </div>
+                {notSharing.map((d) => {
+                  const pos = positions.get(d.driverId);
+                  const why = diagnoseNotSharing({
+                    shiftStart: d.startTime,
+                    app: sharingInfo.app[d.driverId],
+                    lastTrackingEvent: sharingInfo.lastEvent[d.driverId],
+                    position: pos
+                      ? { recordedAt: pos.recordedAt, gpsEnabled: pos.gpsEnabled, locationPermission: pos.locationPermission }
+                      : undefined,
+                    now,
+                  });
+                  return (
+                    <div key={d.driverId} style={st.notSharingRow}>
+                      <div>
+                        <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span> · shift started{' '}
+                        {agoLabel(d.startTime, now)}
+                      </div>
+                      <div style={{ ...st.whyTitle, color: why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--text-1)' }}>
+                        {why.title}
+                      </div>
+                      {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
+                      <div style={st.whyFix}>→ {why.fix}</div>
+                      {why.meta && <div style={st.whyMeta}>{why.meta}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {list.length === 0 && (
@@ -1066,8 +1089,11 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1.5,
   },
   notSharingTitle: { color: 'var(--warn, #f5b54a)', fontWeight: 600, marginBottom: 4 },
-  notSharingRow: { padding: '1px 0' },
-  notSharingHint: { marginTop: 6, fontSize: 11.5, color: 'var(--text-3)' },
+  notSharingRow: { padding: '8px 0', borderTop: '1px solid var(--line-1)' },
+  whyTitle: { marginTop: 3, fontWeight: 600, fontSize: 12.5 },
+  whyDetail: { marginTop: 2, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.45 },
+  whyFix: { marginTop: 3, fontSize: 12, color: 'var(--text-1)', lineHeight: 1.45 },
+  whyMeta: { marginTop: 3, fontSize: 11, color: 'var(--text-3)' },
   row: {
     display: 'flex',
     alignItems: 'center',

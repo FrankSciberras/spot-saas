@@ -3,7 +3,8 @@ import { ActivityIndicator, AppState, BackHandler, Platform, StyleSheet, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import LocationAccessModal, { type ModalReason } from '../components/LocationAccessModal';
-import { checkLocationAccess, fixLocationAccess, problemMessage } from '../lib/locationAccess';
+import { checkLocationAccess, fixLocationAccess, problemMessage, type LocationProblem } from '../lib/locationAccess';
+import appConfig from '../app.json';
 import { supabase } from '../lib/supabase';
 import {
   isTracking,
@@ -52,6 +53,11 @@ export default function PortalScreen() {
   // the session. Off = no on-shift reminders (the portal also won't start
   // sharing at shift start). Defaults to on for older portal builds.
   const liveTrackingRef = useRef(true);
+  // Sent with the status to the portal, which passes it to the fleet's Live
+  // Map so they can see WHY a driver isn't sharing: the last location check's
+  // result, and when the driver last tapped "Not now" (cleared once sharing).
+  const lastAccessRef = useRef<{ access: LocationProblem | 'ok'; at: string } | null>(null);
+  const promptDismissedAtRef = useRef<string | null>(null);
 
   const showModal = useCallback((reason: ModalReason | null) => {
     modalReasonRef.current = reason;
@@ -63,6 +69,11 @@ export default function PortalScreen() {
       tracking: await isTracking(),
       lastSentAt: (await lastSentAt())?.toISOString() ?? null,
       error: extraError || (await lastSendError()),
+      access: lastAccessRef.current?.access ?? null,
+      accessCheckedAt: lastAccessRef.current?.at ?? null,
+      promptDismissedAt: promptDismissedAtRef.current,
+      appVersion: appConfig.expo.version,
+      platform: Platform.OS,
     };
     // Double-stringify: the web side receives a JSON string in event.detail.
     webViewRef.current?.injectJavaScript(
@@ -138,6 +149,7 @@ export default function PortalScreen() {
     const ctx = await resolveContext();
     if (typeof ctx === 'string') return void sendStatus(ctx);
     await startTracking(ctx);
+    promptDismissedAtRef.current = null;
     if (modalReasonRef.current === 'sharing_off') showModal(null);
     void sendStatus();
   }, [resolveContext, sendStatus, showModal]);
@@ -150,9 +162,11 @@ export default function PortalScreen() {
     verifyingRef.current = true;
     try {
       const problem = await checkLocationAccess();
+      lastAccessRef.current = { access: problem ?? 'ok', at: new Date().toISOString() };
       if (problem) {
         pendingStartRef.current = true;
         showModal(problem);
+        void sendStatus();
         return;
       }
       pendingStartRef.current = false;
@@ -180,6 +194,8 @@ export default function PortalScreen() {
       const ctx = await resolveContext();
       if (typeof ctx === 'string' || !ctx.shiftId) return;
       const problem = await checkLocationAccess();
+      lastAccessRef.current = { access: problem ?? 'ok', at: new Date().toISOString() };
+      void sendStatus();
       // A start (or the modal) may have begun while we were checking.
       if (modalReasonRef.current || verifyingRef.current || fixingRef.current || (await isTracking())) return;
       pendingStartRef.current = problem !== null;
@@ -189,7 +205,7 @@ export default function PortalScreen() {
     } finally {
       nagRunningRef.current = false;
     }
-  }, [resolveContext, showModal]);
+  }, [resolveContext, sendStatus, showModal]);
 
   const handleFix = useCallback(async () => {
     const reason = modalReasonRef.current;
@@ -210,6 +226,7 @@ export default function PortalScreen() {
 
   const handleNotNow = useCallback(() => {
     const reason = modalReasonRef.current;
+    promptDismissedAtRef.current = new Date().toISOString();
     pendingStartRef.current = false;
     snoozeUntilRef.current = Date.now() + REMIND_SNOOZE_MS;
     showModal(null);

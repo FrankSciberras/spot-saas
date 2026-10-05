@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
+import { loadSharingInfo } from '@/lib/tracking/sharing-info';
 import TrackingWorkspace, {
   type ActivityItem,
   type OnShiftItem,
@@ -134,6 +135,9 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
     name: nameOf(s.drivers),
     startTime: s.start_time,
   }));
+  // Why the on-shift drivers who aren't sharing aren't (the Live Map explains it).
+  const sharingInfo = await loadSharingInfo(supabase, orgId, onShift);
+
   const zoneNameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.name || 'zone';
 
   const activity: ActivityItem[] = [
@@ -183,6 +187,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       canManage={canManage}
       initialPositions={positions}
       onShift={onShift}
+      initialSharingInfo={sharingInfo}
       expectSharing={liveTracking.trackOnShift}
       initialZones={zones}
       initialActivity={activity}
