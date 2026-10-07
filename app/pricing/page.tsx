@@ -1,4 +1,4 @@
-import { marketingMetadata, SITE_URL } from '@/lib/seo';
+import { marketingMetadata, breadcrumbJsonLd, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, CtaBand } from '@/components/marketing/feature/Sections';
 import PricingPlans from '@/components/marketing/PricingPlans';
@@ -41,13 +41,10 @@ export default async function PricingPage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
-          { '@type': 'ListItem', position: 2, name: 'Pricing', item: `${SITE_URL}/pricing` },
-        ],
-      },
+      breadcrumbJsonLd([{ name: 'Pricing', path: '/pricing' }]),
+      // The page that actually lists the prices carries the Offer markup too.
+      organizationJsonLd(),
+      softwareApplicationJsonLd(plans),
       {
         '@type': 'FAQPage',
         mainEntity: LANDING_FAQ.map((item) => ({

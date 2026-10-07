@@ -35,7 +35,7 @@ export const BLOG_POSTS: BlogPost[] = [
     title: 'Fleet Maintenance Software: 2026 Buyer’s Guide',
     heading: 'Fleet maintenance software, without the enterprise bloat',
     description:
-      'What fleet maintenance software actually does, why servicing by mileage beats servicing by memory, and how small fleets pick a system they will still use in month three.',
+      'What fleet maintenance software does, why servicing by mileage beats servicing by memory, and how small fleets pick a system they’ll still use in month three.',
     category: 'Maintenance',
     datePublished: '2026-07-29',
     dateHuman: '29 July 2026',
@@ -190,6 +190,7 @@ export function postMetadata(post: BlogPost): Metadata {
       ...base.openGraph,
       type: 'article',
       publishedTime: post.datePublished,
+      modifiedTime: post.dateModified ?? post.datePublished,
       authors: ['Rovora'],
     },
   };

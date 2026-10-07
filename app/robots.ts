@@ -18,6 +18,12 @@ const PRIVATE_PATHS = [
 ];
 
 /**
+ * Public files that live under a disallowed prefix. The more specific allow
+ * wins over `/api/`, so the developer docs' OpenAPI link isn't a dead end.
+ */
+const PUBLIC_EXCEPTIONS = ['/', '/api/v1/openapi.json'];
+
+/**
  * Allow crawling of public marketing pages; keep the authenticated app private.
  *
  * AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) are
@@ -30,7 +36,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        allow: PUBLIC_EXCEPTIONS,
         disallow: PRIVATE_PATHS,
       },
       {
@@ -42,11 +48,14 @@ export default function robots(): MetadataRoute.Robots {
           'ChatGPT-User',
           'ClaudeBot',
           'Claude-Web',
+          'Claude-User',
+          'Claude-SearchBot',
           'PerplexityBot',
+          'Perplexity-User',
           'Google-Extended',
           'Applebot-Extended',
         ],
-        allow: '/',
+        allow: PUBLIC_EXCEPTIONS,
         disallow: PRIVATE_PATHS,
       },
     ],

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import FeatureShell from '../feature/FeatureShell';
 import { CtaBand } from '../feature/Sections';
 import { legalStyles as s } from '../legal/LegalLayout';
-import { SITE_URL, OG_IMAGE } from '@/lib/seo';
+import { SITE_URL, OG_IMAGE, ORGANIZATION_ID, breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo';
 import { BLOG_POSTS, blogHref, type BlogPost } from './posts';
 import styles from './blog.module.css';
 
@@ -14,34 +14,27 @@ export interface PostSection {
   body: ReactNode;
 }
 
-/** Article + BreadcrumbList structured data for a post. */
+/** BlogPosting + BreadcrumbList structured data for a post. */
 function buildArticleJsonLd(post: BlogPost) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
+      organizationJsonLd(),
       {
-        '@type': 'Article',
+        '@type': 'BlogPosting',
         headline: post.title,
         description: post.description,
         datePublished: post.datePublished,
         dateModified: post.dateModified ?? post.datePublished,
         image: `${SITE_URL}${OG_IMAGE.url}`,
         mainEntityOfPage: `${SITE_URL}${blogHref(post.slug)}`,
-        author: { '@type': 'Organization', name: 'Rovora', url: SITE_URL },
-        publisher: {
-          '@type': 'Organization',
-          name: 'Rovora',
-          logo: { '@type': 'ImageObject', url: `${SITE_URL}/icons/apple-touch-icon.png` },
-        },
+        author: { '@id': ORGANIZATION_ID },
+        publisher: { '@id': ORGANIZATION_ID },
       },
-      {
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
-          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
-          { '@type': 'ListItem', position: 3, name: post.heading, item: `${SITE_URL}${blogHref(post.slug)}` },
-        ],
-      },
+      breadcrumbJsonLd([
+        { name: 'Blog', path: '/blog' },
+        { name: post.heading, path: blogHref(post.slug) },
+      ]),
     ],
   };
 }
@@ -52,7 +45,11 @@ function buildArticleJsonLd(post: BlogPost) {
  * structured data, related-post links and the trial CTA band.
  */
 export default function BlogLayout({ post, sections }: { post: BlogPost; sections: PostSection[] }) {
-  const related = BLOG_POSTS.filter((p) => p.slug !== post.slug).slice(0, 3);
+  // The next three posts in the catalogue (wrapping around), so every post is
+  // linked from some others — always taking the first three left the rest
+  // without a single internal link from another article.
+  const at = BLOG_POSTS.findIndex((p) => p.slug === post.slug);
+  const related = [1, 2, 3].map((k) => BLOG_POSTS[(at + k) % BLOG_POSTS.length]).filter((p) => p.slug !== post.slug);
   return (
     <FeatureShell>
       <script
@@ -70,8 +67,16 @@ export default function BlogLayout({ post, sections }: { post: BlogPost; section
           <p className={s.lede}>{post.description}</p>
           <div className={s.meta}>
             <span className={s.metaPill}>
-              <span className="dot" /> {post.dateHuman}
+              <span className="dot" /> <time dateTime={post.datePublished}>{post.dateHuman}</time>
             </span>
+            {post.dateModified && post.dateModified !== post.datePublished && (
+              <span className={s.metaPill}>
+                Updated{' '}
+                <time dateTime={post.dateModified}>
+                  {new Date(post.dateModified).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </time>
+              </span>
+            )}
             <span className={s.metaPill}>{post.readMinutes} min read</span>
             <span className={s.metaPill}>By the Rovora team</span>
           </div>

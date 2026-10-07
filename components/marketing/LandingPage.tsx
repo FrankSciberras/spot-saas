@@ -23,6 +23,7 @@ const hasHeroVideo = existsSync(join(process.cwd(), 'public', 'videos', 'hero.mp
 import ReplacesSection from './ReplacesSection';
 import FeaturesAccordion from './FeaturesAccordion';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
+import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import { Icon, type IconName } from './feature/icons';
 import { markFontSize } from '@/lib/integrations/catalog';
 
@@ -85,8 +86,6 @@ export const LANDING_FAQ: { q: string; a: string }[] = [
   },
 ];
 
-const SITE_URL = 'https://rovora.eu';
-
 /** Structured data for SEO — WebSite, Organization, FAQPage and the priced Product offers. */
 function buildJsonLd(plans: PlanDef[]) {
   const webSite = {
@@ -96,19 +95,6 @@ function buildJsonLd(plans: PlanDef[]) {
     url: SITE_URL,
   };
 
-  const organization = {
-    '@type': 'Organization',
-    // Stable @id so other nodes (offers, video publisher) can reference this
-    // Organization instead of repeating it or emitting a dangling reference.
-    '@id': `${SITE_URL}/#organization`,
-    name: 'Rovora',
-    url: SITE_URL,
-    logo: `${SITE_URL}/icons/apple-touch-icon.png`,
-    description:
-      'Fleet management software for taxi & rideshare operators — vehicles, maintenance, damage, drivers, shifts and driver pay in one dashboard.',
-    email: 'hello@rovora.eu',
-  };
-
   const faqPage = {
     '@type': 'FAQPage',
     mainEntity: LANDING_FAQ.map((item) => ({
@@ -116,39 +102,6 @@ function buildJsonLd(plans: PlanDef[]) {
       name: item.q,
       acceptedAnswer: { '@type': 'Answer', text: item.a },
     })),
-  };
-
-  // SoftwareApplication (not Product) — Product markup with offers makes Google
-  // validate it as a physical merchant listing (image/shipping/returns required).
-  const softwareApp = {
-    '@type': 'SoftwareApplication',
-    name: 'Rovora Fleet Management',
-    description:
-      'All-in-one taxi & rideshare fleet management — vehicle upkeep, maintenance and damage tracking, rosters, live shifts, driver pay and compliance alerts.',
-    applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web',
-    image: `${SITE_URL}/og-image.png`,
-    brand: { '@type': 'Brand', name: 'Rovora' },
-    offers: plans
-      .filter((p) => p.priceAmount > 0)
-      .map((p) => ({
-        '@type': 'Offer',
-        name: p.name,
-        priceCurrency: 'EUR',
-        // A bare `price` reads as a one-off charge, which contradicts the "/ mo"
-        // the page itself renders. UnitPriceSpecification states the billing
-        // period explicitly so the markup and the visible price agree.
-        priceSpecification: {
-          '@type': 'UnitPriceSpecification',
-          price: p.priceAmount,
-          priceCurrency: 'EUR',
-          billingIncrement: 1,
-          unitCode: 'MON',
-        },
-        url: `${SITE_URL}/pricing`,
-        availability: 'https://schema.org/InStock',
-        seller: { '@id': `${SITE_URL}/#organization` },
-      })),
   };
 
   // The homepage embeds a product demo (see <LiteYouTube id="LEqoWWGHekU" />).
@@ -165,12 +118,12 @@ function buildJsonLd(plans: PlanDef[]) {
     embedUrl: 'https://www.youtube.com/embed/LEqoWWGHekU',
     contentUrl: 'https://www.youtube.com/watch?v=LEqoWWGHekU',
     uploadDate: '2026-07-10T02:14:15-07:00',
-    publisher: { '@id': `${SITE_URL}/#organization` },
+    publisher: { '@id': ORGANIZATION_ID },
   };
 
   return {
     '@context': 'https://schema.org',
-    '@graph': [webSite, organization, faqPage, softwareApp, video],
+    '@graph': [webSite, organizationJsonLd(), faqPage, softwareApplicationJsonLd(plans), video],
   };
 }
 
