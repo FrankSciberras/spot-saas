@@ -56,6 +56,7 @@ interface Conversion {
 interface Dashboard {
   kpis: { current: Totals; previous: Totals };
   series: SeriesPoint[];
+  channel_series: { t: string; name: string; visitors: number }[];
   channels: Row[];
   sources: Row[];
   referrers: Row[];
@@ -704,6 +705,391 @@ function ConversionsTable({ rows, orgs }: { rows: Conversion[]; orgs: Dashboard[
   );
 }
 
+// ── What to focus on: plain-language suggestions from this period's numbers ──
+interface Insight {
+  id: string;
+  tone: 'win' | 'opportunity' | 'fix' | 'tip';
+  title: string;
+  body: string;
+  score: number;
+  filter?: [string, string];
+}
+
+/** What to do more of, per channel, when that channel converts well. */
+const CHANNEL_TIP: Record<string, string> = {
+  'AI Assistants': 'Get cited more: keep pricing and features in plain text, answer “best fleet software for…” questions on the blog, and get listed on the comparison and review sites assistants quote.',
+  'Organic Search': 'Write more pages like your best search landing pages, aimed at “fleet / taxi software + Malta” style searches.',
+  'Paid Search': 'It pays back better than average — move ad budget towards it.',
+  'Organic Social': 'Post more of what works there, and pin the best-performing post.',
+  'Paid Social': 'Scale the winning ads.',
+  Email: 'Email more often — your list converts.',
+  Referral: 'Ask that site for more coverage, and pitch similar sites.',
+  Direct: 'People already know you — word of mouth and offline are working; ask happy customers for referrals.',
+  Video: 'Make more video.',
+};
+
+const TONE: Record<Insight['tone'], { label: string; icon: string; color: string; bg: string }> = {
+  win: { label: 'Working', icon: 'check', color: 'var(--pos)', bg: 'var(--pos-soft)' },
+  opportunity: { label: 'Opportunity', icon: 'arrow-up', color: 'var(--accent)', bg: 'var(--accent-soft)' },
+  fix: { label: 'Fix', icon: 'warning', color: 'var(--warn)', bg: 'var(--warn-soft)' },
+  tip: { label: 'Tip', icon: 'info', color: 'var(--text-2)', bg: 'var(--bg-3)' },
+};
+
+function buildInsights(d: Dashboard, compare: string): Insight[] {
+  const out: Insight[] = [];
+  const cur = d.kpis.current;
+  const prev = d.kpis.previous;
+  const visitors = cur.visitors;
+  if (visitors < 20) return out;
+  const avg = ratio(cur.signups, visitors);
+  const share = (n: number) => ratio(n, visitors);
+  const conv = (r: Row) => ratio(r.signups ?? 0, r.visitors);
+
+  // Traffic trend.
+  if (prev.visitors >= 30) {
+    const change = (cur.visitors - prev.visitors) / prev.visitors;
+    if (change <= -0.2) {
+      out.push({ id: 'traffic-down', tone: 'fix', score: 85, title: `Traffic is down ${Math.round(-change * 100)}% vs ${compare}`,
+        body: 'Filter by your biggest channels below to see which one fell, then check what changed there (rankings, ads paused, fewer posts).' });
+    } else if (change >= 0.25 && d.channels[0]) {
+      out.push({ id: 'traffic-up', tone: 'win', score: 28, title: `Traffic is up ${Math.round(change * 100)}% vs ${compare}`,
+        body: `${d.channels[0].name} brought the most visitors (${fmtPct(share(d.channels[0].visitors))}). Keep doing what's driving it.` });
+    }
+  }
+
+  // Sources that punch above — or below — their weight.
+  if (cur.signups >= 3 && avg > 0) {
+    const strong = d.sources
+      .filter((s) => s.visitors >= 25 && (s.signups ?? 0) >= 2 && conv(s) >= 1.5 * avg)
+      .sort((a, b) => conv(b) * Math.log(b.visitors) - conv(a) * Math.log(a.visitors));
+    // Best source per channel, so two AI assistants don't repeat the same advice.
+    const seen = new Set<string>();
+    const perChannel = strong.filter((s) => !seen.has(s.extra ?? s.name) && seen.add(s.extra ?? s.name));
+    for (const s of perChannel.slice(0, 2)) {
+      const x = conv(s) / avg;
+      out.push({ id: `src-strong-${s.name}`, tone: 'opportunity', score: 70 + Math.min(x, 6) * 3,
+        title: `${s.name} visitors sign up ${x.toFixed(1)}× more often`,
+        body: `${fmtPct(conv(s))} of them created a fleet vs ${fmtPct(avg)} overall — yet they're only ${fmtPct(share(s.visitors))} of your traffic. ${CHANNEL_TIP[s.extra ?? ''] ?? ''}`.trim(),
+        filter: ['source', s.name] });
+    }
+    // Direct is left out: it mixes existing customers signing in with apps that
+    // hide the referrer, so "match the post or ad" advice doesn't apply.
+    const weak = d.sources
+      .filter((s) => s.name !== 'Direct' && s.visitors >= 50 && share(s.visitors) >= 0.12 && conv(s) <= 0.4 * avg)
+      .sort((a, b) => b.visitors - a.visitors)[0];
+    if (weak) {
+      out.push({ id: 'src-weak', tone: 'fix', score: 66, title: `${weak.name} brings ${fmtPct(share(weak.visitors))} of visitors but few signups`,
+        body: `Only ${fmtPct(conv(weak))} of them sign up (average ${fmtPct(avg)}). Send that traffic to a page made for it — matching the post or ad it came from — with one clear “Start free trial” button.`,
+        filter: ['source', weak.name] });
+    }
+  }
+
+  // AI assistants.
+  if (visitors >= 100 && !d.channels.some((c) => c.name === 'AI Assistants')) {
+    out.push({ id: 'ai-none', tone: 'opportunity', score: 46, title: 'No visits from AI assistants yet',
+      body: 'More buyers now ask ChatGPT, Perplexity or Gemini “what’s the best fleet software for…”. Clear pricing and feature pages, FAQs and listings on comparison sites are what they quote — see /llms.txt.' });
+  }
+
+  // Phones vs desktop.
+  const mob = d.devices.find((x) => x.name === 'Mobile');
+  const desk = d.devices.find((x) => x.name === 'Desktop');
+  if (mob && desk && mob.visits >= 30 && desk.visits >= 30) {
+    const bm = ratio(mob.bounces ?? 0, mob.visits);
+    const bd = ratio(desk.bounces ?? 0, desk.visits);
+    if (bm - bd >= 0.08) {
+      out.push({ id: 'mobile-bounce', tone: 'fix', score: 60, title: `Phone visitors bounce more (${fmtPct(bm)} vs ${fmtPct(bd)} on desktop)`,
+        body: `${fmtPct(share(mob.visitors))} of visitors are on phones. Check the mobile homepage loads fast and the trial button shows without scrolling.`,
+        filter: ['device', 'Mobile'] });
+    } else if ((desk.signups ?? 0) >= 3 && conv(desk) >= 2 * conv(mob)) {
+      out.push({ id: 'mobile-conv', tone: 'opportunity', score: 52, title: `Phone visitors sign up far less (${fmtPct(conv(mob))} vs ${fmtPct(conv(desk))})`,
+        body: 'Many people find you on a phone and decide later at a desk. Make coming back easy: a short “book a demo” or “email me a link” option on mobile.',
+        filter: ['device', 'Mobile'] });
+    }
+  }
+
+  // Funnel drop-offs.
+  const f = Object.fromEntries(d.funnel.map((s) => [s.key, s.visitors])) as Record<Dashboard['funnel'][number]['key'], number>;
+  if (f.pricing >= 40 && ratio(f.started, f.pricing) < 0.3) {
+    out.push({ id: 'pricing-drop', tone: 'fix', score: 72, title: 'Lots of pricing views, few trial starts',
+      body: `${f.pricing.toLocaleString('en-GB')} visitors looked at pricing; ${fmtPct(ratio(f.started, f.pricing))} then started signing up. Make the trial button stand out on /pricing, repeat “no card needed”, and answer price questions in an FAQ there.`,
+      filter: ['page', '/pricing'] });
+  }
+  if (f.started >= 15 && ratio(f.signed_up, f.started) < 0.35) {
+    out.push({ id: 'signup-drop', tone: 'fix', score: 74, title: 'Many sign-ups are started but not finished',
+      body: `${f.started.toLocaleString('en-GB')} visitors started signing up; ${fmtPct(ratio(f.signed_up, f.started))} went on to create a fleet. Look for friction in the email-code step and onboarding, and follow up with people who stop half-way.` });
+  }
+
+  // Landing pages.
+  if (avg > 0) {
+    const best = d.entry_pages
+      .filter((p) => p.name !== '/' && p.visits >= 30 && (p.signups ?? 0) >= 2 && ratio(p.signups ?? 0, p.visits) >= 1.5 * avg)
+      .sort((a, b) => ratio(b.signups ?? 0, b.visits) - ratio(a.signups ?? 0, a.visits))[0];
+    if (best) {
+      out.push({ id: 'entry-best', tone: 'win', score: 62, title: `${best.name} turns visitors into signups`,
+        body: `${fmtPct(ratio(best.signups ?? 0, best.visits))} of visits that start there end in a new fleet. Link to it from the homepage and menus, and make more pages like it.`,
+        filter: ['entry', best.name] });
+    }
+  }
+  const leaky = d.entry_pages.filter((p) => p.visits >= 40 && ratio(p.bounces ?? 0, p.visits) >= 0.6).sort((a, b) => b.visits - a.visits)[0];
+  if (leaky) {
+    out.push({ id: 'entry-leaky', tone: 'fix', score: 55, title: `${fmtPct(ratio(leaky.bounces ?? 0, leaky.visits))} leave ${leaky.name} without doing anything`,
+      body: `It's the first page for ${leaky.visits.toLocaleString('en-GB')} visits. Give it a clearer headline, an obvious next step, and links to pricing and features.`,
+      filter: ['entry', leaky.name] });
+  }
+
+  // Countries and languages.
+  if (cur.signups >= 3) {
+    const missed = d.countries.slice(1).filter((c) => c.name && c.visitors >= 40 && share(c.visitors) >= 0.05 && !c.signups).sort((a, b) => b.visitors - a.visitors)[0];
+    if (missed) {
+      out.push({ id: 'country-missed', tone: 'opportunity', score: 50, title: `${countryName(missed.name)} visitors aren't signing up`,
+        body: `${fmtPct(share(missed.visitors))} of traffic, no signups yet. Local examples, the right currency and platforms — or a page in the local language — could unlock it.`,
+        filter: ['country', missed.name] });
+    }
+  }
+  const lang = d.languages.filter((l) => l.name !== 'en' && l.name !== 'unknown').sort((a, b) => b.visitors - a.visitors)[0];
+  if (lang && share(lang.visitors) >= 0.08) {
+    out.push({ id: 'language', tone: 'opportunity', score: 40, title: `${fmtPct(share(lang.visitors))} of visitors browse in ${languageName(lang.name)}`,
+      body: `A landing page in ${languageName(lang.name)} could win these visitors over better than the English site.`,
+      filter: ['language', lang.name] });
+  }
+
+  // Campaign tagging.
+  if (d.campaigns.length === 0 && visitors >= 50) {
+    out.push({ id: 'tag-links', tone: 'tip', score: 35, title: 'Tag your links to see which posts and ads work',
+      body: 'No campaign-tagged visits in this period. Build tagged links with the campaign link builder at the bottom of this page for every post, ad, email and QR code.' });
+  }
+
+  // When to publish.
+  const total = d.heatmap.reduce((s, c) => s + c.visitors, 0);
+  if (total >= 100) {
+    const byHour = Array(24).fill(0) as number[];
+    let weekday = 0;
+    for (const c of d.heatmap) {
+      byHour[c.hour] += c.visitors;
+      if (c.dow <= 5) weekday += c.visitors;
+    }
+    let bestH = 0;
+    let bestV = -1;
+    for (let h = 0; h < 24; h++) {
+      const v = byHour[h] + byHour[(h + 1) % 24] + byHour[(h + 2) % 24];
+      if (v > bestV) { bestV = v; bestH = h; }
+    }
+    const pad = (h: number) => String(h % 24).padStart(2, '0');
+    out.push({ id: 'timing', tone: 'tip', score: 30,
+      title: `Most visits arrive ${ratio(weekday, total) >= 0.8 ? 'on weekdays, ' : ''}${pad(bestH)}:00–${pad(bestH + 3)}:00`,
+      body: `${fmtPct(ratio(bestV, total))} of visitors come in that window (your time). Schedule posts, emails and ad budget to land just before it.` });
+  }
+
+  return out.sort((a, b) => b.score - a.score);
+}
+
+function InsightsPanel({ data, compare, filtered, onFilter }: { data: Dashboard; compare: string; filtered: boolean; onFilter: (k: string, v: string) => void }) {
+  const [all, setAll] = useState(false);
+  const insights = useMemo(() => buildInsights(data, compare), [data, compare]);
+  const shown = all ? insights : insights.slice(0, 6);
+  return (
+    <Card style={{ marginBottom: 16 }}>
+      <CardHeader title="What to focus on" subtitle={filtered ? 'Suggestions for the filtered view' : 'Suggestions from this period’s numbers — they update with the date range'} />
+      {insights.length === 0 ? (
+        <Empty>Not enough data for suggestions yet — they appear once a few dozen visitors (and a few signups) have come through.</Empty>
+      ) : (
+        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1, background: 'var(--line-1)', borderTop: '1px solid var(--line-1)' }}>
+          {shown.map((i) => {
+            const t = TONE[i.tone];
+            return (
+              <div key={i.id} style={{ background: 'var(--bg-1)', padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>
+                <span title={t.label} style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, background: t.bg, color: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                  <Icon name={t.icon} size={13} stroke={2.2} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 3 }}>{t.label}</div>
+                  <div style={{ fontSize: 13.5, color: 'var(--text-1)', fontWeight: 500, lineHeight: 1.4 }}>{i.title}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 4, lineHeight: 1.55 }}>{i.body}</div>
+                  {i.filter && (
+                    <button onClick={() => onFilter(i.filter![0], i.filter![1])} style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      Show these visitors <Icon name="arrow-right" size={11} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {shown.length % 2 === 1 && <div className="hide-mobile" style={{ background: 'var(--bg-1)' }} />}
+        </div>
+      )}
+      {insights.length > 6 && (
+        <div style={{ padding: '10px 18px', borderTop: '1px solid var(--line-1)' }}>
+          <button onClick={() => setAll((v) => !v)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+            {all ? 'Show fewer' : `Show ${insights.length - 6} more`}
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ── Each channel over time — small multiples (one hue, own scale each) ────────
+function ChannelTrends({ data }: { data: Dashboard }) {
+  const buckets = data.series.map((p) => p.t);
+  const channels = useMemo(() => {
+    const by = new Map<string, Map<string, number>>();
+    for (const r of data.channel_series) {
+      if (!by.has(r.name)) by.set(r.name, new Map());
+      by.get(r.name)!.set(r.t, r.visitors);
+    }
+    return [...by.entries()]
+      .filter(([name]) => name !== 'Other')
+      .map(([name, m]) => ({ name, values: buckets.map((t) => m.get(t) ?? 0), total: data.channels.find((c) => c.name === name)?.visitors ?? 0 }))
+      .sort((a, b) => b.total - a.total);
+  }, [data, buckets]);
+  if (channels.length === 0) return <Empty>No visits in this period.</Empty>;
+  const W = 260, H = 70;
+  return (
+    <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1, background: 'var(--line-1)', borderTop: '1px solid var(--line-1)' }}>
+      {channels.map((c) => {
+        const max = Math.max(1, ...c.values);
+        const n = c.values.length;
+        const pts = c.values.map((v, i) => `${n <= 1 ? W / 2 : (i / (n - 1)) * W},${H - 2 - (v / max) * (H - 6)}`);
+        const half = Math.floor(n / 2);
+        const first = c.values.slice(0, half).reduce((s, v) => s + v, 0);
+        const second = c.values.slice(n - half).reduce((s, v) => s + v, 0);
+        const trend = first >= 5 ? (second - first) / first : null;
+        return (
+          <div key={c.name} style={{ background: 'var(--bg-1)', padding: '12px 16px 10px', minWidth: 0 }} title={CHANNEL_HINT[c.name]}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontSize: 12.5, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+              <span className="mono tnum" style={{ fontSize: 12.5, color: 'var(--text-1)', fontWeight: 500 }}>{fmtNum(c.total)}</span>
+            </div>
+            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H, display: 'block', marginTop: 6 }} role="img" aria-label={`${c.name} visitors over time`}>
+              <polygon points={`0,${H} ${pts.join(' ')} ${W},${H}`} fill="var(--accent)" opacity="0.1" />
+              <polyline points={pts.join(' ')} fill="none" stroke="var(--accent)" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+            </svg>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+              {trend == null ? 'peak ' + max.toLocaleString('en-GB') + ' / ' + data.bucket
+                : <>{trend >= 0 ? '↑' : '↓'} {Math.abs(Math.round(trend * 100))}% second half vs first half</>}
+            </div>
+          </div>
+        );
+      })}
+      {channels.length % 2 === 1 && <div className="hide-mobile" style={{ background: 'var(--bg-1)' }} />}
+    </div>
+  );
+}
+
+// ── Share of visitors vs share of signups, per channel ────────────────────────
+// Two series on one axis (both are shares), so one shared scale is honest.
+const SHARE_VISITORS = '#3987e5';
+const SHARE_SIGNUPS = '#d95926';
+function SignupShare({ data }: { data: Dashboard }) {
+  const totalV = data.channels.reduce((s, c) => s + c.visitors, 0);
+  const totalS = data.channels.reduce((s, c) => s + (c.signups ?? 0), 0);
+  const rows = data.channels.filter((c) => c.visitors > 0).slice(0, 6);
+  if (rows.length === 0 || totalS === 0) {
+    return <Empty>Once signups come in, this shows which channels bring more than their share of new fleets — the ones to invest in.</Empty>;
+  }
+  const max = Math.max(...rows.map((c) => Math.max(ratio(c.visitors, totalV), ratio(c.signups ?? 0, totalS))), 0.01);
+  const avg = ratio(totalS, totalV);
+  return (
+    <div style={{ padding: '0 18px 14px' }}>
+      <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: 'var(--text-3)', marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: SHARE_VISITORS }} />Share of visitors</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: SHARE_SIGNUPS }} />Share of signups</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+        {rows.map((c) => {
+          const vs = ratio(c.visitors, totalV);
+          const ss = ratio(c.signups ?? 0, totalS);
+          const x = avg > 0 ? ratio(ratio(c.signups ?? 0, c.visitors), avg) : 0;
+          return (
+            <div key={c.name} title={`${c.name}: ${fmtPct(vs)} of visitors, ${fmtPct(ss)} of signups`}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-1)' }}>{c.name}</span>
+                <span className="mono tnum" style={{ color: x >= 1.2 ? 'var(--text-1)' : 'var(--text-3)', fontSize: 11.5 }}>
+                  {c.signups ? `${x.toFixed(1)}× avg conversion` : 'no signups'}
+                </span>
+              </div>
+              {[[vs, SHARE_VISITORS], [ss, SHARE_SIGNUPS]].map(([v, color], k) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: k ? 2 : 0 }}>
+                  <div style={{ flex: 1, height: 8 }}>
+                    <div style={{ width: `${Math.max(((v as number) / max) * 100, (v as number) > 0 ? 1 : 0)}%`, height: '100%', background: color as string, borderRadius: '0 4px 4px 0' }} />
+                  </div>
+                  <span className="mono tnum" style={{ width: 40, textAlign: 'right', fontSize: 11, color: 'var(--text-2)' }}>{fmtPct(v as number)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Campaign link builder ─────────────────────────────────────────────────────
+const LINK_PRESETS: { label: string; source: string; medium: string }[] = [
+  { label: 'LinkedIn post', source: 'linkedin', medium: 'social' },
+  { label: 'Facebook post', source: 'facebook', medium: 'social' },
+  { label: 'Instagram bio', source: 'instagram', medium: 'social' },
+  { label: 'WhatsApp message', source: 'whatsapp', medium: 'social' },
+  { label: 'Newsletter', source: 'newsletter', medium: 'email' },
+  { label: 'Email signature', source: 'email-signature', medium: 'email' },
+  { label: 'Google Ads', source: 'google', medium: 'cpc' },
+  { label: 'QR code / flyer', source: 'qr', medium: 'offline' },
+];
+const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function CampaignLinkBuilder() {
+  const [page, setPage] = useState('/');
+  const [source, setSource] = useState('linkedin');
+  const [medium, setMedium] = useState('social');
+  const [campaign, setCampaign] = useState('');
+  const [copied, setCopied] = useState(false);
+  const origin = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.host) ? window.location.origin : 'https://rovora.eu';
+  const path = page.startsWith('/') ? page : `/${page}`;
+  const qs = new URLSearchParams();
+  if (slug(source)) qs.set('utm_source', slug(source));
+  if (slug(medium)) qs.set('utm_medium', slug(medium));
+  if (slug(campaign)) qs.set('utm_campaign', slug(campaign));
+  const link = `${origin}${path}${qs.toString() ? `?${qs}` : ''}`;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard blocked — the link is selectable */
+    }
+  };
+  const field: CSSProperties = { padding: '8px 10px', borderRadius: 7, border: '1px solid var(--line-2)', background: 'var(--bg-2)', color: 'var(--text-1)', fontSize: 13, fontFamily: 'inherit', outline: 'none', width: '100%', minWidth: 0 };
+  const lbl: CSSProperties = { fontSize: 11, color: 'var(--text-3)', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 };
+  return (
+    <Card style={{ marginBottom: 16 }}>
+      <CardHeader title="Campaign link builder" subtitle="Use a tagged link wherever you share Rovora — each one then shows up under Campaigns with its own visitors and signups" />
+      <div style={{ padding: '0 18px 16px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+          {LINK_PRESETS.map((p) => (
+            <button key={p.label} onClick={() => { setSource(p.source); setMedium(p.medium); }}
+              style={{ ...chip, ...(source === p.source && medium === p.medium ? chipActive : {}) }}>{p.label}</button>
+          ))}
+        </div>
+        <div className="grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+          <label style={lbl}>Page
+            <select value={page} onChange={(e) => setPage(e.target.value)} style={field}>
+              {['/', '/pricing', '/features/settlements', '/features/live-tracking', '/features/rosters', '/contact', '/blog', '/login?mode=signup'].map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+          <label style={lbl}>Source<input value={source} onChange={(e) => setSource(e.target.value)} placeholder="linkedin" style={field} /></label>
+          <label style={lbl}>Medium<input value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="social" style={field} /></label>
+          <label style={lbl}>Campaign<input value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="e.g. october-offer" style={field} /></label>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'stretch' }}>
+          <code style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 7, background: 'var(--bg-2)', border: '1px solid var(--line-1)', fontSize: 12, color: 'var(--text-1)', overflowX: 'auto', whiteSpace: 'nowrap', fontFamily: 'Geist Mono, monospace', userSelect: 'all' }}>{link}</code>
+          <button onClick={copy} style={{ ...chip, ...chipActive, padding: '0 14px' }}>{copied ? 'Copied ✓' : 'Copy'}</button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // ── The page ──────────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
   const [rangeId, setRangeId] = useState<RangeId>('30d');
@@ -903,6 +1289,8 @@ export default function AnalyticsPage() {
               hint="Signups divided by visitors." />
           </div>
 
+          <InsightsPanel data={data} compare={range.compare} filtered={Object.keys(filters).length > 0} onFilter={addFilter} />
+
           {/* ── Trend + live ── */}
           <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
             <Card>
@@ -952,6 +1340,18 @@ export default function AnalyticsPage() {
             <Card>
               <CardHeader title="Path to signup" subtitle="From first visit to a new fleet" />
               <Funnel steps={data.funnel} />
+            </Card>
+          </div>
+
+          {/* ── Channels in depth ── */}
+          <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16, marginBottom: 16 }}>
+            <Card>
+              <CardHeader title="Each channel over time" subtitle={`Visitors ${range.bucket === 'hour' ? 'per hour' : `per ${range.bucket}`} · each mini chart has its own scale`} />
+              <ChannelTrends data={data} />
+            </Card>
+            <Card>
+              <CardHeader title="What brings signups" subtitle="Orange longer than blue = more than its share of new fleets" />
+              <SignupShare data={data} />
             </Card>
           </div>
 
@@ -1056,6 +1456,8 @@ export default function AnalyticsPage() {
           </div>
 
           <ConversionsTable rows={data.conversions} orgs={data.orgs} />
+
+          <CampaignLinkBuilder />
 
           <details style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
             <summary style={{ cursor: 'pointer', color: 'var(--text-2)' }}>How these numbers are measured</summary>
