@@ -103,6 +103,19 @@ function cleanPath(raw: unknown): string | null {
   return p.split(/[?#]/)[0] || '/';
 }
 
+// Until the analytics migration is applied every beacon fails the same way —
+// say so once per process instead of on every page view.
+const logged = new Set<string>();
+function logOnce(key: string, message: string) {
+  if (logged.has(key) || logged.size > 50) return;
+  logged.add(key);
+  console.error(
+    key === 'missing'
+      ? 'analytics: analytics_track() not found — run supabase/migrations/20261007_web_analytics.sql'
+      : `analytics: beacon not recorded: ${message}`,
+  );
+}
+
 function noContent() {
   return new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 }
@@ -219,7 +232,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { error } = await createAdminClient().rpc('analytics_track', { p: payload });
-    if (error) console.error('analytics: beacon not recorded:', error.message);
+    if (error) logOnce(error.code === 'PGRST202' ? 'missing' : error.message, error.message);
   } catch (err) {
     console.error('analytics: beacon failed:', err);
   }

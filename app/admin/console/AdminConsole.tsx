@@ -20,6 +20,7 @@ import PackagesManager from './PackagesManager';
 import AddOperatorModal from './AddOperatorModal';
 import OperatorDetailModal from './OperatorDetailModal';
 import BroadcastCenter from './BroadcastCenter';
+import AnalyticsPage from './AnalyticsPage';
 import {
   type AdminData,
   type BillingRow,
@@ -268,7 +269,7 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 );
 
 // ── nav ──
-type PageId = 'overview' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'inquiries' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
+type PageId = 'overview' | 'analytics' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'inquiries' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
 
 function buildNav(data: AdminData) {
   const pastDue = data.billing.filter((b) => b.status === 'past_due').length;
@@ -282,6 +283,7 @@ function buildNav(data: AdminData) {
       { id: 'billing' as PageId, name: 'Billing', icon: 'doc', badge: pastDue ? String(pastDue) : undefined, dot: pastDue > 0 },
     ]},
     { label: 'Growth', items: [
+      { id: 'analytics' as PageId, name: 'Analytics', icon: 'eye', badge: undefined, dot: false },
       { id: 'trials' as PageId, name: 'Trials', icon: 'shift', badge: String(data.metrics.trials), dot: false },
       { id: 'churn' as PageId, name: 'Churn', icon: 'chart', badge: undefined, dot: false },
     ]},
@@ -1405,6 +1407,7 @@ const VehicleModelsPage = () => {
 
 const PAGE_META: Record<PageId, { title: string; subtitle: string }> = {
   overview: { title: 'Overview', subtitle: 'Billing & subscriptions' },
+  analytics: { title: 'Analytics', subtitle: 'Website visitors, sources & signups' },
   operators: { title: 'Operators', subtitle: 'Every fleet on Rovora' },
   packages: { title: 'Packages', subtitle: 'Subscription plans' },
   subscriptions: { title: 'Subscriptions', subtitle: 'Active paying accounts' },
@@ -1452,6 +1455,7 @@ export default function AdminConsole({ data }: { data: AdminData }) {
           query={query} onQuery={setQuery} onSearchFocus={() => { if (active !== 'operators' && active !== 'billing') setActive('operators'); }}
           right={<button style={ap.primaryBtn} className="hide-mobile" onClick={() => setAddOpen(true)}><Icon name="plus" size={14} stroke={2} />Add operator</button>} />
         {active === 'overview' && <OverviewPage data={data} onNavigate={setActive} />}
+        {active === 'analytics' && <AnalyticsPage />}
         {active === 'operators' && <OperatorsPage data={data} query={query} />}
         {active === 'packages' && <PackagesPage data={data} />}
         {active === 'subscriptions' && <SubscriptionsPage data={data} />}
