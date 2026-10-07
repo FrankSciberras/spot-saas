@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import RovoraThemeToggle from './RovoraThemeToggle';
+import { CookieSettingsButton } from '@/components/analytics/CookieBanner';
 
 /**
  * Shared marketing footer (used by the landing page and every /features page).
@@ -122,6 +123,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
             <Link href="/security">Security</Link>
+            <CookieSettingsButton className="foot-cookies" />
           </span>
           <span className="mono">Made for fleets that move.</span>
           {/* Only home for the light/dark switch on desktop — the top bar stays clean. */}

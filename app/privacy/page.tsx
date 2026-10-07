@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '5 October 2026';
+const LAST_UPDATED = '7 October 2026';
 
 export default function PrivacyPage() {
   return (
@@ -146,6 +146,11 @@ export default function PrivacyPage() {
                       <td>To answer product questions and follow up on sales enquiries</td>
                     </tr>
                     <tr>
+                      <td>Website analytics</td>
+                      <td>On our public website only: the pages you view, how you arrived (the referring site, or the campaign tag on the link you followed), your approximate country (from your device&rsquo;s time zone, or from our network provider when it supplies one), device type, browser and language, time spent on each page and how far you scrolled, and clicks on key links such as &ldquo;Start free trial&rdquo;. If you sign up or send us a message, the channel that brought you (for example &ldquo;Google search&rdquo;) is recorded against that signup or enquiry. See <a href="#cookies">Cookies and website analytics</a></td>
+                      <td>To understand how people find and use our website, and which of our marketing works</td>
+                    </tr>
+                    <tr>
                       <td>Technical &amp; security</td>
                       <td>Session cookies, audit-log entries, IP address and device/browser information, error diagnostics, and password-reset rate-limit records</td>
                       <td>To keep accounts secure, prevent abuse and diagnose faults</td>
@@ -228,15 +233,17 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Legitimate interests</strong> — to secure the service, prevent fraud and abuse,
-                  diagnose errors, and improve the product. We balance these against your rights.
+                  diagnose errors, improve the product, and measure our website&rsquo;s audience with
+                  cookieless, first-party analytics. We balance these against your rights.
                 </li>
                 <li>
                   <strong>Legal obligation</strong> — to retain tax, payroll and licensing records where
                   the law requires it, and to respond to lawful requests.
                 </li>
                 <li>
-                  <strong>Consent</strong> — for optional marketing emails, which you can withdraw at any
-                  time. Withdrawing consent does not affect the lawfulness of earlier processing.
+                  <strong>Consent</strong> — for optional marketing emails and the optional analytics
+                  cookie on our website, both of which you can withdraw at any time. Withdrawing consent
+                  does not affect the lawfulness of earlier processing.
                 </li>
               </ul>
               <p>
@@ -324,6 +331,12 @@ export default function PrivacyPage() {
                   a reasonable period afterwards so we can follow up, then deleted.
                 </li>
                 <li>
+                  <strong>Website analytics</strong> — visit records are deleted automatically after 25
+                  months. The anonymous daily identifier described under{' '}
+                  <a href="#cookies">Cookies and website analytics</a> cannot be linked from one day to
+                  the next.
+                </li>
+                <li>
                   <strong>Financial and tax records</strong> — retained for the period required by
                   applicable tax and accounting law, even after a driver leaves or an account closes.
                 </li>
@@ -368,13 +381,72 @@ export default function PrivacyPage() {
         },
         {
           id: 'cookies',
-          heading: 'Cookies',
+          heading: 'Cookies and website analytics',
           body: (
-            <p>
-              We use a small number of strictly-necessary cookies to keep you signed in and to keep the
-              service secure. These are essential to the platform and cannot be turned off without breaking
-              sign-in. We do not use advertising or third-party tracking cookies.
-            </p>
+            <>
+              <p>
+                We measure our public website with our own analytics, built into Rovora — no Google
+                Analytics, no advertising pixels and no third-party trackers. It works{' '}
+                <strong>without cookies</strong> by default:
+              </p>
+              <ul>
+                <li>
+                  Each visit is counted under an anonymous identifier calculated from your IP address,
+                  your browser&rsquo;s user-agent and a random value that changes every day. The random
+                  value is deleted the next day, so the identifier can&rsquo;t be traced back to you or
+                  linked across days, and your IP address itself is never stored.
+                </li>
+                <li>
+                  Nothing is written to your device, and the analytics never run inside the signed-in
+                  Rovora app.
+                </li>
+                <li>
+                  The data stays in our EU-hosted database and is only ever looked at in aggregate by the
+                  Rovora team.
+                </li>
+              </ul>
+              <p>
+                If you click <strong>Allow</strong> on our cookie banner, we also set one first-party
+                cookie holding a random ID, so we can recognise return visits and credit a signup to the
+                visit that first brought you to us. You can change your mind at any time with{' '}
+                <strong>Cookie settings</strong> at the bottom of every page. We don&rsquo;t ask —
+                and treat the answer as &ldquo;no&rdquo; — if your browser sends a Global Privacy Control
+                signal.
+              </p>
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>What it does</th>
+                      <th>Kept for</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>rv_consent</code></td>
+                      <td>Remembers your answer to the cookie banner, so we don&rsquo;t ask on every page</td>
+                      <td>6 months</td>
+                    </tr>
+                    <tr>
+                      <td><code>rv_vid</code></td>
+                      <td>Only if you click Allow: a random ID that lets our analytics recognise a return visit</td>
+                      <td>13 months</td>
+                    </tr>
+                    <tr>
+                      <td><code>sb-*</code>, <code>active_org</code></td>
+                      <td>Strictly necessary: keep you signed in and remember which fleet you&rsquo;re working in</td>
+                      <td>Your session</td>
+                    </tr>
+                    <tr>
+                      <td><code>rovora-theme</code>, chat history (browser storage)</td>
+                      <td>Your light/dark choice, and the website chat conversation so it survives a page reload</td>
+                      <td>Until you clear them</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
           ),
         },
         {

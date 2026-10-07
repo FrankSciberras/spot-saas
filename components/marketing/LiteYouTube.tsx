@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useSyncExternalStore } from 'react';
+import { trackEvent } from '@/lib/analytics/client';
 
 // Live subscription to the OS "reduce motion" setting, SSR-safe (the server
 // snapshot says false, so the server always renders the autoplay branch and the
@@ -80,7 +81,10 @@ export default function LiteYouTube({
     <button
       type="button"
       className="ytlite ytlite-poster"
-      onClick={() => setPlaying(true)}
+      onClick={() => {
+        setPlaying(true);
+        trackEvent('Video played', { label: title });
+      }}
       aria-label={`Play video: ${title}`}
     >
       <img

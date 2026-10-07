@@ -133,6 +133,17 @@
 .prose a:hover {
   border-bottom-color: var(--accent);
 }
+/* Cookie names and other identifiers in the policy text. */
+.prose code {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.86em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  white-space: nowrap;
+}
+
 .prose ul {
   margin: 0 0 16px;
   padding: 0;

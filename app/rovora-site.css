@@ -349,6 +349,10 @@
 }
 /* The chat launcher is fixed at z-index 9999 — park it while the menu is open. */
 body.mnav-open .rovora-site .rovora-chat { display: none; }
+/* …and on phones while the cookie banner is up, which spans the same corner. */
+@media (max-width: 640px) {
+  body.cookie-banner-open .rovora-site .rovora-chat { display: none; }
+}
 
 .rovora-site .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 18px; }
 .rovora-site .nav-actions .signin { color: var(--text-2); font-size: 14.5px; font-weight: 500; }
@@ -974,10 +978,13 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 
 /* Bottom legal bar */
 .rovora-site .foot-bottom { margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--line-1); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-3); }
-.rovora-site .foot-legal { display: inline-flex; gap: 20px; }
+.rovora-site .foot-legal { display: inline-flex; flex-wrap: wrap; gap: 8px 20px; }
 .rovora-site .foot-theme { display: inline-flex; align-items: center; gap: 10px; }
 .rovora-site .foot-legal a { color: var(--text-3); transition: color .15s; }
 .rovora-site .foot-legal a:hover { color: var(--text-1); }
+/* "Cookie settings" re-opens the cookie banner — a button styled as a link. */
+.rovora-site .foot-legal .foot-cookies { background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit; color: var(--text-3); cursor: pointer; transition: color .15s; }
+.rovora-site .foot-legal .foot-cookies:hover { color: var(--text-1); }
 
 /* ─── Auth (sign in / sign up) ─── */
 .rovora-site .auth-wrap { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }

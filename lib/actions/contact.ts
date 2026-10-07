@@ -15,6 +15,7 @@ import { headers } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
 import { sendEmail, renderBrandedEmail } from '@/lib/email';
+import { recordConversion } from '@/lib/analytics/server';
 
 export type InquiryStatus = 'new' | 'read' | 'replied' | 'archived';
 
@@ -83,6 +84,8 @@ export async function submitInquiryAction(formData: FormData): Promise<Result> {
   }
 
   await notifyTeam({ name, email, phone, company, fleetSize, topic, message });
+  // Website analytics: a lead, credited to the visit that brought them here.
+  await recordConversion('Lead', { form: 'contact', topic, fleet_size: fleetSize || null }, '/contact');
 
   return { ok: true };
 }
@@ -223,6 +226,7 @@ export async function submitChatLeadAction(input: ChatLeadInput): Promise<Result
     heading: 'New lead from the website chat',
     subjectPrefix: 'Chat lead',
   });
+  await recordConversion('Lead', { form: 'chat', topic, fleet_size: fleetSize || null }, page ?? '/');
 
   return { ok: true };
 }

@@ -16,6 +16,7 @@ import { safeInternalPath } from '@/lib/utils/safeRedirect';
 import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 import PasswordInput from '@/components/shared/PasswordInput';
 import GoogleSignInButton from '@/components/shared/GoogleSignInButton';
+import { trackEvent } from '@/lib/analytics/client';
 
 type Mode = 'login' | 'forgot' | 'signup' | 'confirm';
 
@@ -187,6 +188,7 @@ function LoginPageContent() {
     setError('');
     setSuccessMessage('');
     setLoading(true);
+    trackEvent('Signup started', { label: 'Email' });
 
     try {
       // Creates the (unconfirmed) account server-side and emails a 6-digit code
@@ -343,6 +345,7 @@ function LoginPageContent() {
               onStart={() => {
                 setError('');
                 setSuccessMessage('');
+                if (mode === 'signup') trackEvent('Signup started', { label: 'Google' });
               }}
               onError={setError}
             />

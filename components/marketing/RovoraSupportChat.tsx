@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 import { usePathname } from 'next/navigation';
 import { chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type SignupVerifyType } from '@/lib/actions/auth-email';
 import { submitChatLeadAction } from '@/lib/actions/contact';
+import { trackEvent } from '@/lib/analytics/client';
 import { SIGNUP_RESEND_COOLDOWN } from '@/lib/auth/email-limits';
 
 // =============================================================================
@@ -301,6 +302,7 @@ export default function RovoraSupportChat() {
     restoreOnce();
     setNudge(false);
     setOpen(true);
+    trackEvent('Chat opened');
   }
 
   function toggleOpen() {
@@ -749,6 +751,7 @@ function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => v
     setErr('');
     setBusy(true);
     try {
+      trackEvent('Signup started', { label: 'Chat' });
       const res = await chatSignupAction(email, password);
       if (res.error) { setErr(res.error); return; }
       if (res.status === 'signed_in') { enterApp(); return; }

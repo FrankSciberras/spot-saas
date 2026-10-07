@@ -6,6 +6,7 @@ import { FLEET_MODULES } from '@/lib/modules/catalog';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { requiredPlanFor, type Plan, type PaidPlan, type PlanDef } from '@/lib/billing/plans';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
+import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
 import styles from './onboarding.module.css';
 
 interface Range {
@@ -42,6 +43,8 @@ const TITLES = [
 export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  // Optional "How did you hear about Rovora?" — feeds Admin → Analytics.
+  const [heardAbout, setHeardAbout] = useState('');
   const [drivers, setDrivers] = useState<Range | null>(null);
   const [vehicles, setVehicles] = useState<Range | null>(null);
   // Modules default ON; this set holds the ones the operator switched OFF.
@@ -72,7 +75,7 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
     setError('');
     setPendingChoice(plan);
     startTransition(async () => {
-      const result = await completeOnboardingAction(name, plan, Array.from(disabledModules));
+      const result = await completeOnboardingAction(name, plan, Array.from(disabledModules), heardAbout || null);
       if (result && 'url' in result && result.url) {
         // Paid plan → hand off to Stripe Checkout.
         window.location.assign(result.url);
@@ -163,6 +166,20 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
                 placeholder="e.g. Acme Cabs"
                 autoFocus
               />
+              <label htmlFor="heard-about" className={styles.fieldLabel} style={{ marginTop: 16 }}>
+                How did you hear about Rovora? <span className={styles.optional}>(optional)</span>
+              </label>
+              <select
+                id="heard-about"
+                className={`${styles.input} ${styles.select}`}
+                value={heardAbout}
+                onChange={(e) => setHeardAbout(e.target.value)}
+              >
+                <option value="">Choose one…</option>
+                {HEARD_ABOUT_OPTIONS.map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
               <button
                 type="submit"
                 className={`${styles.btn} ${styles.btnPrimary} ${styles.btnFull} ${styles.btnLg}`}
