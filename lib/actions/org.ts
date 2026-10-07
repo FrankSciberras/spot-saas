@@ -23,6 +23,8 @@ import { getPlanDef, hasStripeTarget } from '@/lib/billing/plans';
 import { isStripeEnabled } from '@/lib/billing/stripe';
 import { createPlanCheckoutSession } from '@/lib/billing/checkout';
 import { sendWelcomeEmail } from '@/lib/email/welcome';
+import { recordConversion } from '@/lib/analytics/server';
+import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
 
 /**
  * Switch the active organization. Validates the caller is actually a member of
@@ -70,7 +72,9 @@ export async function setActiveOrgAction(organizationId: string): Promise<{ erro
 export async function completeOnboardingAction(
   name: string,
   plan: Plan = 'trial',
-  disabledModules: string[] = []
+  disabledModules: string[] = [],
+  /** Optional "How did you hear about Rovora?" answer (HEARD_ABOUT_OPTIONS id). */
+  heardAbout: string | null = null
 ): Promise<{ error: string } | { url: string } | void> {
   const trimmed = name?.trim();
   if (!trimmed) return { error: 'Fleet name is required' };
@@ -92,6 +96,11 @@ export async function completeOnboardingAction(
   }
 
   await setActiveOrgCookie(orgId as string);
+
+  // Website analytics: the signup, credited to the visit that brought them in,
+  // plus what they told us themselves.
+  const heard = HEARD_ABOUT_OPTIONS.some((o) => o.id === heardAbout) ? heardAbout : null;
+  await recordConversion('Signup', { org_id: orgId as string, plan, heard }, '/onboarding');
 
   // Persist the fleet's initial module choices from onboarding ("Choose your
   // tools"). We only store OFF overrides — anything left on inherits the catalog

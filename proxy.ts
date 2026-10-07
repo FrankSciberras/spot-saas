@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import { isAppRoute } from '@/lib/routes';
+import { COLLECT_PATH } from '@/lib/analytics/constants';
 
 /*
  * Auth gate. Routes requiring a signed-in user come from APP_ROUTE_PREFIXES in
@@ -28,10 +29,17 @@ const isApiRoute = (pathname: string) => pathname.startsWith('/api');
 const isPublicApiRoute = (pathname: string) =>
   pathname === '/api/v1' || pathname.startsWith('/api/v1/');
 
+/**
+ * The marketing-site analytics beacon fires on every page view and reads only
+ * its own cookies — refreshing a Supabase session for it would add an auth
+ * round-trip to every visit for nothing.
+ */
+const isAnalyticsBeacon = (pathname: string) => pathname === COLLECT_PATH;
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPublicApiRoute(pathname)) {
+  if (isPublicApiRoute(pathname) || isAnalyticsBeacon(pathname)) {
     return NextResponse.next();
   }
 

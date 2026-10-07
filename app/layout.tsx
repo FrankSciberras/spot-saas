@@ -6,6 +6,7 @@ import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistra
 import ErrorRecovery from '@/components/shared/ErrorRecovery';
 import SplashScreen from '@/components/shared/SplashScreen';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
+import SiteAnalytics from '@/components/analytics/SiteAnalytics';
 
 const figtree = Figtree({
   subsets: ['latin'],
@@ -102,6 +103,9 @@ export default function RootLayout({
             {children}
           </SplashScreen>
           <ErrorRecovery />
+          {/* First-party, cookieless website analytics + the cookie banner.
+              Inert inside the signed-in app (see lib/analytics/client.ts). */}
+          <SiteAnalytics />
         </ThemeProvider>
       </body>
     </html>

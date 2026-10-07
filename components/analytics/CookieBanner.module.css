@@ -1,0 +1,160 @@
+/* Cookie banner. Rendered outside the page's .rovora-site wrapper (it lives in
+   the root layout), so it carries its own copy of the marketing palette and
+   follows the site's light/dark toggle via data-theme. */
+
+.banner {
+  --cb-bg: #ffffff;
+  --cb-line: rgba(15, 18, 26, 0.10);
+  --cb-text-1: #0e1116;
+  --cb-text-2: #4a5260;
+  --cb-btn-bg: #f1f3f7;
+  --cb-btn-line: rgba(15, 18, 26, 0.16);
+  --cb-accent: #1a8f5a;
+  --cb-accent-ink: #ffffff;
+  --cb-shadow: 0 24px 60px -24px rgba(20, 30, 60, 0.38), 0 0 0 1px rgba(15, 18, 26, 0.06);
+
+  position: fixed;
+  left: 22px;
+  bottom: 22px;
+  z-index: 9998; /* just under the chat launcher (9999), which sits bottom-right */
+  width: min(400px, calc(100vw - 32px));
+  padding: 18px 18px 16px;
+  background: var(--cb-bg);
+  color: var(--cb-text-1);
+  border: 1px solid var(--cb-line);
+  border-radius: 16px;
+  box-shadow: var(--cb-shadow);
+  font-family: 'Neue Haas Grotesk Display Pro', 'neue-haas-grotesk-display', var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.3px;
+  -webkit-font-smoothing: antialiased;
+  animation: rise 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.banner[data-theme='dark'] {
+  --cb-bg: #11141b;
+  --cb-line: rgba(255, 255, 255, 0.09);
+  --cb-text-1: #f1f3f8;
+  --cb-text-2: #9aa3b6;
+  --cb-btn-bg: #1c2230;
+  --cb-btn-line: rgba(255, 255, 255, 0.14);
+  --cb-accent: #2bbd7e;
+  --cb-accent-ink: #06130c;
+  --cb-shadow: 0 30px 70px -26px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner { animation: none; }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cb-accent);
+  background: color-mix(in srgb, var(--cb-accent) 12%, transparent);
+}
+.icon svg { width: 18px; height: 18px; }
+
+.title {
+  margin: 0;
+  flex: 1;
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--cb-text-1);
+}
+
+.close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cb-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.close:hover { background: var(--cb-btn-bg); color: var(--cb-text-1); }
+.close svg { width: 15px; height: 15px; }
+
+.body {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--cb-text-2);
+}
+
+.link {
+  color: var(--cb-text-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link:hover { color: var(--cb-accent); }
+
+.status {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--cb-text-2);
+}
+.status strong { color: var(--cb-text-1); font-weight: 500; }
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* Both answers get the same size and weight — declining must be as easy as
+   accepting. Only the colour differs. */
+.btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--cb-btn-line);
+  background: var(--cb-btn-bg);
+  color: var(--cb-text-1);
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+}
+.btn:hover { filter: brightness(0.97); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--cb-accent); outline-offset: 2px; }
+
+.btnPrimary {
+  background: var(--cb-accent);
+  border-color: var(--cb-accent);
+  color: var(--cb-accent-ink);
+}
+.btnPrimary:hover { filter: brightness(1.06); }
+
+@media (max-width: 640px) {
+  .banner {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    padding: 16px 16px 14px;
+  }
+}
