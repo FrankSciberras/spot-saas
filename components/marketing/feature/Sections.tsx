@@ -1,20 +1,24 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { START_TRIAL } from '../links';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
+import TrialPromoBadge from '../TrialPromoBadge';
 import { Icon, type IconName } from './icons';
 
 const accents = ['green', 'violet', 'amber', 'teal'] as const;
 type Accent = (typeof accents)[number];
 
-/** Page hero: eyebrow pill, big title with accent, sub, CTAs and a visual. */
-export function FeatureHero({
+/**
+ * Page hero: eyebrow pill, big title with accent, sub, CTAs and a visual. Shows
+ * the current free-trial length, plus the campaign badge while one is running.
+ */
+export async function FeatureHero({
   eyebrow,
   title,
   accent,
   sub,
   visual,
-  micro = [`${TRIAL_DAYS}-day free trial`, 'No card required', 'Set up in an afternoon'],
+  micro,
 }: {
   eyebrow: string;
   title: ReactNode;
@@ -23,18 +27,21 @@ export function FeatureHero({
   visual?: ReactNode;
   micro?: string[];
 }) {
+  const trial = await getTrialCopy();
+  const microItems = micro ?? [trial.freeLabel, 'No card required', 'Set up in an afternoon'];
   return (
     <section className="hero" id="top">
       <div className="container reveal-stagger">
         <span className="eyebrow"><span className="live" /> {eyebrow}</span>
         <h1 className="hero-title">{title} <span className="pos">{accent}</span></h1>
         <p className="hero-sub">{sub}</p>
+        <TrialPromoBadge trial={trial} />
         <div className="hero-cta">
-          <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
+          <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
           <a className="btn btn-ghost btn-lg" href="/#pricing">See pricing</a>
         </div>
         <div className="hero-micro">
-          {micro.map((m) => (
+          {microItems.map((m) => (
             <span key={m}><span className="ck">✓</span> {m}</span>
           ))}
         </div>
@@ -154,7 +161,7 @@ export function CtaBand({ title, body }: { title: string; body: string }) {
           <h2>{title}</h2>
           <p>{body}</p>
           <div className="hero-cta">
-            <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
+            <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
             <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>
           </div>
         </div>

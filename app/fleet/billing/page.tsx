@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import FleetShell from '@/components/fleet/FleetShell';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import { getPlans } from '@/lib/billing/plans-data';
-import { getPlanDef, TRIAL_DAYS } from '@/lib/billing/plans';
+import { getPlanDef } from '@/lib/billing/plans';
 import { listFleetInvoices, hasBillingAccount } from '@/lib/billing/invoices';
 import ManageBillingButton from './ManageBillingButton';
 import styles from './fleetBilling.module.css';
@@ -66,18 +66,18 @@ export default async function FleetBillingPage() {
   const pill = paused
     ? { cls: styles.pillPaused, label: 'Paused' }
     : billing.onTrial
-      ? { cls: styles.pillTrial, label: billing.trialExpired ? 'Trial ended' : 'Free trial' }
+      ? { cls: styles.pillTrial, label: billing.trialExpired ? 'Free period ended' : 'Free' }
       : { cls: styles.pillActive, label: 'Active' };
 
   // Hero copy.
-  const planTitle = billing.onTrial ? 'Free trial' : currentDef?.name ?? billing.plan;
+  const planTitle = billing.onTrial ? 'Free period' : currentDef?.name ?? billing.plan;
   const priceLabel = billing.onTrial ? 'Free' : currentDef?.priceLabel ?? '—';
-  const priceUnit = billing.onTrial ? `for ${TRIAL_DAYS} days` : currentDef?.priceUnit ?? '';
+  const priceUnit = billing.onTrial ? 'for now' : currentDef?.priceUnit ?? '';
 
   const subline = billing.onTrial
     ? billing.trialExpired
-      ? 'Your trial has ended — choose a plan to keep managing your fleet.'
-      : `${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'} left · ends ${fmtDate(billing.trialEndsAt)}`
+      ? 'Your free period has ended — choose a plan to keep managing your fleet.'
+      : `${billing.trialDaysLeft} free day${billing.trialDaysLeft === 1 ? '' : 's'} left · ends ${fmtDate(billing.trialEndsAt)}`
     : paused
       ? `This fleet has been ${billing.status}. Choose a plan to reactivate it.`
       : 'Billed monthly · active subscription';
@@ -131,7 +131,7 @@ export default async function FleetBillingPage() {
           {invoices.length === 0 ? (
             <div className={styles.cardBody} style={{ fontSize: 13, color: 'var(--text-3)' }}>
               {billing.onTrial
-                ? 'No invoices yet — nothing is charged during the free trial.'
+                ? 'No invoices yet — nothing is charged during your free period.'
                 : 'No invoices yet.'}
             </div>
           ) : (
@@ -203,7 +203,7 @@ export default async function FleetBillingPage() {
                 </ul>
               ) : (
                 <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
-                  Full access to every feature during your trial.
+                  Full access to every feature, free.
                 </div>
               )}
             </div>

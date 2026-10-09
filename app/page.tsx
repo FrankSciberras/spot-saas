@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { OG_IMAGE } from '@/lib/seo';
 import { getPublicPlans } from '@/lib/billing/plans-data';
+import { getTrialOffer } from '@/lib/billing/trial-offer-data';
 import LandingPage from '@/components/marketing/LandingPage';
 
-// ISR: the page reads DB-backed plans, so revalidating hourly keeps marketing
-// copy/pricing fresh while still serving a fast, cacheable static page.
+// ISR: the page reads DB-backed plans and the admin-set trial offer, so
+// revalidating hourly keeps marketing copy/pricing fresh while still serving a
+// fast, cacheable static page.
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
@@ -46,6 +48,6 @@ export const metadata: Metadata = {
  * for an avatar that links to their dashboard (see MarketingNav / getNavViewer).
  */
 export default async function HomePage() {
-  const plans = await getPublicPlans();
-  return <LandingPage plans={plans} />;
+  const [plans, trialOffer] = await Promise.all([getPublicPlans(), getTrialOffer()]);
+  return <LandingPage plans={plans} trialOffer={trialOffer} />;
 }

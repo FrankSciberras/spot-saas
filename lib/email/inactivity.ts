@@ -48,7 +48,7 @@ export function buildInactivityEmail(input: InactivityEmailInput): { subject: st
   const trialLine =
     input.onTrial && input.trialDaysLeft > 0
       ? emailBlocks.callout(
-          `${input.trialDaysLeft} day${input.trialDaysLeft === 1 ? '' : 's'} left on your free trial.`,
+          `${input.trialDaysLeft} free day${input.trialDaysLeft === 1 ? '' : 's'} left.`,
           'No card is needed and nothing happens automatically when it ends — you just choose a plan if you want to keep going.',
         )
       : '';
@@ -95,7 +95,7 @@ export function buildInactivityEmail(input: InactivityEmailInput): { subject: st
     'OR LET US DO IT WITH YOU',
     ...helpOptions.map((h) => `- ${h.title}: ${h.href}`),
     '',
-    input.onTrial && input.trialDaysLeft > 0 ? `${input.trialDaysLeft} days left on your free trial. No card needed.` : '',
+    input.onTrial && input.trialDaysLeft > 0 ? `${input.trialDaysLeft} free day${input.trialDaysLeft === 1 ? '' : 's'} left. No card needed.` : '',
     `Reply "not now" and we won't check in again.`,
   ].filter((l) => l !== undefined).join('\n');
 

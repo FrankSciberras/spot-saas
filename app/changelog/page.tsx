@@ -111,13 +111,13 @@ export default function ChangelogPage() {
           <div className="cta-band reveal">
             <h2>More on the way.</h2>
             <p>
-              Driver trip history, safety scores and Rovora AI are in active development. Start a
-              free trial today and every update lands in your fleet automatically — nothing to
+              Driver trip history, safety scores and Rovora AI are in active development. Get
+              started free today and every update lands in your fleet automatically — nothing to
               install, nothing to pay extra for.
             </p>
             <div className="hero-cta">
               <Link className="btn btn-primary btn-lg" href={START_TRIAL}>
-                Start free trial
+                Get started free
               </Link>
               <Link className="btn btn-ghost btn-lg" href="/ai">
                 See what&rsquo;s coming

@@ -38,7 +38,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href="/pricing">Pricing</Link>
               <a href={h('faq')}>FAQ</a>
               <Link href="/changelog">What&rsquo;s new</Link>
-              <Link href={START_TRIAL}>Start free trial</Link>
+              <Link href={START_TRIAL}>Get started free</Link>
               <Link href={SIGN_IN}>Sign in</Link>
             </div>
 

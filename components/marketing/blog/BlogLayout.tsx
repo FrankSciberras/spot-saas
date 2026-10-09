@@ -113,7 +113,7 @@ export default function BlogLayout({ post, sections }: { post: BlogPost; section
 
       <CtaBand
         title="Ready to run your fleet from one place?"
-        body="Vehicles, drivers, shifts, tracking and weekly pay — Rovora keeps the whole operation in a single dashboard. Free trial, no card required."
+        body="Vehicles, drivers, shifts, tracking and weekly pay — Rovora keeps the whole operation in a single dashboard. Get started free, no card required."
       />
       <div style={{ paddingBottom: 72 }} />
     </FeatureShell>

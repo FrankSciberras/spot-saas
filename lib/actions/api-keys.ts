@@ -85,7 +85,7 @@ export async function createApiKeyAction(input: {
         ent.reason === 'account_suspended'
           ? 'This account is not active. Contact support.'
           : ent.reason === 'trial_expired'
-            ? 'Your free trial has ended. Choose a plan to use the API.'
+            ? 'Your free period has ended. Choose a plan to use the API.'
             : `The API isn’t included in your ${ent.planName} plan.${ent.lowestApiPlanName ? ` Upgrade to ${ent.lowestApiPlanName} or higher to enable it.` : ''}`,
     };
   }

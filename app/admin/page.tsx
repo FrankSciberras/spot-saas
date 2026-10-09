@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
 import { getAllPlans } from '@/lib/billing/plans-data';
+import { getTrialOffer } from '@/lib/billing/trial-offer-data';
 import { stripeCustomerUrl } from '@/lib/billing/stripe-dashboard';
 import AdminConsole from './console/AdminConsole';
 import {
@@ -95,7 +96,7 @@ export default async function PlatformOverviewPage() {
   const adminUser = await requirePlatformAdmin();
   const admin = createAdminClient();
 
-  const [planRows, { data: orgs }, { data: members }, { data: drivers }, { data: vehicles }, { data: users }, { data: inquiryRows }] =
+  const [planRows, { data: orgs }, { data: members }, { data: drivers }, { data: vehicles }, { data: users }, { data: inquiryRows }, trialOffer] =
     await Promise.all([
       getAllPlans(),
       admin
@@ -113,6 +114,7 @@ export default async function PlatformOverviewPage() {
         .from('contact_inquiries')
         .select('id, name, email, phone, company, fleet_size, topic, message, status, source, created_at, handled_at')
         .order('created_at', { ascending: false }),
+      getTrialOffer(),
     ]);
 
   // Catalogue-derived lookups (replace the old hardcoded PLAN_PRICE / PLAN_META).
@@ -359,6 +361,7 @@ export default async function PlatformOverviewPage() {
     adminEmail: adminUser.email,
     planMeta,
     assignablePlans,
+    trialOffer,
   };
 
   return <AdminConsole data={data} />;

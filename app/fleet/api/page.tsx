@@ -88,7 +88,7 @@ export default async function FleetApiPage() {
               {entitlement.reason === 'account_suspended'
                 ? 'This account isn’t active at the moment. Get in touch and we’ll sort it out.'
                 : entitlement.reason === 'trial_expired'
-                  ? 'Your free trial has ended. Choose a plan to switch the API back on.'
+                  ? 'Your free period has ended. Choose a plan to switch the API back on.'
                   : `You're on ${entitlement.planName}.${
                       entitlement.lowestApiPlanName
                         ? ` The API is available from ${entitlement.lowestApiPlanName} upwards — it lets your own systems read and write drivers, vehicles and financials directly.`

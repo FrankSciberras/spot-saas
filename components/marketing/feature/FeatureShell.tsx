@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import { breadcrumbJsonLd, jsonLdGraph } from '@/lib/seo';
+import { getTrialOffer } from '@/lib/billing/trial-offer-data';
 import RovoraReveal from '../RovoraReveal';
 import RovoraSmoothScroll from '../RovoraSmoothScroll';
 import RovoraSupportChat from '../RovoraSupportChat';
@@ -17,7 +18,7 @@ import MarketingFooter from '../MarketingFooter';
  * from links and could not render a breadcrumb trail in the result. Pages that
  * emit their own JSON-LD (blog posts, /pricing) simply omit the prop.
  */
-export default function FeatureShell({
+export default async function FeatureShell({
   children,
   breadcrumb,
 }: {
@@ -25,6 +26,7 @@ export default function FeatureShell({
   /** Crumbs after "Home", e.g. `[{ name: 'Features', path: '/#features' }, …]`. */
   breadcrumb?: { name: string; path: string }[];
 }) {
+  const trialOffer = await getTrialOffer();
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
       {breadcrumb && (
@@ -43,7 +45,7 @@ export default function FeatureShell({
         {children}
         <MarketingFooter />
       </div>
-      <RovoraSupportChat />
+      <RovoraSupportChat trialOffer={trialOffer} />
     </div>
   );
 }

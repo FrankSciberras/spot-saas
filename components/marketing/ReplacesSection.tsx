@@ -123,7 +123,7 @@ export default function ReplacesSection() {
         </div>
 
         <div className="rep-cta reveal">
-          <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
+          <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
           <Link className="btn btn-ghost btn-lg" href="/integrations">See all integrations</Link>
         </div>
       </div>

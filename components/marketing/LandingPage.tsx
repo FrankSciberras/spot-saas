@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import type { PlanDef } from '@/lib/billing/plans';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { trialCopy, type TrialOffer } from '@/lib/billing/trial-offer';
+import TrialPromoBadge from './TrialPromoBadge';
 import RovoraReveal from './RovoraReveal';
 import RovoraSmoothScroll from './RovoraSmoothScroll';
 import RovoraSupportChat from './RovoraSupportChat';
@@ -174,8 +175,9 @@ function buildJsonLd(plans: PlanDef[]) {
   };
 }
 
-export default function LandingPage({ plans }: { plans: PlanDef[] }) {
+export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; trialOffer: TrialOffer }) {
   const jsonLd = buildJsonLd(plans);
+  const trial = trialCopy(trialOffer);
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
       <script
@@ -199,14 +201,15 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
                 pushed the video further down — and the page spends the next
                 three sections listing features anyway. */}
             <p className="hero-sub">Fleet management software for taxi and rideshare fleets.</p>
+            <TrialPromoBadge trial={trial} />
             <div className="hero-cta">
-              <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
+              <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
               <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>
             </div>
             {/* Two, not three: the third wrapped onto its own line at common
                 widths, which made the row look accidental rather than designed. */}
             <div className="hero-micro">
-              <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
+              <span><span className="ck">✓</span> {trial.freeLabel}</span>
               <span><span className="ck">✓</span> No card required</span>
             </div>
             {/* Trust row. Deliberately no score or review count: the Play
@@ -419,7 +422,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
               <h2 className="sec-title">Simple, per-vehicle pricing</h2>
               <p className="sec-desc">Pay only for the cars you run. Every plan includes the full dashboard, live GPS tracking, the driver app and unlimited team members — no modules, no add-ons, no surprises.</p>
               <div className="price-incl">
-                <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
+                <span><span className="ck">✓</span> {trial.freeLabel}</span>
                 <span><span className="ck">✓</span> No card required</span>
                 <span><span className="ck">✓</span> Live GPS tracking included</span>
                 <span><span className="ck">✓</span> Free driver app</span>
@@ -454,9 +457,9 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
           <div className="container">
             <div className="cta-band reveal">
               <h2>Ready to get your fleet on Rovora?</h2>
-              <p>Start your {TRIAL_DAYS}-day free trial today. No card, no lock-in — just your whole operation, finally in one place.</p>
+              <p>Get your {trial.first} free. No card, no lock-in — just your whole operation, finally in one place.</p>
               <div className="hero-cta">
-                <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
+                <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
                 <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>
               </div>
             </div>
@@ -465,7 +468,7 @@ export default function LandingPage({ plans }: { plans: PlanDef[] }) {
 
         <MarketingFooter onHome />
       </div>
-      <RovoraSupportChat />
+      <RovoraSupportChat trialOffer={trialOffer} />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { FLEET_MODULES } from '@/lib/modules/catalog';
 import { findOpenShift } from '@/lib/auth/open-shift';
 import type { Plan } from '@/lib/billing/plans';
 import { getPlans } from '@/lib/billing/plans-data';
+import { getCurrentTrialDays } from '@/lib/billing/trial-offer-data';
 import { getPlanDef, hasStripeTarget } from '@/lib/billing/plans';
 import { isStripeEnabled } from '@/lib/billing/stripe';
 import { createPlanCheckoutSession } from '@/lib/billing/checkout';
@@ -65,7 +66,7 @@ export async function setActiveOrgAction(organizationId: string): Promise<{ erro
  * Self-serve onboarding: create a new fleet, make the caller its admin, and
  * optionally activate a paid plan in the same step. Backed by the
  * create_organization_with_owner() SECURITY DEFINER RPC (the new fleet starts on
- * a 30-day trial); when `plan` is a paid tier we immediately move it onto that
+ * the free trial currently on offer); when `plan` is a paid tier we immediately move it onto that
  * tier via set_organization_plan() (a stub for Stripe — see lib/actions/billing).
  * Sets the new org active and redirects into the fleet dashboard.
  */
@@ -96,6 +97,18 @@ export async function completeOnboardingAction(
   }
 
   await setActiveOrgCookie(orgId as string);
+
+  // The RPC always starts a standard 30-day trial. Set it to whatever trial is
+  // on offer right now (the admin-set length, or a running campaign's).
+  const trialDays = await getCurrentTrialDays();
+  const { error: trialErr } = await createAdminClient()
+    .from('organizations')
+    .update({ trial_ends_at: new Date(Date.now() + trialDays * 86_400_000).toISOString() })
+    .eq('id', orgId as string)
+    .eq('plan', 'trial');
+  if (trialErr) {
+    console.error('completeOnboardingAction (trial length) failed:', trialErr);
+  }
 
   // Website analytics: the signup, credited to the visit that brought them in,
   // plus what they told us themselves.
@@ -137,6 +150,7 @@ export async function completeOnboardingAction(
       fullName: profile?.full_name ?? (user.user_metadata?.full_name as string | undefined) ?? null,
       fleetName: trimmed,
       onTrial: plan === 'trial',
+      trialDays,
     });
   }
 

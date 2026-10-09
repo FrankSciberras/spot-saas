@@ -2,7 +2,7 @@ import { marketingMetadata } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 
 export const metadata = marketingMetadata({
   title: 'Vehicle Management Software for Taxi Fleets — Rovora',
@@ -12,7 +12,12 @@ export const metadata = marketingMetadata({
   keywords: ['fleet vehicle management software', 'vehicle management software', 'vehicle document expiry reminder software', 'fleet document management software', 'taxi fleet management software', 'vehicle register software', 'fleet compliance alerts', 'vehicle utilisation tracking', 'road licence and insurance expiry reminders'],
 });
 
-export default function VehiclesFeaturePage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function VehiclesFeaturePage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell
       breadcrumb={[
@@ -150,7 +155,7 @@ export default function VehiclesFeaturePage() {
 
       <CtaBand
         title="Know every vehicle, inside out."
-        body={`Start your ${TRIAL_DAYS}-day free trial and get your whole fleet on one screen — no card required.`}
+        body={`Get your ${trial.first} free and get your whole fleet on one screen — no card required.`}
       />
     </FeatureShell>
   );

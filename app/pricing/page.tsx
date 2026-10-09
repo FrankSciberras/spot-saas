@@ -4,16 +4,17 @@ import { SecHead, CtaBand } from '@/components/marketing/feature/Sections';
 import PricingPlans from '@/components/marketing/PricingPlans';
 import { LANDING_FAQ } from '@/components/marketing/LandingPage';
 import { getPublicPlans } from '@/lib/billing/plans-data';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
+import TrialPromoBadge from '@/components/marketing/TrialPromoBadge';
 
-// Prices are DB-backed and admin-editable, so revalidate hourly rather than
-// baking them in at build time.
+// Prices and the free-trial offer are DB-backed and admin-editable, so
+// revalidate hourly rather than baking them in at build time.
 export const revalidate = 3600;
 
 export const metadata = marketingMetadata({
   title: 'Fleet Management Software Pricing & Plans — Rovora',
   description:
-    "See Rovora's per-vehicle plans for taxi and rideshare fleets, what each one includes and how extra vehicles are charged. Free trial, no card needed.",
+    "See Rovora's per-vehicle plans for taxi and rideshare fleets, what each one includes and how extra vehicles are charged. Start free, no card needed.",
   path: '/pricing',
   keywords: [
     'fleet management software pricing',
@@ -36,7 +37,7 @@ export const metadata = marketingMetadata({
  * what they cite when asked what a product costs.
  */
 export default async function PricingPage() {
-  const plans = await getPublicPlans();
+  const [plans, trial] = await Promise.all([getPublicPlans(), getTrialCopy()]);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -74,11 +75,12 @@ export default async function PricingPage() {
           </h1>
           <p className="hero-sub">
             You pay for the vehicles you actually run — not per seat, and not for modules you
-            switched off. Every plan includes the driver app, unlimited team members and the
-            full {TRIAL_DAYS}-day trial.
+            switched off. Every plan includes the driver app, unlimited team members and your
+            {' '}{trial.first} free.
           </p>
+          <TrialPromoBadge trial={trial} />
           <div className="hero-micro">
-            <span><span className="ck">✓</span> {TRIAL_DAYS}-day free trial</span>
+            <span><span className="ck">✓</span> {trial.freeLabel}</span>
             <span><span className="ck">✓</span> No card required</span>
             <span><span className="ck">✓</span> Cancel any time</span>
           </div>
@@ -116,7 +118,7 @@ export default async function PricingPage() {
 
       <CtaBand
         title="Try it on your own fleet first"
-        body={`Start a ${TRIAL_DAYS}-day trial with your real vehicles and drivers. No card, no sales call — if it doesn't fit, walk away.`}
+        body={`Use Rovora free for ${trial.span} with your real vehicles and drivers. No card, no sales call — if it doesn't fit, walk away.`}
       />
     </FeatureShell>
   );

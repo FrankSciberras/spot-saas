@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPublicPlans } from '@/lib/billing/plans-data';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { buildKnowledge, SALES_EMAIL } from '@/lib/marketing/rovora-knowledge';
 import { isPlatformAdmin } from '@/lib/auth/platform';
 
@@ -38,7 +39,7 @@ const UPSTREAM_TIMEOUT_MS = 25_000;
 
 // Honest fallback used whenever we can't produce a live answer — never leaves
 // the visitor stranded; always routes them to a human.
-const FALLBACK = `I can't reach the assistant right now, sorry about that. Leave your details below and a real person will get straight back to you — or email us at ${SALES_EMAIL}. You can also start your free trial right here in the meantime; it takes a minute and needs no card.
+const FALLBACK = `I can't reach the assistant right now, sorry about that. Leave your details below and a real person will get straight back to you — or email us at ${SALES_EMAIL}. You can also get started free right here in the meantime; it takes a minute and needs no card.
 
 [[chips: human | trial]]`;
 
@@ -335,8 +336,8 @@ export async function POST(request: Request) {
   }
 
   // Public endpoint: read the catalogue without touching cookies.
-  const plans = await getPublicPlans();
-  const attempt = await openAIRequest(apiKey, buildKnowledge(plans, { page }), messages, true);
+  const [plans, trial] = await Promise.all([getPublicPlans(), getTrialCopy()]);
+  const attempt = await openAIRequest(apiKey, buildKnowledge(plans, { page, trial }), messages, true);
 
   if (!attempt.ok) {
     console.error(`[support-chat] ${attempt.reason} (model=${MODEL}): ${attempt.detail}`);

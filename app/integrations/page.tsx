@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { FeatureHero, CtaBand } from '@/components/marketing/feature/Sections';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 import {
   INTEGRATION_CATEGORIES,
@@ -33,7 +33,12 @@ const HERO_MARKS = INTEGRATION_CATEGORIES.flatMap((c) => c.items).filter((it) =>
   ),
 );
 
-export default function IntegrationsPage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function IntegrationsPage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell>
       <FeatureHero
@@ -41,7 +46,7 @@ export default function IntegrationsPage() {
         title="Fleet integrations for the tools"
         accent="you already run."
         sub="A growing marketplace of native connections — GPS trackers, ride-hail platforms, messaging and your accountant's software. Stop copying trips and payouts by hand and let the data flow straight into Rovora."
-        micro={[`${TRIAL_DAYS}-day free trial`, 'No card required', 'More integrations shipping every month']}
+        micro={[trial.freeLabel, 'No card required', 'More integrations shipping every month']}
         visual={
           <div className="integ-cloud" aria-hidden>
             {HERO_MARKS.map((it) => (
@@ -105,7 +110,7 @@ export default function IntegrationsPage() {
 
       <CtaBand
         title="Run your fleet on the tools you already love."
-        body={`Start your ${TRIAL_DAYS}-day free trial today and be first in line as each integration goes live.`}
+        body={`Get your ${trial.first} free today and be first in line as each integration goes live.`}
       />
 
       <p style={{ textAlign: 'center', margin: '8px 0 0' }}>

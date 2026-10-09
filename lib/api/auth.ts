@@ -293,7 +293,7 @@ export function withApiAuth<P = unknown>(scope: ApiScope | null, handler: Handle
           ent.reason === 'account_suspended'
             ? 'This Rovora account is not active. Contact support.'
             : ent.reason === 'trial_expired'
-              ? 'Your free trial has ended. Choose a plan to keep using the API.'
+              ? 'Your free period has ended. Choose a plan to keep using the API.'
               : `The API is not included in your ${ent.planName} plan.${ent.lowestApiPlanName ? ` Upgrade to ${ent.lowestApiPlanName} or higher to enable it.` : ''}`;
         return fail(
           ent.reason === 'account_suspended' ? 'account_suspended' : 'plan_upgrade_required',

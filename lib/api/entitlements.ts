@@ -104,7 +104,7 @@ export async function getApiEntitlement(organizationId: string): Promise<ApiEnti
   // Trial: no API. It is a paid-tier benefit, not part of the free 30 days.
   if (planKey === TRIAL_PLAN) {
     const expired = !org.trial_ends_at || new Date() > new Date(org.trial_ends_at);
-    return OFF(expired ? 'trial_expired' : 'plan_not_included', planKey, 'Free trial', lowestName);
+    return OFF(expired ? 'trial_expired' : 'plan_not_included', planKey, 'Free period', lowestName);
   }
 
   const all = (plansRes.data as PlanApiRow[] | null) ?? [];

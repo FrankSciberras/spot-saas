@@ -209,7 +209,7 @@ const DraftFields = ({ d, set, disabled }: { d: Draft; set: (patch: Partial<Draf
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
       <div style={field(1, 140)}>
         <label style={lbl}>CTA label</label>
-        <input style={inp} value={d.ctaLabel} placeholder="Start free trial" disabled={disabled} onChange={(e) => set({ ctaLabel: e.target.value })} />
+        <input style={inp} value={d.ctaLabel} placeholder="Get started free" disabled={disabled} onChange={(e) => set({ ctaLabel: e.target.value })} />
       </div>
       <div style={field(2, 200)}>
         <label style={lbl}>CTA link (blank = trial signup)</label>

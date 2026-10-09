@@ -185,7 +185,7 @@ export default function Page() {
                 <Link href="/features/settlements">pay</Link> live in <strong>one system</strong>,
                 that drivers get their own app, and that you can leave with your data. Rovora was
                 built for exactly this shape of business — fleets of 5 to 50 vehicles that want one
-                calm dashboard instead of five apps. The free trial takes an afternoon to set up.
+                calm dashboard instead of five apps. Getting started is free and takes an afternoon.
               </p>
             </>
           ),

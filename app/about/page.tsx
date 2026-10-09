@@ -3,7 +3,7 @@ import { marketingMetadata } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { START_TRIAL } from '@/components/marketing/links';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 
 export const metadata = marketingMetadata({
   title: 'About Rovora: EU Fleet Software for Taxi Fleets — Rovora',
@@ -20,7 +20,12 @@ export const metadata = marketingMetadata({
   ],
 });
 
-export default function AboutPage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function AboutPage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell>
       {/* Hero */}
@@ -35,7 +40,7 @@ export default function AboutPage() {
             more time keeping their fleet moving.
           </p>
           <div className="hero-cta">
-            <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Start free trial</Link>
+            <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
             <a className="btn btn-ghost btn-lg" href="/contact">Talk to us</a>
           </div>
         </div>
@@ -73,7 +78,7 @@ export default function AboutPage() {
 
       <CtaBand
         title="Come see what a calmer fleet feels like."
-        body={`Start your ${TRIAL_DAYS}-day free trial — no card, no lock-in — or book a demo and we’ll walk you through it.`}
+        body={`Get your ${trial.first} free — no card, no lock-in — or book a demo and we’ll walk you through it.`}
       />
     </FeatureShell>
   );

@@ -130,8 +130,8 @@ export default function Page() {
               </p>
               <p>
                 Run one settlement cycle in parallel with the sheet if it calms your nerves — most
-                operators don&rsquo;t bother after seeing the first week reconcile itself. Rovora&rsquo;s
-                free trial needs no card, and there&rsquo;s a guided setup that walks you through
+                operators don&rsquo;t bother after seeing the first week reconcile itself. Starting on
+                Rovora is free with no card, and there&rsquo;s a guided setup that walks you through
                 exactly the four lists above. If you want the bigger picture first, start with{' '}
                 <Link href="/blog/how-to-run-a-taxi-fleet">how to run a taxi fleet</Link>.
               </p>

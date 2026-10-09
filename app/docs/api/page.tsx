@@ -296,7 +296,7 @@ export default async function ApiDocsPage() {
               )}
 
               <p className={styles.p}>
-                The API is a paid-plan feature and is not part of the free trial. If you want to
+                The API is a paid-plan feature and is not included in the free period. If you want to
                 build against it before you commit, <Link href="/contact">tell us</Link> and
                 we&rsquo;ll open it up for you.
               </p>

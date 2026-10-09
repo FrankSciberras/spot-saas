@@ -15,7 +15,7 @@ interface TourStep {
 const STEPS: TourStep[] = [
   {
     title: 'Welcome to Rovora',
-    body: "This quick tour shows you around your fleet dashboard. You're on a free 30-day trial — no card needed. Let's take a look.",
+    body: "This quick tour shows you around your fleet dashboard. You're using Rovora free for now — no card needed. Let's take a look.",
   },
   {
     target: '[data-tour="nav-dashboard"]',
