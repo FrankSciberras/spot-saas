@@ -22,10 +22,61 @@ interface CheckoutErr {
   error: string;
 }
 
+const CURRENCY = 'eur';
+
+/** Is this Stripe price the monthly `cents` amount the plan advertises? */
+function matchesPlan(p: Stripe.Price, cents: number): boolean {
+  return (
+    p.active &&
+    p.currency === CURRENCY &&
+    p.unit_amount === cents &&
+    p.recurring?.interval === 'month' &&
+    (p.recurring?.interval_count ?? 1) === 1
+  );
+}
+
+/**
+ * Keep the connected Stripe product in step with the plan as edited in /admin:
+ * the price the site shows is the price checkout charges, and the product name
+ * on the Stripe checkout page matches the plan name. A changed price gets a new
+ * Stripe Price (prices are immutable) which becomes the product's default;
+ * existing subscribers stay on whatever price they signed up at.
+ */
+async function syncProductPrice(
+  stripe: Stripe,
+  productId: string,
+  plan: PlanDef
+): Promise<string | null> {
+  const cents = Math.round(plan.priceAmount * 100);
+  const product = await stripe.products.retrieve(productId, { expand: ['default_price'] });
+  const dp = product.default_price;
+  const current = dp && typeof dp !== 'string' ? dp : null;
+
+  if (product.name !== plan.name) {
+    await stripe.products.update(productId, { name: plan.name });
+  }
+  if (cents <= 0) return current?.id ?? (typeof dp === 'string' ? dp : null);
+  if (current && matchesPlan(current, cents)) return current.id;
+
+  const existing = await stripe.prices.list({ product: productId, active: true, limit: 100 });
+  const price =
+    existing.data.find((p) => matchesPlan(p, cents)) ??
+    (await stripe.prices.create({
+      product: productId,
+      currency: CURRENCY,
+      unit_amount: cents,
+      recurring: { interval: 'month' },
+      metadata: { plan: plan.id },
+    }));
+  await stripe.products.update(productId, { default_price: price.id });
+  return price.id;
+}
+
 /**
  * Resolve the recurring Stripe Price id to charge for a plan:
- *   1. an explicit `stripePriceId` (price_…) — used as-is.
- *   2. otherwise the connected `stripeProductId` (prod_…) — use its default price.
+ *   1. an explicit `stripePriceId` (price_…) — used as-is (manual override).
+ *   2. otherwise the connected `stripeProductId` (prod_…) — synced to the
+ *      plan's price first, then its default price is used.
  *      (For convenience a `prod_…` value pasted into the price field also works.)
  * Returns the price id, or a { error } the caller can surface.
  */
@@ -40,9 +91,14 @@ async function resolvePriceId(
     plan.stripeProductId?.trim() || (price?.startsWith('prod_') ? price : null);
 
   if (productId) {
-    const product = await stripe.products.retrieve(productId);
-    const dp = product.default_price;
-    const resolved = typeof dp === 'string' ? dp : dp?.id;
+    let resolved: string | null = null;
+    try {
+      resolved = await syncProductPrice(stripe, productId, plan);
+    } catch (e) {
+      // Never charge an amount the customer wasn't shown.
+      console.error(`Stripe price sync failed for plan ${plan.id}:`, e);
+      return { error: 'Could not start checkout. Please try again or contact support.' };
+    }
     if (!resolved) {
       return { error: `${plan.name} has no default price set in Stripe.` };
     }
