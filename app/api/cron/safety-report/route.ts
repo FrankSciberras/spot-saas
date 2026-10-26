@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { isPlatformAdmin } from '@/lib/auth/platform';
-import { safetyScore } from '@/lib/tracking/safety';
+import { countBehaviorKinds, safetyScore } from '@/lib/tracking/safety';
 
 /**
  * GET /api/cron/safety-report
@@ -44,13 +44,11 @@ export async function GET(request: Request) {
     for (const r of (speedingRes.data || []) as any[]) {
       speedingBy.set(r.driver_id, (speedingBy.get(r.driver_id) || 0) + 1);
     }
-    const behaviorBy = new Map<string, { harshBrakes: number; harshAccels: number; harshOther: number }>();
+    const kindsBy = new Map<string, string[]>();
     for (const r of (behaviorRes.data || []) as any[]) {
-      const b = behaviorBy.get(r.driver_id) || { harshBrakes: 0, harshAccels: 0, harshOther: 0 };
-      if (r.kind === 'harsh_brake') b.harshBrakes++;
-      else if (r.kind === 'harsh_accel') b.harshAccels++;
-      else b.harshOther++;
-      behaviorBy.set(r.driver_id, b);
+      const list = kindsBy.get(r.driver_id) || [];
+      list.push(r.kind);
+      kindsBy.set(r.driver_id, list);
     }
 
     // Score every driver with data, grouped per fleet.
@@ -62,15 +60,15 @@ export async function GET(request: Request) {
     const byOrg = new Map<string, OrgAgg>();
     for (const d of (driversRes.data || []) as any[]) {
       const distanceKm = distanceBy.get(d.id) || 0;
-      const b = behaviorBy.get(d.id) || { harshBrakes: 0, harshAccels: 0, harshOther: 0 };
+      const b = countBehaviorKinds(kindsBy.get(d.id) || []);
       const speeding = speedingBy.get(d.id) || 0;
-      const harsh = b.harshBrakes + b.harshAccels + b.harshOther;
+      const harsh = b.harshBrakes + b.harshAccels + b.harshTurns + b.harshOther;
       if (distanceKm <= 0.1 && speeding + harsh === 0) continue;
 
       const agg = byOrg.get(d.organization_id) || { scores: [], harsh: 0, speeding: 0 };
       agg.scores.push({
         name: d.full_name || 'Unknown driver',
-        score: safetyScore({ speeding, harshBrakes: b.harshBrakes, harshAccels: b.harshAccels, harshOther: b.harshOther }, distanceKm),
+        score: safetyScore({ speeding, ...b }, distanceKm),
       });
       agg.harsh += harsh;
       agg.speeding += speeding;

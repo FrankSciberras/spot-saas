@@ -4,11 +4,15 @@ import * as Battery from 'expo-battery';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
 import { supabase } from './supabase';
+import appConfig from '../app.json';
 import {
   drainMotionEvents,
   startMotionDetection,
   stopMotionDetection,
   LAST_SPEED_KEY,
+  RECENT_FIXES_KEY,
+  type PendingMotionEvent,
+  type RecentFix,
 } from './motionDetector';
 
 export const LOCATION_TASK = 'rovora-driver-location';
@@ -99,35 +103,29 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
       await supabase.from('driver_locations').insert(point);
     }
 
-    // Remember the GPS speed for the motion detector ("speed before event"),
-    // then upload any harsh-driving events it queued. This fix's speed is the
-    // "after" side, which tells braking apart from acceleration.
-    await AsyncStorage.setItem(
-      LAST_SPEED_KEY,
-      JSON.stringify({ speed: point.speed, t: latest.timestamp })
-    );
+    // Remember recent fixes for the motion detector (speed before an event,
+    // the trail leading up to it, and learning which way is forward), then
+    // upload any harsh-driving events it queued.
+    const fix: RecentFix = {
+      lat: point.latitude,
+      lng: point.longitude,
+      speed: point.speed,
+      heading: point.heading,
+      t: latest.timestamp,
+    };
+    await AsyncStorage.setItem(LAST_SPEED_KEY, JSON.stringify(fix));
+    try {
+      const rawRecent = await AsyncStorage.getItem(RECENT_FIXES_KEY);
+      const recent = rawRecent ? (JSON.parse(rawRecent) as RecentFix[]) : [];
+      recent.push(fix);
+      await AsyncStorage.setItem(RECENT_FIXES_KEY, JSON.stringify(recent.slice(-8)));
+    } catch {
+      // the trail is a nice-to-have
+    }
+
     const motionEvents = await drainMotionEvents();
     if (motionEvents.length > 0) {
-      const speedAfter = point.speed;
-      const rows = motionEvents.map((e) => {
-        let kind = 'harsh_motion';
-        if (e.speedBefore != null && speedAfter != null) {
-          const delta = speedAfter - e.speedBefore;
-          if (delta <= -1.4) kind = 'harsh_brake';
-          else if (delta >= 1.4) kind = 'harsh_accel';
-        }
-        return {
-          organization_id: ctx.organizationId,
-          driver_id: ctx.driverId,
-          shift_id: ctx.shiftId,
-          kind,
-          magnitude: e.magnitude,
-          latitude: point.latitude,
-          longitude: point.longitude,
-          occurred_at: new Date(e.t).toISOString(),
-        };
-      });
-      await supabase.from('driver_behavior_events').insert(rows);
+      await uploadMotionEvents(motionEvents, ctx, point);
     }
   } catch (e) {
     try {
@@ -138,6 +136,68 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     }
   }
 });
+
+/**
+ * Upload queued harsh-driving events. Events from app ≥ 1.0.4 arrive already
+ * classified with their own precise location; anything that never got its
+ * own GPS capture falls back to the original method — GPS speed before vs
+ * this fix's speed.
+ */
+async function uploadMotionEvents(
+  events: PendingMotionEvent[],
+  ctx: TrackingContext,
+  point: { latitude: number; longitude: number; speed: number | null }
+): Promise<void> {
+  const kmh = (s: number | null | undefined) => (s == null ? null : Math.round(s * 36) / 10);
+  const rows = events.map((e) => {
+    let kind: string = e.kind || 'harsh_motion';
+    let classifiedBy = e.classifiedBy ?? null;
+    // speedAfter undefined = the event never got its own GPS capture.
+    const speedAfter = e.speedAfter === undefined ? point.speed : e.speedAfter;
+    if (!e.kind && e.speedAfter === undefined && e.speedBefore != null && speedAfter != null) {
+      const delta = speedAfter - e.speedBefore;
+      if (delta <= -1.4) kind = 'harsh_brake';
+      else if (delta >= 1.4) kind = 'harsh_accel';
+      if (kind !== 'harsh_motion') classifiedBy = 'gps';
+    }
+    return {
+      organization_id: ctx.organizationId,
+      driver_id: ctx.driverId,
+      shift_id: ctx.shiftId,
+      kind,
+      magnitude: e.magnitude,
+      latitude: e.latitude ?? point.latitude,
+      longitude: e.longitude ?? point.longitude,
+      occurred_at: new Date(e.t).toISOString(),
+      speed_before_kmh: kmh(e.speedBefore),
+      speed_after_kmh: kmh(speedAfter),
+      duration_ms: e.durationMs ?? null,
+      turn_rate: e.turnRate ?? null,
+      heading: e.heading ?? null,
+      accuracy_m: e.accuracy ?? null,
+      classified_by: classifiedBy,
+      trail: e.trail ?? null,
+      app_version: appConfig.expo.version,
+    };
+  });
+
+  const { error } = await supabase.from('driver_behavior_events').insert(rows);
+  if (!error) return;
+  // Server without the 20261026 migration (unknown columns / no 'harsh_turn'
+  // yet): keep the event with the original columns rather than lose it.
+  await supabase.from('driver_behavior_events').insert(
+    rows.map((r) => ({
+      organization_id: r.organization_id,
+      driver_id: r.driver_id,
+      shift_id: r.shift_id,
+      kind: r.kind === 'harsh_turn' ? 'harsh_motion' : r.kind,
+      magnitude: r.magnitude,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      occurred_at: r.occurred_at,
+    }))
+  );
+}
 
 export async function startTracking(ctx: TrackingContext): Promise<void> {
   await AsyncStorage.setItem(CTX_KEY, JSON.stringify(ctx));

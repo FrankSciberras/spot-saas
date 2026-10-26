@@ -37,5 +37,6 @@ FROM (
   UNION ALL SELECT 25, '20260714_device_health',          EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='driver_positions' AND column_name='battery_pct')
   UNION ALL SELECT 26, '20260715_trip_history',           to_regclass('public.driver_trip_segments') IS NOT NULL
   UNION ALL SELECT 27, '20260716_driver_behaviour',       to_regclass('public.driver_behavior_events') IS NOT NULL
+  UNION ALL SELECT 28, '20261026_safety_event_detail',    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='driver_behavior_events' AND column_name='trail')
 ) t
 ORDER BY ord;
