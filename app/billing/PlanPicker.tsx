@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { activatePlanAction, openBillingPortalAction } from '@/lib/actions/billing';
-import { planRank, type Plan, type PaidPlan, type PlanDef } from '@/lib/billing/plans';
+import { planRank, monthlyPriceFor, type Plan, type PaidPlan, type PlanDef } from '@/lib/billing/plans';
 import { createClient } from '@/lib/supabase/client';
 import styles from './billing.module.css';
 
@@ -19,7 +19,11 @@ interface Props {
   isAdmin: boolean;
   /** Show the "Manage billing" portal button (org already has a Stripe customer). */
   canManageBilling?: boolean;
+  /** The fleet's vehicle count — drives the "for your N vehicles" total. */
+  vehicles?: number;
 }
+
+const euro = (n: number) => `€${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 export default function PlanPicker({
   plans,
@@ -27,7 +31,12 @@ export default function PlanPicker({
   requiredPlan,
   isAdmin,
   canManageBilling = false,
+  vehicles = 0,
 }: Props) {
+  const extra = (plan: PlanDef) =>
+    plan.includedVehicles != null && plan.perVehiclePrice
+      ? Math.max(0, vehicles - plan.includedVehicles)
+      : 0;
   const [error, setError] = useState('');
   const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
   const [portalPending, setPortalPending] = useState(false);
@@ -94,6 +103,23 @@ export default function PlanPicker({
                 {plan.priceLabel}
                 {plan.priceUnit && <span> {plan.priceUnit}</span>}
               </div>
+              {!plan.isCustom && plan.includedVehicles != null && (
+                <p className={styles.vehicleNote}>
+                  {plan.includedVehicles} vehicles included
+                  {plan.perVehiclePrice ? ` · ${euro(plan.perVehiclePrice)} per extra vehicle` : ''}
+                </p>
+              )}
+              {!plan.isCustom && !tooSmall && vehicles > 0 && (
+                <p className={styles.yourPrice}>
+                  For your {vehicles} vehicle{vehicles === 1 ? '' : 's'}:{' '}
+                  <strong>{euro(monthlyPriceFor(plan, vehicles))} / mo</strong>
+                  {extra(plan) > 0 && (
+                    <span>
+                      {' '}({euro(plan.priceAmount)} + {extra(plan)} × {euro(plan.perVehiclePrice ?? 0)})
+                    </span>
+                  )}
+                </p>
+              )}
               <ul className={styles.features}>
                 {plan.features.map((f) => (
                   <li key={f}>

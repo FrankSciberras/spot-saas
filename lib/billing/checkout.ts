@@ -14,6 +14,13 @@ import type Stripe from 'stripe';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { PlanDef } from './plans';
 import { getStripe, appBaseUrl } from './stripe';
+import {
+  countFleetVehicles,
+  ensureExtraVehiclePrice,
+  extraVehicleCount,
+  isExtraVehicleItem,
+  syncExtraVehicleBilling,
+} from './vehicle-billing';
 
 interface CheckoutOk {
   url: string;
@@ -162,13 +169,33 @@ export async function createPlanCheckoutSession(opts: {
   const priceId = await resolvePriceId(stripe, plan);
   if (typeof priceId !== 'string') return priceId; // { error }
 
-  const customerId = await ensureCustomer(orgId, orgName, email);
   const base = appBaseUrl();
+
+  // Already subscribed → change the plan on that subscription instead of
+  // opening a second one (the card on file is billed, prorated).
+  const changed = await changeExistingSubscription(stripe, orgId, plan, priceId);
+  if (changed) return changed;
+
+  const customerId = await ensureCustomer(orgId, orgName, email);
+
+  // Vehicles beyond what the plan includes are a second line, charged per car.
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
+  const extra = extraVehicleCount(plan, await countFleetVehicles(orgId));
+  if (extra > 0) {
+    const extraPrice = await ensureExtraVehiclePrice(stripe, plan).catch((e) => {
+      console.error(`extra-vehicle price sync failed for plan ${plan.id}:`, e);
+      return undefined;
+    });
+    if (extraPrice === undefined) {
+      return { error: 'Could not start checkout. Please try again or contact support.' };
+    }
+    if (extraPrice) lineItems.push({ price: extraPrice, quantity: extra });
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     // Both the session and the resulting subscription carry the org + plan so
     // the webhook can map the payment back to the right fleet/tier.
     client_reference_id: orgId,
@@ -186,6 +213,51 @@ export async function createPlanCheckoutSession(opts: {
     return { error: 'Could not start checkout. Please try again.' };
   }
   return { url: session.url };
+}
+
+/**
+ * Move a fleet that already has a live subscription onto `plan` in place: swap
+ * the base item's price, then re-sync the extra-vehicles item for the new plan.
+ * Returns null when there's no live subscription (→ normal Checkout).
+ */
+async function changeExistingSubscription(
+  stripe: Stripe,
+  orgId: string,
+  plan: PlanDef,
+  priceId: string
+): Promise<CheckoutOk | CheckoutErr | null> {
+  const admin = createAdminClient();
+  const { data: org } = await admin
+    .from('organizations')
+    .select('stripe_subscription_id')
+    .eq('id', orgId)
+    .maybeSingle();
+  const subId = org?.stripe_subscription_id as string | null | undefined;
+  if (!subId) return null;
+
+  const sub = await stripe.subscriptions.retrieve(subId).catch(() => null);
+  if (!sub || !['active', 'trialing', 'past_due'].includes(sub.status)) return null;
+  const baseItem = sub.items.data.find((it) => !isExtraVehicleItem(it));
+  if (!baseItem) return null;
+
+  try {
+    if (baseItem.price.id !== priceId) {
+      await stripe.subscriptions.update(subId, {
+        items: [{ id: baseItem.id, price: priceId }],
+        proration_behavior: 'create_prorations',
+        metadata: { organization_id: orgId, plan: plan.id },
+      });
+    }
+    await syncExtraVehicleBilling(orgId, { planKey: plan.id });
+    await admin
+      .from('organizations')
+      .update({ plan: plan.id, status: 'active', plan_activated_at: new Date().toISOString() })
+      .eq('id', orgId);
+  } catch (e) {
+    console.error(`plan change failed for org ${orgId}:`, e);
+    return { error: 'Could not change your plan. Please try again or contact support.' };
+  }
+  return { url: `${appBaseUrl()}/billing?checkout=success` };
 }
 
 /**

@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 import { getStripe, isStripeEnabled, appBaseUrl } from '@/lib/billing/stripe';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmail, renderBrandedEmail, isEmailConfigured } from '@/lib/email';
+import { isExtraVehicleItem, syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
 
 // Stripe needs the Node runtime (crypto) and the raw, unbuffered request body.
 export const runtime = 'nodejs';
@@ -106,6 +107,12 @@ async function planKeyForPrice(price: Stripe.Price | undefined | null): Promise<
   return null;
 }
 
+/** The plan behind a subscription — its base item, never the extra-vehicles add-on. */
+function planKeyForSubscription(sub: Stripe.Subscription): Promise<string | null> {
+  const base = sub.items.data.find((it) => !isExtraVehicleItem(it)) ?? sub.items.data[0];
+  return planKeyForPrice(base?.price);
+}
+
 function periodEndIso(sub: Stripe.Subscription): string | null {
   // Since Stripe API 2025-03-31 the billing period lives on each subscription
   // ITEM, not the subscription itself (which is why the old top-level read
@@ -147,7 +154,7 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
     const sub = await stripe.subscriptions.retrieve(subId);
     subStatus = sub.status;
     periodEnd = periodEndIso(sub);
-    planKey = await planKeyForPrice(sub.items.data[0]?.price);
+    planKey = await planKeyForSubscription(sub);
   }
 
   if (!planKey) {
@@ -177,6 +184,9 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
     console.error('stripe webhook: failed to activate plan:', error);
     throw error;
   }
+
+  // Cars added while they were on the payment page.
+  await syncExtraVehicleBillingSafe(orgId);
 
   // Best-effort confirmation email — never let a mail failure fail the webhook
   // (that would make Stripe retry and re-activate).
@@ -253,18 +263,26 @@ async function handleSubscriptionChange(sub: Stripe.Subscription, deleted: boole
     patch.status = 'cancelled';
   } else if (sub.status === 'active' || sub.status === 'trialing') {
     patch.status = 'active';
-    const planKey = await planKeyForPrice(sub.items.data[0]?.price);
+    const planKey = await planKeyForSubscription(sub);
     if (planKey) patch.plan = planKey;
   }
 
   // Locate the org by metadata, falling back to the stored subscription id.
   const query = admin.from('organizations').update(patch);
-  const { error } = orgId
-    ? await query.eq('id', orgId)
-    : await query.eq('stripe_subscription_id', sub.id);
+  const { data: updated, error } = orgId
+    ? await query.eq('id', orgId).select('id')
+    : await query.eq('stripe_subscription_id', sub.id).select('id');
 
   if (error) {
     console.error('stripe webhook: failed to sync subscription change:', error);
     throw error;
+  }
+
+  // A plan switch (e.g. in the Stripe portal) changes the per-car price.
+  // Idempotent, so the update our own sync triggers settles immediately.
+  if (!deleted && sub.status !== 'canceled') {
+    for (const row of (updated || []) as { id: string }[]) {
+      await syncExtraVehicleBillingSafe(row.id);
+    }
   }
 }
