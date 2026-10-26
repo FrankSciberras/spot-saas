@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import FleetShell from '@/components/fleet/FleetShell';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import { getPlans } from '@/lib/billing/plans-data';
-import { getPlanDef } from '@/lib/billing/plans';
+import { getPlanDef, monthlyPriceFor, type PlanDef } from '@/lib/billing/plans';
 import { listFleetInvoices, hasBillingAccount } from '@/lib/billing/invoices';
 import ManageBillingButton from './ManageBillingButton';
 import styles from './fleetBilling.module.css';
@@ -27,9 +27,28 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-/** A usage meter row: used vs cap (null cap = unlimited). */
-function Meter({ label, used, cap }: { label: string; used: number; cap: number | null }) {
+const euro = (n: number) => `€${Number.isInteger(n) ? n : n.toFixed(2)}`;
+
+/**
+ * A usage meter row: used vs cap (null cap = unlimited). `included` marks how
+ * many are covered by the plan price; the rest are billed per unit.
+ */
+function Meter({
+  label,
+  used,
+  cap,
+  included,
+  perUnit,
+}: {
+  label: string;
+  used: number;
+  cap: number | null;
+  included?: number | null;
+  perUnit?: number | null;
+}) {
   const unlimited = cap === null;
+  const showIncluded = included != null && !unlimited && cap > 0 && included < cap;
+  const extra = included != null ? Math.max(0, used - included) : 0;
   const pct = unlimited ? Math.min(100, used > 0 ? 12 : 4) : Math.min(100, cap === 0 ? 100 : (used / cap) * 100);
   const fillClass =
     !unlimited && pct >= 100 ? `${styles.fill} ${styles.fillFull}` : !unlimited && pct >= 80 ? `${styles.fill} ${styles.fillWarn}` : styles.fill;
@@ -43,7 +62,20 @@ function Meter({ label, used, cap }: { label: string; used: number; cap: number 
       </div>
       <div className={styles.track}>
         <div className={fillClass} style={{ width: `${pct}%` }} />
+        {showIncluded && (
+          <div className={styles.includedMark} style={{ left: `${(included / cap) * 100}%` }} />
+        )}
       </div>
+      {included != null && (
+        <div className={styles.meterNote}>
+          {included} included in your plan
+          {extra > 0
+            ? ` · ${extra} extra${perUnit ? ` × ${euro(perUnit)} / mo` : ''}`
+            : perUnit
+              ? ` · extra ones ${euro(perUnit)} / mo each`
+              : ''}
+        </div>
+      )}
     </div>
   );
 }
@@ -71,8 +103,27 @@ export default async function FleetBillingPage() {
 
   // Hero copy.
   const planTitle = billing.onTrial ? 'Free period' : currentDef?.name ?? billing.plan;
-  const priceLabel = billing.onTrial ? 'Free' : currentDef?.priceLabel ?? '—';
-  const priceUnit = billing.onTrial ? 'for now' : currentDef?.priceUnit ?? '';
+  // Real monthly total = plan price + vehicles beyond what it includes.
+  const perVehicle = (d?: PlanDef) =>
+    d && !d.isCustom && d.includedVehicles != null && d.perVehiclePrice ? d.perVehiclePrice : null;
+  const extraVehicles = (d?: PlanDef) =>
+    perVehicle(d) != null ? Math.max(0, billing.vehicles - (d!.includedVehicles ?? 0)) : 0;
+  const billsMonthly = !billing.onTrial && !!currentDef && !currentDef.isCustom;
+  const priceLabel = billing.onTrial
+    ? 'Free'
+    : billsMonthly
+      ? euro(monthlyPriceFor(currentDef!, billing.vehicles))
+      : currentDef?.priceLabel ?? '—';
+  const priceUnit = billing.onTrial ? 'for now' : billsMonthly ? '/ mo' : currentDef?.priceUnit ?? '';
+  const breakdown = billsMonthly
+    ? extraVehicles(currentDef) > 0
+      ? `${euro(currentDef!.priceAmount)} plan (${currentDef!.includedVehicles} vehicles included) + ${extraVehicles(currentDef)} extra vehicle${extraVehicles(currentDef) === 1 ? '' : 's'} × ${euro(perVehicle(currentDef)!)}`
+      : currentDef!.includedVehicles != null
+        ? `Includes ${currentDef!.includedVehicles} vehicles${perVehicle(currentDef) ? ` · ${euro(perVehicle(currentDef)!)} / mo per extra vehicle` : ''}`
+        : null
+    : billing.onTrial && recommendedDef && !recommendedDef.isCustom
+      ? `On ${recommendedDef.name} your ${billing.vehicles} vehicle${billing.vehicles === 1 ? '' : 's'} would be ${euro(monthlyPriceFor(recommendedDef, billing.vehicles))} / mo`
+      : null;
 
   const subline = billing.onTrial
     ? billing.trialExpired
@@ -109,6 +160,7 @@ export default async function FleetBillingPage() {
             <div className={styles.price}>
               <strong>{priceLabel}</strong> {priceUnit}
             </div>
+            {breakdown && <div className={styles.priceBreakdown}>{breakdown}</div>}
             <div className={styles.subline}>{subline}</div>
           </div>
           <div className={styles.heroRight}>
@@ -179,7 +231,13 @@ export default async function FleetBillingPage() {
             <div className={styles.cardHead}>Usage</div>
             <div className={styles.cardBody}>
               <Meter label="Drivers" used={billing.drivers} cap={limitDef?.maxDrivers ?? null} />
-              <Meter label="Vehicles" used={billing.vehicles} cap={limitDef?.maxVehicles ?? null} />
+              <Meter
+                label="Vehicles"
+                used={billing.vehicles}
+                cap={limitDef?.maxVehicles ?? null}
+                included={limitDef && !limitDef.isCustom ? limitDef.includedVehicles : null}
+                perUnit={perVehicle(limitDef)}
+              />
               {billing.overLimit && recommendedDef && (
                 <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--warn)' }}>
                   You’ve outgrown this plan — the {recommendedDef.name} plan or higher is needed for your fleet size.
