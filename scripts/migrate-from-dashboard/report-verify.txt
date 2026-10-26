@@ -1,0 +1,99 @@
+
+=== VERIFY  org 7307e2f1-2417-4d1d-84b8-52db44d1b7ac on lqkygfqtcpcklbrhjiha ===
+
+--- row counts (dump -> imported) ---
+  PASS  drivers                       11 -> 11
+  PASS  vehicles                      8 -> 8
+  PASS  driver_shifts                 816 -> 816
+  PASS  files                         125 -> 125
+  PASS  notifications                 324 -> 324
+  PASS  rosters                       39 -> 39
+  PASS  roster_assignments            992 -> 992
+  PASS  vehicle_services              20 -> 20
+  PASS  notification_rules            5 -> 5
+  PASS  notification_log              172 -> 172
+  PASS  driver_settlements            306 -> 306
+  PASS  settlement_platforms          918 -> 918
+  PASS  driver_vehicle_assignments    29 -> 29
+  PASS  driver_adjustments            55 -> 55
+  PASS  weekly_bookkeeping            38 -> 38
+  PASS  vehicle_damages               48 -> 48
+  PASS  reminders                     9 -> 9
+  PASS  audit_logs                    83 -> 83
+  PASS  role_permissions              22 -> 22
+  PASS  app_settings                  1 -> 1
+
+--- identity ---
+  PASS  memberships exist             13
+  PASS  at least one admin            
+  PASS  every driver is a member      
+
+--- money reconciliation ---
+  PASS  driver_settlements.fss_tax    3674.00 -> 3674.00
+  PASS  driver_settlements.total_gross_fare238662.15 -> 238662.15
+  PASS  driver_settlements.total_net  95465.40 -> 95465.40
+  PASS  driver_settlements.total_balance_before_tax59927.83 -> 59927.83
+  PASS  driver_settlements.final_balance56253.83 -> 56253.83
+  PASS  settlement_platforms.gross_fare238662.15 -> 238662.15
+  PASS  settlement_platforms.fee      23866.32 -> 23866.32
+  PASS  settlement_platforms.net      95465.40 -> 95465.40
+  PASS  settlement_platforms.cash_ride49520.22 -> 49520.22
+  PASS  settlement_platforms.tips     3702.69 -> 3702.69
+  PASS  settlement_platforms.campaigns10279.96 -> 10279.96
+  PASS  settlement_platforms.balance  59927.83 -> 59927.83
+  PASS  driver_adjustments.amount     6772.55 -> 6772.55
+
+--- columns this app added (defaults applied to imported rows) ---
+  drivers: tag_license_expiry_date=null  settlement_driver_share_pct=null  settlement_tips_driver_pct=null  settlement_campaigns_driver_pct=null  settlement_fee_driver_pct=null  settlement_preset_id=null
+  vehicles: vehicle_model_id=null
+  driver_shifts: ending_mileage=null  end_image_urls=[]  auto_closed_at=2 distinct  long_shift_nudged_at=null
+  notifications: source="fleet"  sender_label=null
+  driver_settlements: driver_share_pct=50  tips_driver_pct=100  campaigns_driver_pct=100  fee_driver_pct=100  rent_amount=0  total_adjustments=0  hours_worked=0  hourly_rate=0  wage_amount=0  components={}
+  driver_adjustments: recurring_rule_id=null  settlement_id=null
+
+--- referential integrity ---
+  PASS  driver_shifts.driver_id -> drivers
+  PASS  driver_shifts.vehicle_id -> vehicles
+  PASS  notifications.driver_id -> drivers
+  PASS  roster_assignments.roster_id -> rosters
+  PASS  roster_assignments.vehicle_id -> vehicles
+  PASS  roster_assignments.driver_id -> drivers
+  PASS  roster_assignments.secondary_driver_id -> drivers
+  PASS  vehicle_services.vehicle_id -> vehicles
+  PASS  notification_log.rule_id -> notification_rules
+  PASS  notification_log.driver_id -> drivers
+  PASS  driver_settlements.driver_id -> drivers
+  PASS  settlement_platforms.settlement_id -> driver_settlements
+  PASS  driver_vehicle_assignments.driver_id -> drivers
+  PASS  driver_vehicle_assignments.vehicle_id -> vehicles
+  PASS  driver_adjustments.driver_id -> drivers
+  PASS  vehicle_damages.vehicle_id -> vehicles
+
+--- tenant isolation ---
+  PASS  drivers stamped to this org   
+  PASS  vehicles stamped to this org  
+  PASS  driver_shifts stamped to this org
+  PASS  files stamped to this org     
+  PASS  notifications stamped to this org
+  PASS  rosters stamped to this org   
+  PASS  roster_assignments stamped to this org
+  PASS  vehicle_services stamped to this org
+  PASS  notification_rules stamped to this org
+  PASS  notification_log stamped to this org
+  PASS  driver_settlements stamped to this org
+  PASS  settlement_platforms stamped to this org
+  PASS  driver_vehicle_assignments stamped to this org
+  PASS  driver_adjustments stamped to this org
+  PASS  weekly_bookkeeping stamped to this org
+  PASS  vehicle_damages stamped to this org
+  PASS  reminders stamped to this org 
+  PASS  audit_logs stamped to this org
+  PASS  role_permissions stamped to this org
+  PASS  app_settings stamped to this org
+
+--- books ---
+  PASS  ledger income                 173876.32 -> 173876.32
+  PASS  ledger expenses               100099.92 -> 100099.92
+  PASS  ledger net                    73776.40 -> 73776.40
+
+=== ALL CHECKS PASSED ===
