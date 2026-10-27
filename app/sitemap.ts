@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/seo';
 import { BLOG_POSTS, blogHref } from '@/components/marketing/blog/posts';
+import { RELEASES } from '@/components/marketing/changelog/releases';
 
 /**
  * Generated sitemap — replaces the old hand-written public/sitemap.xml plus the
@@ -36,14 +37,20 @@ const ROUTES: Array<{ path: string; priority: number; changeFrequency: MetadataR
   { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  // Build-time constant: the sitemap is regenerated on every deploy, so this
-  // doubles as an honest "last touched" signal without churning every request.
-  const builtAt = new Date();
+/**
+ * Real "last changed" dates where we know them. Static pages used to carry the
+ * build time, so every deploy claimed all ~20 pages had changed — Google learns
+ * to ignore a lastmod that cries wolf, including on posts that really did
+ * change. Pages without a known date now simply omit it.
+ */
+const KNOWN_LASTMOD: Record<string, string | undefined> = {
+  '/changelog': RELEASES[0]?.date,
+};
 
+export default function sitemap(): MetadataRoute.Sitemap {
   const staticEntries = ROUTES.map(({ path, priority, changeFrequency }) => ({
     url: `${SITE_URL}${path}`,
-    lastModified: builtAt,
+    ...(KNOWN_LASTMOD[path] ? { lastModified: new Date(KNOWN_LASTMOD[path]!) } : {}),
     changeFrequency,
     priority,
   }));

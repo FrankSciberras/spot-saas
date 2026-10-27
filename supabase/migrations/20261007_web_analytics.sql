@@ -501,6 +501,22 @@ BEGIN
     LEFT JOIN c pc ON NOT pc.cur AND pc.t = pb.t;
   v_out := v_out || jsonb_build_object('series', v_part);
 
+  -- ── Each top channel over time (small multiples): the six biggest channels,
+  --    anything smaller folded into Other ──
+  WITH top AS (
+    SELECT channel FROM (SELECT channel, vk FROM _as WHERE cur GROUP BY 1, 2) x
+     GROUP BY channel ORDER BY count(*) DESC, channel LIMIT 6
+  )
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           't', to_char(t, 'YYYY-MM-DD"T"HH24:MI:SS'), 'name', name, 'visitors', n) ORDER BY t, name), '[]'::jsonb)
+    INTO v_part
+    FROM (SELECT t, name, count(*) AS n
+            FROM (SELECT date_trunc(v_bucket, started_at AT TIME ZONE v_tz) AS t,
+                         CASE WHEN channel IN (SELECT channel FROM top) THEN channel ELSE 'Other' END AS name, vk
+                    FROM _as WHERE cur GROUP BY 1, 2, 3) x
+           GROUP BY t, name) y;
+  v_out := v_out || jsonb_build_object('channel_series', v_part);
+
   -- ── Acquisition ──
   v_out := v_out || jsonb_build_object(
     'channels',  analytics_breakdown('channel'),

@@ -12,7 +12,7 @@ import { SITE_URL, marketingMetadata } from '@/lib/seo';
 export const metadata = marketingMetadata({
   title: 'Fleet Management API Documentation — Rovora',
   description:
-    'REST API reference for Rovora: read and write drivers, vehicles and financials with scoped API keys, per-minute and per-day rate limits, and a full OpenAPI spec.',
+    'REST API reference for Rovora: read and write drivers, vehicles and financials with scoped API keys, rate limits and a full OpenAPI spec.',
   path: '/docs/api',
   keywords: [
     'fleet management API',
