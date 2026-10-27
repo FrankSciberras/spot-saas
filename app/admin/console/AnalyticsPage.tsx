@@ -535,7 +535,7 @@ function Heatmap({ cells }: { cells: Dashboard['heatmap'] }) {
 const FUNNEL_LABEL: Record<Dashboard['funnel'][number]['key'], { title: string; hint: string }> = {
   visited: { title: 'Visited the site', hint: 'Unique visitors in this period' },
   pricing: { title: 'Viewed pricing', hint: 'Opened /pricing' },
-  started: { title: 'Started sign-up', hint: 'Clicked “Start free trial” or began the sign-up form' },
+  started: { title: 'Started sign-up', hint: 'Clicked “Get started free” or began the sign-up form' },
   signed_up: { title: 'Created a fleet', hint: 'Finished onboarding — a new Rovora account' },
 };
 function Funnel({ steps }: { steps: Dashboard['funnel'] }) {
@@ -779,7 +779,7 @@ function buildInsights(d: Dashboard, compare: string): Insight[] {
       .sort((a, b) => b.visitors - a.visitors)[0];
     if (weak) {
       out.push({ id: 'src-weak', tone: 'fix', score: 66, title: `${weak.name} brings ${fmtPct(share(weak.visitors))} of visitors but few signups`,
-        body: `Only ${fmtPct(conv(weak))} of them sign up (average ${fmtPct(avg)}). Send that traffic to a page made for it — matching the post or ad it came from — with one clear “Start free trial” button.`,
+        body: `Only ${fmtPct(conv(weak))} of them sign up (average ${fmtPct(avg)}). Send that traffic to a page made for it — matching the post or ad it came from — with one clear “Get started free” button.`,
         filter: ['source', weak.name] });
     }
   }
@@ -798,7 +798,7 @@ function buildInsights(d: Dashboard, compare: string): Insight[] {
     const bd = ratio(desk.bounces ?? 0, desk.visits);
     if (bm - bd >= 0.08) {
       out.push({ id: 'mobile-bounce', tone: 'fix', score: 60, title: `Phone visitors bounce more (${fmtPct(bm)} vs ${fmtPct(bd)} on desktop)`,
-        body: `${fmtPct(share(mob.visitors))} of visitors are on phones. Check the mobile homepage loads fast and the trial button shows without scrolling.`,
+        body: `${fmtPct(share(mob.visitors))} of visitors are on phones. Check the mobile homepage loads fast and the “Get started free” button shows without scrolling.`,
         filter: ['device', 'Mobile'] });
     } else if ((desk.signups ?? 0) >= 3 && conv(desk) >= 2 * conv(mob)) {
       out.push({ id: 'mobile-conv', tone: 'opportunity', score: 52, title: `Phone visitors sign up far less (${fmtPct(conv(mob))} vs ${fmtPct(conv(desk))})`,
@@ -810,8 +810,8 @@ function buildInsights(d: Dashboard, compare: string): Insight[] {
   // Funnel drop-offs.
   const f = Object.fromEntries(d.funnel.map((s) => [s.key, s.visitors])) as Record<Dashboard['funnel'][number]['key'], number>;
   if (f.pricing >= 40 && ratio(f.started, f.pricing) < 0.3) {
-    out.push({ id: 'pricing-drop', tone: 'fix', score: 72, title: 'Lots of pricing views, few trial starts',
-      body: `${f.pricing.toLocaleString('en-GB')} visitors looked at pricing; ${fmtPct(ratio(f.started, f.pricing))} then started signing up. Make the trial button stand out on /pricing, repeat “no card needed”, and answer price questions in an FAQ there.`,
+    out.push({ id: 'pricing-drop', tone: 'fix', score: 72, title: 'Lots of pricing views, few sign-ups started',
+      body: `${f.pricing.toLocaleString('en-GB')} visitors looked at pricing; ${fmtPct(ratio(f.started, f.pricing))} then started signing up. Make “Get started free” stand out on /pricing, repeat “no card needed”, and answer price questions in an FAQ there.`,
       filter: ['page', '/pricing'] });
   }
   if (f.started >= 15 && ratio(f.signed_up, f.started) < 0.35) {
@@ -1429,7 +1429,7 @@ export default function AnalyticsPage() {
               <BarList rows={interactions} label="Action · where" keyOf={(r) => `${r.name}|${r.label}`} value={(r) => r.count}
                 name={(r) => <>{r.name}{r.label && <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>}</>}
                 columns={[{ label: 'Clicks', width: 52, render: (r) => fmtNum(r.count) }, { label: 'Visitors', width: 58, render: (r) => fmtNum(r.visitors) }]}
-                empty="Clicks on “Start free trial”, sign-in, contact, email and outbound links, chat opens and video plays show up here." />
+                empty="Clicks on “Get started free”, sign-in, contact, email and outbound links, chat opens and video plays show up here." />
             </Card>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
               <Card>

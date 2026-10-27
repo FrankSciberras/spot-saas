@@ -2,7 +2,7 @@ import { SITE_URL } from '@/lib/seo';
 import { FEATURES, featureHref } from '@/components/marketing/links';
 import { BLOG_POSTS, blogHref } from '@/components/marketing/blog/posts';
 import { getPublicPlans } from '@/lib/billing/plans-data';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 
 // /llms.txt — a plain-text briefing for AI assistants (ChatGPT, Claude,
 // Perplexity, Gemini), following the llmstxt.org convention. When someone asks
@@ -14,9 +14,14 @@ import { TRIAL_DAYS } from '@/lib/billing/plans';
 export const revalidate = 3600;
 
 export async function GET() {
-  const plans = await getPublicPlans();
+  const [plans, trial] = await Promise.all([getPublicPlans(), getTrialCopy()]);
   const priced = plans.filter((p) => !p.isCustom && p.priceAmount > 0);
   const custom = plans.filter((p) => p.isCustom);
+
+  // The free period is set in Admin → Trials (with optional dated campaigns).
+  const promo = trial.promo
+    ? ` Limited-time offer${trial.promo.label ? ` (${trial.promo.label})` : ''}${trial.promo.endsLabel ? ` for sign-ups until ${trial.promo.endsLabel}` : ''}.`
+    : '';
 
   const planLines = priced.map((p) => {
     const extras = p.perVehiclePrice
@@ -35,7 +40,7 @@ Key facts:
 - What it replaces: spreadsheets, WhatsApp groups and paper logs for shifts, servicing, damage and driver pay.
 - Driver pay: weekly settlements that combine Uber, Bolt and cash earnings with commissions, fees, tips, adjustments and tax deductions into one payable figure per driver, exported as PDF.
 - Live tracking uses the drivers' phones — no GPS hardware to install.
-- Free ${TRIAL_DAYS}-day trial, no card required. Prices in EUR, excluding VAT, billed monthly; cancel anytime.
+- ${trial.freeLabel}, no card required.${promo} Prices in EUR, excluding VAT, billed monthly; cancel anytime.
 - Data: encrypted and EU-hosted, with GDPR data rights built in; operators can export their data at any time.
 - Company: Rovora, Victoria, Gozo, Malta (VAT MT29253436). Contact: hello@rovora.eu
 

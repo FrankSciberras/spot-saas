@@ -12,7 +12,7 @@ import CookieBanner from './CookieBanner';
  * scroll depth (see lib/analytics/client.ts). Clicks that matter for growth are
  * picked up automatically, so marketing pages need no extra markup:
  *
- *   "Start free trial" links      → Start trial click   (label: where it was)
+ *   "Get started free" links      → Start trial click   (label: where it was)
  *   "Sign in" links               → Sign in click
  *   /contact links                → Contact click / Book demo click
  *   mailto: / tel: links          → Email click / Phone click
