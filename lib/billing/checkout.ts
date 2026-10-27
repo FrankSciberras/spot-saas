@@ -31,6 +31,27 @@ interface CheckoutErr {
 
 const CURRENCY = 'eur';
 
+/** Shown to the customer when Stripe refuses a request; the real reason is logged. */
+const CHECKOUT_FAILED = 'Could not start checkout. Please try again or contact support.';
+
+/** Our own product for a plan, created when the connected one isn't reachable. */
+const PLAN_PRODUCT_PREFIX = 'rovora_plan_';
+
+/**
+ * Stripe's "No such customer / product / price". Almost always an id saved
+ * under a different Stripe key — e.g. test-mode ids after switching to the
+ * live secret key — rather than something the customer did.
+ */
+function isMissing(e: unknown): boolean {
+  return (e as { code?: string } | null)?.code === 'resource_missing';
+}
+
+/** Stripe error → one log line (type · code · message). */
+function describe(e: unknown): string {
+  const err = e as { type?: string; code?: string; message?: string } | null;
+  return [err?.type, err?.code, err?.message].filter(Boolean).join(' · ') || String(e);
+}
+
 /** Is this Stripe price the monthly `cents` amount the plan advertises? */
 function matchesPlan(p: Stripe.Price, cents: number): boolean {
   return (
@@ -80,11 +101,37 @@ async function syncProductPrice(
 }
 
 /**
+ * Our own Stripe product for a plan (fixed id, like the extra-vehicles add-on),
+ * created if needed and saved on the plan — the webhook maps payments back to
+ * plans by this product id. Used when the connected product doesn't exist for
+ * the current key (e.g. a test-mode product after switching to live).
+ */
+async function ensurePlanProduct(stripe: Stripe, plan: PlanDef, clearPrice: boolean): Promise<string> {
+  const id = `${PLAN_PRODUCT_PREFIX}${plan.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  try {
+    await stripe.products.retrieve(id);
+  } catch (e) {
+    if (!isMissing(e)) throw e;
+    await stripe.products.create({ id, name: plan.name, metadata: { plan: plan.id } });
+  }
+  const { error } = await createAdminClient()
+    .from('plans')
+    .update({ stripe_product_id: id, ...(clearPrice ? { stripe_price_id: null } : {}) })
+    .eq('key', plan.id);
+  if (error) console.error(`could not save Stripe product ${id} on plan ${plan.id}:`, error.message);
+  console.warn(`plan ${plan.id}: connected Stripe product isn't reachable with this key — now using ${id}`);
+  return id;
+}
+
+/**
  * Resolve the recurring Stripe Price id to charge for a plan:
- *   1. an explicit `stripePriceId` (price_…) — used as-is (manual override).
+ *   1. an explicit `stripePriceId` (price_…) — the manual override, if it
+ *      exists for this Stripe key.
  *   2. otherwise the connected `stripeProductId` (prod_…) — synced to the
  *      plan's price first, then its default price is used.
  *      (For convenience a `prod_…` value pasted into the price field also works.)
+ *   3. if that product doesn't exist for this key, our own `rovora_plan_<key>`
+ *      product, created and connected on the spot.
  * Returns the price id, or a { error } the caller can surface.
  */
 async function resolvePriceId(
@@ -92,19 +139,38 @@ async function resolvePriceId(
   plan: PlanDef
 ): Promise<string | CheckoutErr> {
   const price = plan.stripePriceId?.trim();
-  if (price && price.startsWith('price_')) return price;
+  let staleExplicitPrice = false;
+  if (price && price.startsWith('price_')) {
+    try {
+      const p = await stripe.prices.retrieve(price);
+      if (p.active) return price;
+    } catch (e) {
+      if (!isMissing(e)) {
+        console.error(`Stripe price check failed for plan ${plan.id}:`, describe(e));
+        return { error: CHECKOUT_FAILED };
+      }
+    }
+    // Gone or archived for this key — fall back to the product below.
+    staleExplicitPrice = true;
+  }
 
   const productId =
     plan.stripeProductId?.trim() || (price?.startsWith('prod_') ? price : null);
 
-  if (productId) {
+  if (productId || staleExplicitPrice) {
     let resolved: string | null = null;
     try {
-      resolved = await syncProductPrice(stripe, productId, plan);
+      try {
+        if (!productId) throw Object.assign(new Error('no product connected'), { code: 'resource_missing' });
+        resolved = await syncProductPrice(stripe, productId, plan);
+      } catch (e) {
+        if (!isMissing(e)) throw e;
+        resolved = await syncProductPrice(stripe, await ensurePlanProduct(stripe, plan, staleExplicitPrice), plan);
+      }
     } catch (e) {
       // Never charge an amount the customer wasn't shown.
-      console.error(`Stripe price sync failed for plan ${plan.id}:`, e);
-      return { error: 'Could not start checkout. Please try again or contact support.' };
+      console.error(`Stripe price sync failed for plan ${plan.id}:`, describe(e));
+      return { error: CHECKOUT_FAILED };
     }
     if (!resolved) {
       return { error: `${plan.name} has no default price set in Stripe.` };
@@ -116,7 +182,9 @@ async function resolvePriceId(
 }
 
 /**
- * Ensure the org has a Stripe customer, creating + persisting one if missing.
+ * Ensure the org has a Stripe customer, creating + persisting one if missing —
+ * or if the saved one doesn't exist for the current Stripe key (a customer
+ * saved in test mode is unknown to the live key, and checkout would fail).
  * Returns the customer id.
  */
 async function ensureCustomer(
@@ -131,11 +199,18 @@ async function ensureCustomer(
     .eq('id', orgId)
     .single();
 
-  if (org?.stripe_customer_id) {
-    return org.stripe_customer_id as string;
+  const stripe = getStripe();
+  const saved = org?.stripe_customer_id as string | null | undefined;
+  if (saved) {
+    try {
+      const existing = await stripe.customers.retrieve(saved);
+      if (!('deleted' in existing && existing.deleted)) return existing.id;
+    } catch (e) {
+      if (!isMissing(e)) throw e;
+    }
+    console.warn(`org ${orgId}: Stripe customer ${saved} not found with this key — creating a new one`);
   }
 
-  const stripe = getStripe();
   const customer = await stripe.customers.create({
     name: org?.name ?? orgName ?? undefined,
     email: email ?? undefined,
@@ -162,6 +237,23 @@ export async function createPlanCheckoutSession(opts: {
 }): Promise<CheckoutOk | CheckoutErr> {
   const { orgId, orgName = null, email = null, plan } = opts;
 
+  // Any Stripe refusal (bad key, missing object, network) comes back as a
+  // message on the billing page — an exception here used to take the whole
+  // page down to the error screen.
+  try {
+    return await startCheckout(orgId, orgName, email, plan);
+  } catch (e) {
+    console.error(`checkout failed for org ${orgId}, plan ${plan.id}:`, describe(e));
+    return { error: CHECKOUT_FAILED };
+  }
+}
+
+async function startCheckout(
+  orgId: string,
+  orgName: string | null,
+  email: string | null,
+  plan: PlanDef
+): Promise<CheckoutOk | CheckoutErr> {
   const stripe = getStripe();
 
   // Resolve the recurring Price to charge: an explicit price wins, otherwise
@@ -187,7 +279,7 @@ export async function createPlanCheckoutSession(opts: {
       return undefined;
     });
     if (extraPrice === undefined) {
-      return { error: 'Could not start checkout. Please try again or contact support.' };
+      return { error: CHECKOUT_FAILED };
     }
     if (extraPrice) lineItems.push({ price: extraPrice, quantity: extra });
   }
@@ -278,11 +370,18 @@ export async function createBillingPortalSession(
     return { error: 'No billing account yet — choose a plan first.' };
   }
 
-  const stripe = getStripe();
-  const session = await stripe.billingPortal.sessions.create({
-    customer: org.stripe_customer_id as string,
-    return_url: `${appBaseUrl()}/billing`,
-  });
-
-  return { url: session.url };
+  try {
+    const session = await getStripe().billingPortal.sessions.create({
+      customer: org.stripe_customer_id as string,
+      return_url: `${appBaseUrl()}/billing`,
+    });
+    return { url: session.url };
+  } catch (e) {
+    console.error(`billing portal failed for org ${orgId}:`, describe(e));
+    return {
+      error: isMissing(e)
+        ? 'Your billing account needs setting up again — choose a plan to continue.'
+        : 'Could not open billing. Please try again or contact support.',
+    };
+  }
 }

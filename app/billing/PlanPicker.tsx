@@ -25,6 +25,10 @@ interface Props {
 
 const euro = (n: number) => `€${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
+const UNEXPECTED = 'Something went wrong. Please try again, or contact support if it keeps happening.';
+/** redirect() inside a server action surfaces as this error — let Next handle it. */
+const isRedirect = (e: unknown) => String((e as { digest?: string } | null)?.digest ?? '').startsWith('NEXT_REDIRECT');
+
 export default function PlanPicker({
   plans,
   currentPlan,
@@ -46,17 +50,24 @@ export default function PlanPicker({
     setError('');
     setPendingPlan(plan);
     startTransition(async () => {
-      const result = await activatePlanAction(plan);
-      if (result && 'url' in result && result.url) {
-        // Stripe Checkout — hand off to the hosted payment page.
-        window.location.assign(result.url);
-        return;
-      }
-      if (result && 'error' in result && result.error) {
-        setError(result.error);
+      try {
+        const result = await activatePlanAction(plan);
+        if (result && 'url' in result && result.url) {
+          // Stripe Checkout — hand off to the hosted payment page.
+          window.location.assign(result.url);
+          return;
+        }
+        if (result && 'error' in result && result.error) {
+          setError(result.error);
+          setPendingPlan(null);
+        }
+        // Stub path: the action revalidates + redirects to /fleet itself.
+      } catch (e) {
+        if (isRedirect(e)) throw e;
+        console.error('activatePlanAction failed:', e);
+        setError(UNEXPECTED);
         setPendingPlan(null);
       }
-      // Stub path: the action revalidates + redirects to /fleet itself.
     });
   };
 
@@ -64,12 +75,18 @@ export default function PlanPicker({
     setError('');
     setPortalPending(true);
     startTransition(async () => {
-      const result = await openBillingPortalAction();
-      if ('url' in result && result.url) {
-        window.location.assign(result.url);
-        return;
+      try {
+        const result = await openBillingPortalAction();
+        if ('url' in result && result.url) {
+          window.location.assign(result.url);
+          return;
+        }
+        if ('error' in result) setError(result.error);
+      } catch (e) {
+        if (isRedirect(e)) throw e;
+        console.error('openBillingPortalAction failed:', e);
+        setError(UNEXPECTED);
       }
-      if ('error' in result) setError(result.error);
       setPortalPending(false);
     });
   };
