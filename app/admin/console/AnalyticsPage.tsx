@@ -56,7 +56,7 @@ interface Conversion {
 interface Dashboard {
   kpis: { current: Totals; previous: Totals };
   series: SeriesPoint[];
-  channel_series: { t: string; name: string; visitors: number }[];
+  channel_series?: { t: string; name: string; visitors: number }[];
   channels: Row[];
   sources: Row[];
   referrers: Row[];
@@ -933,7 +933,8 @@ function ChannelTrends({ data }: { data: Dashboard }) {
   const buckets = data.series.map((p) => p.t);
   const channels = useMemo(() => {
     const by = new Map<string, Map<string, number>>();
-    for (const r of data.channel_series) {
+    // Absent until the updated analytics migration has been re-run.
+    for (const r of data.channel_series ?? []) {
       if (!by.has(r.name)) by.set(r.name, new Map());
       by.get(r.name)!.set(r.t, r.visitors);
     }
