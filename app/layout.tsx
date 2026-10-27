@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { Figtree } from 'next/font/google';
 import './globals.css';
 import './rovora-site.css';
 import ServiceWorkerRegistration from '@/components/shared/ServiceWorkerRegistration';
@@ -7,12 +6,7 @@ import ErrorRecovery from '@/components/shared/ErrorRecovery';
 import SplashScreen from '@/components/shared/SplashScreen';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import SiteAnalytics from '@/components/analytics/SiteAnalytics';
-
-const figtree = Figtree({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-});
+import { figtree } from '@/lib/rovoraFonts';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://rovora.eu'),
