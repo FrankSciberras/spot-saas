@@ -109,9 +109,9 @@ export default function ContactPage() {
         <div className="container">
           <div className="cta-band reveal">
             <h2>Prefer to chat?</h2>
-            <p>Use the chat bubble in the corner of any page — or start a free trial and explore Rovora yourself, no card required.</p>
+            <p>Use the chat bubble in the corner of any page — or get started free and explore Rovora yourself, no card required.</p>
             <div className="hero-cta">
-              <a className="btn btn-primary btn-lg" href="/login?mode=signup">Start free trial</a>
+              <a className="btn btn-primary btn-lg" href="/login?mode=signup">Get started free</a>
               <a className="btn btn-ghost btn-lg" href="mailto:hello@rovora.eu?subject=Book%20a%20demo">Book a demo</a>
             </div>
           </div>

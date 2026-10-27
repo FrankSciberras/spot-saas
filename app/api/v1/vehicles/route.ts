@@ -3,6 +3,7 @@ import { withApiAuth, readJsonBody, type ApiContext } from '@/lib/api/auth';
 import { apiError, apiSuccess } from '@/lib/api/respond';
 import { createAdminClient } from '@/lib/supabase/server';
 import { checkApiCapacity } from '@/lib/api/capacity';
+import { syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
 import { VEHICLE_COLUMNS, serializeVehicle } from '@/lib/api/serializers';
 import { VEHICLE_WRITABLE_FIELDS, buildVehiclePayload } from '@/lib/api/resources/vehicles';
 import { ensureDriverInFleet } from '@/lib/api/resources/drivers';
@@ -134,5 +135,6 @@ export const POST = withApiAuth('vehicles:write', async (req: NextRequest, ctx: 
     return apiError('internal_error', 'Could not create the vehicle.');
   }
 
+  await syncExtraVehicleBillingSafe(ctx.organizationId);
   return apiSuccess(serializeVehicle(data), { status: 201 });
 });

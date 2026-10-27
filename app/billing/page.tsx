@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import { getPlans } from '@/lib/billing/plans-data';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getPlanDef } from '@/lib/billing/plans';
 import { isStripeEnabled } from '@/lib/billing/stripe';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import PlanPicker from './PlanPicker';
@@ -36,24 +36,27 @@ export default async function BillingPage({
   ]);
   const isAdmin = user.role === 'admin';
   const canManageBilling = isStripeEnabled() && !!org?.stripe_customer_id;
+  // Show plan NAMES ("Pro"), never internal keys ("growth").
+  const nameOf = (key: string) => getPlanDef(plans, key)?.name ?? key;
+  const planName = nameOf(billing.plan);
 
   let heading: string;
   let sub: string;
 
   if (billing.trialExpired) {
-    heading = 'Your free trial has ended';
-    sub = `Your ${TRIAL_DAYS}-day trial of ${user.organization_name} is over. Choose a plan to keep managing your fleet.`;
+    heading = 'Your free period has ended';
+    sub = `The free period for ${user.organization_name} is over. Choose a plan to keep managing your fleet.`;
   } else if (billing.overLimit) {
-    heading = `You've outgrown the ${billing.plan} plan`;
-    sub = `${user.organization_name} now has ${billing.drivers} drivers and ${billing.vehicles} vehicles. Adding more is paused until you move up to the ${billing.requiredPlan} plan (or remove the extras).`;
+    heading = `You've outgrown the ${planName} plan`;
+    sub = `${user.organization_name} now has ${billing.drivers} drivers and ${billing.vehicles} vehicles. Adding more is paused until you move up to the ${nameOf(billing.requiredPlan)} plan (or remove the extras).`;
   } else if (billing.status === 'suspended' || billing.status === 'cancelled') {
     heading = 'Your fleet is paused';
     sub = `${user.organization_name} has been ${billing.status}. Choose a plan to reactivate it.`;
   } else if (billing.onTrial) {
-    heading = `You're on a free trial`;
-    sub = `${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'} left. No card needed until you choose to upgrade.`;
+    heading = `You're using Rovora free`;
+    sub = `${billing.trialDaysLeft} free day${billing.trialDaysLeft === 1 ? '' : 's'} left. No card needed until you choose to upgrade.`;
   } else {
-    heading = `You're on the ${billing.plan} plan`;
+    heading = `You're on the ${planName} plan`;
     sub = `Manage ${user.organization_name}'s subscription.`;
   }
 
@@ -81,7 +84,7 @@ export default async function BillingPage({
 
         <div className={styles.statusBar}>
           <span className={styles.chip}>
-            Plan: <strong>{billing.plan}</strong>
+            Plan: <strong>{billing.onTrial ? 'Free' : planName}</strong>
           </span>
           <span className={styles.chip}>
             Drivers: <strong>{billing.drivers}</strong>
@@ -91,7 +94,7 @@ export default async function BillingPage({
           </span>
           {billing.onTrial && !billing.trialExpired && (
             <span className={`${styles.chip} ${styles.chipWarn}`}>
-              Trial ends in <strong>{billing.trialDaysLeft} days</strong>
+              Free period ends in <strong>{billing.trialDaysLeft} days</strong>
             </span>
           )}
         </div>
@@ -102,6 +105,7 @@ export default async function BillingPage({
           requiredPlan={billing.requiredPlan}
           isAdmin={isAdmin}
           canManageBilling={canManageBilling}
+          vehicles={billing.vehicles}
         />
 
         {!billing.locked && (

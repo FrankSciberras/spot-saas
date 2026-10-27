@@ -107,7 +107,7 @@ export default function MobileNav({ onHome = false }: { onHome?: boolean }) {
                 </Link>
               ) : (
                 <>
-                  <Link className="btn btn-primary btn-lg" href={START_TRIAL} onClick={close}>Start free trial</Link>
+                  <Link className="btn btn-primary btn-lg" href={START_TRIAL} onClick={close}>Get started free</Link>
                   <Link className="btn btn-ghost btn-lg" href={SIGN_IN} onClick={close}>Sign in</Link>
                 </>
               )}

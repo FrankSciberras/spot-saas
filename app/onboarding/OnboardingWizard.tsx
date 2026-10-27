@@ -5,6 +5,7 @@ import { completeOnboardingAction } from '@/lib/actions/org';
 import { FLEET_MODULES } from '@/lib/modules/catalog';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { requiredPlanFor, type Plan, type PaidPlan, type PlanDef } from '@/lib/billing/plans';
+import { promoHeadline, type TrialCopy } from '@/lib/billing/trial-offer';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
 import styles from './onboarding.module.css';
@@ -40,7 +41,8 @@ const TITLES = [
   'Pick a plan',
 ];
 
-export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
+export default function OnboardingWizard({ plans, trial }: { plans: PlanDef[]; trial: TrialCopy }) {
+  const promo = promoHeadline(trial);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   // Optional "How did you hear about Rovora?" — feeds Admin → Analytics.
@@ -99,7 +101,7 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
           <h1>{TITLES[step]}</h1>
           <p>
             {step === 0 &&
-              "What should we call your fleet? You'll be its admin — with a free 30-day trial, no credit card required."}
+              `What should we call your fleet? You'll be its admin — ${trial.first} free, no credit card required.`}
             {step === 1 &&
               'Roughly how many drivers will you manage? This just helps us suggest the right plan — you can change it any time.'}
             {step === 2 && 'And how many vehicles are in your fleet?'}
@@ -108,7 +110,7 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
             {step === 4 && (
               <>
                 Based on your fleet size we suggest <strong>{recommendedName ?? 'a plan'}</strong>.
-                Start free for 30 days — no card needed — or choose a plan now.
+                Start free for {trial.span} — no card needed — or choose a plan now.
               </>
             )}
           </p>
@@ -310,8 +312,9 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
             {/* Trial CTA first — most users just want to get in; plans are the secondary path. */}
             <div className={styles.trialPanel}>
               <div className={styles.trialText}>
-                <div className={styles.trialTitle}>Not sure yet? Start your free 30-day trial</div>
+                <div className={styles.trialTitle}>Not sure yet? Get your {trial.first} free</div>
                 <div className={styles.trialSub}>
+                  {promo && <><strong>{promo.tag}:</strong> {promo.text}. </>}
                   Full access to every feature. No credit card, cancel any time — pick a plan later from Billing.
                 </div>
               </div>
@@ -327,7 +330,7 @@ export default function OnboardingWizard({ plans }: { plans: PlanDef[] }) {
                     Creating your fleet…
                   </>
                 ) : (
-                  'Start free 30-day trial'
+                  `Start free for ${trial.span}`
                 )}
               </button>
             </div>

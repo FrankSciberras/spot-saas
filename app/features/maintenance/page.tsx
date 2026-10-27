@@ -1,7 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
@@ -12,7 +12,12 @@ export const metadata = marketingMetadata({
   keywords: ['vehicle maintenance tracking software', 'fleet maintenance software', 'fleet maintenance software for small business', 'MOT reminder software for fleets', 'VRT reminder software malta', 'vehicle service reminder software', 'service schedule by mileage', 'vehicle service history and costs', 'preventive maintenance for taxi fleets'],
 });
 
-export default function MaintenanceFeaturePage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function MaintenanceFeaturePage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell
       breadcrumb={[
@@ -144,7 +149,7 @@ export default function MaintenanceFeaturePage() {
 
       <CtaBand
         title="Keep every car serviced and on the road."
-        body={`Start your ${TRIAL_DAYS}-day free trial and let the mileage tell you what’s due — no card required.`}
+        body={`Get your ${trial.first} free and let the mileage tell you what’s due — no card required.`}
       />
     </FeatureShell>
   );

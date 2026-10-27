@@ -21,6 +21,8 @@ import AddOperatorModal from './AddOperatorModal';
 import OperatorDetailModal from './OperatorDetailModal';
 import BroadcastCenter from './BroadcastCenter';
 import AnalyticsPage from './AnalyticsPage';
+import TrialOfferCard from './TrialOfferCard';
+import { currentTrialDays } from '@/lib/billing/trial-offer';
 import {
   type AdminData,
   type BillingRow,
@@ -830,6 +832,9 @@ const TrialsPage = ({ data }: { data: AdminData }) => {
           <MiniMetric label="Trial vehicles" value={String(trials.reduce((s, o) => s + o.vehicles, 0))} sub="potential billable" />
         </div>
       </div>
+      <div style={{ marginBottom: 16 }}>
+        <TrialOfferCard offer={data.trialOffer} />
+      </div>
       <ACard>
         <ACardHeader title="Trials" subtitle="Operators evaluating Rovora" />
         <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
@@ -1477,7 +1482,7 @@ export default function AdminConsole({ data }: { data: AdminData }) {
         {active === 'vehicle-models' && <VehicleModelsPage />}
       </main>
       {addOpen && (
-        <AddOperatorModal meta={data.planMeta} assignable={data.assignablePlans} onClose={() => setAddOpen(false)} />
+        <AddOperatorModal meta={data.planMeta} assignable={data.assignablePlans} defaultTrialDays={currentTrialDays(data.trialOffer)} onClose={() => setAddOpen(false)} />
       )}
     </div>
     </PlanMetaContext.Provider>

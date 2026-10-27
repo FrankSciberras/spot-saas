@@ -2,6 +2,8 @@
 // Operators = organizations (fleets). Packages = the real plan catalogue.
 // Billing metrics are derived from real plan assignments + timestamps.
 
+import type { TrialOffer } from '@/lib/billing/trial-offer';
+
 // A plan key: 'trial' (built-in) or any package `key` from the dynamic catalogue.
 export type RealPlan = string;
 
@@ -154,4 +156,6 @@ export interface AdminData {
   planMeta: Record<string, PlanMeta>;
   /** Plan keys a platform admin can assign to an operator (incl. 'trial'). */
   assignablePlans: string[];
+  /** Free-trial length for new sign-ups + optional campaign (Trials page). */
+  trialOffer: TrialOffer;
 }

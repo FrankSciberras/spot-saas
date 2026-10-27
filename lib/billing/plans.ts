@@ -1,7 +1,8 @@
 // =============================================================================
 // BILLING — PLANS, LIMITS & FLEET BILLING STATUS (client-safe)
 // =============================================================================
-// A fleet starts on a 30-day no-card `trial` with full access. When the trial
+// A fleet starts on a no-card `trial` with full access (30 days unless the
+// admin has set a different length or campaign — see ./trial-offer). When the trial
 // ends it must move onto a paid plan; the required tier is driven by usage —
 // BOTH drivers and vehicles are checked and the higher count wins.
 //
@@ -73,6 +74,10 @@ export interface PlanDef {
   apiMaxKeys: number;
 }
 
+/**
+ * DEFAULT trial length only. The live length (and any campaign) is admin-set
+ * in /admin → Trials — read it via lib/billing/trial-offer(-data), not this.
+ */
 export const TRIAL_DAYS = 30;
 
 // Resilience fallback — mirrors the seed in 20260603_dynamic_plans.sql. Used
@@ -93,7 +98,7 @@ export const FALLBACK_PLANS: PlanDef[] = [
     perVehiclePrice: 4,
     features: ['Vehicles, drivers & shifts', 'Weekly rosters', 'Live GPS map (basic)', 'Service & damage logging', 'Free driver app', 'Email support'],
     color: 'var(--text-2)',
-    ctaLabel: 'Start free trial',
+    ctaLabel: 'Get started free',
     ctaHref: null,
     isCustom: false,
     isPopular: false,
@@ -120,7 +125,7 @@ export const FALLBACK_PLANS: PlanDef[] = [
     perVehiclePrice: 3,
     features: ['Everything in Starter', 'Full GPS: zones, speed & route playback', 'Speeding & lost-signal alerts', 'Driver settlements & weekly pay', 'Financials & bookkeeping', 'Full document-expiry alerts', 'Priority support'],
     color: 'var(--accent)',
-    ctaLabel: 'Start free trial',
+    ctaLabel: 'Get started free',
     ctaHref: null,
     isCustom: false,
     isPopular: true,
@@ -147,7 +152,7 @@ export const FALLBACK_PLANS: PlanDef[] = [
     perVehiclePrice: 2,
     features: ['Everything in Pro', 'Up to 75 vehicles', 'Guided onboarding', 'We import your data for you', 'First in line for Uber & Bolt integrations'],
     color: '#a78bfa',
-    ctaLabel: 'Start free trial',
+    ctaLabel: 'Get started free',
     ctaHref: null,
     isCustom: false,
     isPopular: false,

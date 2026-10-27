@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import { checkCapacityToAdd } from '@/lib/billing/fleet-billing';
+import { syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
 import type { CreateVehicleInput } from '@/lib/types/database';
 
 /**
@@ -122,6 +123,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: insertError.message }, { status: 500 });
       }
     }
+
+    // Vehicles past the plan's included count are billed per car.
+    await syncExtraVehicleBillingSafe(session.organization_id);
 
     return NextResponse.json({ data: vehicle }, { status: 201 });
   } catch (error) {

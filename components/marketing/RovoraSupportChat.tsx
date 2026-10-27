@@ -6,6 +6,7 @@ import { chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type Si
 import { submitChatLeadAction } from '@/lib/actions/contact';
 import { trackEvent } from '@/lib/analytics/client';
 import { SIGNUP_RESEND_COOLDOWN } from '@/lib/auth/email-limits';
+import { DEFAULT_TRIAL_OFFER, promoHeadline, trialCopy, type TrialCopy, type TrialOffer } from '@/lib/billing/trial-offer';
 
 // =============================================================================
 // ROVORA WEBSITE ASSISTANT
@@ -42,7 +43,6 @@ type Msg = {
 type Panel = null | 'signup' | 'lead';
 
 const SALES_EMAIL = 'hello@rovora.eu';
-const TRIAL_DAYS = 30;
 
 // ── Tiny, safe Markdown renderer ─────────────────────────────────────────────
 // The assistant replies in light Markdown (links, **bold**, bullet/numbered
@@ -174,7 +174,7 @@ function visibleWhileStreaming(raw: string): string {
 }
 
 const CHIP_LABEL: Record<ChipId, string> = {
-  trial: 'Start my free trial',
+  trial: 'Get started free',
   demo: 'Book a demo',
   human: 'Talk to a real person',
   pricing: 'See all pricing',
@@ -252,20 +252,31 @@ function transcriptOf(msgs: Msg[]): string {
     .join('\n\n');
 }
 
-const GREETING: Msg = {
-  id: 0,
-  from: 'bot',
-  text: `Hi! 👋 I'm Rovora's assistant. Tell me how many vehicles you run and I'll tell you exactly what it would cost — or start your free ${TRIAL_DAYS}-day trial right now, no card needed.`,
-  chips: ['trial'],
-  asks: ['What would 8 cars cost?', 'How does driver pay work?', 'Do I need GPS trackers?'],
-};
+function greeting(trial: TrialCopy): Msg {
+  const promo = promoHeadline(trial);
+  return {
+    id: 0,
+    from: 'bot',
+    text: promo
+      ? `Hi! 👋 I'm Rovora's assistant. **${promo.tag}:** ${promo.text}. Tell me how many vehicles you run and I'll tell you exactly what it would cost — or claim it right now, no card needed.`
+      : `Hi! 👋 I'm Rovora's assistant. Tell me how many vehicles you run and I'll tell you exactly what it would cost — or get started free right now — ${trial.first} free, no card needed.`,
+    chips: ['trial'],
+    asks: ['What would 8 cars cost?', 'How does driver pay work?', 'Do I need GPS trackers?'],
+  };
+}
 
 const FLEET_SIZES = ['1–5 vehicles', '6–15 vehicles', '16–50 vehicles', '50+ vehicles'];
 
-export default function RovoraSupportChat() {
+/**
+ * `trialOffer` is the raw admin-set offer, not pre-baked copy: the pages this
+ * sits on can be cached for a long time, so the wording is worked out in the
+ * browser — a campaign that has ended stops being advertised here on its own.
+ */
+export default function RovoraSupportChat({ trialOffer = DEFAULT_TRIAL_OFFER }: { trialOffer?: TrialOffer }) {
   const pathname = usePathname();
+  const trial = trialCopy(trialOffer);
   const [open, setOpen] = useState(false);
-  const [msgs, setMsgs] = useState<Msg[]>([GREETING]);
+  const [msgs, setMsgs] = useState<Msg[]>(() => [greeting(trial)]);
   const [draft, setDraft] = useState('');
   /** Waiting on the first token — distinct from streaming, which has text. */
   const [thinking, setThinking] = useState(false);
@@ -382,7 +393,7 @@ export default function RovoraSupportChat() {
       /* storage unavailable — the in-memory reset below still applies */
     }
     nextId.current = 1;
-    setMsgs([GREETING]);
+    setMsgs([greeting(trial)]);
     setDraft('');
     setPanel(null);
     stick.current = true;
@@ -610,6 +621,7 @@ export default function RovoraSupportChat() {
 
             {panel === 'signup' && (
               <SignupPanel
+                trial={trial}
                 onClose={() => setPanel(null)}
                 onDone={() => {
                   setSignedUp(true);
@@ -722,7 +734,7 @@ function ChipIcon({ chip }: { chip: ChipId }) {
 // page. Email + password, a code, and they land in onboarding — same flow the
 // /login page runs, just without the detour.
 
-function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: () => void; onDone: () => void }) {
   const [step, setStep] = useState<'details' | 'code'>('details');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -803,7 +815,7 @@ function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => v
   return (
     <div className="chat-form">
       <div className="chat-form-head">
-        <strong>{step === 'details' ? `Start your ${TRIAL_DAYS}-day free trial` : 'Check your email'}</strong>
+        <strong>{step === 'details' ? `Get your ${trial.first} free` : 'Check your email'}</strong>
         <button type="button" className="chat-x" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
         </button>
@@ -841,7 +853,7 @@ function SignupPanel({ onClose, onDone }: { onClose: () => void; onDone: () => v
             {busy ? 'Creating your account…' : 'Create my account'}
           </button>
           <p className="chat-form-fine">
-            {TRIAL_DAYS} days free · no card required · cancel any time. By continuing you agree to our{' '}
+            {trial.span} free · no card required · cancel any time. By continuing you agree to our{' '}
             <a href="/terms">terms</a> and <a href="/privacy">privacy policy</a>.
           </p>
         </form>

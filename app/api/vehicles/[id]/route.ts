@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
 import type { UpdateVehicleInput } from '@/lib/types/database';
 
 interface RouteParams {
@@ -209,6 +210,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
 
+    await syncExtraVehicleBillingSafe(session.organization_id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

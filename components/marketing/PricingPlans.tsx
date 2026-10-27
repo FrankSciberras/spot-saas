@@ -143,7 +143,7 @@ export default function PricingPlans({ plans }: { plans: PlanDef[] }) {
             ? Math.max(0, vehicles - plan.includedVehicles)
             : 0;
           const isBest = plan.id === bestValueId;
-          const ctaLabel = plan.ctaLabel ?? 'Start free trial';
+          const ctaLabel = plan.ctaLabel ?? 'Get started free';
           const ctaClass = `btn ${plan.isPopular ? 'btn-primary' : 'btn-ghost'}`;
           return (
             <div key={plan.id} className={`plan${plan.isPopular ? ' feat' : ''}${!allowed ? ' plan-na' : ''}`}>

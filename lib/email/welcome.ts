@@ -6,6 +6,8 @@
 
 import { appName, emailBlocks, renderBrandedEmail, sendEmail } from '@/lib/email';
 import { appUrl } from '@/lib/urls';
+import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { trialFirstPhrase } from '@/lib/billing/trial-offer';
 
 export interface WelcomeEmailInput {
   to: string;
@@ -14,6 +16,8 @@ export interface WelcomeEmailInput {
   fleetName: string;
   /** True when the fleet starts on the free trial (the default path). */
   onTrial: boolean;
+  /** Length of that trial in days. Defaults to the standard 30. */
+  trialDays?: number;
 }
 
 export function buildWelcomeEmail(input: WelcomeEmailInput): { subject: string; html: string; text: string } {
@@ -76,7 +80,7 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): { subject: string; 
   const sectionsHtml =
     (input.onTrial
       ? emailBlocks.callout(
-          'Your 30-day free trial is live.',
+          `Free for your ${trialFirstPhrase(input.trialDays ?? TRIAL_DAYS)}.`,
           'Every feature is unlocked and no card is needed. Pick a plan whenever you are ready from Billing.',
         )
       : '') +

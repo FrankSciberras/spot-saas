@@ -4,7 +4,7 @@
 // PLATFORM-ADMIN OPERATOR MANAGEMENT (Tier 1 — the SaaS operator)
 // =============================================================================
 // Lets the platform admin (Frank) create a brand-new operator (organization)
-// directly from /admin — on a fresh 30-day trial by default, or on any package
+// directly from /admin — on the current free trial by default, or on any package
 // from the catalogue — and optionally attach/invite an owner by email. Runs on
 // the service-role client so it can write orgs/memberships the admin isn't a
 // member of, mirroring create_organization_with_owner() but admin-initiated.
@@ -13,7 +13,8 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
-import { TRIAL_DAYS, TRIAL_PLAN } from '@/lib/billing/plans';
+import { TRIAL_PLAN } from '@/lib/billing/plans';
+import { getCurrentTrialDays } from '@/lib/billing/trial-offer-data';
 import { sendEmail, renderBrandedEmail, appName } from '@/lib/email';
 import { appUrl } from '@/lib/urls';
 
@@ -86,7 +87,7 @@ export interface CreateOperatorInput {
   name: string;
   /** 'trial' (default) or a published package key. */
   plan?: string;
-  /** Trial length in days (only when plan === 'trial'). Defaults to TRIAL_DAYS. */
+  /** Trial length in days (only when plan === 'trial'). Defaults to the trial new sign-ups get. */
   trialDays?: number;
   /** Optional owner — attached if they already have an account, else invited. */
   ownerEmail?: string;
@@ -125,7 +126,7 @@ export async function createOperatorAction(input: CreateOperatorInput): Promise<
   const now = new Date();
   const patch: Record<string, unknown> = { name, slug, plan, status: 'active' };
   if (plan === TRIAL_PLAN) {
-    const days = Number.isFinite(input.trialDays) && (input.trialDays as number) > 0 ? (input.trialDays as number) : TRIAL_DAYS;
+    const days = Number.isFinite(input.trialDays) && (input.trialDays as number) > 0 ? (input.trialDays as number) : await getCurrentTrialDays();
     patch.trial_started_at = now.toISOString();
     patch.trial_ends_at = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
   } else {
@@ -295,7 +296,7 @@ export async function updateOperatorAction(
 
 /**
  * Set an exact trial end date (puts the fleet on the trial plan, active). Pass
- * null for a fresh standard trial (TRIAL_DAYS from today). Useful for
+ * null for a fresh trial from today, as long as the one new sign-ups get. Useful for
  * granting/adjusting a bespoke trial window.
  */
 export async function setOperatorTrialEndAction(
@@ -314,7 +315,7 @@ export async function setOperatorTrialEndAction(
     if (Number.isNaN(d.getTime())) return { error: 'Invalid date.' };
     trialEnds = d.toISOString();
   } else {
-    trialEnds = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString();
+    trialEnds = new Date(Date.now() + (await getCurrentTrialDays()) * 86_400_000).toISOString();
   }
 
   const { error } = await admin

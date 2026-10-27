@@ -105,7 +105,7 @@ export default function Page() {
                 a &ldquo;contact sales&rdquo; form. As a sanity check: if software saves you four
                 hours of settlement work a week and catches one missed renewal a year, it has paid
                 for a per-vehicle subscription several times over. Rovora&rsquo;s{' '}
-                <Link href="/#pricing">per-vehicle pricing</Link> is public, and the trial is free
+                <Link href="/#pricing">per-vehicle pricing</Link> is public, and you can start free
                 with no card.
               </p>
             </>
@@ -127,7 +127,7 @@ export default function Page() {
               </ul>
               <p>
                 Six yeses and you&rsquo;ve found your system. Rovora answers yes to all six — it was
-                built for exactly this kind of fleet. Start with the free trial, or read{' '}
+                built for exactly this kind of fleet. Get started free, or read{' '}
                 <Link href="/blog/how-to-run-a-taxi-fleet">how to run a taxi fleet</Link> for the
                 full operational playbook.
               </p>

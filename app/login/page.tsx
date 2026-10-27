@@ -290,7 +290,7 @@ function LoginPageContent() {
 
   const heading =
     mode === 'login' ? 'Welcome back'
-    : mode === 'signup' ? 'Start your free trial'
+    : mode === 'signup' ? 'Get started free'
     : mode === 'confirm' ? 'Check your email'
     : resetSentTo ? 'Check your inbox'
     : 'Reset your password';

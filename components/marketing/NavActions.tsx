@@ -32,7 +32,7 @@ export default function NavActions() {
   return (
     <>
       <Link className="signin" href={SIGN_IN}>Sign in</Link>
-      <Link className="btn btn-primary" href={START_TRIAL}>Start free trial</Link>
+      <Link className="btn btn-primary" href={START_TRIAL}>Get started free</Link>
     </>
   );
 }

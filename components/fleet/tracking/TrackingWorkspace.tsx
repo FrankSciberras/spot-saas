@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Map as LeafletMap, Marker, Circle, Polyline } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import FleetIcon from '@/components/fleet/FleetIcon';
@@ -70,32 +70,11 @@ const ZONE_COLOR = '#3b6ad9';
 type LiveStatus = 'live' | 'stale' | 'offline';
 type Tab = 'drivers' | 'zones' | 'activity';
 
-// Whether the "not on the map" box is minimised — remembered on this device
-// (falls back to memory when storage is blocked).
-const PROBLEMS_HIDDEN_KEY = 'rovora-trk-problems-hidden';
-let problemsHiddenMemory = false;
-const problemsHiddenListeners = new Set<() => void>();
-function subscribeProblemsHidden(listener: () => void) {
-  problemsHiddenListeners.add(listener);
-  return () => {
-    problemsHiddenListeners.delete(listener);
-  };
-}
-function readProblemsHidden(): boolean {
-  try {
-    return localStorage.getItem(PROBLEMS_HIDDEN_KEY) === '1';
-  } catch {
-    return problemsHiddenMemory;
-  }
-}
-function toggleProblemsHidden() {
-  problemsHiddenMemory = !readProblemsHidden();
-  try {
-    localStorage.setItem(PROBLEMS_HIDDEN_KEY, problemsHiddenMemory ? '1' : '0');
-  } catch {
-    // not remembered across visits — fine
-  }
-  problemsHiddenListeners.forEach((l) => l());
+/** Stable avatar colour for a driver who has no position yet. */
+function colorFor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length];
 }
 
 /** Sharing but no position for this long → in the "not on the map" box. */
@@ -317,9 +296,8 @@ export default function TrackingWorkspace({
 
   const [onShift, setOnShift] = useState<OnShiftItem[]>(initialOnShift);
   const [sharingInfo, setSharingInfo] = useState<SharingInfo>(initialSharingInfo);
-  // "On shift, not on the map": the whole box can be minimised (remembered on
-  // this device), and each driver is one line until opened.
-  const problemsHidden = useSyncExternalStore(subscribeProblemsHidden, readProblemsHidden, () => false);
+  // On-shift drivers who aren't on the map get a one-line reason under their
+  // name in the list; tapping it opens the details.
   const [openProblems, setOpenProblems] = useState<Set<string>>(() => new Set());
   const toggleProblem = (driverId: string) =>
     setOpenProblems((prev) => {
@@ -621,14 +599,7 @@ export default function TrackingWorkspace({
     await refetchZones();
   };
 
-  const list = Array.from(positions.values()).sort((a, b) => {
-    const rank: Record<LiveStatus, number> = { live: 0, stale: 1, offline: 2 };
-    const sa = statusOf(a, now);
-    const sb = statusOf(b, now);
-    if (rank[sa] !== rank[sb]) return rank[sa] - rank[sb];
-    return a.name.localeCompare(b.name);
-  });
-  const liveCount = list.filter((p) => statusOf(p, now) === 'live').length;
+  const liveCount = Array.from(positions.values()).filter((p) => statusOf(p, now) === 'live').length;
   // On shift but not sharing: never sent a position, or sharing is switched off.
   // (A sharing driver who went quiet already shows as Stale/Offline in the list.)
   const notSharing = expectSharing ? onShift.filter((d) => !positions.get(d.driverId)?.isTracking) : [];
@@ -665,6 +636,52 @@ export default function TrackingWorkspace({
       };
     }),
   ];
+
+  // One list: on-shift drivers first (even those who never sent a position),
+  // each carrying the reason they're not on the map, then everyone else.
+  const whyById = new Map(problems.map((x) => [x.driver.driverId, x.why]));
+  const shiftById = new Map(onShift.map((d) => [d.driverId, d]));
+  type DriverRow = {
+    driverId: string;
+    name: string;
+    initials: string;
+    color: string;
+    pos?: PositionItem;
+    shift?: OnShiftItem;
+    why?: SharingDiagnosis;
+  };
+  const rows: DriverRow[] = [
+    ...Array.from(positions.values()).map((p) => ({
+      driverId: p.driverId,
+      name: p.name,
+      initials: p.initials,
+      color: p.color,
+      pos: p,
+      shift: shiftById.get(p.driverId),
+      why: whyById.get(p.driverId),
+    })),
+    ...onShift
+      .filter((d) => !positions.has(d.driverId))
+      .map((d) => ({
+        driverId: d.driverId,
+        name: d.name,
+        initials: initialsOf(d.name),
+        color: colorFor(d.driverId),
+        shift: d,
+        why: whyById.get(d.driverId),
+      })),
+  ];
+  const statusRank: Record<LiveStatus, number> = { live: 0, stale: 1, offline: 2 };
+  const rowRank = (r: DriverRow) => (r.pos ? statusRank[statusOf(r.pos, now)] : 3);
+  rows.sort(
+    (a, b) =>
+      (a.shift ? 0 : 1) - (b.shift ? 0 : 1) ||
+      (a.why ? 1 : 0) - (b.why ? 1 : 0) ||
+      rowRank(a) - rowRank(b) ||
+      a.name.localeCompare(b.name)
+  );
+  const onShiftCount = rows.filter((r) => r.shift).length;
+  const offShiftCount = rows.length - onShiftCount;
 
   const activityIcon = (a: ActivityItem) => {
     if (a.kind === 'speed') return '⚠';
@@ -723,45 +740,7 @@ export default function TrackingWorkspace({
             {realtimeOk === false && (
               <div style={st.pollNote}>Live stream unavailable — refreshing every 20s.</div>
             )}
-            {problems.length > 0 && (
-              <div style={st.notSharing}>
-                <button type="button" onClick={toggleProblemsHidden} style={st.problemsHeader} aria-expanded={!problemsHidden}>
-                  <span style={st.notSharingTitle}>⚠ On shift, not on the map ({problems.length})</span>
-                  <span style={st.problemsToggle}>
-                    {problemsHidden ? 'Show' : 'Hide'}
-                    <FleetIcon name={problemsHidden ? 'chevron-down' : 'chevron-right'} size={13} stroke={2} style={problemsHidden ? undefined : { transform: 'rotate(-90deg)' }} />
-                  </span>
-                </button>
-                {!problemsHidden &&
-                  problems.map(({ driver: d, why }) => {
-                    const open = openProblems.has(d.driverId);
-                    return (
-                      <div key={d.driverId} style={st.notSharingRow}>
-                        <button type="button" onClick={() => toggleProblem(d.driverId)} style={st.problemLine} aria-expanded={open}>
-                          <span style={{ minWidth: 0 }}>
-                            <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{d.name}</span>
-                            <span style={{ ...st.whyTitle, color: why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--text-2)' }}>
-                              {' '}· {why.title}
-                            </span>
-                          </span>
-                          <FleetIcon name="chevron-right" size={13} stroke={2} style={{ flexShrink: 0, color: 'var(--text-3)', transform: open ? 'rotate(90deg)' : undefined }} />
-                        </button>
-                        {open && (
-                          <>
-                            {why.detail && <div style={st.whyDetail}>{why.detail}</div>}
-                            <div style={st.whyFix}>→ {why.fix}</div>
-                            <div style={st.whyMeta}>
-                              Shift started {agoLabel(d.startTime, now)}
-                              {why.meta ? ` · ${why.meta}` : ''}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-            {list.length === 0 && (
+            {rows.length === 0 && (
               <div style={st.empty}>
                 <FleetIcon name="live" size={28} stroke={1.4} />
                 <div style={{ marginTop: 10, fontWeight: 500, color: 'var(--text-2)' }}>No locations yet</div>
@@ -772,28 +751,52 @@ export default function TrackingWorkspace({
                 </div>
               </div>
             )}
-            {list.map((p) => {
-              const status = statusOf(p, now);
-              const active = selected === p.driverId;
-              const speedNow = kmh(p.speed);
-              const speedMax = kmh(p.maxSpeedToday);
-              const km = p.distanceToday != null && p.distanceToday > 100 ? (p.distanceToday / 1000).toFixed(1) : null;
-              const showingRoute = routeDriver === p.driverId;
+            {rows.map((r, i) => {
+              const p = r.pos;
+              const status = p ? statusOf(p, now) : 'offline';
+              const active = selected === r.driverId;
+              const speedNow = p ? kmh(p.speed) : null;
+              const speedMax = p ? kmh(p.maxSpeedToday) : null;
+              const km = p?.distanceToday != null && p.distanceToday > 100 ? (p.distanceToday / 1000).toFixed(1) : null;
+              const showingRoute = routeDriver === r.driverId;
+              // On shift but not showing live → don't call them "Offline"; they're working.
+              const shiftNoLocation = !!r.shift && status !== 'live';
+              const open = openProblems.has(r.driverId);
+              const groupLabel =
+                onShiftCount > 0 && i === 0
+                  ? `On shift (${onShiftCount})`
+                  : onShiftCount > 0 && i === onShiftCount && offShiftCount > 0
+                    ? `Off shift (${offShiftCount})`
+                    : null;
               return (
-                <div key={p.driverId} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                <div key={r.driverId} style={{ marginBottom: 2 }}>
+                  {groupLabel && <div style={{ ...st.groupLabel, ...(i > 0 ? { marginTop: 10 } : {}) }}>{groupLabel}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <button
-                    onClick={() => focusDriver(p)}
+                    onClick={() => (p ? focusDriver(p) : toggleProblem(r.driverId))}
                     className="fleetHover"
                     style={{ ...st.row, ...(active ? st.rowActive : {}), flex: 1, minWidth: 0, marginBottom: 0 }}
                   >
-                    <span style={{ ...st.avatar, background: p.color }}>{p.initials}</span>
+                    <span style={{ ...st.avatar, background: r.color }}>{r.initials}</span>
                     <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <span style={st.rowName}>{p.name}</span>
+                      <span style={st.nameLine}>
+                        <span style={{ ...st.rowName, minWidth: 0 }}>{r.name}</span>
+                        {r.shift && (
+                          <span style={st.shiftPill} title={`Shift started ${agoLabel(r.shift.startTime, now)}`}>
+                            <span style={{ ...st.dot, width: 6, height: 6, background: 'var(--pos, #2bbd7e)' }} />
+                            On shift
+                          </span>
+                        )}
+                      </span>
                       <span style={st.rowMeta}>
-                        <span style={{ ...st.dot, background: STATUS_COLOR[status] }} />
-                        {status === 'live' ? (p.speed != null && p.speed < 0.5 ? 'Parked' : 'Live') : status === 'stale' ? 'Stale' : 'Offline'} · {agoLabel(p.recordedAt, now)}
+                        <span style={{ ...st.dot, background: shiftNoLocation ? 'var(--warn, #f5b54a)' : STATUS_COLOR[status] }} />
+                        {!p
+                          ? 'No location yet'
+                          : shiftNoLocation
+                            ? `Not on map · last seen ${agoLabel(p.recordedAt, now)}`
+                            : `${status === 'live' ? (p.speed != null && p.speed < 0.5 ? 'Parked' : 'Live') : status === 'stale' ? 'Stale' : 'Offline'} · ${agoLabel(p.recordedAt, now)}`}
                         {km != null && ` · ${km} km`}
-                        {p.batteryPct != null && (
+                        {p && p.batteryPct != null && (
                           <span
                             style={{
                               color: batteryColor(p),
@@ -805,7 +808,7 @@ export default function TrackingWorkspace({
                             · {p.batteryPct}%{p.batteryCharging ? '⚡' : ''}
                           </span>
                         )}
-                        {deviceIssue(p) && (
+                        {p && deviceIssue(p) && (
                           <span style={{ color: 'var(--neg, #f06464)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                             · {deviceIssue(p)}
                           </span>
@@ -820,15 +823,40 @@ export default function TrackingWorkspace({
                       </span>
                     )}
                   </button>
-                  <button
-                    className="fleetHover"
-                    style={{ ...st.routeBtn, ...(showingRoute ? st.routeBtnActive : {}) }}
-                    title={showingRoute ? 'Hide route' : "Show today's route"}
-                    onClick={() => void toggleRoute(p)}
-                    disabled={routeLoading}
-                  >
-                    <FleetIcon name="pin" size={14} />
-                  </button>
+                  {p ? (
+                    <button
+                      className="fleetHover"
+                      style={{ ...st.routeBtn, ...(showingRoute ? st.routeBtnActive : {}) }}
+                      title={showingRoute ? 'Hide route' : "Show today's route"}
+                      onClick={() => void toggleRoute(p)}
+                      disabled={routeLoading}
+                    >
+                      <FleetIcon name="pin" size={14} />
+                    </button>
+                  ) : (
+                    <span style={{ width: 28, flexShrink: 0 }} />
+                  )}
+                  </div>
+                  {r.why && r.shift && (
+                    <div style={st.whyBox}>
+                      <button type="button" onClick={() => toggleProblem(r.driverId)} style={st.problemLine} aria-expanded={open}>
+                        <span style={{ ...st.whyTitle, color: r.why.tone === 'neg' ? 'var(--neg, #f06464)' : 'var(--warn, #a06400)' }}>
+                          ⚠ {r.why.title}
+                        </span>
+                        <FleetIcon name="chevron-right" size={13} stroke={2} style={{ flexShrink: 0, color: 'var(--text-3)', transform: open ? 'rotate(90deg)' : undefined }} />
+                      </button>
+                      {open && (
+                        <>
+                          {r.why.detail && <div style={st.whyDetail}>{r.why.detail}</div>}
+                          <div style={st.whyFix}>→ {r.why.fix}</div>
+                          <div style={st.whyMeta}>
+                            Shift started {agoLabel(r.shift.startTime, now)}
+                            {r.why.meta ? ` · ${r.why.meta}` : ''}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1084,32 +1112,34 @@ const st: Record<string, CSSProperties> = {
     marginBottom: 4,
   },
   empty: { padding: '36px 18px', textAlign: 'center', color: 'var(--text-3)' },
-  notSharing: {
-    margin: '2px 2px 10px',
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(245, 181, 74, 0.35)',
-    background: 'rgba(245, 181, 74, 0.08)',
-    fontSize: 12.5,
-    color: 'var(--text-2)',
-    lineHeight: 1.5,
+  groupLabel: {
+    padding: '4px 10px 4px',
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
   },
-  notSharingTitle: { color: 'var(--warn, #f5b54a)', fontWeight: 600 },
-  problemsHeader: {
-    display: 'flex',
+  nameLine: { display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 },
+  shiftPill: {
+    display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    width: '100%',
-    padding: '2px 0 6px',
-    border: 0,
-    background: 'none',
-    font: 'inherit',
-    textAlign: 'left',
-    cursor: 'pointer',
+    gap: 4,
+    flexShrink: 0,
+    padding: '1px 7px',
+    borderRadius: 999,
+    fontSize: 10.5,
+    fontWeight: 600,
+    color: 'var(--pos, #2bbd7e)',
+    background: 'var(--accent-soft, rgba(43,189,126,0.15))',
+    whiteSpace: 'nowrap',
   },
-  problemsToggle: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-2)', flexShrink: 0 },
-  notSharingRow: { padding: '7px 0', borderTop: '1px solid var(--line-1)' },
+  whyBox: {
+    margin: '0 36px 6px 52px',
+    padding: '6px 9px',
+    borderRadius: 8,
+    background: 'var(--warn-soft, rgba(245, 181, 74, 0.12))',
+  },
   problemLine: {
     display: 'flex',
     alignItems: 'center',

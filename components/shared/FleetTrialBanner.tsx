@@ -61,8 +61,7 @@ export default function FleetTrialBanner() {
   return (
     <div style={strip(urgent)}>
       <span>
-        {trial.trialDaysLeft} day{trial.trialDaysLeft === 1 ? '' : 's'} left in your free
-        trial.
+        {trial.trialDaysLeft} free day{trial.trialDaysLeft === 1 ? '' : 's'} left.
       </span>
       <Link href="/billing" style={cta}>
         Choose a plan →

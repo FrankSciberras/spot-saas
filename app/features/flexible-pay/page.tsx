@@ -1,7 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
@@ -19,7 +19,12 @@ export const metadata = marketingMetadata({
   ],
 });
 
-export default function FlexiblePayFeaturePage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function FlexiblePayFeaturePage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell
       breadcrumb={[
@@ -146,7 +151,7 @@ export default function FlexiblePayFeaturePage() {
 
       <CtaBand
         title="Run the pay deals you actually have."
-        body={`Start free for ${TRIAL_DAYS} days and set up your fleet’s pay schemes in minutes — no card required.`}
+        body={`Start free for ${trial.span} and set up your fleet’s pay schemes in minutes — no card required.`}
       />
     </FeatureShell>
   );

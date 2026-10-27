@@ -16,11 +16,12 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requirePlatformAdmin } from '@/lib/auth/platform';
-import { TRIAL_DAYS, TRIAL_PLAN, type Plan } from '@/lib/billing/plans';
+import { TRIAL_PLAN, type Plan } from '@/lib/billing/plans';
+import { getCurrentTrialDays } from '@/lib/billing/trial-offer-data';
 
 /**
  * Set a fleet's plan directly. A paid plan marks it activated + active; choosing
- * `trial` restarts a fresh 30-day trial from now.
+ * `trial` restarts a fresh trial from now, as long as the one new sign-ups get.
  */
 export async function setFleetPlanAction(
   organizationId: string,
@@ -50,7 +51,7 @@ export async function setFleetPlanAction(
   if (plan === TRIAL_PLAN) {
     patch.trial_started_at = now.toISOString();
     patch.trial_ends_at = new Date(
-      now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
+      now.getTime() + (await getCurrentTrialDays()) * 24 * 60 * 60 * 1000
     ).toISOString();
     patch.plan_activated_at = null;
   } else {

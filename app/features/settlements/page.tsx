@@ -1,7 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
@@ -19,7 +19,12 @@ export const metadata = marketingMetadata({
   ],
 });
 
-export default function SettlementsFeaturePage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function SettlementsFeaturePage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell
       breadcrumb={[
@@ -160,7 +165,7 @@ export default function SettlementsFeaturePage() {
 
       <CtaBand
         title="Give your weekly payroll back to the week."
-        body={`Start your ${TRIAL_DAYS}-day free trial — no card, no lock-in. Run your first reconciled settlement this afternoon.`}
+        body={`Get your ${trial.first} free — no card, no lock-in. Run your first reconciled settlement this afternoon.`}
       />
     </FeatureShell>
   );

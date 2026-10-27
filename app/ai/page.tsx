@@ -51,7 +51,7 @@ export default function RovoraAiPage() {
           </p>
           <div className="hero-cta">
             <a className="btn btn-primary btn-lg" href={EARLY_ACCESS_MAILTO}>Get early access</a>
-            <Link className="btn btn-ghost btn-lg" href={START_TRIAL}>Start free trial</Link>
+            <Link className="btn btn-ghost btn-lg" href={START_TRIAL}>Get started free</Link>
           </div>
           <div className="hero-micro">
             <span><span className="ck">✓</span> Built into Rovora — no extra apps</span>
@@ -231,7 +231,7 @@ export default function RovoraAiPage() {
             </p>
             <div className="hero-cta">
               <a className="btn btn-primary btn-lg" href={EARLY_ACCESS_MAILTO}>Get early access</a>
-              <Link className="btn btn-ghost btn-lg" href={START_TRIAL}>Start free trial</Link>
+              <Link className="btn btn-ghost btn-lg" href={START_TRIAL}>Get started free</Link>
             </div>
           </div>
           <p className="integ-note">

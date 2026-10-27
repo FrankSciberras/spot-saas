@@ -6,6 +6,7 @@ import { VEHICLE_COLUMNS, serializeVehicle } from '@/lib/api/serializers';
 import { VEHICLE_WRITABLE_FIELDS, buildVehiclePayload } from '@/lib/api/resources/vehicles';
 import { ensureDriverInFleet } from '@/lib/api/resources/drivers';
 import { FieldErrors, isUuid, rejectUnknownFields } from '@/lib/api/validate';
+import { syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -132,6 +133,7 @@ export const DELETE = withApiAuth<RouteCtx>(
       return apiError('internal_error', 'Could not delete the vehicle.');
     }
 
+    await syncExtraVehicleBillingSafe(ctx.organizationId);
     return apiNoContent();
   },
 );

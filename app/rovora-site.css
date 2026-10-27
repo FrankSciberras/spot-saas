@@ -416,6 +416,14 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .hero-micro span { display: inline-flex; align-items: center; gap: 7px; }
 .rovora-site .hero-micro .ck { color: var(--pos); }
 
+/* Free-trial campaign announcement (only rendered while one runs — see
+   components/marketing/TrialPromoBadge). Sits between the sub and the CTAs. */
+.rovora-site .trial-promo-row { margin-top: 22px; }
+.rovora-site .trial-promo { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 6px 10px; max-width: 100%; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--text-1); background: var(--pos-soft); border: 1px solid var(--pos-soft); padding: 7px 15px 7px 7px; border-radius: 100px; }
+.rovora-site .trial-promo-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: var(--pos); padding: 3px 9px; border-radius: 100px; }
+.rovora-site[data-theme='dark'] .trial-promo-tag { color: #06281a; }
+@media (max-width: 520px) { .rovora-site .trial-promo { border-radius: 14px; padding: 8px 12px; } }
+
 /* Trust row under the CTAs: five gold stars + a short caption. Sits on the same
    rhythm as .hero-micro so the two read as one quiet block, not two lines. */
 .rovora-site .hero-stars { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; color: var(--text-3); }

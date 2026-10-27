@@ -1,7 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
+import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
@@ -12,7 +12,12 @@ export const metadata = marketingMetadata({
   keywords: ['gps fleet tracking without hardware', 'fleet tracking without hardware', 'fleet management software without hardware', 'phone based fleet tracking', 'live fleet tracking', 'taxi fleet gps tracking', 'driver safety score', 'driver behaviour monitoring', 'trip and stop history'],
 });
 
-export default function LiveTrackingFeaturePage() {
+// The free-trial length is admin-set (/admin → Trials), so re-render hourly
+// to pick up a campaign starting or ending.
+export const revalidate = 3600;
+
+export default async function LiveTrackingFeaturePage() {
+  const trial = await getTrialCopy();
   return (
     <FeatureShell
       breadcrumb={[
@@ -219,7 +224,7 @@ export default function LiveTrackingFeaturePage() {
 
       <CtaBand
         title="Stop calling round to find your drivers."
-        body={`Start your ${TRIAL_DAYS}-day free trial and watch your fleet come to life on one screen.`}
+        body={`Get your ${trial.first} free and watch your fleet come to life on one screen.`}
       />
     </FeatureShell>
   );

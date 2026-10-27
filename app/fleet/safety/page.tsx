@@ -1,11 +1,13 @@
 import { Suspense, type CSSProperties } from 'react';
+import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { safetyScore, scoreColor, scoreLabel } from '@/lib/tracking/safety';
+import { countBehaviorKinds, safetyScore, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
+import FleetSafetyMap, { type FleetMapEvent } from '@/components/fleet/safety/FleetSafetyMap';
 
 interface DriverStats {
   driverId: string;
@@ -15,6 +17,7 @@ interface DriverStats {
   speeding: number;
   harshBrakes: number;
   harshAccels: number;
+  harshTurns: number;
   harshOther: number;
   score: number;
   hasData: boolean;
@@ -42,13 +45,13 @@ async function SafetyContent({ orgId }: { orgId: string }) {
     supabase.rpc('driver_max_speeds', { p_since: since }),
     supabase
       .from('speeding_events')
-      .select('driver_id')
+      .select('id, driver_id, latitude, longitude, occurred_at')
       .eq('organization_id', orgId)
       .gte('occurred_at', since)
       .range(0, 9999),
     supabase
       .from('driver_behavior_events')
-      .select('driver_id, kind')
+      .select('id, driver_id, kind, latitude, longitude, occurred_at')
       .eq('organization_id', orgId)
       .gte('occurred_at', since)
       .range(0, 9999),
@@ -64,27 +67,22 @@ async function SafetyContent({ orgId }: { orgId: string }) {
   for (const r of (speedingRes.data || []) as any[]) {
     speedingBy.set(r.driver_id, (speedingBy.get(r.driver_id) || 0) + 1);
   }
-  const behaviorBy = new Map<string, { harshBrakes: number; harshAccels: number; harshOther: number }>();
+  const kindsBy = new Map<string, string[]>();
   for (const r of (behaviorRes.data || []) as any[]) {
-    const b = behaviorBy.get(r.driver_id) || { harshBrakes: 0, harshAccels: 0, harshOther: 0 };
-    if (r.kind === 'harsh_brake') b.harshBrakes++;
-    else if (r.kind === 'harsh_accel') b.harshAccels++;
-    else b.harshOther++;
-    behaviorBy.set(r.driver_id, b);
+    const list = kindsBy.get(r.driver_id) || [];
+    list.push(r.kind);
+    kindsBy.set(r.driver_id, list);
   }
 
   const stats: DriverStats[] = ((driversRes.data || []) as any[]).map((d) => {
     const distanceKm = distanceBy.get(d.id) || 0;
-    const b = behaviorBy.get(d.id) || { harshBrakes: 0, harshAccels: 0, harshOther: 0 };
     const counts = {
       speeding: speedingBy.get(d.id) || 0,
-      harshBrakes: b.harshBrakes,
-      harshAccels: b.harshAccels,
-      harshOther: b.harshOther,
+      ...countBehaviorKinds(kindsBy.get(d.id) || []),
     };
     const hasData =
       distanceKm > 0.1 ||
-      counts.speeding + counts.harshBrakes + counts.harshAccels + counts.harshOther > 0;
+      counts.speeding + counts.harshBrakes + counts.harshAccels + counts.harshTurns + counts.harshOther > 0;
     return {
       driverId: d.id,
       name: d.full_name || 'Unknown driver',
@@ -100,12 +98,29 @@ async function SafetyContent({ orgId }: { orgId: string }) {
   const active = stats.filter((s) => s.hasData).sort((a, b) => a.score - b.score);
   const inactive = stats.filter((s) => !s.hasData);
 
+  const nameById = new Map(stats.map((s) => [s.driverId, s.name]));
+  const mapEvents: FleetMapEvent[] = [
+    ...((behaviorRes.data || []) as any[]).map((r) => ({ ...r, kind: r.kind as SafetyEventKind })),
+    ...((speedingRes.data || []) as any[]).map((r) => ({ ...r, kind: 'speeding' as const })),
+  ]
+    .filter((r) => r.latitude != null && r.longitude != null)
+    .map((r) => ({
+      id: r.id,
+      driverId: r.driver_id,
+      driverName: nameById.get(r.driver_id) || 'Unknown driver',
+      kind: r.kind,
+      at: r.occurred_at,
+      lat: r.latitude,
+      lng: r.longitude,
+    }));
+
   return (
     <div style={st.wrap}>
       <p style={st.intro}>
         Safety scores for the <strong>last 7 days</strong>, from GPS tracking and the driver
         app&rsquo;s motion sensor. Events are weighted and normalised per 100 km, so busy drivers
-        aren&rsquo;t penalised for driving more. 100 = clean record.
+        aren&rsquo;t penalised for driving more. 100 = clean record. Click a driver to see each
+        event — when, where, how hard and how fast.
       </p>
 
       {active.length === 0 && (
@@ -119,8 +134,10 @@ async function SafetyContent({ orgId }: { orgId: string }) {
         </div>
       )}
 
+      <FleetSafetyMap events={mapEvents} />
+
       {active.map((s) => (
-        <div key={s.driverId} style={st.card}>
+        <Link key={s.driverId} href={`/fleet/safety/${s.driverId}`} className="fleetHover" style={st.card}>
           <div style={{ ...st.scoreBadge, borderColor: scoreColor(s.score) }}>
             <span style={{ fontSize: 19, fontWeight: 700, color: scoreColor(s.score) }}>{s.score}</span>
             <span style={{ fontSize: 9.5, color: 'var(--text-4)', letterSpacing: '0.04em' }}>SCORE</span>
@@ -136,10 +153,12 @@ async function SafetyContent({ orgId }: { orgId: string }) {
               <span style={{ ...st.meta, ...(s.speeding > 0 ? st.metaBad : {}) }}>{s.speeding} speeding</span>
               <span style={{ ...st.meta, ...(s.harshBrakes > 0 ? st.metaBad : {}) }}>{s.harshBrakes} sharp braking</span>
               <span style={{ ...st.meta, ...(s.harshAccels > 0 ? st.metaBad : {}) }}>{s.harshAccels} rapid acceleration</span>
-              {s.harshOther > 0 && <span style={{ ...st.meta, ...st.metaBad }}>{s.harshOther} other harsh events</span>}
+              {s.harshTurns > 0 && <span style={{ ...st.meta, ...st.metaBad }}>{s.harshTurns} sharp cornering</span>}
+              {s.harshOther > 0 && <span style={{ ...st.meta, ...st.metaBad }}>{s.harshOther} unclear harsh events</span>}
             </div>
           </div>
-        </div>
+          <span style={st.open}>Details →</span>
+        </Link>
       ))}
 
       {inactive.length > 0 && active.length > 0 && (
@@ -167,7 +186,10 @@ const st: Record<string, CSSProperties> = {
     border: '1px solid var(--line-1)',
     borderRadius: 'var(--radius-lg, 14px)',
     padding: '14px 16px',
+    textDecoration: 'none',
+    color: 'inherit',
   },
+  open: { fontSize: 12, color: 'var(--text-3)', flexShrink: 0, whiteSpace: 'nowrap' },
   scoreBadge: {
     width: 58,
     height: 58,

@@ -12,7 +12,6 @@ import { useState, useTransition, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { createOperatorAction } from '@/lib/actions/platform-operators';
-import { TRIAL_DAYS } from '@/lib/billing/plans';
 import type { PlanMeta } from './types';
 
 const Icon = FleetIcon;
@@ -26,17 +25,20 @@ const lbl: CSSProperties = { fontSize: 11.5, color: 'var(--text-3)', marginBotto
 export default function AddOperatorModal({
   meta,
   assignable,
+  defaultTrialDays,
   onClose,
 }: {
   meta: Record<string, PlanMeta>;
   assignable: string[];
+  /** Trial length new sign-ups get right now — prefilled, editable. */
+  defaultTrialDays: number;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [plan, setPlan] = useState('trial');
-  const [trialDays, setTrialDays] = useState(String(TRIAL_DAYS));
+  const [trialDays, setTrialDays] = useState(String(defaultTrialDays));
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -47,7 +49,7 @@ export default function AddOperatorModal({
       const r = await createOperatorAction({
         name,
         plan,
-        trialDays: plan === 'trial' ? Number(trialDays) || TRIAL_DAYS : undefined,
+        trialDays: plan === 'trial' ? Number(trialDays) || defaultTrialDays : undefined,
         ownerEmail: ownerEmail.trim() || undefined,
       });
       if (r.error) { setError(r.error); return; }
