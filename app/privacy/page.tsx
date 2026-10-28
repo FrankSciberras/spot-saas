@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '7 October 2026';
+const LAST_UPDATED = '28 October 2026';
 
 export default function PrivacyPage() {
   return (
@@ -242,13 +242,16 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Consent</strong> — for optional marketing emails and the optional analytics
-                  cookie on our website, both of which you can withdraw at any time. Withdrawing consent
-                  does not affect the lawfulness of earlier processing.
+                  and advertising cookies on our website (ours and Google&rsquo;s), all of which you can
+                  withdraw at any time. Withdrawing consent does not affect the lawfulness of earlier
+                  processing.
                 </li>
               </ul>
               <p>
                 We do <strong>not</strong> sell personal data, and we do <strong>not</strong> use it for
-                advertising or automated decision-making that produces legal effects.
+                automated decision-making that produces legal effects. Fleet, driver and location data is
+                never used for advertising; the only advertising use is the optional Google cookies on our
+                public website described under <a href="#cookies">Cookies and website analytics</a>.
               </p>
             </>
           ),
@@ -286,6 +289,11 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Sentry</strong> — error and performance monitoring so we can find and fix faults.
+                </li>
+                <li>
+                  <strong>Google (Google Ireland Limited)</strong> — website analytics and ad measurement
+                  through Google Tag Manager, only if you click Allow on our cookie banner. It runs on our
+                  public website only; no fleet, driver or location data is ever sent to it.
                 </li>
               </ul>
               <p>
@@ -385,8 +393,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                We measure our public website with our own analytics, built into Rovora — no Google
-                Analytics, no advertising pixels and no third-party trackers. It works{' '}
+                We measure our public website with our own analytics, built into Rovora. It works{' '}
                 <strong>without cookies</strong> by default:
               </p>
               <ul>
@@ -408,10 +415,24 @@ export default function PrivacyPage() {
               <p>
                 If you click <strong>Allow</strong> on our cookie banner, we also set one first-party
                 cookie holding a random ID, so we can recognise return visits and credit a signup to the
-                visit that first brought you to us. You can change your mind at any time with{' '}
-                <strong>Cookie settings</strong> at the bottom of every page. We don&rsquo;t ask —
-                and treat the answer as &ldquo;no&rdquo; — if your browser sends a Global Privacy Control
-                signal.
+                visit that first brought you to us.
+              </p>
+              <p>
+                Clicking <strong>Allow</strong> also loads <strong>Google Tag Manager</strong>, which runs
+                Google Analytics and Google Ads measurement on our public website. Google then sets its
+                own cookies (listed below) to count visits, see which of our ads bring people to Rovora,
+                and show Rovora ads to past visitors. Google&rsquo;s use of that data is described at{' '}
+                <a href="https://policies.google.com/technologies/partner-sites">
+                  policies.google.com/technologies/partner-sites
+                </a>
+                . Until you click Allow, no Google tag is loaded and Google receives nothing from our
+                website, and Google tags never run inside the signed-in Rovora app.
+              </p>
+              <p>
+                You can change your mind at any time with <strong>Cookie settings</strong> at the bottom
+                of every page; choosing Decline switches Google&rsquo;s tags off and removes their
+                cookies. We don&rsquo;t ask — and treat the answer as &ldquo;no&rdquo; — if your browser
+                sends a Global Privacy Control signal.
               </p>
               <div className={s.tableWrap}>
                 <table className={s.table}>
@@ -432,6 +453,16 @@ export default function PrivacyPage() {
                       <td><code>rv_vid</code></td>
                       <td>Only if you click Allow: a random ID that lets our analytics recognise a return visit</td>
                       <td>13 months</td>
+                    </tr>
+                    <tr>
+                      <td><code>_ga</code>, <code>_ga_*</code></td>
+                      <td>Only if you click Allow: Google Analytics — tells visits and visitors apart</td>
+                      <td>Up to 2 years</td>
+                    </tr>
+                    <tr>
+                      <td><code>_gcl_*</code></td>
+                      <td>Only if you click Allow: Google Ads — links a visit or signup to the ad that brought you</td>
+                      <td>90 days</td>
                     </tr>
                     <tr>
                       <td><code>sb-*</code>, <code>active_org</code></td>

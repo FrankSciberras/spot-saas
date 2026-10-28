@@ -22,6 +22,12 @@ export const IGNORE_MAX_AGE = 60 * 60 * 24 * 400;
 /** Window event that re-opens the cookie banner (footer "Cookie settings"). */
 export const OPEN_CONSENT_EVENT = 'rovora:cookie-settings';
 
+/** Fired on window whenever the cookie-banner answer changes. */
+export const CONSENT_CHANGE_EVENT = 'rovora:consent-change';
+
+/** Rovora's Google Tag Manager container. Public by design — it's in the page. */
+export const GTM_ID = 'GTM-MP2LKF59';
+
 /** Conversions are recorded server-side by the actions that create them; the
  *  browser may not send these names (or forge a page view by name). */
 export const SERVER_ONLY_EVENTS = new Set(['pageview', 'Signup', 'Lead']);

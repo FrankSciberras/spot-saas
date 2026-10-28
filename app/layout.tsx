@@ -97,8 +97,9 @@ export default function RootLayout({
             {children}
           </SplashScreen>
           <ErrorRecovery />
-          {/* First-party, cookieless website analytics + the cookie banner.
-              Inert inside the signed-in app (see lib/analytics/client.ts). */}
+          {/* First-party, cookieless website analytics + the cookie banner,
+              plus Google Tag Manager once a visitor clicks "Allow". Inert
+              inside the signed-in app (see lib/analytics/client.ts + gtm.ts). */}
           <SiteAnalytics />
         </ThemeProvider>
       </body>

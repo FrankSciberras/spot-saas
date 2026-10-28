@@ -15,9 +15,11 @@ const THEME_EVENT = 'rovora-theme-change';
 
 /**
  * The cookie banner. Rovora counts visits without cookies regardless of the
- * answer; "Allow" adds a single first-party cookie so return visits — and the
+ * answer; "Allow" adds a first-party cookie so return visits — and the
  * channel that first brought someone who signs up days later — can be
- * recognised. Both choices are one click and equally prominent, nothing is
+ * recognised, and loads Google Tag Manager (lib/analytics/gtm.ts), whose
+ * Analytics/Ads tags set Google's own cookies. Both choices are one click and
+ * equally prominent, nothing is
  * pre-selected, and browsers sending Global Privacy Control are never asked.
  *
  * Re-opened from the footer's "Cookie settings" (OPEN_CONSENT_EVENT).
@@ -112,8 +114,9 @@ export default function CookieBanner() {
         )}
       </div>
       <p id="cookie-banner-body" className={styles.body}>
-        We count visits anonymously, without cookies. If you allow it, we&rsquo;ll also set one
-        first-party cookie so we can tell when you come back. No ads, no third-party trackers.{' '}
+        We count visits anonymously, without cookies. If you allow it, we&rsquo;ll also set
+        cookies &mdash; our own and Google&rsquo;s (Analytics and Ads) &mdash; to recognise return
+        visits and see which pages and ads work. Decline and none are set.{' '}
         <Link href="/privacy#cookies" className={styles.link}>Privacy policy</Link>
       </p>
       {reopened && choice && (

@@ -13,7 +13,7 @@
 // =============================================================================
 
 import { isAppRoute } from '@/lib/routes';
-import { CAMPAIGN_PARAMS, COLLECT_PATH, CONSENT_COOKIE, CONSENT_MAX_AGE, IGNORE_COOKIE } from './constants';
+import { CAMPAIGN_PARAMS, COLLECT_PATH, CONSENT_CHANGE_EVENT, CONSENT_COOKIE, CONSENT_MAX_AGE, IGNORE_COOKIE } from './constants';
 
 type Props = Record<string, string | number | boolean>;
 
@@ -46,8 +46,11 @@ function trackablePath(path: string): boolean {
   return !isAppRoute(path) && !/^\/(api|auth)(\/|$)/.test(path);
 }
 
-/** Whether this browser should send anything at all. */
-export function trackingEnabled(): boolean {
+/**
+ * Whether this browser should send anything at all. `honourOptOut: false`
+ * ignores only the admin "Don't count my visits" cookie (see gtm.ts).
+ */
+export function trackingEnabled({ honourOptOut = true }: { honourOptOut?: boolean } = {}): boolean {
   if (typeof window === 'undefined') return false;
   const dev = process.env.NEXT_PUBLIC_ANALYTICS_DEV === '1';
   if (process.env.NODE_ENV !== 'production' && !dev) return false;
@@ -55,7 +58,7 @@ export function trackingEnabled(): boolean {
   // Automated browsers, the Rovora Driver app's WebView, and opted-out admins.
   if (navigator.webdriver) return false;
   if ((window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView) return false;
-  if (readCookie(IGNORE_COOKIE) === '1') return false;
+  if (honourOptOut && readCookie(IGNORE_COOKIE) === '1') return false;
   return true;
 }
 
@@ -234,6 +237,7 @@ export function getConsent(): ConsentChoice | null {
 export async function setConsent(choice: ConsentChoice): Promise<void> {
   const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `${CONSENT_COOKIE}=${choice}; Max-Age=${CONSENT_MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+  window.dispatchEvent(new CustomEvent<ConsentChoice>(CONSENT_CHANGE_EVENT, { detail: choice }));
   if (!trackingEnabled()) return;
   const path = current?.path ?? window.location.pathname;
   if (!trackablePath(path)) return;

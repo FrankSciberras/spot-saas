@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { installLifecycle, trackEvent, trackPageview } from '@/lib/analytics/client';
+import { CONSENT_CHANGE_EVENT } from '@/lib/analytics/constants';
+import { syncGoogleTag } from '@/lib/analytics/gtm';
 import CookieBanner from './CookieBanner';
 
 /**
@@ -21,7 +23,8 @@ import CookieBanner from './CookieBanner';
  *   anything with data-track="…"  → that name (label: data-track-label)
  *
  * Nothing runs inside the signed-in app, in development, for bots, or in the
- * Rovora Driver app's WebView.
+ * Rovora Driver app's WebView. Google Tag Manager rides along under the same
+ * rules, but only once the visitor clicks "Allow" (see lib/analytics/gtm.ts).
  */
 export default function SiteAnalytics() {
   const pathname = usePathname();
@@ -29,8 +32,17 @@ export default function SiteAnalytics() {
   useEffect(() => installLifecycle(), []);
 
   useEffect(() => {
-    if (pathname) trackPageview(pathname);
+    if (!pathname) return;
+    trackPageview(pathname);
+    syncGoogleTag(pathname);
   }, [pathname]);
+
+  // Google Tag Manager loads the moment "Allow" is clicked, and steps back on "Decline".
+  useEffect(() => {
+    const onConsent = () => syncGoogleTag(window.location.pathname);
+    window.addEventListener(CONSENT_CHANGE_EVENT, onConsent);
+    return () => window.removeEventListener(CONSENT_CHANGE_EVENT, onConsent);
+  }, []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
