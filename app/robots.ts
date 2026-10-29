@@ -15,6 +15,7 @@ const PRIVATE_PATHS = [
   '/auth/',
   '/login',
   '/offline',
+  '/thank-you/',
 ];
 
 /**

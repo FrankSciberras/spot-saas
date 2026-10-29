@@ -1,0 +1,81 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f6fb;
+  padding: 48px 16px;
+  font-family: var(--font-geist, ui-sans-serif, system-ui, sans-serif);
+  color: #0f172a;
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border: 1px solid #e3e8f1;
+  border-radius: 16px;
+  padding: 36px 28px 30px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.logo {
+  height: 32px;
+  width: auto;
+  display: block;
+  margin: 0 auto 24px;
+}
+
+.tick {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: #e7f6ee;
+  color: #1a8f5a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tick svg {
+  width: 28px;
+  height: 28px;
+}
+
+.card h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.card p {
+  margin: 0 0 24px;
+  color: #5b667d;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.btn {
+  display: inline-block;
+  background: #1a8f5a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 11px 26px;
+}
+
+.btn:hover {
+  background: #157a4c;
+}
+
+.hint {
+  display: block;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #8a94a8;
+}

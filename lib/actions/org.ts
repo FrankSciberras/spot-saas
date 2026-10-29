@@ -193,5 +193,6 @@ export async function completeOnboardingAction(
   }
 
   revalidatePath('/', 'layout');
-  redirect('/fleet');
+  // Public stop first so Google Tag Manager can count the signup; it forwards to /fleet.
+  redirect('/thank-you/welcome');
 }

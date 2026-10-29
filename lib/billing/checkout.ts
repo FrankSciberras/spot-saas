@@ -297,7 +297,8 @@ async function startCheckout(
     },
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
-    success_url: `${base}/billing?checkout=success`,
+    // Public stop first so Google Tag Manager can count the purchase.
+    success_url: `${base}/thank-you/subscribed?plan=${encodeURIComponent(plan.id)}`,
     cancel_url: `${base}/billing?checkout=cancelled`,
   });
 
