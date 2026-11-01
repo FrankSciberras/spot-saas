@@ -345,10 +345,10 @@ export default function MonthlySettlementsClient({
     });
   }, []);
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
-    exportDriverMonthlySettlementPdf({
+    await exportDriverMonthlySettlementPdf({
       driverName,
       monthLabel,
       settlements: monthSettlements.map(s => toPdfSettlement(s, driverName)),

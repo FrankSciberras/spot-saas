@@ -29,6 +29,7 @@ import {
 } from '@/lib/config/settlements';
 import { calculateAdjustmentsNet, signedAdjustmentAmount } from './adjustments';
 import { formatCurrency, round2 } from './settlementCalculations';
+import { loadPdfFonts, pdfFont, registerPdfFonts } from './pdfFonts';
 
 // ── Input ────────────────────────────────────────────────────────────────────
 
@@ -192,8 +193,8 @@ function rowMm(d: Density): number {
   return (d.font * 1.15 * 25.4) / 72 + d.pad * 2;
 }
 
-function tableStyles(d: Density) {
-  return { fontSize: d.font, cellPadding: { top: d.pad, bottom: d.pad, left: 2, right: 2 } };
+function tableStyles(doc: jsPDF, d: Density) {
+  return { font: pdfFont(doc), fontSize: d.font, cellPadding: { top: d.pad, bottom: d.pad, left: 2, right: 2 } };
 }
 
 const MONTH_NAMES = [
@@ -245,8 +246,11 @@ function fileSafe(value: string): string {
 
 // ── Page furniture ───────────────────────────────────────────────────────────
 
+/** A4 portrait, with the embedded font (see pdfFonts.ts) when it's loaded. */
 function newDoc(): jsPDF {
-  return new jsPDF('portrait', 'mm', 'a4');
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  registerPdfFonts(doc);
+  return doc;
 }
 
 function tableEndY(doc: jsPDF): number {
@@ -265,14 +269,14 @@ function drawPageHeader(doc: jsPDF, title: string, name: string, date: string, s
   const right = doc.internal.pageSize.getWidth() - MARGIN;
   const top = MARGIN + 3;
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(pdfFont(doc), 'bold');
   doc.setFontSize(16);
   doc.setTextColor(0);
   doc.text(title, MARGIN, top + 1);
   doc.setFontSize(12);
   doc.text(name, right, top, { align: 'right' });
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(pdfFont(doc), 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(100);
   doc.text(date, right, top + 5.5, { align: 'right' });
@@ -297,7 +301,7 @@ function ensureSpace(doc: jsPDF, y: number, needed: number): number {
 function sectionTitle(doc: jsPDF, text: string, y: number, keepTogether = 20): number {
   const usable = doc.internal.pageSize.getHeight() - FOOTER_SPACE - MARGIN - 6;
   const top = ensureSpace(doc, y + 3.5, Math.min(keepTogether, usable));
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(pdfFont(doc), 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0);
   doc.text(text, MARGIN, top);
@@ -307,7 +311,7 @@ function sectionTitle(doc: jsPDF, text: string, y: number, keepTogether = 20): n
 /** Small grey explanation under a table. Returns the y below it. */
 function footnote(doc: jsPDF, text: string, y: number): number {
   const lineMm = 3.1;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(pdfFont(doc), 'normal');
   doc.setFontSize(7.5);
   const lines = doc.splitTextToSize(text, contentWidth(doc)) as string[];
   const top = ensureSpace(doc, y + 3.3, lines.length * lineMm);
@@ -327,17 +331,17 @@ function drawOwedHeadline(doc: jsPDF, y: number, owed: number, label: string, de
   doc.setFillColor(...(negative ? OWES_FILL : OWED_FILL));
   doc.roundedRect(MARGIN, top, width, height, 2, 2, 'F');
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(pdfFont(doc), 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0);
   doc.text(label, MARGIN + 5, top + 6);
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(pdfFont(doc), 'normal');
   doc.setFontSize(8);
   doc.setTextColor(80);
   doc.text(detail, MARGIN + 5, top + 10.6, { maxWidth: width * 0.68 });
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(pdfFont(doc), 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...(negative ? OWES_TEXT : OWED_TEXT));
   doc.text(money(owed), MARGIN + width - 5, top + 9.3, { align: 'right' });
@@ -359,7 +363,7 @@ function drawFooters(doc: jsPDF): void {
   const count = doc.getNumberOfPages();
   for (let i = 1; i <= count; i++) {
     doc.setPage(i);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(pdfFont(doc), 'normal');
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(generated, MARGIN, pageHeight - 9);
@@ -522,7 +526,7 @@ function drawSummaryTable(
     startY: top,
     body: summary.map((r) => [r.label, r.value]),
     margin: TABLE_MARGIN,
-    styles: tableStyles(d),
+    styles: tableStyles(doc, d),
     columnStyles: {
       0: { halign: 'left', cellWidth: width * 0.65 },
       1: { halign: 'right', cellWidth: width * 0.35 },
@@ -602,7 +606,7 @@ function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, sta
     head: [['Platform', ...columns.map((c) => c.title)]],
     body,
     margin: TABLE_MARGIN,
-    styles: tableStyles(d),
+    styles: tableStyles(doc, d),
     headStyles: HEAD_STYLES,
     columnStyles,
     didParseCell: (data) => {
@@ -641,7 +645,7 @@ function drawAdjustmentsTable(
     head: [['Date', 'Type', 'Description', 'Amount']],
     body,
     margin: TABLE_MARGIN,
-    styles: tableStyles(d),
+    styles: tableStyles(doc, d),
     headStyles: HEAD_STYLES,
     columnStyles: {
       0: { halign: 'left', cellWidth: width * 0.14 },
@@ -703,7 +707,7 @@ function drawOwedStatement(
     head: [['Week', 'Status', ...(showGross ? ['Gross'] : []), 'Amount', 'Paid']],
     body,
     margin: TABLE_MARGIN,
-    styles: tableStyles(d),
+    styles: tableStyles(doc, d),
     headStyles: HEAD_STYLES,
     columnStyles,
     didParseCell: (data) => {
@@ -802,14 +806,14 @@ function drawPeriodDriverPage(
   y = footnote(doc, owedFootnote(monthRows, weeks, 'fleet'), y) + d.gap;
 
   if (s.notes) {
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(pdfFont(doc), 'normal');
     doc.setFontSize(d.font);
     const lines = doc.splitTextToSize(s.notes, contentWidth(doc)) as string[];
     y = ensureSpace(doc, y + 2, 5 + lines.length * 3.8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(pdfFont(doc), 'bold');
     doc.setFontSize(9.5);
     doc.text('Notes:', MARGIN, y);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(pdfFont(doc), 'normal');
     doc.setFontSize(d.font);
     doc.text(lines, MARGIN, y + 4.5);
   }
@@ -913,11 +917,12 @@ export function buildSettlementsPdf(options: PeriodPdfOptions): jsPDF {
   return doc;
 }
 
-export function exportSettlementsPdf(options: PeriodPdfOptions): void {
+export async function exportSettlementsPdf(options: PeriodPdfOptions): Promise<void> {
   if (options.settlements.length === 0) {
     alert('No settlements to export');
     return;
   }
+  await loadPdfFonts();
   const doc = buildSettlementsPdf(options);
   doc.save(`Settlements_${fileSafe(options.periodName || options.periodLabel)}.pdf`);
 }
@@ -975,7 +980,7 @@ export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
     head: [['Driver', 'Weeks paid', 'Earned', 'Already paid', 'Owed to driver']],
     body,
     margin: TABLE_MARGIN,
-    styles: tableStyles(ROOMY),
+    styles: tableStyles(doc, ROOMY),
     headStyles: HEAD_STYLES,
     columnStyles: {
       0: { halign: 'left', cellWidth: width * 0.34 },
@@ -1016,11 +1021,12 @@ export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
   return doc;
 }
 
-export function exportMonthlySettlementsPdf(options: MonthPdfOptions): void {
+export async function exportMonthlySettlementsPdf(options: MonthPdfOptions): Promise<void> {
   if (options.settlements.length === 0) {
     alert('No settlements to export');
     return;
   }
+  await loadPdfFonts();
   const doc = buildMonthlySettlementsPdf(options);
   doc.save(`Settlements_${fileSafe(options.monthLabel)}.pdf`);
 }
@@ -1050,11 +1056,12 @@ export function buildDriverMonthlySettlementPdf(options: DriverMonthPdfOptions):
   return doc;
 }
 
-export function exportDriverMonthlySettlementPdf(options: DriverMonthPdfOptions): void {
+export async function exportDriverMonthlySettlementPdf(options: DriverMonthPdfOptions): Promise<void> {
   if (options.settlements.length === 0) {
     alert('No settlements to export');
     return;
   }
+  await loadPdfFonts();
   const doc = buildDriverMonthlySettlementPdf(options);
   doc.save(`Settlement_${fileSafe(options.driverName)}_${fileSafe(options.monthLabel)}.pdf`);
 }

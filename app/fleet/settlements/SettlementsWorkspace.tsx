@@ -538,7 +538,7 @@ export default function SettlementsWorkspace({
   const handleExportMonthPdf = useCallback(async () => {
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
-    exportMonthlySettlementsPdf({
+    await exportMonthlySettlementsPdf({
       monthLabel: `${monthNames[selectedMonth]} ${selectedYear}`,
       settlements: monthSettlements.map((s) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver')),
       adjustmentsBySettlement: await fetchFrozenAdjustments(monthSettlements.map((s) => s.id)),
@@ -553,7 +553,7 @@ export default function SettlementsWorkspace({
     const driverIds = new Set(periodSettlements.map((s) => s.driver_id));
     const toPdf = (s: SettlementWithRelations) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver');
 
-    exportSettlementsPdf({
+    await exportSettlementsPdf({
       periodLabel: currentPeriod.label,
       periodName: currentPeriod.periodName,
       settlements: periodSettlements.map(toPdf),
