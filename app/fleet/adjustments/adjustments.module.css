@@ -1,0 +1,72 @@
+/* Driver adjustments — phone layout.
+   The page is styled inline; these classes only kick in on narrow screens and
+   use !important to win over those inline styles (same approach as the
+   responsive overrides in fleet-theme.css). */
+
+@media (max-width: 720px) {
+  /* Stat tiles sit two-up, so the big numbers need to shrink to fit. */
+  .stat { padding: 12px 13px !important; }
+  .statValue { margin-top: 10px !important; font-size: 19px !important; }
+
+  /* Filters: full-width segmented tabs, the two dropdowns side by side,
+     search on its own row. */
+  .filterBar { flex-direction: column !important; align-items: stretch !important; }
+  .filters { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .tabs { display: flex !important; grid-column: 1 / -1; }
+  .tabs > button { flex: 1; padding: 7px 8px !important; }
+  .selectWrap { min-width: 0; padding: 8px 10px !important; }
+  .selectWrap select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+  .search { min-width: 0 !important; padding: 9px 11px !important; }
+
+  /* iPhones zoom the whole page when you tap a field with text under 16px. */
+  .selectWrap select,
+  .search input,
+  .modal input,
+  .modal select,
+  .modal textarea { font-size: 16px !important; }
+
+  /* Each adjustment becomes a two-column card: details on the left,
+     amount + edit/delete stacked on the right. */
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas: 'main amount' 'main actions';
+    gap: 6px 12px !important;
+    padding: 12px 14px !important;
+  }
+  .rowMain { grid-area: main; }
+  .rowAmount { grid-area: amount; align-self: end; }
+  .rowActions { grid-area: actions; align-self: start; }
+  .iconBtn { width: 34px !important; height: 34px !important; }
+
+  /* The add/edit dialog slides up from the bottom; the body scrolls so the
+     Save button is always on screen. */
+  .modal {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-height: 92dvh !important;
+    overflow: hidden !important;
+    border-radius: 16px 16px 0 0 !important;
+    border-bottom: none !important;
+    animation: sheetUp 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .modalTitle { overflow-wrap: anywhere; }
+  .formGrid { grid-template-columns: 1fr !important; }
+  .modalBody { overflow-y: auto; min-height: 0; padding: 16px !important; }
+  .modalFoot { padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important; }
+  .impact { flex-wrap: wrap; gap: 4px 12px; }
+}
+
+/* Animates `translate`, not `transform` — the inline centring transform is
+   overridden with !important above, which would also block a transform
+   animation. */
+@keyframes sheetUp {
+  from { translate: 0 100%; }
+  to { translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: none !important; }
+}

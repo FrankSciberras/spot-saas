@@ -1,9 +1,11 @@
 'use client';
 
-import { type CSSProperties, useState, useMemo, useCallback } from 'react';
+import { type CSSProperties, useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import type { DriverAdjustment, AdjustmentType } from '@/lib/types/database';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import m from './adjustments.module.css';
 
 interface DriverBasic {
   id: string;
@@ -85,6 +87,16 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The dialog renders into the shell root, not inside <main>: <main> is its
+  // own stacking layer (z-index 1), which put the phone bottom nav on top of
+  // the dialog and hid its Save button. Staying inside .fleetCanvas keeps the
+  // theme tokens and fleet styles working.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalTarget(rootRef.current?.closest<HTMLElement>('.fleetCanvas') ?? document.body);
+  }, []);
 
   const signedAmount = (a: AdjustmentWithDriver) => TYPE_META[a.type].sign * a.amount;
 
@@ -213,7 +225,7 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
 
   return (
     <>
-      <div style={st.header} className="header-mobile-row">
+      <div ref={rootRef} style={st.header} className="header-mobile-row">
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Financial / Adjustments</div>
           <div style={st.titleRow}>
@@ -248,9 +260,9 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
         />
       </div>
 
-      <div style={st.filterBar} className="header-mobile-row">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={st.tabs}>
+      <div style={st.filterBar} className={m.filterBar}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }} className={m.filters}>
+          <div style={st.tabs} className={m.tabs}>
             {[
               { k: 'all', label: 'All' },
               { k: 'expenses', label: 'Expenses' },
@@ -262,7 +274,7 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
             ))}
           </div>
 
-          <div style={st.selectWrap}>
+          <div style={st.selectWrap} className={m.selectWrap}>
             <FleetIcon name="filter" size={13} />
             <select value={filterTypeExact} onChange={(e) => setFilterTypeExact(e.target.value)} style={st.select}>
               <option value="all">All types</option>
@@ -270,7 +282,7 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
             </select>
           </div>
 
-          <div style={st.selectWrap}>
+          <div style={st.selectWrap} className={m.selectWrap}>
             <FleetIcon name="driver" size={13} />
             <select value={filterDriver} onChange={(e) => setFilterDriver(e.target.value)} style={st.select}>
               <option value="all">All drivers</option>
@@ -278,7 +290,7 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
             </select>
           </div>
         </div>
-        <div style={st.searchWrap}>
+        <div style={st.searchWrap} className={m.search}>
           <FleetIcon name="search" size={13} />
           <input type="text" placeholder="Search reason, driver, ID…" value={search} onChange={(e) => setSearch(e.target.value)} style={st.searchInput} />
         </div>
@@ -324,8 +336,8 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
                     const isPos = meta.sign > 0;
                     const isNeg = meta.sign < 0;
                     return (
-                      <div key={a.id} style={{ ...st.row, borderBottom: i === items.length - 1 ? 'none' : '1px solid var(--line-1)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                      <div key={a.id} className={m.row} style={{ ...st.row, borderBottom: i === items.length - 1 ? 'none' : '1px solid var(--line-1)' }}>
+                        <div className={m.rowMain} style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                           <div style={{ width: 36, height: 36, borderRadius: 8, background: isPos ? 'var(--pos-soft)' : isNeg ? 'var(--neg-soft)' : 'var(--bg-2)', color: isPos ? 'var(--pos)' : isNeg ? 'var(--neg)' : 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <FleetIcon name={meta.icon} size={16} />
                           </div>
@@ -334,6 +346,15 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{meta.label}</span>
                               {a.notes && (<><span style={{ color: 'var(--text-4)' }}>·</span><span style={{ fontSize: 11.5, color: 'var(--warn)' }}>{a.notes}</span></>)}
+                            </div>
+                            {/* Driver + date have their own columns on desktop; on phones they live here. */}
+                            <div className="show-mobile-only" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minWidth: 0 }}>
+                              <div style={{ width: 18, height: 18, borderRadius: 99, background: colorFor(a.driver_id), color: '#fff', fontSize: 8, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {initialsOf(a.drivers?.full_name || '?')}
+                              </div>
+                              <span style={{ fontSize: 12, color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{a.drivers?.full_name || 'Unknown'}</span>
+                              <span style={{ color: 'var(--text-4)' }}>·</span>
+                              <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{dateLabel(a.date)}</span>
                             </div>
                           </div>
                         </div>
@@ -347,15 +368,15 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
 
                         <div className="hide-mobile mono" style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'right' }}>{dateLabel(a.date)}</div>
 
-                        <div className="mono" style={{ fontSize: 15, fontWeight: 600, color: isPos ? 'var(--pos)' : isNeg ? 'var(--neg)' : 'var(--text-2)', textAlign: 'right' }}>
+                        <div className={`mono ${m.rowAmount}`} style={{ fontSize: 15, fontWeight: 600, color: isPos ? 'var(--pos)' : isNeg ? 'var(--neg)' : 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                           {isPos ? '+' : isNeg ? '−' : ''} {fmtEUR(a.amount, 2)}
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <div className={m.rowActions} style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
                           {isAdmin && (
                             <>
-                              <button onClick={() => openEdit(a)} style={st.iconBtn} title="Edit"><FleetIcon name="adjust" size={13} /></button>
-                              <button onClick={() => handleDelete(a.id)} style={st.iconBtn} title="Delete" disabled={loading}><FleetIcon name="close" size={13} /></button>
+                              <button onClick={() => openEdit(a)} className={m.iconBtn} style={st.iconBtn} title="Edit" aria-label="Edit adjustment"><FleetIcon name="adjust" size={13} /></button>
+                              <button onClick={() => handleDelete(a.id)} className={m.iconBtn} style={st.iconBtn} title="Delete" aria-label="Delete adjustment" disabled={loading}><FleetIcon name="close" size={13} /></button>
                             </>
                           )}
                         </div>
@@ -369,24 +390,24 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
         </div>
       )}
 
-      {showModal && (
+      {showModal && portalTarget && createPortal(
         <>
           <div onClick={closeModal} style={st.modalScrim} />
-          <div style={st.modal}>
+          <div style={st.modal} className={m.modal} role="dialog" aria-modal="true">
             <div style={st.modalHead}>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{editing ? 'Edit adjustment' : 'New adjustment'}</div>
-                <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-1)', marginTop: 2 }}>{editing ? editing.id : 'Add expense or compensation'}</div>
+                <div className={m.modalTitle} style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-1)', marginTop: 2 }}>{editing ? editing.id : 'Add expense or compensation'}</div>
               </div>
-              <button onClick={closeModal} style={st.modalCloseBtn}>×</button>
+              <button onClick={closeModal} style={st.modalCloseBtn} aria-label="Close">×</button>
             </div>
 
-            <div style={st.modalBody}>
+            <div style={st.modalBody} className={m.modalBody}>
               {error && (
                 <div style={{ marginBottom: 14, padding: '9px 12px', borderRadius: 8, background: 'var(--neg-soft)', border: '1px solid rgba(240,100,100,0.32)', color: 'var(--neg)', fontSize: 12.5 }}>{error}</div>
               )}
 
-              <div style={st.formGrid} className="grid-2">
+              <div style={st.formGrid} className={m.formGrid}>
                 <Field label="Driver" required>
                   <div style={st.selectField}>
                     {formDriver && (
@@ -436,7 +457,7 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
 
               <div style={st.preview}>
                 <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Settlement impact</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className={m.impact} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{formDriver ? formDriver.full_name : 'Driver'} balance changes by</div>
                   <div className="mono" style={{ fontSize: 22, fontWeight: 600, color: formSign > 0 ? 'var(--pos)' : formSign < 0 ? 'var(--neg)' : 'var(--text-2)' }}>
                     {formSign > 0 ? '+' : formSign < 0 ? '−' : ''} {fmtEUR(formAmt, 2)}
@@ -445,14 +466,15 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
               </div>
             </div>
 
-            <div style={st.modalFoot}>
+            <div style={st.modalFoot} className={m.modalFoot}>
               <button onClick={closeModal} style={{ ...st.ghostBtn, flex: 1, justifyContent: 'center' }} disabled={loading}>Cancel</button>
               <button onClick={handleSave} disabled={!formValid || loading} style={{ ...st.primaryBtn, flex: 1, justifyContent: 'center', ...(formValid && !loading ? {} : { background: 'var(--bg-3)', color: 'var(--text-3)', cursor: 'not-allowed' }) }}>
                 <FleetIcon name="check" size={13} stroke={2.4} /> {loading ? 'Saving…' : editing ? 'Save changes' : 'Add adjustment'}
               </button>
             </div>
           </div>
-        </>
+        </>,
+        portalTarget,
       )}
     </>
   );
@@ -460,13 +482,13 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
 
 function AdjStat({ label, value, sub, color, icon }: { label: string; value: string | number; sub: string; color: string; icon: string }) {
   return (
-    <div style={st.stat}>
+    <div style={st.stat} className={m.stat}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--bg-2)', color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <FleetIcon name={icon} size={15} />
         </div>
       </div>
-      <div className="mono" style={{ marginTop: 14, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color }}>{value}</div>
+      <div className={`mono ${m.statValue}`} style={{ marginTop: 14, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color, whiteSpace: 'nowrap' }}>{value}</div>
       <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{label}</div>
       <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>
     </div>
