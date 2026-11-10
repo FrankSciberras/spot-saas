@@ -113,8 +113,9 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         mark: 'b',
         bg: '#34d186',
         fg: '#06231a',
-        desc: 'Sync driver payouts straight into settlements.',
-        status: 'coming-soon',
+        desc: 'Rides, fares, tips and acceptance rates per driver, plus who is online right now.',
+        status: 'live',
+        href: '/fleet/bolt',
       },
       {
         name: 'FreeNow',

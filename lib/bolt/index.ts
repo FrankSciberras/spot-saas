@@ -1,9 +1,11 @@
-export { boltClient } from './client';
+export { BoltClient, BoltApiError, describeBoltError } from './client';
 export type {
-  BoltTokenResponse,
+  BoltCompany,
+  BoltCredentials,
   BoltDriver,
-  BoltRide,
-  BoltEarningsSummary,
-  BoltDailyReport,
-  BoltWeeklyReport,
+  BoltOnlineDriver,
+  BoltOrder,
+  BoltVehicle,
 } from './client';
+export { loadBoltConnection, boltClientFor, syncBoltFleet, INITIAL_BACKFILL_DAYS } from './sync';
+export type { BoltConnection, BoltSyncResult } from './sync';

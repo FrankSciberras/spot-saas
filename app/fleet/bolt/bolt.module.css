@@ -1,0 +1,1106 @@
+/* =============================================================================
+   Operations → Bolt — Rovora Fleet flat aesthetic.
+   Uses the fleet design tokens (--bg-1/2/3, --line-1/2, --text-1/2/3/4,
+   --accent, --pos, --neg, --radius) so it matches the rest of /fleet in both
+   themes. FleetShell already pads the page, so .container adds none.
+   ============================================================================= */
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+  max-width: 62ch;
+}
+
+/* ─── Shared bits ─── */
+.boltLogo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: #34d186;
+  color: #06231a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.error {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ghostBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ghostBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ghostBtn[data-active='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dangerBtn {
+  padding: 8px 13px;
+  border: 1px solid var(--neg);
+  border-radius: var(--radius);
+  background: var(--neg);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* ─── Controls (sync / disconnect) ─── */
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.controlRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.confirm {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.confirm p {
+  margin: 0 0 10px;
+}
+
+.noteOk,
+.noteError {
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.noteOk {
+  color: var(--pos);
+}
+
+.noteError {
+  color: var(--neg);
+}
+
+/* ─── Connect card ─── */
+.connectWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+.connectCard {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-2);
+  padding: 22px 24px 24px;
+}
+
+.connectHead {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.connectTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.connectLead {
+  margin: 5px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+
+.label {
+  display: block;
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hint {
+  margin: 7px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.hint svg {
+  vertical-align: -1px;
+  margin-right: 3px;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.primary {
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pendingNote {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.steps {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-1);
+  padding: 20px 22px;
+}
+
+.stepsTitle {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.stepsTitle:not(:first-child) {
+  margin-top: 20px;
+}
+
+.stepList,
+.benefits {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-2);
+}
+
+.stepList strong {
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.stepList a {
+  color: var(--accent);
+}
+
+.stepsNote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+/* ─── Connection strip ─── */
+.connStrip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-2);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.connStrip[data-status='error'] {
+  border-color: var(--neg);
+}
+
+.connInfo {
+  min-width: 0;
+}
+
+.connName {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.connCity {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.connMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.chipOk,
+.chipBad {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.chipOk {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.chipBad {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+/* ─── Period picker ─── */
+.rangeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rangeTabs {
+  display: inline-flex;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.rangeTab {
+  padding: 8px 15px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-decoration: none;
+  border-right: 1px solid var(--line-2);
+}
+
+.rangeTab:last-child {
+  border-right: none;
+}
+
+.rangeTab:hover {
+  color: var(--text-1);
+}
+
+.rangeTab[data-active='true'] {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+
+.rangeForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dateInput {
+  padding: 7px 9px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12.5px;
+  font-family: inherit;
+  color-scheme: light dark;
+}
+
+.rangeDash {
+  color: var(--text-4);
+}
+
+.periodText {
+  margin: 10px 0 14px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.periodWarn {
+  color: var(--warn, #b7791f);
+}
+
+/* ─── Headline numbers ─── */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.kpi {
+  background: var(--bg-2);
+  padding: 15px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.kpiLabel {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.kpiValue {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiSub {
+  font-size: 12px;
+  color: var(--text-3);
+  min-height: 1.3em;
+}
+
+/* ─── Panels ─── */
+.panel {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-2);
+  padding: 16px 18px 18px;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.panelMeta {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.panelEmpty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0 4px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.footNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-4);
+  max-width: 96ch;
+}
+
+/* ─── Online now ─── */
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pos);
+  box-shadow: 0 0 0 3px var(--pos-soft);
+}
+
+.onlineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.onlineCard {
+  border: 1px solid var(--line-1);
+  border-left: 3px solid var(--text-4);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.onlineCard[data-state='on_ride'] {
+  border-left-color: var(--pos);
+}
+
+.onlineCard[data-state='waiting'] {
+  border-left-color: var(--accent);
+}
+
+.onlineName {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onlineState {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.onlineState span {
+  color: var(--text-4);
+}
+
+.onlineCar {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Fares by day ─── */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 150px;
+  padding-bottom: 18px;
+}
+
+.chart[data-dense='true'] {
+  gap: 2px;
+  padding-bottom: 0;
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.barFill {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+  opacity: 0.85;
+  transition: opacity 120ms ease;
+}
+
+.bar:hover .barFill {
+  opacity: 1;
+}
+
+.barLabel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -18px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Drivers table ─── */
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 -18px -18px;
+  border-top: 1px solid var(--line-1);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line-1);
+  color: var(--text-2);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover td {
+  background: var(--bg-3);
+}
+
+.table th {
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  background: var(--bg-1);
+}
+
+.table th button {
+  all: unset;
+  cursor: pointer;
+}
+
+.table th button:hover {
+  color: var(--text-1);
+}
+
+.table th button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.table .thName,
+.table .tdName,
+.table .thLink,
+.table .tdLink {
+  text-align: left;
+}
+
+.table .thName,
+.table .tdName {
+  padding-left: 18px;
+}
+
+.table .tdLink,
+.table .thLink {
+  padding-right: 18px;
+}
+
+.table tr[data-quiet='true'] td {
+  color: var(--text-4);
+}
+
+.table td[data-low='true'] {
+  color: var(--warn, #b7791f);
+  font-weight: 500;
+}
+
+.driverName {
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.table tr[data-quiet='true'] .driverName {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.table .strong {
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.sub {
+  color: var(--text-4);
+  font-size: 12px;
+}
+
+.statusChip {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 500;
+  background: var(--bg-3);
+  color: var(--text-3);
+}
+
+.statusChip[data-status='suspended'] {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.linkSelect {
+  max-width: 170px;
+  padding: 5px 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.linkSelect[data-linked='true'] {
+  border-style: solid;
+  color: var(--text-1);
+}
+
+.linkSelect:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* ─── Breakdown bars ─── */
+.breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.bdTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.bdNums {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bdTrack {
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+
+.bdFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* ─── Suspended on Bolt ─── */
+.attention {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.attention li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-1);
+}
+
+.attention li:first-child {
+  border-top: none;
+  padding-top: 2px;
+}
+
+.attnKind {
+  flex-shrink: 0;
+  width: 58px;
+  margin-top: 1px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-4);
+}
+
+.attnName {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.attnReasons {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--neg);
+}
+
+/* ─── Small screens ─── */
+@media (max-width: 900px) {
+  .connectWrap,
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .controls {
+    align-items: flex-start;
+    max-width: none;
+  }
+
+  .noteOk,
+  .noteError {
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .kpiValue {
+    font-size: 19px;
+  }
+
+  .rangeForm {
+    width: 100%;
+  }
+
+  .dateInput {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* =============================================================================
+   Tabs (Overview · Drivers · Revenue · Trips · Vehicles)
+   ============================================================================= */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 2px 0 16px;
+  border-bottom: 1px solid var(--line-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  padding: 10px 14px 11px;
+  font-size: 14px;
+  color: var(--text-3);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms ease;
+}
+
+.tab:hover {
+  color: var(--text-1);
+}
+
+.tab[data-active='true'] {
+  color: var(--text-1);
+  font-weight: 500;
+  border-bottom-color: var(--accent);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 6px 6px 0 0;
+}
+
+.panelLink,
+.inlineLink {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.panelLink {
+  font-size: 12.5px;
+}
+
+.panelLink:hover,
+.inlineLink:hover {
+  text-decoration: underline;
+}
+
+.barFill[data-peak='true'] {
+  opacity: 1;
+  background: var(--pos);
+}
+
+/* ─── Table extras shared by Trips / Vehicles / Day by day ─── */
+.table .tl {
+  text-align: left;
+}
+
+.cellSub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-4);
+}
+
+.yes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--pos);
+  font-weight: 500;
+}
+
+/* ─── Trips ─── */
+.tripFilters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  padding: 6px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pill:hover {
+  color: var(--text-1);
+  border-color: var(--text-3);
+}
+
+.pill[data-active='true'] {
+  background: var(--text-1);
+  border-color: var(--text-1);
+  color: var(--bg-1);
+  font-weight: 500;
+}
+
+.filterSelect {
+  padding: 7px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: inherit;
+  max-width: 100%;
+}
+
+.tripsTable td {
+  vertical-align: top;
+}
+
+.routeCell {
+  max-width: 300px;
+  min-width: 190px;
+}
+
+.routeLine {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-1);
+}
+
+.routeLine.cellSub {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.tripChip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+
+.tripChip[data-tone='ok'] {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.tripChip[data-tone='bad'] {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 18px -18px -18px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line-1);
+}
+
+.pager .ghostBtn {
+  text-decoration: none;
+}
+
+.pager .ghostBtn[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.pagerText {
+  font-size: 12.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}

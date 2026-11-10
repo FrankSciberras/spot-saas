@@ -15,6 +15,8 @@
 #   * tracking watch     — every 5 min (lost-connection alerts for live tracking)
 #   * trip builder       — hourly at :10 (compiles GPS trails into trips/stops
 #                          + deletes raw GPS points older than 90 days)
+#   * Bolt sync          — hourly at :20 (pulls drivers, vehicles and ride history
+#                          for every fleet that connected its Bolt account)
 #   * reminders          — every 30 min (fires due reminder notifications;
 #                          tighten/loosen the cadence by editing its cron line —
 #                          each run costs ~1 Actions minute).
@@ -40,6 +42,7 @@ on:
     - cron: '*/5 * * * *'   # tracking watch (lost-connection alerts)
     - cron: '10 * * * *'    # trip builder (trips/stops + GPS retention)
     - cron: '*/30 * * * *'  # reminders
+    - cron: '20 * * * *'    # Bolt sync (drivers, vehicles, rides for connected fleets)
     - cron: '40 * * * *'    # "still on shift?" check (backup — also runs every minute in-app)
     - cron: '0 4 * * *'     # daily recurring bookkeeping costs (repeating bills)
     - cron: '0 5 * * *'     # daily notification rules sweep
@@ -84,6 +87,13 @@ jobs:
           curl -fsS -m 60 --retry 3 --retry-delay 10 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/cron/reminders"
+
+      - name: Bolt sync (hourly)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 * * * *'
+        run: |
+          curl -fsS -m 300 --retry 2 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/bolt-sync"
 
       - name: Open-shift watch (hourly)
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '40 * * * *'

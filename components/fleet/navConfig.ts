@@ -34,6 +34,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'tracking', name: 'Live Map', href: '/fleet/tracking', icon: 'map' },
       { id: 'trips', name: 'Trips', href: '/fleet/trips', icon: 'pin' },
       { id: 'safety', name: 'Safety', href: '/fleet/safety', icon: 'warning' },
+      // Shown once the fleet has connected its Bolt account (the 'bolt' module).
+      { id: 'bolt', name: 'Bolt', href: '/fleet/bolt', icon: 'live', roles: ['admin'] },
     ],
   },
   {

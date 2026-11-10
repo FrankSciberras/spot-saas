@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
-import { boltClient } from '@/lib/bolt';
 
 /**
  * GET /api/statistics/bolt
- * Fetch Bolt earnings data for the dashboard
+ * LEGACY sample-data endpoint for the old StatisticsDashboard prototype (not
+ * mounted on any page). Real Bolt data lives at /fleet/bolt — see lib/bolt.
  * Query params: period (daily|weekly|monthly), start_date, end_date
  */
 export async function GET(request: Request) {
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   }
 
   // Check if Bolt is configured
-  if (!boltClient.isConfigured()) {
+  if (!process.env.BOLT_CLIENT_ID || !process.env.BOLT_CLIENT_SECRET) {
     return NextResponse.json({ 
       error: 'Bolt API not configured',
       configured: false 

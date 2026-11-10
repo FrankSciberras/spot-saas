@@ -142,6 +142,23 @@ export const FLEET_MODULES: FleetModule[] = [
     routePrefixes: ['/fleet/reminders', '/fleet/notifications'],
   },
   {
+    // Off until a fleet connects its Bolt account — connecting at /fleet/bolt
+    // switches this on (and disconnecting switches it off), which is what puts
+    // "Bolt" in the sidebar. The page itself is NOT module-guarded: it has to
+    // stay reachable so a fleet can connect in the first place.
+    key: 'bolt',
+    name: 'Bolt',
+    tagline: 'Rides & earnings from Bolt',
+    description:
+      'Connect your Bolt fleet account to see rides, fares, tips, acceptance rates and who is online — per driver, updated every hour.',
+    icon: 'live',
+    category: 'Integrations',
+    status: 'available',
+    defaultEnabled: false,
+    navIds: ['bolt'],
+    routePrefixes: [],
+  },
+  {
     key: 'invoices',
     name: 'Invoices',
     tagline: 'Bill customers & partners',
