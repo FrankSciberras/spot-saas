@@ -20,6 +20,12 @@ export interface Integration {
   status: IntegrationStatus;
   /** Where a LIVE integration opens inside the dashboard (e.g. '/fleet/financials'). */
   href?: string;
+  /**
+   * A real logomark to draw in the tile instead of the text `mark` — only for
+   * integrations that are actually live. Rendered by components/shared
+   * (currently just 'bolt' → BoltMark), in the tile's `fg` colour.
+   */
+  logo?: 'bolt';
 }
 
 export interface IntegrationCategory {
@@ -111,8 +117,9 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
       {
         name: 'Bolt',
         mark: 'b',
+        logo: 'bolt',
         bg: '#34d186',
-        fg: '#06231a',
+        fg: '#ffffff',
         desc: 'Rides, fares, tips and acceptance rates per driver, plus who is online right now.',
         status: 'live',
         href: '/fleet/bolt',

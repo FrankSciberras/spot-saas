@@ -3,6 +3,7 @@ import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { FeatureHero, CtaBand } from '@/components/marketing/feature/Sections';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
+import BoltMark from '@/components/shared/BoltMark';
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATION_COUNT,
@@ -91,7 +92,7 @@ export default async function IntegrationsPage() {
                       style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
                       aria-hidden
                     >
-                      {it.mark}
+                      {it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}
                     </div>
                     <div className="integ-name">{it.name}</div>
                     <p className="integ-desc">{it.desc}</p>

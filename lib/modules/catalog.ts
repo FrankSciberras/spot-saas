@@ -151,7 +151,7 @@ export const FLEET_MODULES: FleetModule[] = [
     tagline: 'Rides & earnings from Bolt',
     description:
       'Connect your Bolt fleet account to see rides, fares, tips, acceptance rates and who is online — per driver, updated every hour.',
-    icon: 'live',
+    icon: 'bolt',
     category: 'Integrations',
     status: 'available',
     defaultEnabled: false,

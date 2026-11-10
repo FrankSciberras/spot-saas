@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { connectBoltAction, type BoltCompanyChoice } from '@/lib/actions/bolt';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import BoltMark from '@/components/shared/BoltMark';
 import styles from './bolt.module.css';
 
 /**
@@ -44,7 +45,7 @@ export default function BoltConnect({ reconnect = false }: { reconnect?: boolean
     <div className={styles.connectWrap}>
       <form className={styles.connectCard} onSubmit={submit}>
         <div className={styles.connectHead}>
-          <div className={styles.boltLogo} aria-hidden>b</div>
+          <div className={styles.boltLogo} aria-hidden><BoltMark size={26} /></div>
           <div>
             <h2 className={styles.connectTitle}>{reconnect ? 'Reconnect your Bolt account' : 'Connect your Bolt account'}</h2>
             <p className={styles.connectLead}>

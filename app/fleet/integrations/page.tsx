@@ -9,6 +9,7 @@ import {
   notifyMailto,
   markFontSize,
 } from '@/lib/integrations/catalog';
+import BoltMark from '@/components/shared/BoltMark';
 import ModuleToggles from './ModuleToggles';
 import styles from './integrations.module.css';
 
@@ -104,7 +105,7 @@ export default async function FleetIntegrationsPage() {
                         style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
                         aria-hidden
                       >
-                        {it.mark}
+                        {it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}
                       </div>
                       {it.status === 'live' ? (
                         <span className={styles.live}>Live</span>

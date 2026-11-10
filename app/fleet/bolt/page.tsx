@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import BoltMark from '@/components/shared/BoltMark';
 import { loadBoltConnection, type BoltConnection } from '@/lib/bolt/sync';
 import type { StoredSuspension } from '@/lib/bolt/mapping';
 import { fleetClock, type FleetClock } from '@/lib/bolt/timezone';
@@ -353,7 +354,7 @@ async function Connected({ conn, orgId, sp }: { conn: BoltConnection; orgId: str
     <>
       {/* ── Connection strip ── */}
       <div className={styles.connStrip} data-status={conn.status}>
-        <div className={styles.boltLogo} aria-hidden>b</div>
+        <div className={styles.boltLogo} aria-hidden><BoltMark size={26} /></div>
         <div className={styles.connInfo}>
           <div className={styles.connName}>
             {conn.company_name || `Bolt company ${conn.company_id}`}

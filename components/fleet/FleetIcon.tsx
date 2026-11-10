@@ -91,6 +91,10 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><path d="M3 5h18l-7 9v6l-4-2v-4z" /></svg>;
     case 'logout':
       return <svg {...props}><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" /><path d="M10 17l-5-5 5-5M5 12h11" /></svg>;
+    case 'bolt':
+      // The Bolt logomark (ring + dot), sized to sit in the same 24px box as
+      // the stroke icons. Its weight is fixed — it is a logo, not a line icon.
+      return <svg {...props} strokeWidth={5.2}><circle cx="12" cy="8.6" r="5" /><circle cx="12" cy="20.4" r="2.5" fill="currentColor" stroke="none" /></svg>;
     case 'live':
       return <svg {...props}><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="6" opacity="0.4" /><circle cx="12" cy="12" r="9" opacity="0.15" /></svg>;
     case 'play':

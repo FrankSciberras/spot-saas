@@ -52,14 +52,12 @@
   height: 44px;
   flex-shrink: 0;
   border-radius: 11px;
+  /* Bolt green tile, white logomark (components/shared/BoltMark). */
   background: #34d186;
-  color: #06231a;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
 }
 
 .error {
