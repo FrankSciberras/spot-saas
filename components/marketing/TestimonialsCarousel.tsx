@@ -57,12 +57,12 @@ export default function TestimonialsCarousel({ items }: { items: Testimonial[] }
       onBlur={() => setPaused(false)}
     >
       <figure className="tst-card" key={index} aria-live="polite">
-        <Stars value={t.stars} />
+        {t.stars != null && <Stars value={t.stars} />}
         <blockquote className="tst-quote">“{t.quote}”</blockquote>
         <figcaption className="tst-who">
-          <span className="tst-avatar" aria-hidden="true">{t.name.trim().charAt(0).toUpperCase()}</span>
+          {t.name.trim() && <span className="tst-avatar" aria-hidden="true">{t.name.trim().charAt(0).toUpperCase()}</span>}
           <span>
-            <strong>{t.name}</strong>
+            {t.name.trim() && <strong>{t.name}</strong>}
             <span className="tst-role">{t.role}</span>
           </span>
         </figcaption>

@@ -18,19 +18,30 @@
 // =============================================================================
 
 export interface Testimonial {
-  /** Customer's name as they want it shown (first name + initial is fine). */
+  /** Customer's name as they want it shown (first name + initial is fine).
+   *  Leave empty if they'd rather not be named — only `role` is shown then. */
   name: string;
   /** Their role and fleet, e.g. "Owner, 12-car fleet, Sliema". */
   role: string;
   /** The quote, in their words. 2–4 sentences reads best. */
   quote: string;
-  /** 1–5 in half-star steps, exactly as the customer rated. */
-  stars: 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
+  /** 1–5 in half-star steps, exactly as the customer rated. Omit if they
+   *  didn't give a rating — never fill one in for them. */
+  stars?: 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
   /** Set to true only for real, approved quotes. */
   live: boolean;
 }
 
 export const TESTIMONIALS: Testimonial[] = [
+  {
+    // Roster automation. Customer confirmed this wording and agreed to it
+    // being published (17 Nov 2026); keep his reply as the record.
+    name: '',
+    role: 'Fleet manager of 9 vehicles in Malta',
+    quote:
+      'Before Rovora, I used to send the rosters as a screenshot from Excel into the chat. Now it’s fully automated every week, straight from the dashboard.',
+    live: true,
+  },
   {
     name: 'PLACEHOLDER — customer name',
     role: 'PLACEHOLDER — role, fleet size, town',
