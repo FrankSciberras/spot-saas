@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
+import { getFleetSettings } from '@/lib/settings/server';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import PushNotificationToggle from '@/components/shared/PushNotificationToggle';
@@ -130,15 +131,17 @@ export default async function DriverProfilePage() {
     });
   };
 
+  // "Expiring soon" uses the fleet's warning window (Settings → Drivers & documents).
+  const warnDays = (await getFleetSettings(user.organization_id))['documents.expiry_warning_days'];
   const getExpiryStatus = (dateStr: string | null): { class: string; label: string } => {
     if (!dateStr) return { class: '', label: '' };
     const date = new Date(dateStr);
     const now = new Date();
-    const thirtyDays = new Date();
-    thirtyDays.setDate(now.getDate() + 30);
-    
+    const soon = new Date();
+    soon.setDate(now.getDate() + warnDays);
+
     if (date < now) return { class: styles.expiryDanger, label: 'Expired' };
-    if (date <= thirtyDays) return { class: styles.expiryWarning, label: 'Expiring soon' };
+    if (date <= soon) return { class: styles.expiryWarning, label: 'Expiring soon' };
     return { class: styles.expiryOk, label: 'Valid' };
   };
 

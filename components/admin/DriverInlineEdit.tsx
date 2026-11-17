@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import InlineEditField from './InlineEditField';
@@ -66,6 +67,8 @@ export default function DriverInlineEdit({
   documents: initialDocuments,
   recentShifts 
 }: DriverInlineEditProps) {
+  // "Expiring soon" uses the fleet's warning window (Settings → Drivers & documents).
+  const warnDays = useFleetSetting('documents.expiry_warning_days');
   const router = useRouter();
   const [driver, setDriver] = useState(initialDriver);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -234,11 +237,11 @@ export default function DriverInlineEdit({
     if (!dateStr) return '';
     const date = new Date(dateStr);
     const now = new Date();
-    const thirtyDays = new Date();
-    thirtyDays.setDate(now.getDate() + 30);
-    
+    const soon = new Date();
+    soon.setDate(now.getDate() + warnDays);
+
     if (date < now) return 'expiry-danger';
-    if (date <= thirtyDays) return 'expiry-warning';
+    if (date <= soon) return 'expiry-warning';
     return 'expiry-ok';
   };
 
@@ -249,9 +252,9 @@ export default function DriverInlineEdit({
     
     if (date < now) return ' (Expired)';
     
-    const thirtyDays = new Date();
-    thirtyDays.setDate(now.getDate() + 30);
-    if (date <= thirtyDays) return ' (Expiring soon)';
+    const soon = new Date();
+    soon.setDate(now.getDate() + warnDays);
+    if (date <= soon) return ' (Expiring soon)';
     
     return '';
   };

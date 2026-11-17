@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
+import { CatalogSection } from './CatalogSettings';
 import { PanelLoading, SettingsSection, ToggleCard, sendJson, type Notify } from './SettingsParts';
 import styles from './settings.module.css';
 
 type ShiftCheck = { enabled: boolean; afterHours: number; graceMinutes: number };
 
 /** Settings → Shifts: the "Still on shift?" check that ends forgotten shifts. */
-export default function ShiftSettings({ notify }: { notify: Notify }) {
+export default function ShiftSettings({ notify, isAdmin }: { notify: Notify; isAdmin: boolean }) {
+  const autoCloseHours = useFleetSetting('shifts.auto_close_hours');
   const [check, setCheck] = useState<ShiftCheck | null>(null);
   const [draft, setDraft] = useState({ afterHours: '12', graceMinutes: '30' });
   const [loading, setLoading] = useState(true);
@@ -59,7 +62,7 @@ export default function ShiftSettings({ notify }: { notify: Notify }) {
               working (a phone notification from the app, plus in-app and email). Opening the app answers it and the
               shift carries on — they&apos;re asked again after the same number of hours. If there&apos;s no answer in
               time, the shift ends at the moment we asked and you&apos;re notified.
-              {!check.enabled && ' While off, shifts still open after 24 hours are ended automatically.'}
+              {!check.enabled && ` While off, shifts still open after ${autoCloseHours} hours are ended automatically.`}
             </>
           }
           checked={check.enabled}
@@ -110,6 +113,8 @@ export default function ShiftSettings({ notify }: { notify: Notify }) {
       ) : (
         <div className={styles.empty}><p>Couldn’t load the shift settings. Refresh to try again.</p></div>
       )}
+      {/* The plain time limit only applies while the check is off. */}
+      {check && !check.enabled && <CatalogSection tab="shifts" section="Forgotten shifts" isAdmin={isAdmin} notify={notify} />}
     </SettingsSection>
   );
 }

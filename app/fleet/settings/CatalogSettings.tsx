@@ -30,7 +30,9 @@ export function useHasCatalogSettings(tab: SettingsTabKey, isAdmin: boolean): bo
 }
 
 function visible(entries: Entry[], modules: ReadonlySet<string>, isAdmin: boolean) {
-  return entries.filter(({ def }) => (def.scope === 'user' || isAdmin) && (!def.module || modules.has(def.module)));
+  return entries.filter(
+    ({ def }) => !def.ownPanel && (def.scope === 'user' || isAdmin) && (!def.module || modules.has(def.module))
+  );
 }
 
 export default function CatalogSettings({

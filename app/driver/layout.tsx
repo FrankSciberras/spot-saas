@@ -2,6 +2,9 @@ import BrandingShell from '@/components/shared/BrandingShell';
 import NativeBridge from '@/components/driver/NativeBridge';
 import ShiftCheckConfirmer from '@/components/driver/ShiftCheckConfirmer';
 import { FleetThemeRoot } from '@/components/fleet/FleetThemeRoot';
+import { FleetSettingsProvider } from '@/components/fleet/FleetSettingsProvider';
+import { getSession } from '@/lib/auth/session';
+import { getFleetSettingsResolved, getUserPreferencesResolved } from '@/lib/settings/server';
 import '../fleet/fleet-theme.css';
 
 export const dynamic = 'force-dynamic';
@@ -20,14 +23,37 @@ export default async function DriverLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const content = (
+    <FleetThemeRoot>
+      {/* Opening the portal answers "Are you still on shift?" */}
+      <ShiftCheckConfirmer />
+      {children}
+    </FleetThemeRoot>
+  );
+
+  // The fleet's settings (go-online checklist, document warnings, …) and the
+  // driver's own preferences (theme). Signed-out visitors are sent to /login by
+  // the pages; they just get the defaults here.
+  const session = await getSession();
+  if (!session) {
+    return (
+      <BrandingShell>
+        <NativeBridge />
+        {content}
+      </BrandingShell>
+    );
+  }
+  const [fleet, prefs] = await Promise.all([
+    getFleetSettingsResolved(session.organization_id),
+    getUserPreferencesResolved(session.id),
+  ]);
+
   return (
     <BrandingShell>
       <NativeBridge />
-      <FleetThemeRoot>
-        {/* Opening the portal answers "Are you still on shift?" */}
-        <ShiftCheckConfirmer />
-        {children}
-      </FleetThemeRoot>
+      <FleetSettingsProvider fleet={fleet} prefs={prefs}>
+        {content}
+      </FleetSettingsProvider>
     </BrandingShell>
   );
 }

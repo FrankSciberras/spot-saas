@@ -40,6 +40,8 @@ interface BaseDef {
   module?: string;
   /** Where the setting takes effect, shown under the card ("Used on …"). */
   usedOn?: string;
+  /** Drawn by a hand-written panel instead of the generic card (e.g. theme). */
+  ownPanel?: boolean;
 }
 
 export interface BooleanSettingDef extends BaseDef {

@@ -1,4 +1,6 @@
-import 'server-only';
+// No `import 'server-only'`: the internal cron scheduler loads this outside the
+// server-component layer, where that guard throws. It's server-only regardless
+// (service-role client).
 import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/server';
 import {

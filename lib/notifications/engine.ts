@@ -5,8 +5,9 @@
 // match right now. Covers three triggers:
 //
 //   * document_expiry  — a document expiring within trigger_config.days_before
-//                        (default 30), OR already expired (raised once more, as
-//                        an "Expired:" alert, for up to EXPIRED_GRACE_DAYS).
+//                        (default: the fleet's documents.expiry_warning_days),
+//                        OR already expired (raised once more, as an "Expired:"
+//                        alert, for up to documents.expired_alert_days).
 //                        Sources: the driver's own *_expiry_date columns +
 //                        driver-owned rows in `files`, PLUS the vehicles'
 //                        insurance/road-licence expiry columns and vehicle-owned
@@ -14,7 +15,8 @@
 //   * shift_reminder   — a shift starting within trigger_config.hours_before
 //                        (default 24).
 //   * service_due      — a vehicle approaching (or past) its next service, by
-//                        km (trigger_config.km_threshold, default 1000, against
+//                        km (trigger_config.km_threshold, default the fleet's
+//                        maintenance.service_due_km, against
 //                        the latest service's next_service_mileage) or by date
 //                        (trigger_config.days_before, default 14). "Latest
 //                        service" is decided by lib/maintenance/serviceDue.ts —
@@ -40,6 +42,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { latestServiceByVehicle } from '@/lib/maintenance/serviceDue';
+import { getFleetSettings } from '@/lib/settings/server';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type Channel = 'app' | 'push' | 'email';
@@ -78,8 +81,20 @@ interface Fact {
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
 const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
-/** Keep raising (once) an "expired" alert for documents that lapsed up to this long ago. */
+/** Keep raising (once) an "expired" alert for documents that lapsed up to this long ago (default). */
 const EXPIRED_GRACE_DAYS = 90;
+
+/**
+ * Per-fleet fallbacks (Settings → Drivers & documents / Vehicles &
+ * maintenance, lib/settings/catalog.ts). A rule's own trigger_config wins;
+ * these fill in when a rule doesn't set a value.
+ */
+interface EngineDefaults {
+  expiryDays: number;
+  expiredGraceDays: number;
+  serviceKm: number;
+}
+const BUILT_IN_DEFAULTS: EngineDefaults = { expiryDays: 30, expiredGraceDays: EXPIRED_GRACE_DAYS, serviceKm: 2000 };
 
 const DOC_LABELS: Record<string, string> = {
   id_card_expiry_date: 'ID card',
@@ -148,19 +163,19 @@ interface ExpiryClass {
 /**
  * Where a document sits relative to today (fleet-local date):
  *   - expiring within `daysBefore` days (today counts, 0 days left) → 'soon'
- *   - already expired, up to EXPIRED_GRACE_DAYS ago                 → 'expired'
+ *   - already expired, up to `graceDays` ago                         → 'expired'
  *   - otherwise nothing to say.
  * Dates are compared as calendar days, so a document dated today still alerts
  * even though midnight has passed — the old instant comparison dropped it.
  */
-function classifyExpiry(iso: string | null, today: string, daysBefore: number): ExpiryClass | null {
+function classifyExpiry(iso: string | null, today: string, daysBefore: number, graceDays: number): ExpiryClass | null {
   if (!iso) return null;
   const doc = dateOnly(iso);
   if (!doc) return null;
   const diff = daysBetween(today, doc);
   if (diff < 0) {
     const expiredDays = -diff;
-    if (expiredDays > EXPIRED_GRACE_DAYS) return null;
+    if (expiredDays > graceDays) return null;
     return { kind: 'expired', daysLeft: 0, expiredDays };
   }
   if (diff <= daysBefore) return { kind: 'soon', daysLeft: diff, expiredDays: 0 };
@@ -176,8 +191,8 @@ interface OrgContext {
 
 type FileRow = { owner_id: string; type: string; expiry_date: string | null; file_name: string | null };
 
-function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: FileRow[], now: Date): Fact[] {
-  const daysBefore = asNumber(rule.trigger_config?.days_before, 30);
+function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: FileRow[], now: Date, defs: EngineDefaults): Fact[] {
+  const daysBefore = asNumber(rule.trigger_config?.days_before, defs.expiryDays);
   const today = localDateStr(now);
   const facts: Fact[] = [];
 
@@ -186,7 +201,7 @@ function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: FileRow[], now:
     const driver = { id: d.id, userId: d.user_id, email: d.email, name: d.full_name };
     for (const [col, label] of Object.entries(DOC_LABELS)) {
       const iso = (d as unknown as Record<string, string | null>)[col];
-      const c = classifyExpiry(iso, today, daysBefore);
+      const c = classifyExpiry(iso, today, daysBefore, defs.expiredGraceDays);
       if (!c || !iso) continue;
       facts.push({
         dedupKey: `docexp:driver:${d.id}:${col}:${iso}${c.kind === 'expired' ? ':expired' : ''}`,
@@ -199,7 +214,7 @@ function documentExpiryFacts(rule: Rule, ctx: OrgContext, files: FileRow[], now:
 
   // Driver-owned files with an expiry date.
   for (const f of files) {
-    const c = classifyExpiry(f.expiry_date, today, daysBefore);
+    const c = classifyExpiry(f.expiry_date, today, daysBefore, defs.expiredGraceDays);
     if (!c || !f.expiry_date) continue;
     const d = ctx.driverById.get(f.owner_id);
     if (!d) continue;
@@ -231,8 +246,8 @@ const VEHICLE_DOC_LABELS: Record<string, string> = {
 };
 
 /** Vehicle documents (expiry columns + vehicle-owned files) — admin-facing. */
-function vehicleDocumentExpiryFacts(rule: Rule, vehicles: VehicleRow[], vehicleFiles: FileRow[], now: Date): Fact[] {
-  const daysBefore = asNumber(rule.trigger_config?.days_before, 30);
+function vehicleDocumentExpiryFacts(rule: Rule, vehicles: VehicleRow[], vehicleFiles: FileRow[], now: Date, defs: EngineDefaults): Fact[] {
+  const daysBefore = asNumber(rule.trigger_config?.days_before, defs.expiryDays);
   const today = localDateStr(now);
   const facts: Fact[] = [];
   const regById = new Map(vehicles.map((v) => [v.id, v.registration_number]));
@@ -240,7 +255,7 @@ function vehicleDocumentExpiryFacts(rule: Rule, vehicles: VehicleRow[], vehicleF
   for (const v of vehicles) {
     for (const [col, label] of Object.entries(VEHICLE_DOC_LABELS)) {
       const iso = (v as unknown as Record<string, string | null>)[col];
-      const c = classifyExpiry(iso, today, daysBefore);
+      const c = classifyExpiry(iso, today, daysBefore, defs.expiredGraceDays);
       if (!c || !iso) continue;
       facts.push({
         dedupKey: `docexp:vehicle:${v.id}:${col}:${iso}${c.kind === 'expired' ? ':expired' : ''}`,
@@ -251,7 +266,7 @@ function vehicleDocumentExpiryFacts(rule: Rule, vehicles: VehicleRow[], vehicleF
   }
 
   for (const f of vehicleFiles) {
-    const c = classifyExpiry(f.expiry_date, today, daysBefore);
+    const c = classifyExpiry(f.expiry_date, today, daysBefore, defs.expiredGraceDays);
     if (!c || !f.expiry_date) continue;
     const reg = regById.get(f.owner_id);
     if (!reg) continue;
@@ -275,8 +290,8 @@ type ServiceTarget = { id: string; next_service_mileage: number | null; next_ser
  * when its mileage is within km_threshold of next_service_mileage, or
  * next_service_date is within days_before (or already past).
  */
-function serviceDueFacts(rule: Rule, vehicles: VehicleRow[], latest: Map<string, ServiceTarget>, now: Date): Fact[] {
-  const kmThreshold = asNumber(rule.trigger_config?.km_threshold, 1000);
+function serviceDueFacts(rule: Rule, vehicles: VehicleRow[], latest: Map<string, ServiceTarget>, now: Date, defs: EngineDefaults): Fact[] {
+  const kmThreshold = asNumber(rule.trigger_config?.km_threshold, defs.serviceKm);
   const daysBefore = asNumber(rule.trigger_config?.days_before, 14);
   const horizon = new Date(now.getTime() + daysBefore * DAY);
   const facts: Fact[] = [];
@@ -431,6 +446,15 @@ interface Candidate {
 }
 
 async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now: Date, report: EngineReport) {
+  const fleet = await getFleetSettings(orgId).catch(() => null);
+  const defs: EngineDefaults = fleet
+    ? {
+        expiryDays: fleet['documents.expiry_warning_days'],
+        expiredGraceDays: fleet['documents.expired_alert_days'],
+        serviceKm: fleet['maintenance.service_due_km'],
+      }
+    : BUILT_IN_DEFAULTS;
+
   // Org context: active drivers + their emails.
   const { data: driverRows } = await admin
     .from('drivers')
@@ -550,11 +574,11 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
     report.rulesEvaluated++;
     const facts =
       rule.trigger_type === 'document_expiry'
-        ? [...documentExpiryFacts(rule, ctx, files, now), ...vehicleDocumentExpiryFacts(rule, vehicles, vehicleFiles, now)]
+        ? [...documentExpiryFacts(rule, ctx, files, now, defs), ...vehicleDocumentExpiryFacts(rule, vehicles, vehicleFiles, now, defs)]
         : rule.trigger_type === 'shift_reminder'
           ? shiftReminderFacts(rule, ctx, shifts, vehicleReg, now)
           : rule.trigger_type === 'service_due'
-            ? serviceDueFacts(rule, vehicles, latestService, now)
+            ? serviceDueFacts(rule, vehicles, latestService, now, defs)
             : [];
     for (const fact of facts) {
       candidates.push({ rule, fact, key: `${rule.id}:${fact.dedupKey}`, legacyKey: fact.dedupKey });

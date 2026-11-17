@@ -22,6 +22,170 @@ import { coerceSettingValue, type SettingDef, type SettingsTabKey, type StoredVa
 
 export const SETTINGS = {
   // ---------------------------------------------------------------------------
+  // DRIVERS & DOCUMENTS (scope: fleet)
+  // ---------------------------------------------------------------------------
+  'documents.expiry_warning_days': {
+    scope: 'fleet',
+    tab: 'drivers',
+    section: 'Document expiry',
+    icon: '📄',
+    label: 'Warn before a document expires',
+    description:
+      'ID cards, licences, police conduct, insurance and road licences turn amber this many days before they expire, and show in “Expiring soon” on the dashboard. Alert rules that don’t set their own number of days use it too.',
+    usedOn: 'the dashboard, driver and vehicle profiles, the Drivers list, the driver app and document alerts',
+    type: 'number',
+    default: 30,
+    min: 7,
+    max: 180,
+    step: 1,
+    unit: 'days',
+  },
+  'documents.urgent_days': {
+    scope: 'fleet',
+    tab: 'drivers',
+    section: 'Document expiry',
+    icon: '🚨',
+    label: 'Urgent when this close',
+    description: 'Documents expiring within this many days are shown in red instead of amber.',
+    usedOn: 'the dashboard',
+    type: 'number',
+    default: 7,
+    min: 1,
+    max: 60,
+    step: 1,
+    unit: 'days',
+  },
+  'documents.expired_alert_days': {
+    scope: 'fleet',
+    tab: 'drivers',
+    section: 'Document expiry',
+    icon: '⌛',
+    label: 'Keep alerting about expired documents for',
+    description:
+      'A document that has already expired still raises one “Expired” alert if it lapsed within this many days. Older ones are treated as no longer in use.',
+    usedOn: 'document alerts (Notifications → rules)',
+    type: 'number',
+    default: 90,
+    min: 7,
+    max: 365,
+    step: 1,
+    unit: 'days',
+  },
+
+  // ---------------------------------------------------------------------------
+  // VEHICLES & MAINTENANCE (scope: fleet)
+  // ---------------------------------------------------------------------------
+  'maintenance.service_due_km': {
+    scope: 'fleet',
+    tab: 'vehicles',
+    section: 'Servicing',
+    icon: '🔧',
+    label: 'Service due soon within',
+    description:
+      'A vehicle counts as “service due soon” when it is this close to its next service mileage: it turns amber on the Services page and its profile, and the start-of-shift check warns you. Service alert rules without their own distance use it too.',
+    usedOn: 'Services, vehicle profiles, the start-of-shift service check and service alerts',
+    module: 'maintenance',
+    type: 'number',
+    default: 2000,
+    min: 100,
+    max: 20000,
+    step: 100,
+    unit: 'km',
+  },
+
+  // ---------------------------------------------------------------------------
+  // SHIFTS (scope: fleet) — what drivers do to start and end a shift
+  // ---------------------------------------------------------------------------
+  'shifts.check_dashcam': {
+    scope: 'fleet',
+    tab: 'shifts',
+    section: 'Starting a shift',
+    icon: '📹',
+    label: 'Dashcam check',
+    description: 'Drivers must tick “Dashcam working & positioned” before going online. Turn off if your vehicles don’t have dashcams.',
+    usedOn: 'Go online (driver app)',
+    type: 'boolean',
+    default: true,
+    onLabel: 'Asked',
+    offLabel: 'Not asked',
+  },
+  'shifts.check_interior': {
+    scope: 'fleet',
+    tab: 'shifts',
+    section: 'Starting a shift',
+    icon: '🧽',
+    label: 'Interior check',
+    description: 'Drivers must tick “Interior clean & no damage” before going online.',
+    usedOn: 'Go online (driver app)',
+    type: 'boolean',
+    default: true,
+    onLabel: 'Asked',
+    offLabel: 'Not asked',
+  },
+  'shifts.start_photos': {
+    scope: 'fleet',
+    tab: 'shifts',
+    section: 'Starting a shift',
+    icon: '📷',
+    label: 'Vehicle photos at the start',
+    description: 'Front, left, right and back photos when going online. Required: the shift can’t start without all four. Off: the photo section is hidden.',
+    usedOn: 'Go online (driver app)',
+    type: 'select',
+    default: 'optional',
+    options: [
+      { value: 'optional', label: 'Optional' },
+      { value: 'required', label: 'Required' },
+      { value: 'off', label: 'Off' },
+    ],
+  },
+  'shifts.end_photos': {
+    scope: 'fleet',
+    tab: 'shifts',
+    section: 'Ending a shift',
+    icon: '🖼️',
+    label: 'Vehicle photos at the end',
+    description: 'Photos of the vehicle when ending a shift. Required: at least one photo before the shift can end. Off: the photo section is hidden.',
+    usedOn: 'End shift (driver app)',
+    type: 'select',
+    default: 'optional',
+    options: [
+      { value: 'optional', label: 'Optional' },
+      { value: 'required', label: 'Required' },
+      { value: 'off', label: 'Off' },
+    ],
+  },
+  'shifts.end_mileage': {
+    scope: 'fleet',
+    tab: 'shifts',
+    section: 'Ending a shift',
+    icon: '🧮',
+    label: 'Odometer reading at the end',
+    description: 'Whether drivers must enter the vehicle’s mileage when they end a shift. Kilometres driven and service-due checks need it.',
+    usedOn: 'End shift (driver app)',
+    type: 'select',
+    default: 'required',
+    options: [
+      { value: 'required', label: 'Required' },
+      { value: 'optional', label: 'Optional' },
+    ],
+  },
+  'shifts.auto_close_hours': {
+    scope: 'fleet',
+    tab: 'shifts',
+    section: 'Forgotten shifts',
+    icon: '🛑',
+    label: 'End any shift still open after',
+    description:
+      'Safety net while the “Still on shift?” check is off: a shift still open this long after it started is ended automatically, and you and the driver are told.',
+    type: 'number',
+    default: 24,
+    min: 12,
+    max: 72,
+    step: 1,
+    unit: 'hours',
+  },
+
+  // ---------------------------------------------------------------------------
   // PERSONAL PREFERENCES (scope: user) — Settings → Preferences
   // ---------------------------------------------------------------------------
   'appearance.theme': {
@@ -30,13 +194,16 @@ export const SETTINGS = {
     section: 'Appearance',
     icon: '🌓',
     label: 'Theme',
-    description: 'Dark or light dashboard. Follows you to any device you sign in on.',
+    description: 'Dark or light dashboard, or follow your device. Saved to your account, so it follows you to any device you sign in on.',
     type: 'select',
     default: 'dark',
     options: [
       { value: 'dark', label: 'Dark' },
       { value: 'light', label: 'Light' },
+      { value: 'system', label: 'System' },
     ],
+    // FleetThemeRoot applies it instantly and keeps a local copy.
+    ownPanel: true,
   },
   'navigation.start_page': {
     scope: 'user',

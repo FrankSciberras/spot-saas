@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { getFleetSettings } from '@/lib/settings/server';
 import { pendingInviteItems } from '@/lib/invites';
 import PendingInvites from '@/components/fleet/PendingInvites';
 import FleetShell from '@/components/fleet/FleetShell';
@@ -53,9 +54,10 @@ async function DriversContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
+  // Amber "expiring" badges use the fleet's warning window (Settings → Drivers & documents).
   const now = new Date();
   const soon = new Date();
-  soon.setDate(soon.getDate() + 30);
+  soon.setDate(soon.getDate() + (await getFleetSettings(user.organization_id))['documents.expiry_warning_days']);
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 7);
 

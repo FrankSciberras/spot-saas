@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
+import { getFleetSettings } from '@/lib/settings/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetBackLink from '@/components/fleet/FleetBackLink';
 import ClickableImage from '@/components/shared/ClickableImage';
@@ -40,6 +41,8 @@ interface PageProps {
 export default async function ShiftDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await requireRole(['admin', 'staff']);
+  // Checks the fleet doesn't ask for (Settings → Shifts) aren't shown as "not checked".
+  const fleetSettings = await getFleetSettings(user.organization_id);
   await requireModule(user.organization_id, 'rostering');
   const supabase = await createClient();
 
@@ -233,6 +236,7 @@ export default async function ShiftDetailPage({ params }: PageProps) {
       <div className={styles.detailCard}>
         <h3>Pre-Shift Checks</h3>
         <div className={styles.detailGrid}>
+          {(fleetSettings['shifts.check_dashcam'] || shiftData.dashcam_checked) && (
           <div className={styles.detailItem}>
             <span className={styles.detailLabel}>Dashcam Check</span>
             <span className={styles.detailValue}>
@@ -241,6 +245,8 @@ export default async function ShiftDetailPage({ params }: PageProps) {
               </span>
             </span>
           </div>
+          )}
+          {(fleetSettings['shifts.check_interior'] || shiftData.car_internal_checked) && (
           <div className={styles.detailItem}>
             <span className={styles.detailLabel}>Car Internal Check</span>
             <span className={styles.detailValue}>
@@ -249,6 +255,10 @@ export default async function ShiftDetailPage({ params }: PageProps) {
               </span>
             </span>
           </div>
+          )}
+          {!fleetSettings['shifts.check_dashcam'] && !fleetSettings['shifts.check_interior'] && !shiftData.dashcam_checked && !shiftData.car_internal_checked && (
+            <span className={styles.detailValue}>Your fleet doesn’t ask for pre-shift checks.</span>
+          )}
         </div>
       </div>
 

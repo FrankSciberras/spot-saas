@@ -6,6 +6,7 @@ import Link from 'next/link';
 import FleetIcon from './FleetIcon';
 import GettingStartedCard, { type OnboardingState } from './GettingStartedCard';
 import { useEnabledModules } from './FleetModulesProvider';
+import { useFleetSetting } from './FleetSettingsProvider';
 import {
   fmtEUR,
   EarningsLineChart,
@@ -363,10 +364,13 @@ function RecentShiftsCard({ shifts }: { shifts: RecentShift[] }) {
 
 /* ───────────────────────── Expiring docs ───────────────────────── */
 function ExpiringDocsCard({ docs }: { docs: ExpiringDoc[] }) {
+  // Settings → Drivers & documents.
+  const warnDays = useFleetSetting('documents.expiry_warning_days');
+  const urgentDays = Math.min(useFleetSetting('documents.urgent_days'), warnDays);
   const sev = (d: number): { color: string; soft: string } =>
     d < 0 ? { color: 'var(--neg)', soft: 'var(--neg-soft)' }
-    : d <= 7 ? { color: 'var(--neg)', soft: 'var(--neg-soft)' }
-    : d <= 30 ? { color: 'var(--warn)', soft: 'var(--warn-soft)' }
+    : d <= urgentDays ? { color: 'var(--neg)', soft: 'var(--neg-soft)' }
+    : d <= warnDays ? { color: 'var(--warn)', soft: 'var(--warn-soft)' }
     : { color: 'var(--text-3)', soft: 'var(--bg-3)' };
 
   return (
@@ -378,7 +382,7 @@ function ExpiringDocsCard({ docs }: { docs: ExpiringDoc[] }) {
       />
       <div style={{ borderTop: '1px solid var(--line-1)' }}>
         {docs.length === 0 ? (
-          <EmptyRow text="Nothing expiring in the next 30 days. All good." />
+          <EmptyRow text={`Nothing expiring in the next ${warnDays} days. All good.`} />
         ) : (
           docs.map((d, i) => {
             const s = sev(d.daysLeft);

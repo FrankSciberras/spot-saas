@@ -3,6 +3,7 @@
 import { type CSSProperties, type ReactNode, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import { fmtEUR } from '@/components/fleet/FleetCharts';
 
 export type SvcStatus = 'scheduled' | 'in_progress' | 'overdue' | 'completed';
@@ -92,6 +93,8 @@ function SvcStat({ label, value, sub, icon, accent }: { label: string; value: Re
 
 export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueCount, spendMonth }: Props) {
   const router = useRouter();
+  // "Due soon" distance (Settings → Vehicles & maintenance).
+  const dueSoonKm = useFleetSetting('maintenance.service_due_km');
   const [filter, setFilter] = useState<'all' | SvcStatus>('all');
   const [search, setSearch] = useState('');
 
@@ -246,7 +249,7 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
             <CardHeader title="Due soon" subtitle="By distance to next service" />
             <div style={{ borderTop: '1px solid var(--line-1)', padding: '4px 14px 12px' }}>
               {dueSoon.map((v, i) => {
-                const near = v.kmRemaining < 2000;
+                const near = v.kmRemaining < dueSoonKm;
                 const overdue = v.kmRemaining <= 0;
                 return (
                   <div key={v.vehicleId} style={{ ...st.dueRow, borderBottom: i < dueSoon.length - 1 ? '1px solid var(--line-1)' : 'none', cursor: 'pointer' }} onClick={() => router.push(`/fleet/vehicles/${v.vehicleId}`)}>

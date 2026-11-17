@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getFleetSettings } from '@/lib/settings/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { sendPushNotification } from '@/lib/notifications/push';
@@ -83,8 +84,10 @@ export async function POST(request: Request) {
       .eq('is_active', true)
       .maybeSingle();
 
-    // Default threshold if no rule found - still create notifications
-    let thresholdKm = 2000; // Default 2000km threshold
+    // No rule (or no distance on it): the fleet's "Service due soon within"
+    // setting (Settings → Vehicles & maintenance, 2000 km unless changed).
+    const fleetDueKm = (await getFleetSettings(vehicle.organization_id))['maintenance.service_due_km'];
+    let thresholdKm = fleetDueKm;
     let useDefaultTemplate = false;
 
     if (ruleError || !serviceRule) {
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
       useDefaultTemplate = true;
     } else {
       // Get threshold from rule config
-      thresholdKm = (serviceRule.trigger_config as { km_threshold?: number })?.km_threshold || 2000;
+      thresholdKm = (serviceRule.trigger_config as { km_threshold?: number })?.km_threshold || fleetDueKm;
     }
 
     // The service record that defines this vehicle's next service — chosen by

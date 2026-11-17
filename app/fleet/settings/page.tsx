@@ -1,12 +1,15 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { useEnabledModules } from '@/components/fleet/FleetModulesProvider';
 import { SessionUser } from '@/lib/types/database';
+import { settingsForTab } from '@/lib/settings/catalog';
+import { SETTINGS_TABS, type SettingsTabKey } from '@/lib/settings/types';
+import CatalogSettings from './CatalogSettings';
 import BrandingSettings from './BrandingSettings';
 import FleetDetailsSettings from './FleetDetailsSettings';
 import LiveMapSettings from './LiveMapSettings';
@@ -22,29 +25,42 @@ import styles from './settings.module.css';
 // pages can deep-link straight to their settings (e.g. /fleet/settings?tab=live-map).
 // Tabs tied to a module hide when the fleet has that module switched off, the
 // same way the sidebar does. Everything but Preferences is admin-only.
+// The tab list lives in lib/settings/types.ts; the settings on each tab come
+// from hand-written panels below plus lib/settings/catalog.ts.
 // =============================================================================
 
-type TabKey = 'general' | 'branding' | 'live-map' | 'shifts' | 'messages' | 'notifications' | 'settlements' | 'preferences';
+type TabKey = SettingsTabKey;
 
-interface TabDef {
-  key: TabKey;
-  label: string;
-  /** Fleet module that has to be on for the tab to show. */
-  module?: string;
-  /** Visible to non-admins too (personal settings). */
-  everyone?: boolean;
-}
+/**
+ * Hand-written panels. Tabs not listed here (Drivers & documents, Vehicles &
+ * maintenance) are drawn entirely from lib/settings/catalog.ts; every tab also
+ * gets the catalog settings filed under it, below its own panel.
+ */
+type PanelProps = { notify: Notify; isAdmin: boolean };
 
-const TABS: TabDef[] = [
-  { key: 'general', label: 'General' },
-  { key: 'branding', label: 'Branding' },
-  { key: 'live-map', label: 'Live Map', module: 'tracking' },
-  { key: 'shifts', label: 'Shifts' },
-  { key: 'messages', label: 'Messages', module: 'messaging' },
-  { key: 'notifications', label: 'Notifications' },
-  { key: 'settlements', label: 'Settlements', module: 'settlements' },
-  { key: 'preferences', label: 'Preferences', everyone: true },
-];
+const SettlementsPanel = () => (
+  <SettingsSection title="Settlement rules" description="How driver earnings are split and settled each week.">
+    <LinkCard
+      icon="🧾"
+      label="Revenue split, tax and rent presets"
+      description="Create presets for how each driver’s revenue is split, taxed and charged rent, pick the fleet default, assign presets to drivers and set up recurring adjustments."
+      href="/fleet/settlements/settings"
+      cta="Open settlement rules"
+    />
+  </SettingsSection>
+);
+
+const PANELS: Partial<Record<TabKey, { Panel: ComponentType<PanelProps>; catalogFirst?: boolean; ownSections?: string[] }>> = {
+  general: { Panel: FleetDetailsSettings },
+  branding: { Panel: BrandingSettings },
+  'live-map': { Panel: LiveMapSettings },
+  // Starting / ending a shift (catalog) read best above the forgotten-shift check.
+  shifts: { Panel: ShiftSettings, catalogFirst: true, ownSections: ['Forgotten shifts'] },
+  messages: { Panel: MessagesSettings },
+  notifications: { Panel: NotificationSettings },
+  settlements: { Panel: SettlementsPanel },
+  preferences: { Panel: PreferencesSettings, ownSections: ['Appearance'] },
+};
 
 const hrefFor = (key: TabKey, first: TabKey) => (key === first ? '/fleet/settings' : `/fleet/settings?tab=${key}`);
 
@@ -88,10 +104,20 @@ function SettingsContent() {
   if (!user) return <SettingsLoading user={user} />;
 
   const isAdmin = user.role === 'admin';
-  const tabs = TABS.filter((t) => (isAdmin || t.everyone) && (!t.module || enabledModules.has(t.module)));
+  const hasCatalog = (key: TabKey) =>
+    settingsForTab(key).some(({ def }) => !def.ownPanel && (def.scope === 'user' || isAdmin) && (!def.module || enabledModules.has(def.module)));
+  const tabs = SETTINGS_TABS.filter(
+    (t) =>
+      (isAdmin || ('everyone' in t && t.everyone)) &&
+      (!('module' in t) || enabledModules.has(t.module)) &&
+      (PANELS[t.key] || hasCatalog(t.key))
+  );
   const first = tabs[0].key;
   const requested = searchParams.get('tab');
   const active: TabKey = tabs.find((t) => t.key === requested)?.key ?? first;
+  const panel = PANELS[active];
+  const Panel = panel?.Panel;
+  const catalog = <CatalogSettings tab={active} isAdmin={isAdmin} notify={notify} skipSections={panel?.ownSections} />;
 
   return (
     <FleetShell user={user} title="Settings">
@@ -131,24 +157,9 @@ function SettingsContent() {
         )}
 
         <div className={styles.panel} key={active}>
-          {active === 'general' && <FleetDetailsSettings />}
-          {active === 'branding' && <BrandingSettings />}
-          {active === 'live-map' && <LiveMapSettings notify={notify} />}
-          {active === 'shifts' && <ShiftSettings notify={notify} />}
-          {active === 'messages' && <MessagesSettings notify={notify} />}
-          {active === 'notifications' && <NotificationSettings notify={notify} />}
-          {active === 'settlements' && (
-            <SettingsSection title="Settlement rules" description="How driver earnings are split and settled each week.">
-              <LinkCard
-                icon="🧾"
-                label="Revenue split, tax and rent presets"
-                description="Create presets for how each driver’s revenue is split, taxed and charged rent, pick the fleet default, assign presets to drivers and set up recurring adjustments."
-                href="/fleet/settlements/settings"
-                cta="Open settlement rules"
-              />
-            </SettingsSection>
-          )}
-          {active === 'preferences' && <PreferencesSettings />}
+          {panel?.catalogFirst && catalog}
+          {Panel && <Panel notify={notify} isAdmin={isAdmin} />}
+          {!panel?.catalogFirst && catalog}
         </div>
       </div>
     </FleetShell>
