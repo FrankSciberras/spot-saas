@@ -598,3 +598,51 @@ input:checked + .toggleSlider:before {
     justify-content: center;
   }
 }
+
+/* Choice list for catalog settings with more than three options */
+.selectInput {
+  min-width: 180px;
+  max-width: 100%;
+  padding: 7px 30px 7px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-1);
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.selectInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(26, 143, 90, 0.12));
+}
+
+.selectInput:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* "Reset to default" under a changed setting */
+.linkButton {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.linkButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.settingMeta + .settingMeta,
+.settingContent > .settingMeta {
+  margin-top: 8px;
+}
