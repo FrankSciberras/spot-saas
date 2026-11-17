@@ -1,6 +1,6 @@
 # Rovora AI — fleet assistant (plan)
 
-Status: **plan, not built yet** · Owner session: `claude/adoring-pasteur-ksjrzo` · 2026-11-17
+Status: **step 1 (backend + spending limits) built, not live** · Owner session: `claude/adoring-pasteur-ksjrzo` · 2026-11-17
 
 A chat assistant inside the fleet dashboard (`/fleet/*`) that a fleet manager can
 ask anything about their own fleet — "Which car cost me the most last month?",
