@@ -7,16 +7,8 @@ import FleetIcon from './FleetIcon';
 import GettingStartedCard, { type OnboardingState } from './GettingStartedCard';
 import { useEnabledModules } from './FleetModulesProvider';
 import { useFleetSetting } from './FleetSettingsProvider';
-import {
-  fmtEUR,
-  EarningsLineChart,
-  ProfitDonut,
-  ExpenseBars,
-  Sparkline,
-  UtilRing,
-  type EarningsDatum,
-  type ExpenseDatum,
-} from './FleetCharts';
+import { EarningsLineChart, ProfitDonut, ExpenseBars, Sparkline, UtilRing, type EarningsDatum, type ExpenseDatum } from './FleetCharts';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export interface DashStats {
   activeDrivers: number;
@@ -112,6 +104,8 @@ function HeroStrip({
   financialSeries: EarningsDatum[];
   isAdmin: boolean;
 }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const [greeting, setGreeting] = useState('Hello');
   useEffect(() => {
     const h = new Date().getHours();
@@ -253,6 +247,8 @@ function HeroTile({
 
 /* ───────────────────────── Earnings panel ───────────────────────── */
 function EarningsPanel({ data, totals }: { data: EarningsDatum[]; totals: { income: number; expenses: number; profit: number } }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const margin = totals.income > 0 ? (totals.profit / totals.income) * 100 : 0;
   return (
     <Card>

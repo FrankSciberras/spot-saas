@@ -11,6 +11,7 @@ import {
   type UserPreferences,
 } from '@/lib/settings/catalog';
 import type { StoredValue } from '@/lib/settings/types';
+import { formatMoney, moneyFormatFrom, moneySymbol, type MoneyFormat, type MoneyOptionsArg } from '@/lib/money';
 
 // =============================================================================
 // Carries the fleet's settings and the signed-in person's preferences from the
@@ -146,3 +147,35 @@ export function useMapStartView(): { center: [number, number]; zoom: number } {
   const zoom = f['tracking.map_zoom'];
   return useMemo(() => ({ center: [lat, lng] as [number, number], zoom }), [lat, lng, zoom]);
 }
+
+/** The fleet's currency and number style (Settings → General → Money). */
+export function useMoneyFormat(): MoneyFormat {
+  const f = useFleetSettings();
+  const currency = f['finance.currency'];
+  const locale = f['finance.number_format'];
+  return useMemo(() => moneyFormatFrom({ 'finance.currency': currency, 'finance.number_format': locale }), [currency, locale]);
+}
+
+export type MoneyFormatter = ((value: number, opts?: MoneyOptionsArg) => string) & {
+  /** "€", "£", "CHF"… for labels. */
+  symbol: string;
+  format: MoneyFormat;
+};
+
+/**
+ * Formats amounts in the fleet's currency: `const money = useMoney(); money(12.5)`.
+ * Takes the same options as the old helpers it replaces ({ decimals, compact }
+ * or a bare number of decimals), so `const fmtEUR = useMoney()` is a drop-in.
+ */
+export function useMoney(): MoneyFormatter {
+  const format = useMoneyFormat();
+  return useMemo(
+    () =>
+      Object.assign((value: number, opts?: MoneyOptionsArg) => formatMoney(value, format, opts), {
+        symbol: moneySymbol(format),
+        format,
+      }),
+    [format]
+  );
+}
+

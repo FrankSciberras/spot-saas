@@ -22,6 +22,64 @@ import { coerceSettingValue, type SettingDef, type SettingsTabKey, type StoredVa
 
 export const SETTINGS = {
   // ---------------------------------------------------------------------------
+  // GENERAL — money (scope: fleet). Formatting lives in lib/money.ts.
+  // ---------------------------------------------------------------------------
+  'finance.currency': {
+    scope: 'fleet',
+    tab: 'general',
+    section: 'Money',
+    icon: '💱',
+    label: 'Currency',
+    description:
+      'The currency your fleet is paid and pays in. Settlements, payslip PDFs, bookkeeping, adjustments and the dashboard show amounts in it. Changing it only changes the symbol — amounts already recorded are not converted.',
+    usedOn: 'settlements and their PDFs, bookkeeping, financials, adjustments, services, parts and the driver app',
+    type: 'select',
+    default: 'EUR',
+    // Only currencies whose symbols the PDF font (Geist) can print.
+    options: [
+      { value: 'EUR', label: 'Euro (€)' },
+      { value: 'GBP', label: 'British pound (£)' },
+      { value: 'USD', label: 'US dollar ($)' },
+      { value: 'CHF', label: 'Swiss franc (CHF)' },
+      { value: 'SEK', label: 'Swedish krona (kr)' },
+      { value: 'NOK', label: 'Norwegian krone (kr)' },
+      { value: 'DKK', label: 'Danish krone (kr)' },
+      { value: 'PLN', label: 'Polish złoty (zł)' },
+      { value: 'CZK', label: 'Czech koruna (Kč)' },
+      { value: 'HUF', label: 'Hungarian forint (Ft)' },
+      { value: 'RON', label: 'Romanian leu (lei)' },
+      { value: 'AUD', label: 'Australian dollar ($)' },
+      { value: 'CAD', label: 'Canadian dollar ($)' },
+      { value: 'NZD', label: 'New Zealand dollar ($)' },
+      { value: 'ZAR', label: 'South African rand (R)' },
+      { value: 'AED', label: 'UAE dirham (AED)' },
+      { value: 'SAR', label: 'Saudi riyal (SAR)' },
+      { value: 'INR', label: 'Indian rupee (₹)' },
+      { value: 'SGD', label: 'Singapore dollar ($)' },
+      { value: 'BRL', label: 'Brazilian real (R$)' },
+      { value: 'MXN', label: 'Mexican peso ($)' },
+    ],
+  },
+  'finance.number_format': {
+    scope: 'fleet',
+    tab: 'general',
+    section: 'Money',
+    icon: '🔢',
+    label: 'Number style',
+    description: 'How amounts are written: which mark separates thousands and decimals, and where the currency symbol goes.',
+    usedOn: 'everywhere amounts are shown, including PDFs',
+    type: 'select',
+    default: 'en-IE',
+    options: [
+      { value: 'en-IE', label: '€1,234.56 — UK, Ireland, Malta' },
+      { value: 'en-US', label: '$1,234.56 — US' },
+      { value: 'de-DE', label: '1.234,56 € — Germany, Italy, Spain…' },
+      { value: 'fr-FR', label: '1 234,56 € — France, Nordics…' },
+      { value: 'de-CH', label: 'CHF 1’234.56 — Switzerland' },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
   // DRIVERS & DOCUMENTS (scope: fleet)
   // ---------------------------------------------------------------------------
   'documents.expiry_warning_days': {

@@ -3,10 +3,9 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
+import { useFleetSetting, useMoney } from '@/components/fleet/FleetSettingsProvider';
 import FleetBackLink from '@/components/fleet/FleetBackLink';
 import DeleteRecordButton from '@/components/fleet/DeleteRecordButton';
-import { fmtEUR } from '@/components/fleet/FleetCharts';
 
 export type SvcDetailStatus = 'scheduled' | 'completed' | 'overdue';
 
@@ -128,6 +127,8 @@ function partsList(raw: string): string[] {
 }
 
 export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   // "Due soon" distance (Settings → Maintenance).
   const dueSoonKm = useFleetSetting('maintenance.service_due_km');
   const cat = CAT_META[service.category] || CAT_META.scheduled;

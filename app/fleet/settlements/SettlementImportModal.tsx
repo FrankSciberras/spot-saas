@@ -12,9 +12,10 @@
 import { useMemo, useState } from 'react';
 import type { PlatformConfig } from '@/lib/config/settlements';
 import { parseCsv, parseLocaleNumber, guessColumns, matchDriver, type ParsedCsv } from '@/lib/utils/csv';
-import { formatCurrency, round2 } from '@/lib/utils/settlementCalculations';
+import { round2 } from '@/lib/utils/settlementCalculations';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import styles from './settlement-import.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export interface ImportedFigures {
   grossFare: number;
@@ -64,6 +65,8 @@ function loadSavedMap(platformId: string, headerCount: number): ColumnMap | null
 }
 
 export default function SettlementImportModal({ platforms, drivers, onApply, onClose }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const [platformId, setPlatformId] = useState(platforms[0]?.id ?? '');
   const [csv, setCsv] = useState<ParsedCsv | null>(null);
   const [fileName, setFileName] = useState('');

@@ -3,8 +3,7 @@
 import { type CSSProperties, type ReactNode, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
-import { fmtEUR } from '@/components/fleet/FleetCharts';
+import { useFleetSetting, useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export type SvcStatus = 'scheduled' | 'in_progress' | 'overdue' | 'completed';
 
@@ -92,6 +91,8 @@ function SvcStat({ label, value, sub, icon, accent }: { label: string; value: Re
 }
 
 export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueCount, spendMonth }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const router = useRouter();
   // "Due soon" distance (Settings → Maintenance).
   const dueSoonKm = useFleetSetting('maintenance.service_due_km');

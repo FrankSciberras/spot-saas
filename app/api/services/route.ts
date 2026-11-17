@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { getFleetSettings } from '@/lib/settings/server';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 /**
@@ -112,7 +113,8 @@ export async function POST(request: Request) {
       next_service_mileage: next_service_mileage || null,
       next_service_date: next_service_date || null,
       cost: cost || null,
-      currency: currency || 'EUR',
+      // Defaults to the fleet's currency (Settings → General → Money).
+      currency: currency || (await getFleetSettings(vehicleOrg.organization_id))['finance.currency'],
       service_provider: service_provider || null,
       description: description || null,
       parts_replaced: parts_replaced || null,

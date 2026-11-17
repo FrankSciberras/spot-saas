@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { getFleetSettings } from '@/lib/settings/server';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 
 interface RouteParams {
@@ -79,7 +80,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       next_service_mileage: body.next_service_mileage || null,
       next_service_date: body.next_service_date || null,
       cost: body.cost || null,
-      currency: body.currency || 'EUR',
+      currency: body.currency || (await getFleetSettings(session.organization_id))['finance.currency'],
       service_provider: body.service_provider || null,
       description: body.description || null,
       parts_replaced: body.parts_replaced || null,

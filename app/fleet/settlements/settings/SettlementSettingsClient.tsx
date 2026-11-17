@@ -44,6 +44,7 @@ import {
 } from '@/lib/config/settlements';
 import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './settlements-settings.module.css';
+import { useMoney, type MoneyFormatter } from '@/components/fleet/FleetSettingsProvider';
 
 export interface DriverPresetRow {
   id: string;
@@ -166,27 +167,29 @@ function inputFromForm(f: PresetForm): PresetInput {
 }
 
 /** Human summary chips for a preset card. */
-function presetChips(p: SettlementPreset): string[] {
+function presetChips(p: SettlementPreset, money: MoneyFormatter): string[] {
   const c = resolveComponents(p.components);
   const chips: string[] = [];
   if (c.share) chips.push(`Driver keeps ${fmtNum(p.driver_share_pct)}% of fares`);
-  if (c.hours) chips.push(`Hourly wage €${fmtNum(Number(p.hourly_rate) || 0)}/h`);
-  if (c.fixed) chips.push(`Fixed wage €${fmtNum(Number(p.fixed_wage_weekly) || 0)}/week`);
+  if (c.hours) chips.push(`Hourly wage ${money(Number(p.hourly_rate) || 0, { trim: true })}/h`);
+  if (c.fixed) chips.push(`Fixed wage ${money(Number(p.fixed_wage_weekly) || 0, { trim: true })}/week`);
   if (!c.share && !c.hours && !c.fixed) chips.push('No pay lines enabled');
   if (c.share && c.tips && p.tips_driver_pct !== 100) chips.push(`Tips ${fmtNum(p.tips_driver_pct)}% to driver`);
   if (!c.tips) chips.push('No tips line');
   if (c.share && c.campaigns && p.campaigns_driver_pct !== 100) chips.push(`Campaigns ${fmtNum(p.campaigns_driver_pct)}% to driver`);
   if (c.share && c.fee && p.fee_driver_pct !== 100) chips.push(`Driver pays ${fmtNum(p.fee_driver_pct)}% of platform fee`);
   if (c.tax) {
-    chips.push(p.tax_type === 'percent' ? `Tax ${fmtNum(p.tax_value)}% of balance` : `Tax €${fmtNum(p.tax_value)} flat`);
+    chips.push(p.tax_type === 'percent' ? `Tax ${fmtNum(p.tax_value)}% of balance` : `Tax ${money(p.tax_value, { trim: true })} flat`);
   } else {
     chips.push('No tax line');
   }
-  if (c.rent && p.rent_weekly > 0) chips.push(`Rent €${fmtNum(p.rent_weekly)}/week`);
+  if (c.rent && p.rent_weekly > 0) chips.push(`Rent ${money(p.rent_weekly, { trim: true })}/week`);
   return chips;
 }
 
 export default function SettlementSettingsClient({ presets, defaultPresetId, drivers, platforms, recurring }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const router = useRouter();
 
   // 'new' = creating, a preset id = editing that preset, null = closed.
@@ -374,7 +377,7 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
                     {isDefault && <span className={styles.defaultBadge}>Fleet default</span>}
                   </div>
                   <div className={styles.chipRow}>
-                    {presetChips(p).map((chip) => (
+                    {presetChips(p, money).map((chip) => (
                       <span key={chip} className={styles.chip}>{chip}</span>
                     ))}
                   </div>
@@ -530,6 +533,8 @@ function PresetEditor({
   onSave,
   onCancel,
 }: EditorProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const c = form.components;
   const hasAdvanced = c.share && (c.tips || c.campaigns || c.fee);
 
@@ -624,7 +629,7 @@ function PresetEditor({
                 onChange={set('hourlyRate')}
                 className={styles.pctInput}
               />
-              <span className={styles.pctSuffix}>€ / hour</span>
+              <span className={styles.pctSuffix}>{money.symbol} / hour</span>
             </span>
             <span className={styles.fieldHint}>
               Hours prefill automatically from the driver&apos;s clocked shifts — editable on each
@@ -643,7 +648,7 @@ function PresetEditor({
                 onChange={set('fixedWageWeekly')}
                 className={styles.pctInput}
               />
-              <span className={styles.pctSuffix}>€ / week</span>
+              <span className={styles.pctSuffix}>{money.symbol} / week</span>
             </span>
             <span className={styles.fieldHint}>Added to every settlement under this preset.</span>
           </label>
@@ -654,7 +659,7 @@ function PresetEditor({
             <span className={styles.fieldLabel}>FSS / Tax</span>
             <span className={styles.fieldControl}>
               <select value={form.taxType} onChange={set('taxType')} className={styles.typeSelect}>
-                <option value="flat">Flat €</option>
+                <option value="flat">Flat {money.symbol}</option>
                 <option value="percent">% of balance</option>
               </select>
               <input
@@ -664,7 +669,7 @@ function PresetEditor({
                 onChange={set('taxValue')}
                 className={styles.pctInput}
               />
-              <span className={styles.pctSuffix}>{form.taxType === 'percent' ? '%' : '€ / week'}</span>
+              <span className={styles.pctSuffix}>{form.taxType === 'percent' ? '%' : `${money.symbol} / week`}</span>
             </span>
             <span className={styles.fieldHint}>
               Prefills the tax field on new settlements (flat tax applies to full-time drivers only).
@@ -683,7 +688,7 @@ function PresetEditor({
                 onChange={set('rentWeekly')}
                 className={styles.pctInput}
               />
-              <span className={styles.pctSuffix}>€ / week (0 = none)</span>
+              <span className={styles.pctSuffix}>{money.symbol} / week (0 = none)</span>
             </span>
             <span className={styles.fieldHint}>Deducted from every settlement under this preset.</span>
           </label>
@@ -1067,6 +1072,8 @@ interface RecurringCardProps {
 }
 
 function RecurringCard({ recurring, drivers, onError, onDone }: RecurringCardProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<RecurringForm>(emptyRecurringForm);
   const [saving, startSaving] = useTransition();
@@ -1147,7 +1154,7 @@ function RecurringCard({ recurring, drivers, onError, onDone }: RecurringCardPro
   };
 
   const amountChip = (r: RecurringAdjustment) =>
-    r.amount_type === 'percent_of_gross' ? `${fmtNum(r.amount)}% of gross` : `€${fmtNum(r.amount)}`;
+    r.amount_type === 'percent_of_gross' ? `${fmtNum(r.amount)}% of gross` : money(r.amount, { trim: true });
 
   return (
     <div className={styles.card}>
@@ -1232,6 +1239,8 @@ interface RecurringEditorProps {
 }
 
 function RecurringEditor({ form, set, drivers, saving, onSave, onCancel }: RecurringEditorProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   return (
     <div className={styles.editorCard}>
       <div className={styles.editorGrid}>
@@ -1261,7 +1270,7 @@ function RecurringEditor({ form, set, drivers, saving, onSave, onCancel }: Recur
           <span className={styles.fieldLabel}>Amount</span>
           <span className={styles.fieldControl}>
             <select value={form.amountType} onChange={set('amountType')} className={styles.typeSelect}>
-              <option value="fixed">Fixed €</option>
+              <option value="fixed">Fixed {money.symbol}</option>
               <option value="percent_of_gross">% of gross</option>
             </select>
             <input
@@ -1271,7 +1280,7 @@ function RecurringEditor({ form, set, drivers, saving, onSave, onCancel }: Recur
               onChange={set('amount')}
               className={styles.pctInput}
             />
-            <span className={styles.pctSuffix}>{form.amountType === 'percent_of_gross' ? '% of gross' : '€ / settlement'}</span>
+            <span className={styles.pctSuffix}>{form.amountType === 'percent_of_gross' ? '% of gross' : `${money.symbol} / settlement`}</span>
           </span>
         </label>
 

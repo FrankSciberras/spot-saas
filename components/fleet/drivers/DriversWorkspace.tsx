@@ -3,8 +3,8 @@
 import { type CSSProperties, type ReactNode, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { usePreference } from '@/components/fleet/FleetSettingsProvider';
-import { fmtEUR, Sparkline } from '@/components/fleet/FleetCharts';
+import { usePreference, useMoney } from '@/components/fleet/FleetSettingsProvider';
+import { Sparkline } from '@/components/fleet/FleetCharts';
 
 export type DocState = 'ok' | 'warn' | 'missing' | 'expired';
 
@@ -48,6 +48,8 @@ function Avatar({ initials, color, size }: { initials: string; color: string; si
 const hasIssue = (d: DriverItem) => Object.values(d.docs).some((s) => s === 'missing' || s === 'expired');
 
 export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'on' | 'off' | 'issues'>('all');
   const [search, setSearch] = useState('');
@@ -179,7 +181,7 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
             </div>
             <div style={{ ...st.col, textAlign: 'right' }}>
               <div className="mono tnum" style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>
-                {d.weekEarnings ? fmtEUR(d.weekEarnings, { decimals: 2 }) : <span style={{ color: 'var(--text-4)' }}>€0.00</span>}
+                {d.weekEarnings ? fmtEUR(d.weekEarnings, { decimals: 2 }) : <span style={{ color: 'var(--text-4)' }}>{fmtEUR(0)}</span>}
               </div>
               {d.weekEarnings > 0 && (
                 <div style={{ marginTop: 3, display: 'flex', justifyContent: 'flex-end' }}>

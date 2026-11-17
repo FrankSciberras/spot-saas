@@ -16,9 +16,9 @@ import {
   Cell,
 } from 'recharts';
 import { platformInitial, type PlatformConfig } from '@/lib/config/settlements';
-import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './earnings.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 interface SettlementWithPlatforms extends DriverSettlement {
   settlement_platforms: SettlementPlatform[];
@@ -59,6 +59,8 @@ function formatPct(value: number): string {
 }
 
 export default function EarningsClient({ settlements: allSettlements, driverName, platforms }: EarningsClientProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [weekRange, setWeekRange] = useState<WeekRange>(4);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
@@ -354,7 +356,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
           <div className={styles.statContent}>
             <span className={styles.statLabel}>Latest Week</span>
             <span className={styles.statValue}>
-              {currentWeek ? formatCurrency(currentWeekTotal) : '€0.00'}
+              {formatCurrency(currentWeek ? currentWeekTotal : 0)}
             </span>
             {weekChange !== 0 && (
               <span className={`${styles.statChange} ${weekChange >= 0 ? styles.positive : styles.negative}`}>
