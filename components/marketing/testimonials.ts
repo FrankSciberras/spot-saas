@@ -34,15 +34,13 @@ export interface Testimonial {
 
 export const TESTIMONIALS: Testimonial[] = [
   {
-    // Roster automation. Wording reconstructed from memory of what he said —
-    // send him this exact text; set live: true only once he replies "yes,
-    // you can use this" (keep that reply). Adjust the text to his version first
-    // if he changes anything.
+    // Roster automation. Customer confirmed this wording and agreed to it
+    // being published (17 Nov 2026); keep his reply as the record.
     name: '',
     role: 'Fleet manager of 9 vehicles in Malta',
     quote:
       'Before Rovora, I used to send the rosters as a screenshot from Excel into the chat. Now it’s fully automated every week, straight from the dashboard.',
-    live: false,
+    live: true,
   },
   {
     name: 'PLACEHOLDER — customer name',
