@@ -63,14 +63,12 @@ export function signupErrorKind(message: string | null | undefined): SignupError
   return 'Other';
 }
 
-/** The onboarding screens, in order. `step` is 1-based and stored on the account. */
-export const ONBOARDING_STEPS = [
-  { step: 1, title: 'Fleet name' },
-  { step: 2, title: 'How many drivers' },
-  { step: 3, title: 'How many vehicles' },
-  { step: 4, title: 'Choose tools' },
-  { step: 5, title: 'Pick a plan' },
-] as const;
+/**
+ * The set-up screens, in order. `step` is 1-based and stored on the account.
+ * Set-up is a single screen now; accounts from the old five-screen wizard may
+ * still carry a step of 2-5, which simply counts as having opened it.
+ */
+export const ONBOARDING_STEPS = [{ step: 1, title: 'Opened the fleet set-up screen' }] as const;
 
 /** Where the browser reports onboarding progress (see the route for why it's not a beacon to /api/rv). */
 export const ONBOARDING_PROGRESS_PATH = '/api/auth/onboarding-progress';

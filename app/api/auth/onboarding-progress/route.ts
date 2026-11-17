@@ -1,7 +1,7 @@
 // =============================================================================
 // POST /api/auth/onboarding-progress — "this account reached onboarding step N".
 // =============================================================================
-// The onboarding wizard reports each screen it shows. The furthest one reached
+// The set-up screen reports that it was opened. The furthest step reached
 // is kept on the ACCOUNT (auth app_metadata), which is how Admin Console →
 // Analytics can show where sign-ups stall *inside* onboarding and list the
 // people who stopped, so someone can follow up with them.

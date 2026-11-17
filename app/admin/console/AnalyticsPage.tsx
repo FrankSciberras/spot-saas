@@ -823,7 +823,7 @@ function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
   const formRows: FunnelRow[] = form
     ? [
         ...form.steps.filter((s) => s.id !== 'Code sent').map((s) => ({ key: s.id, title: SIGNUP_STEP_TITLE[s.id]?.title ?? s.id, hint: SIGNUP_STEP_TITLE[s.id]?.hint, value: s[device] })),
-        { key: 'fleet', title: 'Finished onboarding (fleet created)', hint: 'Completed all five onboarding screens — a new Rovora fleet', value: form.fleet[device] },
+        { key: 'fleet', title: 'Created a fleet', hint: 'Named their fleet on the set-up screen — a new Rovora fleet', value: form.fleet[device] },
       ]
     : [];
   const codeSent = form?.steps.find((s) => s.id === 'Code sent');
@@ -838,9 +838,9 @@ function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
     ? [
         { key: 'created', title: 'Created an account', hint: 'Submitted the sign-up form or used Google — an account exists', value: c.created },
         { key: 'verified', title: 'Verified their email', hint: 'Entered the emailed code (Google accounts count as verified)', value: c.verified },
-        // Onboarding screens only once at least one account in the period reported them.
+        // Set-up screen only once at least one account in the period reported it.
         ...(accounts.steps_known > 0
-          ? accounts.onboarding.map((s) => ({ key: `onb${s.step}`, title: `Onboarding ${s.step}/5 · ${s.title}`, hint: `Reached the “${s.title}” screen`, value: s.reached }))
+          ? accounts.onboarding.map((s) => ({ key: `onb${s.step}`, title: s.title, hint: 'Reached the screen where the fleet is named', value: s.reached }))
           : []),
         { key: 'fleet', title: 'Created a fleet', hint: 'Finished onboarding', value: c.fleet },
         { key: 'vehicle', title: 'Added a vehicle', hint: 'Their fleet has at least one vehicle today', value: c.vehicle },
@@ -852,10 +852,12 @@ function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
   const stoppedAt = (u: NonNullable<SignupDetail['accounts']>['unfinished'][number]) => {
     if (!u.verified) return { text: 'Never entered the email code', sub: 'Account created, email not verified' };
     if (u.step) {
-      const s = ONBOARDING_STEPS.find((x) => x.step === u.step);
-      return { text: `Onboarding ${u.step}/5 · ${s?.title ?? ''}`, sub: 'Got this far, then left' };
+      return {
+        text: 'Opened set-up, didn’t name the fleet',
+        sub: u.step > ONBOARDING_STEPS.length ? `Reached screen ${u.step} of the old 5-screen set-up` : 'Saw the last screen, then left',
+      };
     }
-    return { text: 'Verified, no fleet', sub: 'Onboarding screen not recorded' };
+    return { text: 'Verified, no fleet', sub: 'Never reached the set-up screen' };
   };
 
   return (
@@ -904,7 +906,7 @@ function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
                 <Stat value={`${fmtNum(accounts.methods.google.fleet)} of ${fmtNum(accounts.methods.google.created)}`} label="Google sign-ups ended with a fleet" />
               </div>
               {accounts.steps_known === 0 && (
-                <div style={{ padding: '0 18px 14px', fontSize: 11, color: 'var(--text-4)', lineHeight: 1.5 }}>The five onboarding screens appear here for accounts created after this version went live.</div>
+                <div style={{ padding: '0 18px 14px', fontSize: 11, color: 'var(--text-4)', lineHeight: 1.5 }}>The set-up screen step appears here for accounts created after step tracking went live.</div>
               )}
             </>
           )}

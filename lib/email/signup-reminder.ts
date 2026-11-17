@@ -14,14 +14,13 @@
 import { appName, renderBrandedEmail, sendEmail } from '@/lib/email';
 import { appUrl } from '@/lib/urls';
 import { trialSpan } from '@/lib/billing/trial-offer';
-import { ONBOARDING_STEPS } from '@/lib/analytics/signup-funnel';
 
 export interface SignupReminderInput {
   to: string;
   stage: 'unverified' | 'no_fleet';
   /** 1 = the nudge about an hour in; 2 = the last one, a few days later. */
   round: 1 | 2;
-  /** Furthest onboarding screen reached (1-5), when known. */
+  /** Furthest set-up step reached, when known (kept for the admin preview and logs). */
   step?: number | null;
   /** Length of the free trial on offer, in days. */
   trialDays: number;
@@ -53,13 +52,11 @@ export function buildSignupReminderEmail(input: SignupReminderInput): { subject:
     footnote =
       `If you didn't create a ${name} account, ignore this email — nothing will happen and we won't write again.`;
   } else {
-    const left = input.step ? Math.max(1, ONBOARDING_STEPS.length - input.step + 1) : null;
     subject = input.round === 1 ? `Your ${name} fleet is almost set up` : `Still want to try ${name}?`;
     body =
       input.round === 1
         ? `Your ${name} account is ready — the only thing missing is your fleet. ` +
-          (left ? `You're ${left === 1 ? 'one short screen' : `${left} short screens`} from the dashboard` : `It takes about a minute`) +
-          `, and nothing you pick is locked in.\n\n` +
+          `Give it a name and you're in your dashboard; vehicles, drivers and everything else can follow at your own pace.\n\n` +
           `You get ${span} free with every feature switched on. No card, and nothing happens automatically when it ends.`
         : `A few days ago you created a ${name} account and stopped before setting up your fleet. ` +
           `If something put you off — the questions, the pricing, not enough time — just reply and tell us; a real person reads every reply.\n\n` +
@@ -77,7 +74,7 @@ export function buildSignupReminderEmail(input: SignupReminderInput): { subject:
   const html = renderBrandedEmail({
     heading: subject,
     greeting: 'Hi there,',
-    preheader: input.stage === 'unverified' ? 'Sign in and we’ll send a fresh code.' : `About a minute left — ${span} free, no card.`,
+    preheader: input.stage === 'unverified' ? 'Sign in and we’ll send a fresh code.' : `One screen left — ${span} free, no card.`,
     body,
     actionUrl,
     actionLabel,
