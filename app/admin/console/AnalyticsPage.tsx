@@ -716,6 +716,7 @@ interface SignupDetail {
     steps: ({ id: string } & StepCount)[];
     fleet: StepCount;
     code_resent: StepCount;
+    verified_by_link?: StepCount;
     doors: { name: string; submitted: number; code_sent: number; verified: number }[];
     errors: { kind: string; count: number; visitors: number }[];
   } | null;
@@ -877,7 +878,7 @@ function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
                 <div>
                   <strong style={{ color: 'var(--text-2)', fontWeight: 500 }}>Email code:</strong>{' '}
                   {codeSent?.visitors ? (
-                    <>{fmtNum(codesSent || codeSent.visitors)} were emailed a code, {fmtNum(codesVerified)} entered it ({fmtPct(ratio(codesVerified, codesSent || codeSent.visitors))}){form.code_resent.count ? ` · “Resend code” pressed ${fmtNum(form.code_resent.count)} times` : ''}.</>
+                    <>{fmtNum(codesSent || codeSent.visitors)} were emailed a code, {fmtNum(codesVerified)} verified ({fmtPct(ratio(codesVerified, codesSent || codeSent.visitors))}{form.verified_by_link?.visitors ? `, ${fmtNum(form.verified_by_link.visitors)} with the one-tap link` : ''}){form.code_resent.count ? ` · “Resend code” pressed ${fmtNum(form.code_resent.count)} times` : ''}.</>
                   ) : 'no codes sent in this period.'}
                 </div>
                 <div>

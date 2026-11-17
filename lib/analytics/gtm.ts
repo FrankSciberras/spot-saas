@@ -6,7 +6,8 @@
 // the container isn't even requested until the visitor clicks "Allow" on the
 // cookie banner. Before that, Google receives nothing.
 //
-// Same exclusions as our own analytics: never in the signed-in app, in
+// Same exclusions as our own analytics: never in the signed-in app or on the
+// /auth pages that carry sign-in tokens, in
 // development, for bots, in the Rovora Driver app's WebView, or for admins who
 // switched on "Don't count my visits" — except while Tag Assistant is
 // previewing the container (?gtm_debug=…), so the owner can still test it.
@@ -62,7 +63,10 @@ function clearGoogleCookies() {
 export function syncGoogleTag(path: string) {
   if (typeof window === 'undefined') return;
   const consent = getConsent();
-  const state: ConsentState = consent === 'granted' && !isAppRoute(path) ? 'granted' : 'denied';
+  // /auth/* pages handle sign-in tokens (reset links, the emailed verify
+  // link) — Google's tags stay off there even with consent, like in the app.
+  const authPage = /^\/auth(\/|$)/.test(path);
+  const state: ConsentState = consent === 'granted' && !isAppRoute(path) && !authPage ? 'granted' : 'denied';
 
   if (loaded) {
     // Already on the page: a later "Decline", or a client-side link into the

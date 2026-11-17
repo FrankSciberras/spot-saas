@@ -128,6 +128,7 @@ async function formFunnel(admin: Admin, from: Date, to: Date) {
       if (label) add(`via:Submitted:${label}`, e);
     } else if (e.name === SIGNUP_STEP_EVENT && label) {
       add(`step:${label}`, e);
+      if (label === 'Email verified' && e.props?.how === 'link') add('verified-link', e);
       if (via) add(`via:${label}:${via}`, e);
     } else if (e.name === SIGNUP_ERROR_EVENT && label) {
       add(`error:${label}`, e);
@@ -154,6 +155,7 @@ async function formFunnel(admin: Admin, from: Date, to: Date) {
     steps: SIGNUP_STEPS.map((s) => ({ id: s.id, ...read(`step:${s.id}`) })),
     fleet: read('fleet'),
     code_resent: read('step:Code resent'),
+    verified_by_link: read('verified-link'),
     doors: doors.map((d) => ({
       name: d,
       submitted: read(`via:Submitted:${d}`).visitors,

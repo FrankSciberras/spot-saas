@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type SignupVerifyType } from '@/lib/actions/auth-email';
+import { chatSessionReadyAction, chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type SignupVerifyType } from '@/lib/actions/auth-email';
 import { submitChatLeadAction } from '@/lib/actions/contact';
 import { trackEvent, trackSignupError, trackSignupStep } from '@/lib/analytics/client';
 import { SIGNUP_RESEND_COOLDOWN } from '@/lib/auth/email-limits';
@@ -762,6 +762,29 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
     trackSignupStep('Form started', 'Chat');
   }
 
+  // Tapped the emailed link instead of typing the code? Carry on when they come back.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
+  useEffect(() => {
+    if (step !== 'code') return;
+    let moving = false;
+    const check = async () => {
+      if (moving || document.visibilityState !== 'visible') return;
+      if (!(await chatSessionReadyAction().catch(() => false)) || moving) return;
+      moving = true;
+      onDoneRef.current();
+      window.location.assign('/dashboard');
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, [step]);
+
   // Hand over to onboarding once the session cookie exists. A hard navigation so
   // the server re-runs with the new session rather than serving the cached page.
   function enterApp() {
@@ -781,7 +804,7 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
       if (res.error) { setErr(res.error); trackSignupError(res.error, 'Chat'); return; }
       if (res.status === 'signed_in') { enterApp(); return; }
       setVerifyType(res.verifyType ?? 'signup');
-      setNote(`We've emailed a 6-digit code to ${email}.`);
+      setNote(`We've emailed ${email} a link and a 6-digit code — tap the link, or type the code here.`);
       setStep('code');
       setCooldown(SIGNUP_RESEND_COOLDOWN);
       trackSignupStep('Code sent', 'Chat');

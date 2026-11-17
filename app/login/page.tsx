@@ -134,6 +134,27 @@ function LoginPageContent() {
     setMode('confirm');
   }, []);
 
+  // Tapped the emailed link instead (another tab, or the mail app's browser
+  // then back here)? The session cookie is shared, so move on when they return.
+  useEffect(() => {
+    if (mode !== 'confirm') return;
+    let moving = false;
+    const check = async () => {
+      if (moving || document.visibilityState !== 'visible') return;
+      const { data } = await createClient().auth.getSession();
+      if (!data.session || moving) return;
+      moving = true;
+      forgetPendingVerify();
+      window.location.assign('/dashboard');
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, [mode]);
+
   // Sign-up funnel (Admin → Analytics): the form was seen, and someone began it.
   const formViewed = useRef(false);
   const formStarted = useRef(false);
@@ -282,7 +303,7 @@ function LoginPageContent() {
       }
 
       setVerifyType(res.verifyType ?? 'signup');
-      setSuccessMessage(`We emailed a verification code to ${email}.`);
+      setSuccessMessage(`We emailed ${email} a link and a code — tap the link, or type the code here.`);
       setMode('confirm');
       startResendCooldown(SIGNUP_RESEND_COOLDOWN);
       rememberPendingVerify(email.trim().toLowerCase(), res.verifyType ?? 'signup');
@@ -322,7 +343,7 @@ function LoginPageContent() {
 
       // Verified AND signed in — straight into onboarding.
       forgetPendingVerify();
-      trackSignupStep('Email verified', 'Email');
+      trackSignupStep('Email verified', 'Email', { how: 'code' });
       window.location.assign('/onboarding');
       return;
     } catch {
@@ -380,7 +401,7 @@ function LoginPageContent() {
       : mode === 'signup'
         ? 'Create your account and get your fleet on Rovora.'
         : mode === 'confirm'
-          ? 'Enter the code we emailed you to verify your address.'
+          ? 'Tap the link in the email we sent you, or enter the code below.'
           : resetSentTo
             ? `If an account exists for ${resetSentTo}, we’ve emailed it a link to set a new password.`
             : 'We’ll email you a link to set a new password.';
