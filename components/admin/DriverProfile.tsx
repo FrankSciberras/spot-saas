@@ -75,7 +75,7 @@ const formatDate = (dateStr: string | null): string => {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-/** `warnDays` = the fleet's warning window (Settings → Drivers & documents). */
+/** `warnDays` = the fleet's warning window (Settings → Documents). */
 const getExpiryStatus = (dateStr: string | null, warnDays: number): 'ok' | 'warning' | 'danger' | null => {
   if (!dateStr) return null;
   const date = new Date(dateStr);

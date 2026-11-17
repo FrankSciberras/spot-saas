@@ -93,3 +93,24 @@ export async function getFleetSettingsForOrgs(organizationIds: string[]): Promis
   }
   return new Map(ids.map((id) => [id, resolveSettings<FleetSettings>(FLEET_SETTING_KEYS, byOrg.get(id) ?? []).values]));
 }
+
+/**
+ * Preferences for many people in one query — e.g. to leave out managers who
+ * turned an alert channel off. People with nothing stored get the defaults.
+ */
+export async function getUserPreferencesForUsers(userIds: string[]): Promise<Map<string, UserPreferences>> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  const byUser = new Map<string, Row[]>(ids.map((id) => [id, []]));
+  if (ids.length) {
+    const { data, error } = await createAdminClient()
+      .from('user_preferences')
+      .select('user_id, key, value')
+      .in('user_id', ids);
+    if (error) {
+      if (missingTable(error.code)) warnMissing(error.code);
+      else console.error('[settings] bulk preference read failed:', error);
+    }
+    for (const r of (data ?? []) as (Row & { user_id: string })[]) byUser.get(r.user_id)?.push(r);
+  }
+  return new Map(ids.map((id) => [id, resolveSettings<UserPreferences>(USER_SETTING_KEYS, byUser.get(id) ?? []).values]));
+}

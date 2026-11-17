@@ -93,7 +93,7 @@ function SvcStat({ label, value, sub, icon, accent }: { label: string; value: Re
 
 export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueCount, spendMonth }: Props) {
   const router = useRouter();
-  // "Due soon" distance (Settings → Vehicles & maintenance).
+  // "Due soon" distance (Settings → Maintenance).
   const dueSoonKm = useFleetSetting('maintenance.service_due_km');
   const [filter, setFilter] = useState<'all' | SvcStatus>('all');
   const [search, setSearch] = useState('');

@@ -67,7 +67,7 @@ export default function DriverInlineEdit({
   documents: initialDocuments,
   recentShifts 
 }: DriverInlineEditProps) {
-  // "Expiring soon" uses the fleet's warning window (Settings → Drivers & documents).
+  // "Expiring soon" uses the fleet's warning window (Settings → Documents).
   const warnDays = useFleetSetting('documents.expiry_warning_days');
   const router = useRouter();
   const [driver, setDriver] = useState(initialDriver);

@@ -128,7 +128,7 @@ function partsList(raw: string): string[] {
 }
 
 export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: Props) {
-  // "Due soon" distance (Settings → Vehicles & maintenance).
+  // "Due soon" distance (Settings → Maintenance).
   const dueSoonKm = useFleetSetting('maintenance.service_due_km');
   const cat = CAT_META[service.category] || CAT_META.scheduled;
 

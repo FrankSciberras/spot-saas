@@ -82,7 +82,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
   });
 
   // Expiring / expired documents within the fleet's warning window
-  // (Settings → Drivers & documents; 30 days unless changed).
+  // (Settings → Documents; 30 days unless changed).
   const warnDays = (await getFleetSettings(user.organization_id))['documents.expiry_warning_days'];
   const now = new Date();
   const warnUntil = new Date();

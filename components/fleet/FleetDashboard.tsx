@@ -364,7 +364,7 @@ function RecentShiftsCard({ shifts }: { shifts: RecentShift[] }) {
 
 /* ───────────────────────── Expiring docs ───────────────────────── */
 function ExpiringDocsCard({ docs }: { docs: ExpiringDoc[] }) {
-  // Settings → Drivers & documents.
+  // Settings → Documents.
   const warnDays = useFleetSetting('documents.expiry_warning_days');
   const urgentDays = Math.min(useFleetSetting('documents.urgent_days'), warnDays);
   const sev = (d: number): { color: string; soft: string } =>

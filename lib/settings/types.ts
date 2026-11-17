@@ -15,8 +15,8 @@ export type SettingScope = 'fleet' | 'user';
 export const SETTINGS_TABS = [
   { key: 'general', label: 'General' },
   { key: 'branding', label: 'Branding' },
-  { key: 'drivers', label: 'Drivers & documents' },
-  { key: 'vehicles', label: 'Vehicles & maintenance', module: 'maintenance' },
+  { key: 'drivers', label: 'Documents' },
+  { key: 'vehicles', label: 'Maintenance', module: 'maintenance' },
   { key: 'live-map', label: 'Live Map', module: 'tracking' },
   { key: 'shifts', label: 'Shifts' },
   { key: 'messages', label: 'Messages', module: 'messaging' },

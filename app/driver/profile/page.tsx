@@ -131,7 +131,7 @@ export default async function DriverProfilePage() {
     });
   };
 
-  // "Expiring soon" uses the fleet's warning window (Settings → Drivers & documents).
+  // "Expiring soon" uses the fleet's warning window (Settings → Documents).
   const warnDays = (await getFleetSettings(user.organization_id))['documents.expiry_warning_days'];
   const getExpiryStatus = (dateStr: string | null): { class: string; label: string } => {
     if (!dateStr) return { class: '', label: '' };

@@ -145,13 +145,16 @@ function CatalogCard({ entry: { key, def }, notify }: { entry: Entry; notify: No
         )}
         {footer}
       </div>
-      <div className={styles.settingAction}>
-        {def.type === 'select' && def.options.length <= 3 ? (
-          <Segmented def={def} value={String(value)} saving={saving} onPick={commit} />
-        ) : (
-          <span className={styles.statusLabel}>{formatSettingValue(def, value)}</span>
-        )}
-      </div>
+      {/* A dropdown already shows its value, so it gets nothing on the right. */}
+      {!(def.type === 'select' && def.options.length > 3) && (
+        <div className={styles.settingAction}>
+          {def.type === 'select' ? (
+            <Segmented def={def} value={String(value)} saving={saving} onPick={commit} />
+          ) : (
+            <span className={styles.statusLabel}>{formatSettingValue(def, value)}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -189,6 +192,8 @@ function NumberField({ def, value, saving, onSave }: { def: NumberSettingDef; va
       <label className={styles.inlineField}>
         <input
           className={styles.numInput}
+          // Room for coordinates like -33.8688.
+          style={def.step < 1 ? { width: 112 } : undefined}
           type="number"
           inputMode="decimal"
           min={def.min}

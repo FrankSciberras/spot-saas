@@ -83,7 +83,7 @@ const formatDate = (d: string | null): string => {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-/** `warnDays` = the fleet's warning window (Settings → Drivers & documents). */
+/** `warnDays` = the fleet's warning window (Settings → Documents). */
 const getExpiryStatus = (d: string | null, warnDays: number): 'ok' | 'warning' | 'danger' | null => {
   if (!d) return null;
   const date = new Date(d), now = new Date(), soon = new Date();
@@ -284,7 +284,7 @@ export default function VehicleProfile({
   nextServiceDue, vehicleModels, isAdmin,
 }: VehicleProfileProps) {
   const router = useRouter();
-  // "Due soon" distance (Settings → Vehicles & maintenance); red at a quarter of it.
+  // "Due soon" distance (Settings → Maintenance); red at a quarter of it.
   const dueSoonKm = useFleetSetting('maintenance.service_due_km');
   const dueUrgentKm = Math.round(dueSoonKm / 4);
   const [vehicle, setVehicle] = useState(initialVehicle);

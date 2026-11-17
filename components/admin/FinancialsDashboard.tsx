@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { usePreference } from '@/components/fleet/FleetSettingsProvider';
 import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, FinanceTransaction } from '@/lib/types/database';
 import type { FinanceCategory } from '@/lib/config/financeCategories';
 import { buildBookkeepingTxns, toQuickBooksCsv, toXeroCsv } from '@/lib/utils/accountingExport';
@@ -275,7 +276,8 @@ export default function FinancialsDashboard({ transactions, categories, drivers,
 
   const activeRange = mode === 'fleet' ? bookkeepingRange : settlementsRange;
 
-  const [groupBy, setGroupBy] = useState<GroupByWithAllTime>('monthly');
+  // Starting grouping: your preference (Settings → Preferences → Lists).
+  const [groupBy, setGroupBy] = useState<GroupByWithAllTime>(usePreference('lists.financials_grouping'));
   const [startDate, setStartDate] = useState<string>(activeRange.start);
   const [endDate, setEndDate] = useState<string>(activeRange.end);
 

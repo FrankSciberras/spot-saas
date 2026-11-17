@@ -54,7 +54,7 @@ async function DriversContent({ user }: { user: FleetUser }) {
   const supabase = await createClient();
   const isAdmin = user.role === 'admin';
 
-  // Amber "expiring" badges use the fleet's warning window (Settings → Drivers & documents).
+  // Amber "expiring" badges use the fleet's warning window (Settings → Documents).
   const now = new Date();
   const soon = new Date();
   soon.setDate(soon.getDate() + (await getFleetSettings(user.organization_id))['documents.expiry_warning_days']);

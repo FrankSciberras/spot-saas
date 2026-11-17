@@ -137,3 +137,12 @@ export function useSettingsAdmin() {
     savePrefs: ctx?.savePrefs ?? unavailable,
   };
 }
+
+/** Where maps open before there's anything to show (Settings → Live Map → Map). */
+export function useMapStartView(): { center: [number, number]; zoom: number } {
+  const f = useFleetSettings();
+  const lat = f['tracking.map_center_lat'];
+  const lng = f['tracking.map_center_lng'];
+  const zoom = f['tracking.map_zoom'];
+  return useMemo(() => ({ center: [lat, lng] as [number, number], zoom }), [lat, lng, zoom]);
+}

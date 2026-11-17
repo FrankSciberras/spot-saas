@@ -3,6 +3,7 @@
 import { type CSSProperties, type ReactNode, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { usePreference } from '@/components/fleet/FleetSettingsProvider';
 import { fmtEUR, Sparkline } from '@/components/fleet/FleetCharts';
 
 export type DocState = 'ok' | 'warn' | 'missing' | 'expired';
@@ -50,7 +51,8 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'on' | 'off' | 'issues'>('all');
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'earnings' | 'status'>('name');
+  // Starting order: your preference (Settings → Preferences → Lists).
+  const [sortBy, setSortBy] = useState<'name' | 'earnings' | 'status'>(usePreference('lists.drivers_sort'));
 
   const counts = useMemo(() => ({
     all: drivers.length,

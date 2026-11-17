@@ -1,7 +1,7 @@
 'use client';
 
 import { type CSSProperties, useMemo, useState } from 'react';
-import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
+import { useFleetSetting, usePreference } from '@/components/fleet/FleetSettingsProvider';
 import FleetIcon from '@/components/fleet/FleetIcon';
 
 export interface ShiftItem {
@@ -154,7 +154,8 @@ function ShiftDetailModal({ s, onClose }: { s: ShiftItem; onClose: () => void })
 export default function ShiftsWorkspace({ shifts, driverNames }: Props) {
   const [filterDriver, setFilterDriver] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterDay, setFilterDay] = useState('14d');
+  // Starting period: your preference (Settings → Preferences → Lists).
+  const [filterDay, setFilterDay] = useState<string>(usePreference('lists.shifts_period'));
   const [selectedShift, setSelectedShift] = useState<ShiftItem | null>(null);
 
   const list = useMemo(() => {

@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
+import { usePreference } from '@/components/fleet/FleetSettingsProvider';
 import type { FinanceTransaction, VehicleRecurringCost } from '@/lib/types/database';
 import { categoriesOfKind, type CategoryKind, type FinanceCategory } from '@/lib/config/financeCategories';
 import {
@@ -119,7 +120,8 @@ export default function LedgerWorkspace({
 }: LedgerWorkspaceProps) {
   const today = todayISO();
 
-  const [preset, setPreset] = useState<RangePreset>('month');
+  // Starting period: your preference (Settings → Preferences → Lists).
+  const [preset, setPreset] = useState<RangePreset>(usePreference('lists.ledger_period'));
   const [customStart, setCustomStart] = useState(today.slice(0, 8) + '01');
   const [customEnd, setCustomEnd] = useState(today);
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');

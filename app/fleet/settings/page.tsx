@@ -32,8 +32,8 @@ import styles from './settings.module.css';
 type TabKey = SettingsTabKey;
 
 /**
- * Hand-written panels. Tabs not listed here (Drivers & documents, Vehicles &
- * maintenance) are drawn entirely from lib/settings/catalog.ts; every tab also
+ * Hand-written panels. Tabs not listed here (Documents, Maintenance) are
+ * drawn entirely from lib/settings/catalog.ts; every tab also
  * gets the catalog settings filed under it, below its own panel.
  */
 type PanelProps = { notify: Notify; isAdmin: boolean };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import type { Map as LeafletMap, Marker, Circle, Polyline } from 'leaflet';
 import { createClient } from '@/lib/supabase/client';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { useMapStartView } from '@/components/fleet/FleetSettingsProvider';
 import { diagnoseNotSharing, diagnoseSilent, type SharingDiagnosis } from '@/lib/tracking/sharing-diagnosis';
 import { loadSharingInfo, type SharingInfo } from '@/lib/tracking/sharing-info';
 import { loadActivity, type ActivityItem } from '@/lib/tracking/activity';
@@ -63,8 +64,7 @@ interface TrackingWorkspaceProps {
 }
 
 const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
-// No positions yet → default view (Malta).
-const FALLBACK_CENTER: [number, number] = [35.9, 14.42];
+// No positions yet → the fleet's starting view (Settings → Live Map → Map; Malta by default).
 const ZONE_COLOR = '#3b6ad9';
 
 type LiveStatus = 'live' | 'stale' | 'offline';
@@ -153,6 +153,8 @@ export default function TrackingWorkspace({
   initialSpeedLimit,
 }: TrackingWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
+  const startView = useMapStartView();
+  const startViewRef = useRef(startView);
   const [positions, setPositions] = useState<Map<string, PositionItem>>(
     () => new Map(initialPositions.map((p) => [p.driverId, p]))
   );
@@ -200,7 +202,7 @@ export default function TrackingWorkspace({
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
-      map.setView(FALLBACK_CENTER, 11);
+      map.setView(startViewRef.current.center, startViewRef.current.zoom);
       map.on('click', (e: any) => {
         if (!pickingRef.current) return;
         setDraft((d) => ({

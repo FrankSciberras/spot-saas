@@ -42,7 +42,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { latestServiceByVehicle } from '@/lib/maintenance/serviceDue';
-import { getFleetSettings } from '@/lib/settings/server';
+import { getFleetSettings, getUserPreferencesForUsers } from '@/lib/settings/server';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type Channel = 'app' | 'push' | 'email';
@@ -85,8 +85,8 @@ const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 const EXPIRED_GRACE_DAYS = 90;
 
 /**
- * Per-fleet fallbacks (Settings → Drivers & documents / Vehicles &
- * maintenance, lib/settings/catalog.ts). A rule's own trigger_config wins;
+ * Per-fleet fallbacks (Settings → Documents / Maintenance,
+ * lib/settings/catalog.ts). A rule's own trigger_config wins;
  * these fill in when a rule doesn't set a value.
  */
 interface EngineDefaults {
@@ -485,7 +485,7 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
 
   // Admin/staff users (for admin-targeted rules) — lazy. Includes drivers who
   // also hold staff access in this fleet.
-  let adminUsersCache: { id: string; email: string }[] | null = null;
+  let adminUsersCache: { id: string; email: string; wantsEmail: boolean; wantsPush: boolean }[] | null = null;
   const adminUsers = async () => {
     if (adminUsersCache) return adminUsersCache;
     const { data: mems } = await admin
@@ -495,8 +495,16 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
       .or('role.in.(admin,staff),also_staff.eq.true');
     const ids = Array.from(new Set(((mems ?? []) as { user_id: string }[]).map((m) => m.user_id)));
     if (!ids.length) { adminUsersCache = []; return adminUsersCache; }
-    const { data: us } = await admin.from('users').select('id, email').in('id', ids);
-    adminUsersCache = (us ?? []) as { id: string; email: string }[];
+    const [{ data: us }, prefs] = await Promise.all([
+      admin.from('users').select('id, email').in('id', ids),
+      // Each manager's own alert channels (Settings → Preferences → Notifications).
+      getUserPreferencesForUsers(ids),
+    ]);
+    adminUsersCache = ((us ?? []) as { id: string; email: string }[]).map((u) => ({
+      ...u,
+      wantsEmail: prefs.get(u.id)?.['notifications.alert_emails'] !== false,
+      wantsPush: prefs.get(u.id)?.['notifications.alert_push'] !== false,
+    }));
     return adminUsersCache;
   };
 
@@ -672,8 +680,8 @@ async function processOrg(admin: AdminClient, orgId: string, rules: Rule[], now:
     if (p.toAdmin && (p.chans.includes('push') || p.chans.includes('email'))) {
       const recips = await adminUsers();
       for (const u of recips) {
-        if (p.chans.includes('push')) { try { if (await sendPushNotification(u.id, { title: p.title, body: p.body, url: '/fleet/notifications' })) report.push++; } catch { /* ignore */ } }
-        if (p.chans.includes('email')) { try { if (await sendEmailNotification({ to: u.email, subject: p.title, body: p.body })) report.email++; } catch { /* ignore */ } }
+        if (p.chans.includes('push') && u.wantsPush) { try { if (await sendPushNotification(u.id, { title: p.title, body: p.body, url: '/fleet/notifications' })) report.push++; } catch { /* ignore */ } }
+        if (p.chans.includes('email') && u.wantsEmail) { try { if (await sendEmailNotification({ to: u.email, subject: p.title, body: p.body })) report.email++; } catch { /* ignore */ } }
       }
     }
   }
