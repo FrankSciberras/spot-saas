@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
+import { ONBOARDING_STEPS, SIGNUP_ERRORS, SIGNUP_STEPS } from '@/lib/analytics/signup-funnel';
 
 const Icon = FleetIcon;
 
@@ -705,6 +706,280 @@ function ConversionsTable({ rows, orgs }: { rows: Conversion[]; orgs: Dashboard[
   );
 }
 
+// ── Sign-up funnel in detail: the form, the accounts, and who stopped ─────────
+// Data: /api/admin/analytics/signups. Scoped by the date range only — the
+// filters above describe website visits, and half of this is about accounts.
+interface StepCount { visitors: number; count: number; desktop: number; mobile: number }
+interface SignupDetail {
+  form: {
+    tracking_since: string | null;
+    steps: ({ id: string } & StepCount)[];
+    fleet: StepCount;
+    code_resent: StepCount;
+    doors: { name: string; submitted: number; code_sent: number; verified: number }[];
+    errors: { kind: string; count: number; visitors: number }[];
+  } | null;
+  accounts: {
+    counts: { created: number; verified: number; fleet: number; vehicle: number; driver: number; paying: number };
+    onboarding: { step: number; title: string; reached: number }[];
+    steps_known: number;
+    methods: Record<'email' | 'google', { created: number; verified: number; fleet: number }>;
+    verify_seconds_median: number | null;
+    verify_over_10min: number;
+    finish_seconds_median: number | null;
+    unfinished_total: number;
+    unfinished: { email: string | null; created_at: string; verified: boolean; provider: string; last_sign_in_at: string | null; step: number | null; step_at: string | null }[];
+  } | null;
+}
+interface FunnelRow { key: string; title: string; hint?: string; value: number }
+
+/** Bars for an ordered funnel; the step that loses the most people is flagged. `unit` is singular. */
+function StepBars({ rows, unit }: { rows: FunnelRow[]; unit: string }) {
+  const base = rows[0]?.value ?? 0;
+  let worst = -1;
+  let worstLoss = 0;
+  rows.forEach((r, i) => {
+    const loss = i > 0 ? rows[i - 1].value - r.value : 0;
+    if (loss > worstLoss) { worstLoss = loss; worst = i; }
+  });
+  return (
+    <div style={{ padding: '2px 18px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {rows.map((r, i) => {
+        const prev = i > 0 ? rows[i - 1].value : 0;
+        const lost = prev - r.value;
+        return (
+          <div key={r.key} title={r.hint}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
+              <span style={{ fontSize: 12.5, color: 'var(--text-1)', display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                {r.title}
+                {i === worst && worstLoss > 0 && (
+                  <span style={{ fontSize: 10.5, padding: '1px 7px', borderRadius: 99, background: 'var(--warn-soft)', color: 'var(--warn)', whiteSpace: 'nowrap' }}>biggest drop</span>
+                )}
+              </span>
+              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'baseline' }}>
+                <span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{r.value.toLocaleString('en-GB')}</span>
+                <span className="mono tnum" style={{ fontSize: 11, color: 'var(--text-3)', width: 44, textAlign: 'right' }}>{i === 0 ? '100%' : fmtPct(ratio(r.value, base))}</span>
+              </span>
+            </div>
+            <div style={{ height: 8, background: 'var(--bg-2)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ width: `${base ? Math.min(100, Math.max((r.value / base) * 100, r.value ? 1.5 : 0)) : 0}%`, height: '100%', background: i === worst && worstLoss > 0 ? 'var(--warn)' : 'var(--accent)', borderRadius: 4 }} />
+            </div>
+            {i > 0 && prev > 0 && (
+              <div style={{ fontSize: 10.5, color: 'var(--text-4)', marginTop: 4 }}>
+                {fmtPct(ratio(r.value, prev))} of the step before{lost > 0 ? ` · ${lost.toLocaleString('en-GB')} ${unit}${lost === 1 ? '' : 's'} stopped here` : ''}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const SIGNUP_STEP_TITLE: Record<string, { title: string; hint: string }> = Object.fromEntries(SIGNUP_STEPS.map((s) => [s.id, { title: s.title, hint: s.hint }]));
+const Stat = ({ value, label }: { value: string; label: ReactNode }) => (
+  <div>
+    <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-1)' }}>{value}</div>
+    <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.45 }}>{label}</div>
+  </div>
+);
+const whenShort = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const agoShort = (iso: string | null) => {
+  if (!iso) return 'never';
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+};
+
+function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
+  const [detail, setDetail] = useState<SignupDetail | null>(null);
+  const [loadedFor, setLoadedFor] = useState<RangeId | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [device, setDevice] = useState<'visitors' | 'desktop' | 'mobile'>('visitors');
+  const [limit, setLimit] = useState(10);
+
+  useEffect(() => {
+    let stop = false;
+    const r = rangeFor(rangeId);
+    fetch(`/api/admin/analytics/signups?${new URLSearchParams({ from: r.from.toISOString(), to: r.to.toISOString() })}`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (stop) return;
+        if (res.ok) { setDetail((await res.json()) as SignupDetail); setFailed(false); } else setFailed(true);
+        setLoadedFor(rangeId);
+      })
+      .catch(() => { if (!stop) { setFailed(true); setLoadedFor(rangeId); } });
+    return () => { stop = true; };
+  }, [rangeId]);
+
+  if (failed && !detail) {
+    return <Card style={{ marginBottom: 16 }}><Empty>Couldn’t load the sign-up funnel. Reload the page to try again.</Empty></Card>;
+  }
+  if (!detail) return null;
+
+  const { form, accounts } = detail;
+  const loading = loadedFor !== rangeId;
+  const rangeStart = rangeFor(rangeId).from.getTime();
+
+  // The form: every step uses the same metric (all visitors, or one device).
+  const formRows: FunnelRow[] = form
+    ? [
+        ...form.steps.filter((s) => s.id !== 'Code sent').map((s) => ({ key: s.id, title: SIGNUP_STEP_TITLE[s.id]?.title ?? s.id, hint: SIGNUP_STEP_TITLE[s.id]?.hint, value: s[device] })),
+        { key: 'fleet', title: 'Finished onboarding (fleet created)', hint: 'Completed all five onboarding screens — a new Rovora fleet', value: form.fleet[device] },
+      ]
+    : [];
+  const codeSent = form?.steps.find((s) => s.id === 'Code sent');
+  const emailDoors = (form?.doors ?? []).filter((d) => d.name !== 'Google');
+  const codesSent = emailDoors.reduce((n, d) => n + d.code_sent, 0);
+  const codesVerified = emailDoors.reduce((n, d) => n + d.verified, 0);
+  const noSteps = !form?.tracking_since;
+  const partial = !!form?.tracking_since && new Date(form.tracking_since).getTime() > rangeStart;
+
+  const c = accounts?.counts;
+  const accountRows: FunnelRow[] = accounts && c
+    ? [
+        { key: 'created', title: 'Created an account', hint: 'Submitted the sign-up form or used Google — an account exists', value: c.created },
+        { key: 'verified', title: 'Verified their email', hint: 'Entered the emailed code (Google accounts count as verified)', value: c.verified },
+        // Onboarding screens only once at least one account in the period reported them.
+        ...(accounts.steps_known > 0
+          ? accounts.onboarding.map((s) => ({ key: `onb${s.step}`, title: `Onboarding ${s.step}/5 · ${s.title}`, hint: `Reached the “${s.title}” screen`, value: s.reached }))
+          : []),
+        { key: 'fleet', title: 'Created a fleet', hint: 'Finished onboarding', value: c.fleet },
+        { key: 'vehicle', title: 'Added a vehicle', hint: 'Their fleet has at least one vehicle today', value: c.vehicle },
+        { key: 'driver', title: 'Added a driver', hint: 'Their fleet has at least one driver today', value: c.driver },
+        { key: 'paying', title: 'On a paid plan', hint: 'Their fleet has moved off the free trial', value: c.paying },
+      ]
+    : [];
+  const unfinished = accounts?.unfinished ?? [];
+  const stoppedAt = (u: NonNullable<SignupDetail['accounts']>['unfinished'][number]) => {
+    if (!u.verified) return { text: 'Never entered the email code', sub: 'Account created, email not verified' };
+    if (u.step) {
+      const s = ONBOARDING_STEPS.find((x) => x.step === u.step);
+      return { text: `Onboarding ${u.step}/5 · ${s?.title ?? ''}`, sub: 'Got this far, then left' };
+    }
+    return { text: 'Verified, no fleet', sub: 'Onboarding screen not recorded' };
+  };
+
+  return (
+    <div style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 0.2s' }} aria-busy={loading}>
+      <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
+        <Card>
+          <CardHeader title="Sign-up form, step by step" subtitle="Unique visitors at each step — from the form to a finished fleet"
+            right={<Tabs tabs={[['visitors', 'Everyone'], ['desktop', 'Desktop'], ['mobile', 'Mobile']]} value={device} onChange={setDevice} />} />
+          {!form ? (
+            <Empty>Website analytics aren’t installed yet, so there are no form steps to show.</Empty>
+          ) : noSteps ? (
+            <Empty>No steps recorded yet. They start counting with the first visitor who opens the sign-up form after this version went live — check back in a day or two.</Empty>
+          ) : (
+            <>
+              <StepBars rows={formRows} unit="visitor" />
+              <div style={{ padding: '12px 18px 14px', borderTop: '1px solid var(--line-1)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                <div>
+                  <strong style={{ color: 'var(--text-2)', fontWeight: 500 }}>Email code:</strong>{' '}
+                  {codeSent?.visitors ? (
+                    <>{fmtNum(codesSent || codeSent.visitors)} were emailed a code, {fmtNum(codesVerified)} entered it ({fmtPct(ratio(codesVerified, codesSent || codeSent.visitors))}){form.code_resent.count ? ` · “Resend code” pressed ${fmtNum(form.code_resent.count)} times` : ''}.</>
+                  ) : 'no codes sent in this period.'}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--text-2)', fontWeight: 500 }}>How they signed up:</strong>{' '}
+                  {form.doors.filter((d) => d.submitted).map((d) => `${d.name} ${fmtNum(d.submitted)}`).join(' · ') || '—'}
+                </div>
+                {partial && <div style={{ color: 'var(--text-4)' }}>Step tracking began on {whenShort(form.tracking_since!)}, so earlier days in this period are missing the first steps.</div>}
+              </div>
+            </>
+          )}
+        </Card>
+        <Card>
+          <CardHeader title="Accounts, from created to paying" subtitle="Counted from the accounts themselves — exact, and ad blockers can’t hide them" />
+          {!accounts || !c ? (
+            <Empty>Couldn’t read the accounts for this period.</Empty>
+          ) : c.created === 0 ? (
+            <Empty>No self-serve accounts were created in this period.</Empty>
+          ) : (
+            <>
+              <StepBars rows={accountRows} unit="account" />
+              <div style={{ padding: '14px 18px 16px', borderTop: '1px solid var(--line-1)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Stat value={accounts.verify_seconds_median == null ? '—' : fmtDur(accounts.verify_seconds_median * 1000)}
+                  label={<>typical time to enter the email code{accounts.verify_over_10min ? ` · ${accounts.verify_over_10min} took over 10 min` : ''}</>} />
+                <Stat value={accounts.finish_seconds_median == null ? '—' : fmtDur(accounts.finish_seconds_median * 1000)} label="typical time from account to fleet" />
+                <Stat value={`${fmtNum(accounts.methods.email.fleet)} of ${fmtNum(accounts.methods.email.created)}`} label="email sign-ups ended with a fleet" />
+                <Stat value={`${fmtNum(accounts.methods.google.fleet)} of ${fmtNum(accounts.methods.google.created)}`} label="Google sign-ups ended with a fleet" />
+              </div>
+              {accounts.steps_known === 0 && (
+                <div style={{ padding: '0 18px 14px', fontSize: 11, color: 'var(--text-4)', lineHeight: 1.5 }}>The five onboarding screens appear here for accounts created after this version went live.</div>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+
+      <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
+        <Card>
+          <CardHeader title="Unfinished sign-ups" subtitle={accounts ? `${accounts.unfinished_total.toLocaleString('en-GB')} account${accounts.unfinished_total === 1 ? '' : 's'} created in this period never got a fleet — these are the people to follow up` : undefined} />
+          {unfinished.length === 0 ? (
+            <Empty>Nobody is stuck: every account created in this period went on to create a fleet.</Empty>
+          ) : (
+            <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                <thead>
+                  <tr>{['Started', 'Who', 'Stopped at', 'Signed up with', 'Last seen'].map((h) => <th key={h} style={th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {unfinished.slice(0, limit).map((u, i) => {
+                    const at = stoppedAt(u);
+                    return (
+                      <tr key={`${u.created_at}-${i}`} style={{ borderTop: '1px solid var(--line-1)' }}>
+                        <td style={td}>
+                          <div style={{ fontSize: 12.5, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>{whenShort(u.created_at)}</div>
+                          <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(u.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
+                        <td style={td}>
+                          {u.email
+                            ? <a href={`mailto:${u.email}`} className="an-link" style={{ fontSize: 13, color: 'var(--text-1)', textDecoration: 'none' }} title="Write to them">{u.email}</a>
+                            : <span style={{ color: 'var(--text-4)' }}>—</span>}
+                        </td>
+                        <td style={td}>
+                          <div style={{ fontSize: 12.5, color: u.verified ? 'var(--text-1)' : 'var(--warn)' }}>{at.text}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{at.sub}</div>
+                        </td>
+                        <td style={td}><span style={{ fontSize: 12.5 }}>{u.provider === 'google' ? 'Google' : 'Email'}</span></td>
+                        <td style={td}><span style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>{agoShort(u.last_sign_in_at)}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {unfinished.length > limit && (
+                <div style={{ padding: '10px 18px 14px', borderTop: '1px solid var(--line-1)' }}>
+                  <button onClick={() => setLimit((l) => l + 25)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                    Show more ({unfinished.length - limit} left)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+        <Card>
+          <CardHeader title="Why sign-ups fail" subtitle="Errors people were shown on the sign-up screens" />
+          {!form || form.errors.length === 0 ? (
+            <Empty>{noSteps ? 'Errors start being counted with the first sign-up attempt after this version went live.' : 'No sign-up errors in this period.'}</Empty>
+          ) : (
+            <div style={{ padding: '0 18px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {form.errors.map((e) => (
+                <div key={e.kind}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-1)' }}>{e.kind}</span>
+                    <span className="mono tnum" style={{ fontSize: 12, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtNum(e.count)}× · {fmtNum(e.visitors)} {e.visitors === 1 ? 'person' : 'people'}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.45 }}>{(SIGNUP_ERRORS as Record<string, string>)[e.kind] ?? ''}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 // ── What to focus on: plain-language suggestions from this period's numbers ──
 interface Insight {
   id: string;
@@ -1343,6 +1618,9 @@ export default function AnalyticsPage() {
               <Funnel steps={data.funnel} />
             </Card>
           </div>
+
+          {/* ── Sign-up funnel in detail (date range only — not narrowed by the filters) ── */}
+          <SignupFunnelSection rangeId={rangeId} />
 
           {/* ── Channels in depth ── */}
           <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16, marginBottom: 16 }}>

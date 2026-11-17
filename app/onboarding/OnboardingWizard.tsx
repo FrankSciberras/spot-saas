@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { completeOnboardingAction } from '@/lib/actions/org';
 import { FLEET_MODULES } from '@/lib/modules/catalog';
 import FleetIcon from '@/components/fleet/FleetIcon';
@@ -8,6 +8,7 @@ import { requiredPlanFor, type Plan, type PaidPlan, type PlanDef } from '@/lib/b
 import { promoHeadline, type TrialCopy } from '@/lib/billing/trial-offer';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
+import { ONBOARDING_PROGRESS_PATH } from '@/lib/analytics/signup-funnel';
 import styles from './onboarding.module.css';
 
 interface Range {
@@ -33,6 +34,23 @@ const Check = () => (
 
 const TOTAL_STEPS = 5;
 
+/**
+ * Tell the server this account reached an onboarding screen (1-based), so the
+ * admin can see where sign-ups stall. Fire-and-forget: it never delays the
+ * wizard, and a failure is simply a step that goes uncounted.
+ */
+function reportStep(step: number) {
+  // fetch rather than sendBeacon: the request passes through the session
+  // refresh in proxy.ts, and a refreshed session cookie must be kept.
+  fetch(ONBOARDING_PROGRESS_PATH, {
+    method: 'POST',
+    body: JSON.stringify({ step }),
+    keepalive: true,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'text/plain' },
+  }).catch(() => {});
+}
+
 const TITLES = [
   'Set up your fleet',
   'How many drivers?',
@@ -54,6 +72,14 @@ export default function OnboardingWizard({ plans, trial }: { plans: PlanDef[]; t
   const [error, setError] = useState('');
   const [pendingChoice, setPendingChoice] = useState<Plan | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Report each screen the first time it is shown (going Back doesn't repeat it).
+  const furthest = useRef(-1);
+  useEffect(() => {
+    if (step <= furthest.current) return;
+    furthest.current = step;
+    reportStep(step + 1);
+  }, [step]);
 
   const recommended: PaidPlan =
     drivers && vehicles ? requiredPlanFor(plans, drivers.max, vehicles.max) : plans[0]?.id ?? '';

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -16,7 +16,8 @@ import { safeInternalPath } from '@/lib/utils/safeRedirect';
 import RovoraThemeToggle from '@/components/marketing/RovoraThemeToggle';
 import PasswordInput from '@/components/shared/PasswordInput';
 import GoogleSignInButton from '@/components/shared/GoogleSignInButton';
-import { trackEvent } from '@/lib/analytics/client';
+import { trackEvent, trackSignupError, trackSignupStep } from '@/lib/analytics/client';
+import { PENDING_VERIFY_KEY, PENDING_VERIFY_MAX_AGE_MS } from '@/lib/analytics/signup-funnel';
 
 type Mode = 'login' | 'forgot' | 'signup' | 'confirm';
 
@@ -54,6 +55,39 @@ function formatWait(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
+/** Remember which address is waiting for its code, so a reload can restore the code screen. */
+function rememberPendingVerify(email: string, verifyType: SignupVerifyType) {
+  try {
+    sessionStorage.setItem(PENDING_VERIFY_KEY, JSON.stringify({ email, verifyType, at: Date.now() }));
+  } catch {
+    /* private mode / storage blocked — the screen just won't survive a reload */
+  }
+}
+
+function forgetPendingVerify() {
+  try {
+    sessionStorage.removeItem(PENDING_VERIFY_KEY);
+  } catch {
+    /* nothing to forget */
+  }
+}
+
+function readPendingVerify(): { email: string; verifyType: SignupVerifyType } | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_VERIFY_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { email?: unknown; verifyType?: unknown; at?: unknown };
+    if (typeof v.email !== 'string' || !v.email || typeof v.at !== 'number') return null;
+    if (Date.now() - v.at > PENDING_VERIFY_MAX_AGE_MS) {
+      forgetPendingVerify();
+      return null;
+    }
+    return { email: v.email, verifyType: v.verifyType === 'email' ? 'email' : 'signup' };
+  } catch {
+    return null;
+  }
+}
+
 function LoginPageContent() {
   const searchParams = useSearchParams();
   // Default to the dashboard resolver so signing in lands on the right dashboard,
@@ -86,6 +120,36 @@ function LoginPageContent() {
     if ((window as any).ReactNativeWebView) setInApp(true);
   }, []);
 
+  // Came back to a reloaded tab mid-verification (phones drop the page while
+  // you're in your email app): put the code screen back instead of an empty form.
+  useEffect(() => {
+    const pending = readPendingVerify();
+    if (!pending) return;
+    // sessionStorage only exists in the browser, so this can't be initial state:
+    // restoring once, right after mount, is the whole point of the effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEmail(pending.email);
+    setVerifyType(pending.verifyType);
+    setSuccessMessage(`Enter the code we emailed to ${pending.email}.`);
+    setMode('confirm');
+  }, []);
+
+  // Sign-up funnel (Admin → Analytics): the form was seen, and someone began it.
+  const formViewed = useRef(false);
+  const formStarted = useRef(false);
+  useEffect(() => {
+    if (mode !== 'signup' || formViewed.current) return;
+    // A reload that is about to restore the code screen isn't a fresh look at the form.
+    if (readPendingVerify()) return;
+    formViewed.current = true;
+    trackSignupStep('Form viewed');
+  }, [mode]);
+  const markFormStarted = (via: 'Email' | 'Google') => {
+    if (formStarted.current) return;
+    formStarted.current = true;
+    trackSignupStep('Form started', via);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -108,6 +172,7 @@ function LoginPageContent() {
             setSuccessMessage('Your email isn’t verified yet. Use “Resend code” to get a fresh one.');
             if (res.retryAfter) startResendCooldown(res.retryAfter);
           }
+          rememberPendingVerify(email.trim().toLowerCase(), res.verifyType ?? 'email');
           setMode('confirm');
           return;
         }
@@ -188,6 +253,7 @@ function LoginPageContent() {
     setError('');
     setSuccessMessage('');
     setLoading(true);
+    markFormStarted('Email');
     trackEvent('Signup started', { label: 'Email' });
 
     try {
@@ -197,11 +263,13 @@ function LoginPageContent() {
 
       if (!res.ok) {
         setError(res.error || 'Could not create the account. Please try again.');
+        trackSignupError(res.error, 'Email');
         return;
       }
 
       // Confirmation still disabled in Supabase — account is ready, sign in now.
       if (res.alreadyConfirmed) {
+        trackSignupStep('Email verified', 'Email');
         const supabase = createClient();
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
@@ -217,9 +285,12 @@ function LoginPageContent() {
       setSuccessMessage(`We emailed a verification code to ${email}.`);
       setMode('confirm');
       startResendCooldown(SIGNUP_RESEND_COOLDOWN);
+      rememberPendingVerify(email.trim().toLowerCase(), res.verifyType ?? 'signup');
+      trackSignupStep('Code sent', 'Email');
       return;
     } catch {
       setError('An unexpected error occurred. Please try again.');
+      trackSignupError(null, 'Email');
     } finally {
       setLoading(false);
     }
@@ -244,10 +315,14 @@ function LoginPageContent() {
             ? 'That code is invalid or has expired. Check the digits or resend a fresh code.'
             : verifyError?.message || 'Could not verify the code. Please try again.'
         );
+        // Nearly always a mistyped or stale code; anything else lands in "Other".
+        trackSignupError(verifyError?.message || 'code is invalid', 'Email');
         return;
       }
 
       // Verified AND signed in — straight into onboarding.
+      forgetPendingVerify();
+      trackSignupStep('Email verified', 'Email');
       window.location.assign('/onboarding');
       return;
     } catch {
@@ -268,12 +343,15 @@ function LoginPageContent() {
       const res = await resendSignupCodeAction(email);
       if (!res.ok) {
         setError(res.error || 'Could not send a new code. Please try again.');
+        trackSignupError(res.error, 'Email');
         if (res.retryAfter) startResendCooldown(res.retryAfter);
         return;
       }
       setVerifyType(res.verifyType ?? 'email');
       setSuccessMessage(`A fresh code is on its way to ${email}.`);
       startResendCooldown(SIGNUP_RESEND_COOLDOWN);
+      rememberPendingVerify(email.trim().toLowerCase(), res.verifyType ?? 'email');
+      trackSignupStep('Code resent', 'Email');
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -282,6 +360,8 @@ function LoginPageContent() {
   };
 
   const switchMode = (newMode: Mode) => {
+    // Leaving the code screen on purpose — don't drag them back to it on reload.
+    if (mode === 'confirm') forgetPendingVerify();
     setMode(newMode);
     setError('');
     setSuccessMessage('');
@@ -345,9 +425,18 @@ function LoginPageContent() {
               onStart={() => {
                 setError('');
                 setSuccessMessage('');
-                if (mode === 'signup') trackEvent('Signup started', { label: 'Google' });
+                if (mode === 'signup') {
+                  markFormStarted('Google');
+                  trackEvent('Signup started', { label: 'Google' });
+                }
               }}
-              onError={setError}
+              onSuccess={() => {
+                if (mode === 'signup') trackSignupStep('Email verified', 'Google');
+              }}
+              onError={(message) => {
+                setError(message);
+                if (mode === 'signup') trackSignupError(message, 'Google');
+              }}
             />
           )}
 
@@ -359,7 +448,10 @@ function LoginPageContent() {
                   id="signup-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    markFormStarted('Email');
+                  }}
                   placeholder="you@yourfleet.com"
                   required
                   autoComplete="email"

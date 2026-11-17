@@ -109,11 +109,13 @@ interface Props {
   redirectTo: string;
   /** Google handed us a token — clear stale errors/messages. */
   onStart?: () => void;
+  /** Signed in; called just before the page navigates away. */
+  onSuccess?: () => void;
   /** Sign-in failed; show this to the user. */
   onError: (message: string) => void;
 }
 
-export default function GoogleSignInButton({ intent, redirectTo, onStart, onError }: Props) {
+export default function GoogleSignInButton({ intent, redirectTo, onStart, onSuccess, onError }: Props) {
   const slot = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'busy' | 'unavailable'>(
     CLIENT_ID ? 'loading' : 'unavailable'
@@ -121,9 +123,9 @@ export default function GoogleSignInButton({ intent, redirectTo, onStart, onErro
 
   // Google keeps the callback from the last initialize(); read props through a
   // ref so it never acts on stale ones.
-  const latest = useRef({ redirectTo, onStart, onError });
+  const latest = useRef({ redirectTo, onStart, onSuccess, onError });
   useEffect(() => {
-    latest.current = { redirectTo, onStart, onError };
+    latest.current = { redirectTo, onStart, onSuccess, onError };
   });
 
   useEffect(() => {
@@ -150,6 +152,7 @@ export default function GoogleSignInButton({ intent, redirectTo, onStart, onErro
         fail(friendlyError(error.message));
         return;
       }
+      latest.current.onSuccess?.();
       // Hard navigation so the server sees the new session cookie. New accounts
       // have no fleet yet, and /dashboard routes those to onboarding.
       window.location.assign(latest.current.redirectTo);
