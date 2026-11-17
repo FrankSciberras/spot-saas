@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { submitInquiryAction } from '@/lib/actions/contact';
 import styles from './contact.module.css';
 
@@ -10,6 +10,21 @@ const TOPICS: { value: string; label: string }[] = [
   { value: 'partnership', label: 'Partnerships' },
   { value: 'other', label: 'Something else' },
 ];
+
+/**
+ * Links elsewhere point here with ?topic=… ("Book a walkthrough" in emails and
+ * on the set-up screen, "Book a demo" on the sign-up page). Map each onto a real
+ * topic and start the message for them, so booking is one tap, not a blank form.
+ */
+const LINK_TOPICS: Record<string, { topic: string; message?: string }> = {
+  demo: { topic: 'sales', message: 'I’d like a 15-minute demo of Rovora for my fleet.' },
+  onboarding: { topic: 'sales', message: 'I’d like a 15-minute walkthrough to set up my fleet on Rovora.' },
+  import: { topic: 'support', message: 'I’d like you to import my vehicles and drivers from a spreadsheet.' },
+  sales: { topic: 'sales' },
+  support: { topic: 'support' },
+  partnership: { topic: 'partnership' },
+  other: { topic: 'other' },
+};
 
 const FLEET_SIZES = ['1–5 vehicles', '6–15 vehicles', '16–50 vehicles', '50+ vehicles'];
 
@@ -23,6 +38,17 @@ export default function ContactForm({ defaultTopic = 'sales' }: { defaultTopic?:
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Read on the client so the page itself stays static (no searchParams).
+  useEffect(() => {
+    const form = formRef.current;
+    const wanted = LINK_TOPICS[new URLSearchParams(window.location.search).get('topic') ?? ''];
+    if (!form || !wanted) return;
+    const topic = form.elements.namedItem('topic') as HTMLSelectElement | null;
+    const message = form.elements.namedItem('message') as HTMLTextAreaElement | null;
+    if (topic) topic.value = wanted.topic;
+    if (message && wanted.message && !message.value) message.value = wanted.message;
+  }, []);
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -41,8 +41,8 @@ export function buildInactivityEmail(input: InactivityEmailInput): { subject: st
 
   const helpOptions = [
     { title: 'Reply to this email', description: 'Tell us what got in the way. A real person reads every reply, usually the same day.', href: `mailto:${process.env.CONTACT_INBOX || 'hello@rovora.eu'}` },
-    { title: 'Book a 15-minute walkthrough', description: 'We share our screen and set up your fleet with you, live.', href: url('/contact?topic=onboarding') },
-    { title: 'Send us your spreadsheet', description: "If your vehicles and drivers live in Excel today, we'll import them for you.", href: url('/contact?topic=import') },
+    { title: 'Book a 15-minute walkthrough', description: 'We share our screen and set up your fleet with you, live.', href: url('/contact?topic=onboarding#form') },
+    { title: 'Send us your spreadsheet', description: "If your vehicles and drivers live in Excel today, we'll import them for you.", href: url('/contact?topic=import#form') },
   ];
 
   const trialLine =
@@ -75,7 +75,7 @@ export function buildInactivityEmail(input: InactivityEmailInput): { subject: st
     sectionsHtml,
     actionUrl: nextStep.href,
     actionLabel: nextStep.title,
-    secondaryActionUrl: url('/contact?topic=onboarding'),
+    secondaryActionUrl: url('/contact?topic=onboarding#form'),
     secondaryActionLabel: 'Book a walkthrough',
     showLinkFallback: false,
     footnote:

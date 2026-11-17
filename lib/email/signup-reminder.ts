@@ -32,7 +32,7 @@ export function buildSignupReminderEmail(input: SignupReminderInput): { subject:
   const name = appName();
   const base = appUrl();
   const span = trialSpan(input.trialDays);
-  const demoUrl = `${base}/contact?topic=onboarding`;
+  const demoUrl = `${base}/contact?topic=onboarding#form`;
 
   let subject: string;
   let body: string;

@@ -139,7 +139,7 @@ export default function OnboardingForm({ trial }: { trial: TrialCopy }) {
         </form>
 
         <p className={styles.foot}>
-          Want us to set it up with you? <a href="/contact?topic=onboarding">Book a 15-minute walkthrough</a>
+          Want us to set it up with you? <a href="/contact?topic=onboarding#form">Book a 15-minute walkthrough</a>
         </p>
       </div>
     </div>
