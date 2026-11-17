@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type SignupVerifyType } from '@/lib/actions/auth-email';
+import { chatSessionReadyAction, chatSignupAction, chatVerifyCodeAction, resendSignupCodeAction, type SignupVerifyType } from '@/lib/actions/auth-email';
 import { submitChatLeadAction } from '@/lib/actions/contact';
-import { trackEvent } from '@/lib/analytics/client';
+import { trackEvent, trackSignupError, trackSignupStep } from '@/lib/analytics/client';
 import { SIGNUP_RESEND_COOLDOWN } from '@/lib/auth/email-limits';
 import { DEFAULT_TRIAL_OFFER, promoHeadline, trialCopy, type TrialCopy, type TrialOffer } from '@/lib/billing/trial-offer';
 
@@ -751,9 +751,44 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  // Sign-up funnel (Admin → Analytics): the chat is a third door into the same flow.
+  const started = useRef(false);
+  useEffect(() => {
+    trackSignupStep('Form viewed', 'Chat');
+  }, []);
+  function markStarted() {
+    if (started.current) return;
+    started.current = true;
+    trackSignupStep('Form started', 'Chat');
+  }
+
+  // Tapped the emailed link instead of typing the code? Carry on when they come back.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
+  useEffect(() => {
+    if (step !== 'code') return;
+    let moving = false;
+    const check = async () => {
+      if (moving || document.visibilityState !== 'visible') return;
+      if (!(await chatSessionReadyAction().catch(() => false)) || moving) return;
+      moving = true;
+      onDoneRef.current();
+      window.location.assign('/dashboard');
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, [step]);
+
   // Hand over to onboarding once the session cookie exists. A hard navigation so
   // the server re-runs with the new session rather than serving the cached page.
   function enterApp() {
+    trackSignupStep('Email verified', 'Chat');
     onDone();
     window.location.assign('/onboarding');
   }
@@ -763,16 +798,19 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
     setErr('');
     setBusy(true);
     try {
+      markStarted();
       trackEvent('Signup started', { label: 'Chat' });
       const res = await chatSignupAction(email, password);
-      if (res.error) { setErr(res.error); return; }
+      if (res.error) { setErr(res.error); trackSignupError(res.error, 'Chat'); return; }
       if (res.status === 'signed_in') { enterApp(); return; }
       setVerifyType(res.verifyType ?? 'signup');
-      setNote(`We've emailed a 6-digit code to ${email}.`);
+      setNote(`We've emailed ${email} a link and a 6-digit code — tap the link, or type the code here.`);
       setStep('code');
       setCooldown(SIGNUP_RESEND_COOLDOWN);
+      trackSignupStep('Code sent', 'Chat');
     } catch {
       setErr('Something went wrong. Please try again.');
+      trackSignupError(null, 'Chat');
     } finally {
       setBusy(false);
     }
@@ -784,7 +822,7 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
     setBusy(true);
     try {
       const res = await chatVerifyCodeAction(email, code, verifyType);
-      if (!res.ok) { setErr(res.error || 'Could not verify that code.'); return; }
+      if (!res.ok) { setErr(res.error || 'Could not verify that code.'); trackSignupError(res.error || 'code is invalid', 'Chat'); return; }
       enterApp();
     } catch {
       setErr('Something went wrong. Please try again.');
@@ -801,12 +839,14 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
       const res = await resendSignupCodeAction(email);
       if (!res.ok) {
         setErr(res.error || 'Could not send a new code.');
+        trackSignupError(res.error, 'Chat');
         if (res.retryAfter) setCooldown(res.retryAfter);
         return;
       }
       setVerifyType(res.verifyType ?? 'email');
       setNote(`A fresh code is on its way to ${email}.`);
       setCooldown(SIGNUP_RESEND_COOLDOWN);
+      trackSignupStep('Code resent', 'Chat');
     } finally {
       setBusy(false);
     }
@@ -832,7 +872,7 @@ function SignupPanel({ trial, onClose, onDone }: { trial: TrialCopy; onClose: ()
             className="chat-form-in"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); markStarted(); }}
             placeholder="you@yourfleet.com"
             autoComplete="email"
             required

@@ -1047,6 +1047,34 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site[data-theme='dark'] .auth-alert.err { color: #f0918a; }
 .rovora-site .auth-alert.ok { background: var(--pos-soft); border: 1px solid var(--accent-line); color: var(--pos); }
 
+/* Sign-up: the form card plus a "what you get" panel (app/login/SignupAside).
+   Side by side on wide screens; stacked, form first, on phones. */
+.rovora-site .auth-split { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 22px; }
+.rovora-site .auth-split .auth-card { max-width: none; }
+/* Taller than a phone screen, so it no longer centres: clear the Back link / theme toggle. */
+@media (max-width: 899px) { .rovora-site .auth-split { margin-top: 40px; } }
+.rovora-site .auth-aside { padding: 4px 4px 0; }
+.rovora-site .auth-aside-title { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 14px; color: var(--text-1); }
+.rovora-site .auth-aside-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+.rovora-site .auth-aside-list li { position: relative; padding-left: 26px; font-size: 14px; line-height: 1.5; color: var(--text-2); }
+.rovora-site .auth-aside-list li::before { content: ''; position: absolute; left: 0; top: 2px; width: 17px; height: 17px; border-radius: 50%; background: var(--pos-soft); }
+.rovora-site .auth-aside-list li::after { content: ''; position: absolute; left: 6px; top: 6px; width: 5px; height: 8px; border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.rovora-site .auth-aside-promo { display: inline-block; margin: 0 0 16px; padding: 6px 12px; border-radius: 99px; background: var(--pos-soft); border: 1px solid var(--accent-line); color: var(--pos); font-size: 13px; }
+.rovora-site .auth-aside-quote { margin: 22px 0 0; padding: 16px 18px; border-radius: 14px; background: var(--bg-1); border: 1px solid var(--line-2); }
+.rovora-site .auth-aside-quote blockquote { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--text-1); }
+.rovora-site .auth-aside-quote figcaption { margin-top: 10px; font-size: 13px; color: var(--text-3); }
+.rovora-site .auth-aside-quote figcaption strong { color: var(--text-2); font-weight: 500; }
+.rovora-site .auth-aside-demo { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line-2); }
+.rovora-site .auth-aside-demo p { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: var(--text-2); }
+.rovora-site .auth-aside-demo p strong { color: var(--text-1); font-weight: 500; }
+.rovora-site .auth-aside-demo .btn { width: 100%; }
+@media (min-width: 900px) {
+  .rovora-site .auth-split { max-width: 860px; flex-direction: row; align-items: center; gap: 56px; }
+  .rovora-site .auth-split .auth-card { flex: 0 0 420px; }
+  .rovora-site .auth-aside { flex: 1; padding: 0; }
+  .rovora-site .auth-aside-demo .btn { width: auto; }
+}
+
 /* ─── Entrance animation (first-time reveal on scroll) ─────────────
    Elements tagged .reveal start lowered + transparent and ease into
    place once RovoraReveal adds .is-in. --rd staggers grouped children.

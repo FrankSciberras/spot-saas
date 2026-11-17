@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { loadMemberships } from '@/lib/auth/org-context';
-import { getPlans } from '@/lib/billing/plans-data';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
-import OnboardingWizard from './OnboardingWizard';
+import OnboardingForm from './OnboardingForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +24,5 @@ export default async function OnboardingPage() {
     redirect('/');
   }
 
-  const [plans, trial] = await Promise.all([getPlans(), getTrialCopy()]);
-  return <OnboardingWizard plans={plans} trial={trial} />;
+  return <OnboardingForm trial={await getTrialCopy()} />;
 }
