@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { getFleetDetailsAction, updateSpeedLimitAction } from '@/lib/actions/fleet-details';
 import { LinkCard, PanelLoading, SettingsSection, ToggleCard, sendJson, type Notify } from './SettingsParts';
+import MapStartPicker from './MapStartPicker';
 import styles from './settings.module.css';
 
 type Tracking = { on: boolean; requireLocation: boolean };
@@ -103,6 +104,8 @@ export default function LiveMapSettings({ notify }: { notify: Notify }) {
       >
         <SpeedLimitCard notify={notify} />
       </SettingsSection>
+
+      <MapStartPicker notify={notify} />
 
       <SettingsSection title="Zones">
         <LinkCard

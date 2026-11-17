@@ -306,6 +306,8 @@ export const SETTINGS = {
     max: 85,
     step: 0.0001,
     unit: '°',
+    // Set by moving a map (MapStartPicker on the Live Map tab), not typed in.
+    ownPanel: true,
   },
   'tracking.map_center_lng': {
     scope: 'fleet',
@@ -322,6 +324,8 @@ export const SETTINGS = {
     max: 180,
     step: 0.0001,
     unit: '°',
+    // Set by moving a map (MapStartPicker on the Live Map tab), not typed in.
+    ownPanel: true,
   },
   'tracking.map_zoom': {
     scope: 'fleet',
@@ -338,6 +342,8 @@ export const SETTINGS = {
     max: 18,
     step: 1,
     unit: '',
+    // Set by moving a map (MapStartPicker on the Live Map tab), not typed in.
+    ownPanel: true,
   },
 
   // ---------------------------------------------------------------------------

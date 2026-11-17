@@ -161,3 +161,16 @@ export function canSeeNavItem(item: NavItem, opts: NavGateOptions): boolean {
   if (opts.role === 'driver' && opts.alsoStaff && item.roles.includes('staff')) return true;
   return item.roles.includes(opts.role);
 }
+
+/**
+ * The sidebar name of the fleet page a path belongs to ("Live Map" for
+ * /fleet/tracking/…), for links like Settings' "Back to Live Map".
+ */
+export function fleetPageName(path: string): string | null {
+  let best: NavItem | null = null;
+  for (const item of NAV_GROUPS.flatMap((g) => g.items)) {
+    const hit = item.href === '/fleet' ? path === '/fleet' : path === item.href || path.startsWith(`${item.href}/`);
+    if (hit && (!best || item.href.length > best.href.length)) best = item;
+  }
+  return best?.name ?? null;
+}

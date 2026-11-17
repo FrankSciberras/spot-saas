@@ -9,6 +9,9 @@ import { useEnabledModules } from '@/components/fleet/FleetModulesProvider';
 import { SessionUser } from '@/lib/types/database';
 import { settingsForTab } from '@/lib/settings/catalog';
 import { SETTINGS_TABS, type SettingsTabKey } from '@/lib/settings/types';
+import { safeReturnPath, settingsHref } from '@/lib/settings/pages';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
+import { fleetPageName } from '@/components/fleet/navConfig';
 import CatalogSettings from './CatalogSettings';
 import BrandingSettings from './BrandingSettings';
 import FleetDetailsSettings from './FleetDetailsSettings';
@@ -62,7 +65,9 @@ const PANELS: Partial<Record<TabKey, { Panel: ComponentType<PanelProps>; catalog
   preferences: { Panel: PreferencesSettings, ownSections: ['Appearance'] },
 };
 
-const hrefFor = (key: TabKey, first: TabKey) => (key === first ? '/fleet/settings' : `/fleet/settings?tab=${key}`);
+/** Tab link; keeps ?from= so "Back to …" survives switching tabs. */
+const hrefFor = (key: TabKey, first: TabKey, from: string | null) =>
+  key === first && !from ? '/fleet/settings' : settingsHref(key, from);
 
 export default function SettingsPage() {
   return (
@@ -115,6 +120,9 @@ function SettingsContent() {
   const first = tabs[0].key;
   const requested = searchParams.get('tab');
   const active: TabKey = tabs.find((t) => t.key === requested)?.key ?? first;
+  // Came here from a page's gear (lib/settings/pages.ts): offer the way back.
+  const from = safeReturnPath(searchParams.get('from'));
+  const fromName = from ? fleetPageName(from) : null;
   const panel = PANELS[active];
   const Panel = panel?.Panel;
   const catalog = <CatalogSettings tab={active} isAdmin={isAdmin} notify={notify} skipSections={panel?.ownSections} />;
@@ -122,6 +130,7 @@ function SettingsContent() {
   return (
     <FleetShell user={user} title="Settings">
       <div className={styles.container}>
+        {from && <FleetBackLink href={from} label={`Back to ${fromName ?? 'previous page'}`} />}
         <div className={`${styles.header} header-mobile-row`}>
           <div>
             <div className={styles.breadcrumb}>Admin / Settings</div>
@@ -136,7 +145,7 @@ function SettingsContent() {
           {tabs.map((t) => (
             <Link
               key={t.key}
-              href={hrefFor(t.key, first)}
+              href={hrefFor(t.key, first, from)}
               className={styles.tab}
               data-active={active === t.key ? 'true' : undefined}
               aria-current={active === t.key ? 'page' : undefined}

@@ -646,3 +646,44 @@ input:checked + .toggleSlider:before {
 .settingContent > .settingMeta {
   margin-top: 8px;
 }
+
+/* Live Map → starting view picker */
+.mapPicker {
+  position: relative;
+  /* Keep Leaflet's own z-indexes (400+) inside the box, under the sticky top bar. */
+  isolation: isolate;
+  z-index: 0;
+  height: 300px;
+  margin-top: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.mapPickerBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mapPickerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .mapPicker {
+    height: 240px;
+  }
+  .mapPickerActions {
+    width: 100%;
+  }
+  .mapPickerActions > * {
+    flex: 1 1 auto;
+  }
+}
