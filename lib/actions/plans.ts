@@ -61,6 +61,14 @@ export interface PlanInput {
   apiRateLimitPerDay?: number | null;
   /** How many live API keys a fleet on this tier may hold. */
   apiMaxKeys?: number;
+  /** Does this tier include Rovora AI? */
+  aiEnabled?: boolean;
+  /** Rovora AI allowance per fleet per month, in euros. */
+  aiMonthlyBudgetEur?: number;
+  /** Rovora AI questions per minute, per person. */
+  aiRateLimitPerMin?: number;
+  /** Rovora AI questions per day, per person. */
+  aiRateLimitPerDay?: number;
 }
 
 /** Map a PlanInput to DB columns, omitting undefined keys (partial updates). */
@@ -90,6 +98,18 @@ function toColumns(input: PlanInput): Record<string, unknown> {
   if (input.apiRateLimitPerMin !== undefined) col.api_rate_limit_per_min = input.apiRateLimitPerMin;
   if (input.apiRateLimitPerDay !== undefined) col.api_rate_limit_per_day = input.apiRateLimitPerDay;
   if (input.apiMaxKeys !== undefined) col.api_max_keys = input.apiMaxKeys ?? 0;
+  // Rovora AI — clamped to the DB CHECK (plans_ai_limits_valid) so a typo can't fail the save.
+  const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+  if (input.aiEnabled !== undefined) col.ai_enabled = input.aiEnabled;
+  if (input.aiMonthlyBudgetEur !== undefined && Number.isFinite(input.aiMonthlyBudgetEur)) {
+    col.ai_monthly_budget_eur = Math.round(clamp(input.aiMonthlyBudgetEur, 0, 10000) * 100) / 100;
+  }
+  if (input.aiRateLimitPerMin !== undefined && Number.isFinite(input.aiRateLimitPerMin)) {
+    col.ai_rate_limit_per_min = Math.round(clamp(input.aiRateLimitPerMin, 1, 600));
+  }
+  if (input.aiRateLimitPerDay !== undefined && Number.isFinite(input.aiRateLimitPerDay)) {
+    col.ai_rate_limit_per_day = Math.round(clamp(input.aiRateLimitPerDay, 1, 100000));
+  }
   return col;
 }
 

@@ -23,7 +23,14 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const SCAN_DIRS = [path.join(ROOT, 'app', 'api', 'v1'), path.join(ROOT, 'lib', 'api')];
+const SCAN_DIRS = [
+  path.join(ROOT, 'app', 'api', 'v1'),
+  path.join(ROOT, 'lib', 'api'),
+  // Rovora AI: the assistant's tools read fleet data on the model's behalf, so
+  // every query there must be pinned to the asking fleet as well.
+  path.join(ROOT, 'lib', 'assistant'),
+  path.join(ROOT, 'app', 'api', 'assistant'),
+];
 
 /**
  * Tables with no organization_id column — global catalogues and the API's own

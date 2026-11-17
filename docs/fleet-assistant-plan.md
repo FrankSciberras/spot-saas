@@ -40,7 +40,7 @@ FleetTopbar "Ask AI" ─► AssistantDrawer ─► POST /api/assistant (stream)
 | D2 | Who can use it | **Admins and staff.** Staff get operations answers only (drivers, vehicles, shifts, rosters, services, damages, reminders, safety). **Money answers (bookkeeping, financials, Bolt, settlements) are admin-only**, matching the dashboard's page gates. A later fleet setting can let staff ask about money. |
 | D3 | Read-only v1 | Yes. No tool can change data. Actions (create reminder, message a driver) come in phase 3 with an explicit confirm button. |
 | D4 | Rollout | New module `assistant` in `lib/modules/catalog.ts`, **off by default** during beta; switched on for the demo fleet and pilot customers. |
-| D5 | Cost control | Per-user rate limit (Postgres-backed, like `api_rate_limit_consume`) + a monthly question cap per fleet. Free during beta; price it after we see usage. |
+| D5 | Cost control | **Built — see §5a.** Monthly € allowance per fleet set per plan tier, per-person questions/min and /day, a per-question € ceiling and a platform-wide monthly € ceiling. All enforced atomically in Postgres before the model is called. |
 | D6 | Privacy | Update `app/privacy/page.tsx` before launch — it currently says OpenAI gets "no fleet, driver or location data ever". Tools never send ID/licence numbers, phone, address, email or photos. |
 
 ## 3. Tools (v1)
@@ -98,12 +98,49 @@ it never guesses numbers.
 `supabase/migrations/20261118_fleet_assistant.sql` (idempotent; **Frank runs it
 in the Supabase SQL editor** — sessions never apply migrations):
 
+- `plans.ai_enabled`, `ai_monthly_budget_eur`, `ai_rate_limit_per_min`, `ai_rate_limit_per_day`
 - `assistant_conversations` (id, organization_id, user_id, title, created_at, updated_at)
 - `assistant_messages` (id, conversation_id, organization_id, role, content,
-  tool_calls jsonb, model, tokens_in, tokens_out, feedback smallint, created_at)
-- RLS: a user sees only their own conversations, within their org. 90-day retention.
+  sources jsonb, tools_used, usage_id, feedback, created_at)
+- `assistant_usage`: the spend ledger, one row per question: tokens, model, € cost, status
+- `assistant_usage_begin()` (the gate) and `assistant_usage_summary()` (month total)
+- RLS: a user sees only their own conversations, within their org. The ledger
+  is server-only. Chat history is kept 90 days, the ledger 400 days.
+- Tested on a throwaway Postgres 16: idempotent re-run; per-minute, per-day,
+  budget and platform limits; stale reservations; 8 concurrent questions
+  against a budget with room for 2, of which exactly 2 got through.
 - Questions are **not** written to `audit_logs` (its `action` CHECK only allows
   create/update/delete and it skips admins).
+
+## 5a. Spending limits (built in step 1)
+
+Every question passes one atomic gate, `assistant_usage_begin()`, **before**
+the model is called. It locks the fleet so simultaneous questions can't
+squeeze past the cap together, then checks, in order:
+
+| Limit | Default | Where it's set |
+|---|---|---|
+| Questions / minute / person | Starter 4 · Pro 6 · Fleet 10 · Enterprise 15 · free period 4 | `plans.ai_rate_limit_per_min` (/admin → Packages) |
+| Questions / day / person | Starter 30 · Pro 80 · Fleet 200 · Enterprise 500 · free period 30 | `plans.ai_rate_limit_per_day` |
+| **€ / fleet / calendar month** | **Starter €1 · Pro €4 · Fleet €12 · Enterprise €40 · free period €1** | `plans.ai_monthly_budget_eur`; free period via `FLEET_ASSISTANT_TRIAL_*` env |
+| € / question (hard ceiling) | €0.05 | `FLEET_ASSISTANT_MAX_EUR_PER_QUESTION` |
+| € / month across ALL fleets | €100 | `FLEET_ASSISTANT_PLATFORM_BUDGET_EUR` |
+
+How the euro figures stay true:
+- The gate **reserves** the per-question ceiling first. Before each model call the
+  runner works out the most that call could cost and refuses to make it if the
+  question would go over. Afterwards the real token usage OpenAI reports
+  replaces the reservation (`assistant_usage` ledger, one row per question).
+- Prices live in `lib/assistant/pricing.ts` (USD per 1M tokens). An unknown model
+  means the assistant **refuses to run**: it can't hold a € budget for a price
+  it doesn't know. USD→EUR defaults to 1.0, which errs on the safe side.
+- A request that crashes keeps counting at its full reservation. A stream with
+  no usage report is charged the pessimistic estimate. Fleets are never
+  under-counted.
+- A typical question costs well under 1 cent on `gpt-4.1-mini`, so €1 is roughly 150+
+  questions.
+- Admins get answers with € figures ("used €3.10 of €4.00, renews 1 Dec"); staff
+  only see the percentage. `GET /api/assistant/usage` serves both.
 
 ## 6. UI
 
