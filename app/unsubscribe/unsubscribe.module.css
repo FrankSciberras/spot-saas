@@ -1,0 +1,134 @@
+/* Public email-preferences page. Matches the /thank-you card styling. */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f6fb;
+  padding: 48px 16px;
+  font-family: var(--font-geist, ui-sans-serif, system-ui, sans-serif);
+  color: #0f172a;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border: 1px solid #e3e8f1;
+  border-radius: 16px;
+  padding: 36px 28px 30px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.logo {
+  height: 32px;
+  width: auto;
+  display: block;
+  margin: 0 auto 24px;
+}
+
+.tick {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: #e7f6ee;
+  color: #1a8f5a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tick svg {
+  width: 28px;
+  height: 28px;
+}
+
+.card h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+
+.card p {
+  margin: 0 0 24px;
+  color: #5b667d;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.card p a {
+  color: #1a8f5a;
+}
+
+.email {
+  color: #0f172a;
+  font-weight: 600;
+  /* Break a long address only when it can't fit on a line. */
+  overflow-wrap: anywhere;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn,
+.btnGhost {
+  font: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 10px;
+  padding: 11px 26px;
+  cursor: pointer;
+}
+
+.btn {
+  background: #1a8f5a;
+  color: #fff;
+  border: 1px solid #1a8f5a;
+}
+
+.btn:hover {
+  background: #157a4c;
+}
+
+.btnGhost {
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #d5dbe6;
+}
+
+.btnGhost:hover {
+  background: #f4f6fb;
+}
+
+.btn:focus-visible,
+.btnGhost:focus-visible {
+  outline: 2px solid #1a8f5a;
+  outline-offset: 2px;
+}
+
+.hint {
+  font-size: 13px;
+  color: #8a94a8;
+}
+
+.notice {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #e7f6ee;
+  color: #14784a;
+  font-size: 14px;
+}
+
+.noticeError {
+  background: #fdecec;
+  color: #b42318;
+}

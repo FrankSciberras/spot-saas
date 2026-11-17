@@ -147,6 +147,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="9.5" r="1.8" /><path d="M21 16l-5-5-9 9" /></svg>;
     case 'bell-off':
       return <svg {...props}><path d="M8.7 4.1A6 6 0 0 1 18 9c0 2.4.5 4 1 5M6.2 6.6A6 6 0 0 0 6 9c0 5-2 6-2 6h11" /><path d="M10 19a2 2 0 0 0 4 0" /><path d="M3 3l18 18" /></svg>;
+    case 'mail':
+      return <svg {...props}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3.5 6.5l8.5 6.5 8.5-6.5" /></svg>;
     case 'megaphone':
       return <svg {...props}><path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z" /><path d="M17 8.5a5 5 0 0 1 0 7" /></svg>;
     case 'logo':
