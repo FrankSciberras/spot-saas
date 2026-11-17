@@ -154,14 +154,33 @@ interface SignupCodeResult {
   alreadyConfirmed?: boolean;
 }
 
-async function sendCodeEmail(to: string, code: string): Promise<boolean> {
+/**
+ * One-tap verification link for the code email. Points at our own
+ * /auth/confirm page (never the raw <project>.supabase.co verify URL, which
+ * looks like phishing), with the token in the URL FRAGMENT: a fragment is never
+ * sent to a server, never appears in a Referer, and analytics tools don't
+ * record it. The page asks for one tap before using the token, so mail
+ * scanners that open every link can't burn it.
+ */
+function verifyLink(props: { hashed_token?: string; verification_type?: string } | undefined): string | null {
+  if (!props?.hashed_token) return null;
+  const type = props.verification_type === 'magiclink' ? 'magiclink' : 'signup';
+  return `${appUrl()}/auth/confirm#token=${encodeURIComponent(props.hashed_token)}&type=${type}`;
+}
+
+async function sendCodeEmail(to: string, code: string, link: string | null): Promise<boolean> {
   const html = renderBrandedEmail({
     heading: 'Verify your email',
-    preheader: `${code} is your ${appName()} verification code.`,
-    body: `Welcome to ${appName()}! Enter this code on the sign-up screen to verify your email address:`,
+    preheader: link
+      ? `Tap to verify your ${appName()} account — or use the code ${code}.`
+      : `${code} is your ${appName()} verification code.`,
+    body: link
+      ? `Welcome to ${appName()}! Tap the button to verify your email address and carry on setting up your fleet.`
+      : `Welcome to ${appName()}! Enter this code on the sign-up screen to verify your email address:`,
+    ...(link ? { actionUrl: link, actionLabel: 'Verify my email', actionFirst: true, codeLabel: 'Or type this code on the sign-up screen:', showLinkFallback: false } : {}),
     code,
     footnote:
-      `The code is single-use and expires shortly. ` +
+      `The ${link ? 'link and code are' : 'code is'} single-use and expire${link ? '' : 's'} shortly. ` +
       `If you didn't create a ${appName()} account, you can safely ignore this email.`,
   });
   return sendEmail({ to, subject: `${code} is your ${appName()} verification code`, html });
@@ -202,7 +221,7 @@ export async function requestSignupCodeAction(email: string, password: string): 
 
   const otp = data?.properties?.email_otp;
   if (!error && otp) {
-    const sent = await sendCodeEmail(clean, otp);
+    const sent = await sendCodeEmail(clean, otp, verifyLink(data?.properties));
     if (!sent) return { ok: false, error: 'Could not send the verification email. Please try again.' };
     return { ok: true, verifyType: 'signup' };
   }
@@ -245,7 +264,7 @@ async function deliverFreshCode(admin: AdminClient, clean: string): Promise<Sign
     return { ok: false, error: 'Could not send a new code. Please try again.' };
   }
 
-  const sent = await sendCodeEmail(clean, otp);
+  const sent = await sendCodeEmail(clean, otp, verifyLink(data?.properties));
   if (!sent) return { ok: false, error: 'Could not send the verification email. Please try again.' };
   return { ok: true, verifyType: 'email' };
 }
@@ -290,6 +309,19 @@ export async function chatSignupAction(email: string, password: string): Promise
   }
 
   return { status: 'code', verifyType: res.verifyType ?? 'signup' };
+}
+
+/**
+ * Whether this browser now has a session — the chat's code screen asks when
+ * the visitor comes back to the tab, in case they tapped the emailed link
+ * instead of typing the code.
+ */
+export async function chatSessionReadyAction(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return !!user;
 }
 
 /**

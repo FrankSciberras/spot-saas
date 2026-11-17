@@ -92,6 +92,13 @@ export interface BrandedEmailOptions {
    * Rendered as a panel rather than buried mid-paragraph.
    */
   code?: string;
+  /** Small line above the code panel, e.g. "Or enter this code". */
+  codeLabel?: string;
+  /**
+   * Put the button above the code panel instead of below it — for emails where
+   * the link is the easy path and the code the fallback (signup verification).
+   */
+  actionFirst?: boolean;
   /** Inbox preview line. Defaults to the opening of the body. */
   preheader?: string;
   /** Optional small print under the card. */
@@ -175,8 +182,12 @@ export function renderBrandedEmail(opts: BrandedEmailOptions): string {
     ? `<p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BRAND.text1};font-weight:600;">${escapeHtml(opts.greeting)}</p>`
     : '';
 
-  const codeBlock = opts.code
+  const codeLabel = opts.code && opts.codeLabel
     ? `
+              <p style="margin:${opts.actionFirst ? '24px' : '0'} 0 8px;font-family:${FONT};font-size:13px;line-height:1.5;color:${BRAND.text3};">${escapeHtml(opts.codeLabel)}</p>`
+    : '';
+  const codeBlock = opts.code
+    ? `${codeLabel}
               <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin:4px 0 22px;">
                 <tr>
                   <td align="center" style="background:${BRAND.panelBg};border:1px solid ${BRAND.line};border-radius:12px;padding:20px 16px;">
@@ -268,9 +279,10 @@ export function renderBrandedEmail(opts: BrandedEmailOptions): string {
               <h1 class="rv-h1" style="margin:0 0 18px;font-family:${FONT};font-size:22px;line-height:1.3;font-weight:700;letter-spacing:-0.01em;color:${BRAND.text1};">${escapeHtml(opts.heading)}</h1>
               ${greeting}
               ${paragraphs}
-              ${codeBlock}
+              ${opts.actionFirst ? '' : codeBlock}
               ${sections}
               ${button}
+              ${opts.actionFirst ? codeBlock : ''}
               ${linkFallback}
             </td>
           </tr>

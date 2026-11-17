@@ -2,7 +2,7 @@
 // FLEET MODULES CATALOG — the "apps" / plugins system
 // =============================================================================
 // Single source of truth for the product features a fleet operator can switch on
-// or off for their workspace. Shown during onboarding ("Choose your tools") and
+// or off for their workspace. All start switched on for a new fleet; managed from Integrations and
 // managed from /fleet/integrations ("Your modules"). Enabled/disabled state is
 // stored per fleet in the org_modules table as OVERRIDES only — so adding a NEW
 // module here needs NO database migration: build its pages, add one entry below,

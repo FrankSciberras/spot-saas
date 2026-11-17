@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { isPlatformAdmin } from '@/lib/auth/platform';
 import { buildInactivityEmail } from '@/lib/email/inactivity';
 import { buildWelcomeEmail } from '@/lib/email/welcome';
+import { buildSignupReminderEmail } from '@/lib/email/signup-reminder';
+import { buildTrialEmail } from '@/lib/email/trial-ending';
 
 /**
  * GET /api/admin/email-preview?kind=inactivity|welcome&variant=new|partial
+ *     …or kind=signup-reminder&variant=unverified|no-fleet|last
+ *     …or kind=trial&variant=ending|ended|empty
  * Renders a lifecycle email with sample data so it can be checked in a
  * browser. Platform admins only.
  */
@@ -23,7 +27,25 @@ export async function GET(request: Request) {
 
   const sample = { fullName: 'Frank Sciberras', fleetName: 'Harbour Cabs' };
   const email =
-    kind === 'welcome'
+    kind === 'trial'
+      ? buildTrialEmail({
+          to: 'preview@example.com',
+          ...sample,
+          stage: variant === 'ended' ? 'ended' : 'ending',
+          endsAt: new Date(Date.now() + (variant === 'ended' ? -1 : 3) * 86_400_000).toISOString(),
+          vehicles: variant === 'empty' ? 0 : 8,
+          drivers: variant === 'empty' ? 0 : 11,
+          plan: { name: 'Growth', price: '€79 / mo', custom: false },
+        })
+      : kind === 'signup-reminder'
+      ? buildSignupReminderEmail({
+          to: 'preview@example.com',
+          stage: variant === 'unverified' ? 'unverified' : 'no_fleet',
+          round: variant === 'last' ? 2 : 1,
+          step: variant === 'unverified' ? null : 3,
+          trialDays: 30,
+        })
+      : kind === 'welcome'
       ? buildWelcomeEmail({ to: 'preview@example.com', ...sample, onTrial: true })
       : buildInactivityEmail(
           variant === 'partial'

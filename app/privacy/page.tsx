@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '28 October 2026';
+const LAST_UPDATED = '17 November 2026';
 
 export default function PrivacyPage() {
   return (
@@ -97,7 +97,7 @@ export default function PrivacyPage() {
                   <tbody>
                     <tr>
                       <td>Account &amp; identity</td>
-                      <td>Name, email address, password (stored only as a salted hash), role and fleet membership. If you choose “Sign in with Google”, Google shares your name, email address and profile picture with us instead of a password — we never see your Google password or anything else in your Google account</td>
+                      <td>Name, email address, password (stored only as a salted hash), role and fleet membership, and — while you are creating your account — which set-up step you have reached. If you choose “Sign in with Google”, Google shares your name, email address and profile picture with us instead of a password — we never see your Google password or anything else in your Google account</td>
                       <td>To create accounts, authenticate users and control access</td>
                     </tr>
                     <tr>
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
                     </tr>
                     <tr>
                       <td>Website analytics</td>
-                      <td>On our public website only: the pages you view, how you arrived (the referring site, or the campaign tag on the link you followed), your approximate country (from your device&rsquo;s time zone, or from our network provider when it supplies one), device type, browser and language, time spent on each page and how far you scrolled, and clicks on key links such as &ldquo;Start free trial&rdquo;. If you sign up or send us a message, the channel that brought you (for example &ldquo;Google search&rdquo;) is recorded against that signup or enquiry. See <a href="#cookies">Cookies and website analytics</a></td>
+                      <td>On our public website only: the pages you view, how you arrived (the referring site, or the campaign tag on the link you followed), your approximate country (from your device&rsquo;s time zone, or from our network provider when it supplies one), device type, browser and language, time spent on each page and how far you scrolled, clicks on key links such as &ldquo;Start free trial&rdquo;, and which steps of the sign-up form you complete or get an error on (never what you type). If you sign up or send us a message, the channel that brought you (for example &ldquo;Google search&rdquo;) is recorded against that signup or enquiry. See <a href="#cookies">Cookies and website analytics</a></td>
                       <td>To understand how people find and use our website, and which of our marketing works</td>
                     </tr>
                     <tr>

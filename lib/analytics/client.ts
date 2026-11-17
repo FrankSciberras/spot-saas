@@ -14,6 +14,7 @@
 
 import { isAppRoute } from '@/lib/routes';
 import { CAMPAIGN_PARAMS, COLLECT_PATH, CONSENT_CHANGE_EVENT, CONSENT_COOKIE, CONSENT_MAX_AGE, IGNORE_COOKIE } from './constants';
+import { SIGNUP_ERROR_EVENT, SIGNUP_STEP_EVENT, signupErrorKind, type SignupStepId } from './signup-funnel';
 
 type Props = Record<string, string | number | boolean>;
 
@@ -176,11 +177,33 @@ export function trackPageview(path: string) {
 }
 
 /** Record an interaction, e.g. trackEvent('Chat opened'). */
-export function trackEvent(name: string, props: Props = {}) {
+export function trackEvent(name: string, props: Props = {}, opts: { path?: string } = {}) {
   if (!trackingEnabled()) return;
-  const path = current?.path ?? window.location.pathname;
+  const path = opts.path ?? current?.path ?? window.location.pathname;
   if (!trackablePath(path)) return;
   send({ t: 'event', n: name, p: path, pr: props });
+}
+
+/**
+ * One step of the sign-up form / code screen (see lib/analytics/signup-funnel).
+ * `via` says which door they used, so email, Google and chat can be compared.
+ */
+export function trackSignupStep(
+  step: SignupStepId,
+  via: 'Email' | 'Google' | 'Chat' | null = null,
+  extra: { how?: 'link' | 'code'; path?: string } = {},
+) {
+  const props: Props = via ? { label: step, via } : { label: step };
+  if (extra.how) props.how = extra.how;
+  // The emailed link lands on /auth/confirm, which analytics never records —
+  // that step is filed under the sign-up page it belongs to.
+  trackEvent(SIGNUP_STEP_EVENT, props, extra.path ? { path: extra.path } : {});
+}
+
+/** A sign-up attempt that failed, sorted into a fixed kind — never the raw text. */
+export function trackSignupError(message: string | null | undefined, via: 'Email' | 'Google' | 'Chat' | null = null) {
+  const kind = signupErrorKind(message);
+  trackEvent(SIGNUP_ERROR_EVENT, via ? { label: kind, via } : { label: kind });
 }
 
 // ── Page lifecycle wiring (installed once by <SiteAnalytics />) ──

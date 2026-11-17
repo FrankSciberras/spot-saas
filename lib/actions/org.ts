@@ -64,7 +64,9 @@ export async function setActiveOrgAction(organizationId: string): Promise<{ erro
 
 /**
  * Self-serve onboarding: create a new fleet, make the caller its admin, and
- * optionally activate a paid plan in the same step. Backed by the
+ * optionally activate a paid plan in the same step. (The set-up screen always
+ * starts the free trial with every tool on; `plan` and `disabledModules` remain
+ * for callers that choose them up front.) Backed by the
  * create_organization_with_owner() SECURITY DEFINER RPC (the new fleet starts on
  * the free trial currently on offer); when `plan` is a paid tier we immediately move it onto that
  * tier via set_organization_plan() (a stub for Stripe — see lib/actions/billing).
