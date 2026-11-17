@@ -90,6 +90,19 @@ export const FLEET_MODULES: FleetModule[] = [
     routePrefixes: ['/fleet/rosters', '/fleet/shifts'],
   },
   {
+    key: 'messaging',
+    name: 'Messages',
+    tagline: 'Chat with your drivers',
+    description:
+      'Direct chats and group chats between managers and drivers — photos, files, read receipts and announcement groups. Drivers join and leave automatically with the fleet, so you can retire the WhatsApp group.',
+    icon: 'chat',
+    category: 'Operations',
+    status: 'available',
+    defaultEnabled: true,
+    navIds: ['messages'],
+    routePrefixes: ['/fleet/messages'],
+  },
+  {
     key: 'tracking',
     name: 'Live Tracking',
     tagline: 'See drivers on a map',

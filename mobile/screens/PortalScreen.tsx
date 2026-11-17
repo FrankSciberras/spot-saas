@@ -17,7 +17,14 @@ import {
   type TrackingContext,
 } from '../lib/locationTask';
 import { startMotionDetection } from '../lib/motionDetector';
-import { registerShiftCheck, rememberDriver, setupNotifications } from '../lib/reminders';
+import * as Notifications from 'expo-notifications';
+import {
+  forgetPushToken,
+  getPushToken,
+  registerShiftCheck,
+  rememberDriver,
+  setupNotifications,
+} from '../lib/reminders';
 import { colors } from '../lib/theme';
 
 const PORTAL_URL = process.env.EXPO_PUBLIC_PORTAL_URL || 'https://rovora.eu/driver';
@@ -66,6 +73,45 @@ export default function PortalScreen() {
   const showModal = useCallback((reason: ModalReason | null) => {
     modalReasonRef.current = reason;
     setModalReason(reason);
+  }, []);
+
+  // ---- Notifications → open the page they point at (e.g. a chat) ----------
+  const portalLoadedRef = useRef(false);
+  const pendingPathRef = useRef<string | null>(null);
+  const openPortalPath = useCallback((path: unknown) => {
+    // Same-site paths only ("/driver/messages?c=…"), never another site.
+    if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) return;
+    if (!portalLoadedRef.current) {
+      pendingPathRef.current = path;
+      return;
+    }
+    webViewRef.current?.injectJavaScript(`window.location.assign(${JSON.stringify(path)}); true;`);
+  }, []);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      openPortalPath(response.notification.request.content.data?.url);
+    });
+    // Opened from a notification while the app was closed.
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!response) return;
+        openPortalPath(response.notification.request.content.data?.url);
+        return Notifications.clearLastNotificationResponseAsync();
+      })
+      .catch(() => {});
+    return () => sub.remove();
+  }, [openPortalPath]);
+
+  /** Link this phone to the signed-in account for instant chat notifications. */
+  const registerPush = useCallback(async () => {
+    const token = await getPushToken();
+    if (!token) return; // this build has no push credentials yet
+    // Posted from inside the portal so the website's own sign-in identifies the user.
+    const body = JSON.stringify({ token, platform: Platform.OS });
+    webViewRef.current?.injectJavaScript(
+      `fetch('/api/push/device', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: ${JSON.stringify(body)} }).catch(function () {}); true;`
+    );
   }, []);
 
   const sendStatus = useCallback(async (extraError?: string) => {
@@ -336,7 +382,7 @@ export default function PortalScreen() {
               };
               // Background shift checks (reminders, fleet alerts) need it too.
               void rememberDriver(msg.driver_id, msg.organization_id ?? null);
-              void setupNotifications().then(registerShiftCheck);
+              void setupNotifications().then(registerShiftCheck).then(registerPush);
             }
             {
               const liveTracking = (msg as Record<string, unknown>).live_tracking;
@@ -346,6 +392,7 @@ export default function PortalScreen() {
             void remindIfOnShift();
             break;
           case 'signed-out':
+            await forgetPushToken(portalOrigin);
             await handleStop();
             await supabase.auth.signOut();
             break;
@@ -374,7 +421,7 @@ export default function PortalScreen() {
         // ignore malformed messages
       }
     },
-    [handleStart, handleStop, remindIfOnShift, sendStatus, showModal]
+    [handleStart, handleStop, remindIfOnShift, sendStatus, showModal, registerPush]
   );
 
   return (
@@ -383,7 +430,15 @@ export default function PortalScreen() {
         ref={webViewRef}
         source={{ uri: PORTAL_URL }}
         style={styles.web}
-        onLoadEnd={() => setLoading(false)}
+        onLoadEnd={() => {
+          setLoading(false);
+          portalLoadedRef.current = true;
+          const pending = pendingPathRef.current;
+          if (pending) {
+            pendingPathRef.current = null;
+            openPortalPath(pending);
+          }
+        }}
         onNavigationStateChange={(nav) => {
           canGoBackRef.current = nav.canGoBack;
         }}

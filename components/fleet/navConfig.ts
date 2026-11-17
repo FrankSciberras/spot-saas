@@ -22,7 +22,13 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
-  { label: null, items: [{ id: 'dashboard', name: 'Dashboard', href: '/fleet', icon: 'dashboard' }] },
+  {
+    label: null,
+    items: [
+      { id: 'dashboard', name: 'Dashboard', href: '/fleet', icon: 'dashboard' },
+      { id: 'messages', name: 'Messages', href: '/fleet/messages', icon: 'chat' },
+    ],
+  },
   {
     label: 'Operations',
     items: [
@@ -70,7 +76,14 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const DRIVER_NAV_GROUPS: NavGroup[] = [
-  { label: null, items: [{ id: 'dashboard', name: 'Dashboard', href: '/driver', icon: 'dashboard' }] },
+  {
+    label: null,
+    items: [
+      { id: 'dashboard', name: 'Dashboard', href: '/driver', icon: 'dashboard' },
+      // Hidden by FleetSidebar when the fleet has Messages switched off.
+      { id: 'messages', name: 'Messages', href: '/driver/messages', icon: 'chat' },
+    ],
+  },
   {
     label: 'Work',
     items: [
@@ -114,12 +127,16 @@ export const BOTTOM_TAB_FALLBACKS: NavItem[] = [
 ];
 
 // Two tabs each side of the centre Go-online button (+ "More"), so it sits
-// exactly in the middle. Earnings stays reachable via More and the dashboard.
+// exactly in the middle. Earnings and My Shifts stay reachable via More and
+// the dashboard. Messages takes the second slot — it's what drivers open most
+// — and falls back to Shifts when the fleet has chat switched off.
 export const DRIVER_BOTTOM_TABS: NavItem[] = [
   { id: 'dashboard', name: 'Home', href: '/driver', icon: 'dashboard' },
-  { id: 'shifts', name: 'Shifts', href: '/driver/shifts', icon: 'shift' },
+  { id: 'messages', name: 'Messages', href: '/driver/messages', icon: 'chat' },
   { id: 'roster', name: 'Roster', href: '/driver/roster', icon: 'roster' },
 ];
+
+export const DRIVER_MESSAGES_FALLBACK_TAB: NavItem = { id: 'shifts', name: 'Shifts', href: '/driver/shifts', icon: 'shift' };
 
 export interface NavGateOptions {
   role?: 'admin' | 'staff' | 'driver';

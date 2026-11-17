@@ -160,12 +160,25 @@ self.addEventListener('push', (event) => {
       { action: 'open', title: 'View' },
       { action: 'close', title: 'Dismiss' },
     ],
-    requireInteraction: true,
+    // Chat messages opt out of sticking around until dismissed.
+    requireInteraction: data.requireInteraction !== false,
   };
+  // A tag (e.g. one per chat) makes a newer notification replace the older
+  // one instead of stacking up; renotify still buzzes for the new message.
+  if (data.tag) {
+    options.tag = data.tag;
+    options.renotify = true;
+  }
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  event.waitUntil((async () => {
+    // Already looking at that chat? Then the message is on screen — no popup.
+    if (data.skipIfVisible && data.data && data.data.url) {
+      const target = new URL(data.data.url, self.location.origin).href;
+      const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (windows.some((c) => c.visibilityState === 'visible' && c.url === target)) return;
+    }
+    await self.registration.showNotification(data.title, options);
+  })());
 });
 
 // Notification click event

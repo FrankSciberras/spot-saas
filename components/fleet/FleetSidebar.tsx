@@ -15,12 +15,47 @@ import {
   BOTTOM_TAB_FALLBACKS,
   BOTTOM_TABS,
   DRIVER_BOTTOM_TABS,
+  DRIVER_MESSAGES_FALLBACK_TAB,
   DRIVER_NAV_GROUPS,
   NAV_GROUPS,
   canSeeNavItem,
   type NavItem,
 } from './navConfig';
 import FleetIcon from './FleetIcon';
+import { badgeText, useUnreadMessages } from '@/components/messages/useUnreadMessages';
+
+/** Small unread pill for the Messages nav item / tab. */
+function UnreadPill({ count, railed = false, tab = false }: { count: number; railed?: boolean; tab?: boolean }) {
+  if (count <= 0) return null;
+  const pos: CSSProperties = tab
+    ? { position: 'absolute', top: 4, left: 'calc(50% + 6px)' }
+    : railed
+      ? { position: 'absolute', top: 2, right: 2 }
+      : { marginLeft: 'auto' };
+  return (
+    <span
+      aria-label={`${count} unread`}
+      style={{
+        ...pos,
+        minWidth: 18,
+        height: 18,
+        padding: '0 5px',
+        borderRadius: 9,
+        background: 'var(--accent)',
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 600,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        lineHeight: 1,
+        ...(tab || railed ? { border: '2px solid var(--bg-1)' } : {}),
+      }}
+    >
+      {badgeText(count)}
+    </span>
+  );
+}
 
 /**
  * Raised centre button in the driver's mobile tab bar: one press to go online
@@ -146,6 +181,7 @@ export default function FleetSidebar({
   const { logoUrl } = useBranding();
   const enabledModules = useEnabledModules();
   const { theme } = useFleetTheme();
+  const unreadMessages = useUnreadMessages();
 
   const railed = collapsed && !isMobile;
 
@@ -173,7 +209,11 @@ export default function FleetSidebar({
 
   // Identity, billing, profile, help and sign-out now live in the topbar
   // account menu (FleetAccountMenu) — the sidebar is navigation only.
+  // Driver pages aren't module-gated (no FleetModulesProvider there), so the
+  // driver's Messages item follows the unread endpoint's "enabled" answer.
+  const messagesOffForDriver = isDriver && unreadMessages.enabled === false;
   const canSee = (item: NavItem) =>
+    !(item.id === 'messages' && messagesOffForDriver) &&
     canSeeNavItem(item, {
       role: user?.role,
       alsoStaff: user?.also_staff,
@@ -187,7 +227,7 @@ export default function FleetSidebar({
   // Mobile tab bar respects the same gates as the sidebar, topping up from the
   // fallback list so a fleet with modules switched off still gets a full bar.
   const bottomTabs: NavItem[] = isDriver
-    ? DRIVER_BOTTOM_TABS
+    ? DRIVER_BOTTOM_TABS.map((t) => (t.id === 'messages' && messagesOffForDriver ? DRIVER_MESSAGES_FALLBACK_TAB : t))
     : (() => {
         const picked = BOTTOM_TABS.filter(canSee);
         for (const extra of BOTTOM_TAB_FALLBACKS) {
@@ -276,6 +316,7 @@ export default function FleetSidebar({
                       ...s.navItem,
                       ...(railed ? s.navItemRail : {}),
                       textDecoration: 'none',
+                      position: 'relative',
                     }}
                   >
                     {/* Colours come from .fleetNavItem / .fleetNavItemActive in
@@ -287,6 +328,7 @@ export default function FleetSidebar({
                         <span style={{ fontWeight: active ? 500 : 400 }}>{item.name}</span>
                       )}
                     </span>
+                    {item.id === 'messages' && <UnreadPill count={unreadMessages.count} railed={railed} />}
                   </Link>
                 );
               })}
@@ -305,10 +347,11 @@ export default function FleetSidebar({
         key={tab.href}
         href={tab.href}
         className={`fleetBottomTab${active ? ' fleetBottomTabActive' : ''}`}
-        style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}) }}
+        style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}), position: 'relative' }}
       >
         <FleetIcon name={tab.icon} size={20} stroke={active ? 1.9 : 1.6} />
         <span style={{ fontSize: 10.5, marginTop: 2 }}>{tab.name}</span>
+        {tab.id === 'messages' && <UnreadPill count={unreadMessages.count} tab />}
       </Link>
     );
   };

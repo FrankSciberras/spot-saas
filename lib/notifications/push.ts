@@ -28,6 +28,12 @@ interface PushNotificationPayload {
   url?: string;
   icon?: string;
   badge?: string;
+  /** Same tag = the new notification replaces the old one (e.g. one per chat). */
+  tag?: string;
+  /** Defaults to true (stays until dismissed). Chat messages pass false. */
+  requireInteraction?: boolean;
+  /** Don't show it if the user already has `url` open and visible. */
+  skipIfVisible?: boolean;
 }
 
 /**
@@ -70,6 +76,9 @@ export async function sendPushNotification(
       body: payload.body,
       icon: payload.icon || '/icons/android-chrome-192x192.png',
       badge: payload.badge || '/icons/favicon-32x32.png',
+      ...(payload.tag ? { tag: payload.tag } : {}),
+      ...(payload.requireInteraction === false ? { requireInteraction: false } : {}),
+      ...(payload.skipIfVisible ? { skipIfVisible: true } : {}),
       data: {
         url: payload.url || '/',
       },

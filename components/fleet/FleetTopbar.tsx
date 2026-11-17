@@ -8,6 +8,7 @@ import FleetIcon from './FleetIcon';
 import { useEnabledModules } from './FleetModulesProvider';
 import FleetAccountMenu from './FleetAccountMenu';
 import FleetNotifications from './FleetNotifications';
+import MessagesButton from '@/components/messages/MessagesButton';
 
 interface FleetTopbarProps {
   title: string;
@@ -122,6 +123,7 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
           </>
         )}
 
+        <MessagesButton variant={variant} />
         <FleetNotifications variant={variant} isMobile={isMobile} />
 
         {variant === 'fleet' && (

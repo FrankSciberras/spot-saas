@@ -137,6 +137,18 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.8v.4" /></svg>;
     case 'minus':
       return <svg {...props}><path d="M5 12h14" /></svg>;
+    case 'chat':
+      return <svg {...props}><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.1A8 8 0 1 1 20 12z" /><path d="M8.5 10.5h7M8.5 13.5h4.5" /></svg>;
+    case 'send':
+      return <svg {...props}><path d="M21 3L10 14" /><path d="M21 3l-6.5 18-4.5-7-7-4.5z" /></svg>;
+    case 'paperclip':
+      return <svg {...props}><path d="M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9" /></svg>;
+    case 'image':
+      return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="9.5" r="1.8" /><path d="M21 16l-5-5-9 9" /></svg>;
+    case 'bell-off':
+      return <svg {...props}><path d="M8.7 4.1A6 6 0 0 1 18 9c0 2.4.5 4 1 5M6.2 6.6A6 6 0 0 0 6 9c0 5-2 6-2 6h11" /><path d="M10 19a2 2 0 0 0 4 0" /><path d="M3 3l18 18" /></svg>;
+    case 'megaphone':
+      return <svg {...props}><path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z" /><path d="M17 8.5a5 5 0 0 1 0 7" /></svg>;
     case 'logo':
       return (
         <svg viewBox="0 0 64 24" fill="none" width={size * 2.5} height={size} className={className} style={style}>
