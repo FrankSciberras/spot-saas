@@ -35,7 +35,7 @@ export default function SignupAside({ trial, testimonial }: { trial: TrialCopy; 
         <figure className="auth-aside-quote">
           <blockquote>“{testimonial.quote}”</blockquote>
           <figcaption>
-            <strong>{testimonial.name}</strong> · {testimonial.role}
+            {testimonial.name.trim() ? <><strong>{testimonial.name}</strong> · {testimonial.role}</> : testimonial.role}
           </figcaption>
         </figure>
       )}
