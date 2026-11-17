@@ -206,6 +206,9 @@ async function accountFunnel(admin: Admin, from: Date, to: Date) {
     // Invited to someone else's fleet and not answered yet — not a sign-up of their own.
     const { data: inv } = await admin.from('membership_invites').select('user_id').in('user_id', part).eq('status', 'pending');
     for (const r of (inv ?? []) as { user_id: string }[]) invited.add(r.user_id);
+    // Nor are the people who run the platform.
+    const { data: staff } = await admin.from('platform_admins').select('user_id').in('user_id', part);
+    for (const r of (staff ?? []) as { user_id: string }[]) invited.add(r.user_id);
   }
   const byUser = new Map<string, typeof memberships>();
   for (const m of memberships) byUser.set(m.user_id, [...(byUser.get(m.user_id) ?? []), m]);

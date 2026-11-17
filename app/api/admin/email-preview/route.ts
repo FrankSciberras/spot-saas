@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { isPlatformAdmin } from '@/lib/auth/platform';
 import { buildInactivityEmail } from '@/lib/email/inactivity';
 import { buildWelcomeEmail } from '@/lib/email/welcome';
+import { buildSignupReminderEmail } from '@/lib/email/signup-reminder';
 
 /**
  * GET /api/admin/email-preview?kind=inactivity|welcome&variant=new|partial
+ *     …or kind=signup-reminder&variant=unverified|no-fleet|last
  * Renders a lifecycle email with sample data so it can be checked in a
  * browser. Platform admins only.
  */
@@ -23,7 +25,15 @@ export async function GET(request: Request) {
 
   const sample = { fullName: 'Frank Sciberras', fleetName: 'Harbour Cabs' };
   const email =
-    kind === 'welcome'
+    kind === 'signup-reminder'
+      ? buildSignupReminderEmail({
+          to: 'preview@example.com',
+          stage: variant === 'unverified' ? 'unverified' : 'no_fleet',
+          round: variant === 'last' ? 2 : 1,
+          step: variant === 'unverified' ? null : 3,
+          trialDays: 30,
+        })
+      : kind === 'welcome'
       ? buildWelcomeEmail({ to: 'preview@example.com', ...sample, onTrial: true })
       : buildInactivityEmail(
           variant === 'partial'

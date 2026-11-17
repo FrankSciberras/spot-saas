@@ -78,6 +78,9 @@ export const ONBOARDING_PROGRESS_PATH = '/api/auth/onboarding-progress';
 /** Keys on the auth user's app_metadata. Only the server can write these. */
 export const ONBOARDING_STEP_KEY = 'onb_step';
 export const ONBOARDING_AT_KEY = 'onb_at';
+/** Reminder emails already sent to a stalled sign-up (1 or 2), and when — see /api/cron/signup-reminders. */
+export const SIGNUP_NUDGE_KEY = 'signup_nudge';
+export const SIGNUP_NUDGE_AT_KEY = 'signup_nudge_at';
 
 /**
  * The code screen lives in React state, so a page reload used to lose it — and
