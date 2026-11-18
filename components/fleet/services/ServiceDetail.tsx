@@ -3,9 +3,9 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { useFleetSetting, useMoney } from '@/components/fleet/FleetSettingsProvider';
 import FleetBackLink from '@/components/fleet/FleetBackLink';
 import DeleteRecordButton from '@/components/fleet/DeleteRecordButton';
-import { fmtEUR } from '@/components/fleet/FleetCharts';
 
 export type SvcDetailStatus = 'scheduled' | 'completed' | 'overdue';
 
@@ -127,6 +127,10 @@ function partsList(raw: string): string[] {
 }
 
 export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
+  // "Due soon" distance (Settings → Maintenance).
+  const dueSoonKm = useFleetSetting('maintenance.service_due_km');
   const cat = CAT_META[service.category] || CAT_META.scheduled;
 
   // Distance left before the next service falls due, measured against the
@@ -141,7 +145,7 @@ export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: P
   if (kmRemaining !== null) {
     nextValue = `${Math.abs(kmRemaining).toLocaleString()} km`;
     nextSub = overdueByKm ? 'Overdue' : 'Remaining';
-    nextAccent = overdueByKm ? 'var(--neg)' : kmRemaining <= 2000 ? 'var(--warn)' : 'var(--accent)';
+    nextAccent = overdueByKm ? 'var(--neg)' : kmRemaining <= dueSoonKm ? 'var(--warn)' : 'var(--accent)';
   } else if (service.nextServiceDate) {
     nextValue = fmtShort(service.nextServiceDate);
     nextSub = 'Due by date';
@@ -315,8 +319,8 @@ export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: P
                           fontSize: 11.5,
                           padding: '2px 8px',
                           borderRadius: 4,
-                          background: overdueByKm ? 'var(--neg-soft)' : kmRemaining !== null && kmRemaining <= 2000 ? 'var(--warn-soft)' : 'var(--bg-2)',
-                          color: overdueByKm ? 'var(--neg)' : kmRemaining !== null && kmRemaining <= 2000 ? 'var(--warn)' : 'var(--text-2)',
+                          background: overdueByKm ? 'var(--neg-soft)' : kmRemaining !== null && kmRemaining <= dueSoonKm ? 'var(--warn-soft)' : 'var(--bg-2)',
+                          color: overdueByKm ? 'var(--neg)' : kmRemaining !== null && kmRemaining <= dueSoonKm ? 'var(--warn)' : 'var(--text-2)',
                         }}
                       >
                         {kmRemaining === null

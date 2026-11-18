@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useFleetSettings } from '@/components/fleet/FleetSettingsProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -31,6 +32,12 @@ export default function GoOnlinePage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Fleet rules for starting a shift (Settings → Shifts → Starting a shift).
+  const fleet = useFleetSettings();
+  const askDashcam = fleet['shifts.check_dashcam'];
+  const askInterior = fleet['shifts.check_interior'];
+  const startPhotos = fleet['shifts.start_photos'];
+
   // Form state
   const [name, setName] = useState('');
   const [mileage, setMileage] = useState('');
@@ -45,6 +52,9 @@ export default function GoOnlinePage() {
   const [rightImage, setRightImage] = useState<File | null>(null);
   const [backImage, setBackImage] = useState<File | null>(null);
   const [damageImages, setDamageImages] = useState<File[]>([]);
+
+  const checklistDone = (!askDashcam || dashcamChecked) && (!askInterior || carInternalChecked);
+  const photosDone = !!(frontImage && leftImage && rightImage && backImage);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -269,11 +279,15 @@ export default function GoOnlinePage() {
         throw new Error('Please enter a valid mileage');
       }
 
-      if (!dashcamChecked || !carInternalChecked) {
+      if (!checklistDone) {
         const msg =
           'Mandatory: Before going online you must complete the pre-shift checks and confirm the vehicle is in good condition (internal & external). If you proceed without checking and reporting issues/damage, you will be held liable for any unreported damage/issues.';
         setChecklistError(msg);
         throw new Error(msg);
+      }
+
+      if (startPhotos === 'required' && !photosDone) {
+        throw new Error('Your fleet needs all four vehicle photos (front, left, right and back) before you start a shift.');
       }
 
       // Fleet rule "Require location to start a shift" (Settings).
@@ -365,8 +379,10 @@ export default function GoOnlinePage() {
           left_image_url: leftUrl,
           right_image_url: rightUrl,
           back_image_url: backUrl,
-          dashcam_checked: dashcamChecked,
-          car_internal_checked: carInternalChecked,
+          // A check the fleet doesn't ask for is stored as not checked; the
+          // shift pages hide it while the fleet has it switched off.
+          dashcam_checked: askDashcam && dashcamChecked,
+          car_internal_checked: askInterior && carInternalChecked,
           notes: damageUrls.length ? JSON.stringify({ damage_image_urls: damageUrls }) : null,
         });
 
@@ -516,10 +532,13 @@ export default function GoOnlinePage() {
           </div>
         </section>
 
-        {/* Vehicle Photos */}
+        {/* Vehicle Photos (fleet setting: optional / required / off) */}
+        {startPhotos !== 'off' && (
         <section className={styles.section}>
-          <h2>Vehicle Photos</h2>
-          <p className={styles.sectionHint}>Take photos of all sides of the vehicle</p>
+          <h2>Vehicle Photos{startPhotos === 'required' ? ' (required)' : ''}</h2>
+          <p className={styles.sectionHint}>
+            {startPhotos === 'required' ? 'Take a photo of each side of the vehicle — all four are needed to start.' : 'Take photos of all sides of the vehicle'}
+          </p>
           
           <div className={styles.photoGrid}>
             <label className={`${styles.photoBox} ${frontImage ? styles.hasPhoto : ''}`}>
@@ -567,11 +586,14 @@ export default function GoOnlinePage() {
             </label>
           </div>
         </section>
+        )}
 
-        {/* Checklist */}
+        {/* Checklist (each item can be switched off in fleet Settings → Shifts) */}
+        {(askDashcam || askInterior) && (
         <section className={styles.section}>
           <h2>Pre-Shift Checklist</h2>
-          
+
+          {askDashcam && (
           <label className={styles.checkItem}>
             <input
               type="checkbox"
@@ -583,7 +605,9 @@ export default function GoOnlinePage() {
             </span>
             <span className={styles.checkText}>Dashcam working & positioned</span>
           </label>
+          )}
 
+          {askInterior && (
           <label className={styles.checkItem}>
             <input
               type="checkbox"
@@ -595,8 +619,9 @@ export default function GoOnlinePage() {
             </span>
             <span className={styles.checkText}>Interior clean & no damage</span>
           </label>
+          )}
 
-          {(!dashcamChecked || !carInternalChecked) && (
+          {!checklistDone && (
             <div className={styles.mandatoryNote}>
               Mandatory: You must check the vehicle internally & externally and confirm everything is in good condition before proceeding. If you proceed without checking and reporting issues/damage, you will be held liable for any unreported damage/issues.
             </div>
@@ -604,6 +629,7 @@ export default function GoOnlinePage() {
 
           {checklistError && <div className={styles.mandatoryError}>{checklistError}</div>}
         </section>
+        )}
 
         <section className={styles.section}>
           <h2>Scratches / Damage (Optional)</h2>
@@ -622,7 +648,7 @@ export default function GoOnlinePage() {
         <button
           type="submit"
           className={styles.submitBtn}
-          disabled={loading || !vehicleId || !mileage || !dashcamChecked || !carInternalChecked}
+          disabled={loading || !vehicleId || !mileage || !checklistDone || (startPhotos === 'required' && !photosDone)}
         >
           {loading ? 'Starting...' : 'Start Shift'}
         </button>

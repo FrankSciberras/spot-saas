@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import styles from './NotificationManager.module.css';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 
 interface NotificationRule {
   id: string;
@@ -78,6 +79,9 @@ export default function NotificationManager({
   initialLogs,
   drivers
 }: NotificationManagerProps) {
+  // What a rule uses when it doesn't set its own days / distance (Settings).
+  const fleetExpiryDays = useFleetSetting('documents.expiry_warning_days');
+  const fleetServiceKm = useFleetSetting('maintenance.service_due_km');
   const [activeTab, setActiveTab] = useState<'rules' | 'send' | 'history'>('rules');
   const [rules, setRules] = useState(initialRules);
   const [logs] = useState(initialLogs);
@@ -616,7 +620,7 @@ export default function NotificationManager({
                   <label>Days Before Expiry</label>
                   <input
                     type="number"
-                    value={(ruleForm.trigger_config.days_before as number) || 30}
+                    value={(ruleForm.trigger_config.days_before as number) || fleetExpiryDays}
                     onChange={e => setRuleForm({ 
                       ...ruleForm, 
                       trigger_config: { ...ruleForm.trigger_config, days_before: parseInt(e.target.value) }
@@ -632,7 +636,7 @@ export default function NotificationManager({
                     <label>KM Threshold</label>
                     <input
                       type="number"
-                      value={(ruleForm.trigger_config.km_threshold as number) || 2000}
+                      value={(ruleForm.trigger_config.km_threshold as number) || fleetServiceKm}
                       onChange={e => setRuleForm({
                         ...ruleForm,
                         trigger_config: { ...ruleForm.trigger_config, km_threshold: parseInt(e.target.value) }

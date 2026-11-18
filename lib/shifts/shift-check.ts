@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendPushNotification } from '@/lib/notifications/push';
 import { sendEmailNotification } from '@/lib/notifications/email';
+import { getFleetSettingsForOrgs } from '@/lib/settings/server';
 
 // =============================================================================
 // "STILL ON SHIFT?" — catch shifts drivers forgot to end
@@ -13,11 +14,13 @@ import { sendEmailNotification } from '@/lib/notifications/email';
 //     clock restarts;
 //   * no answer within `graceMinutes` → end the shift at the moment we asked,
 //     stop its tracking, and tell the fleet's admins and the driver.
-// Fleets with the check off keep the old safety net: closed after 24 hours.
+// Fleets with the check off keep the old safety net: closed after 24 hours
+// (Settings → Shifts → "End any shift still open after", key shifts.auto_close_hours).
 // Runs every minute from lib/cron/internal-scheduler (and /api/cron/shifts).
 // =============================================================================
 
 const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
+/** Default for shifts.auto_close_hours; each fleet can change it. */
 const SAFETY_CLOSE_HOURS = 24;
 const HOUR = 3_600_000;
 
@@ -84,6 +87,7 @@ export async function runShiftCheck(
   const orgIds = [...new Set(rows.map((r) => r.organization_id))];
   const { data: orgs } = await admin.from('organizations').select('*').in('id', orgIds);
   const settings = new Map((orgs ?? []).map((o) => [o.id as string, shiftCheckFromOrg(o)]));
+  const fleetSettings = await getFleetSettingsForOrgs(orgIds);
 
   for (const row of rows) {
     const s = settings.get(row.organization_id) ?? DEFAULT_SHIFT_CHECK;
@@ -93,15 +97,16 @@ export async function runShiftCheck(
     const firstName = driver?.full_name?.split(' ')[0];
 
     try {
-      // ── Check off: only the 24 h safety close ─────────────────────────────
+      // ── Check off: only the time-limit safety close ───────────────────────
       if (!s.enabled) {
-        if (now - Date.parse(row.start_time) >= SAFETY_CLOSE_HOURS * HOUR) {
-          const endIso = new Date(Date.parse(row.start_time) + SAFETY_CLOSE_HOURS * HOUR).toISOString();
+        const limitHours = fleetSettings.get(row.organization_id)?.['shifts.auto_close_hours'] ?? SAFETY_CLOSE_HOURS;
+        if (now - Date.parse(row.start_time) >= limitHours * HOUR) {
+          const endIso = new Date(Date.parse(row.start_time) + limitHours * HOUR).toISOString();
           if (await closeShift(admin, row, endIso, 'max_duration', nowIso)) {
             report.closed++;
             await tellClosed(admin, row,
-              `${name}'s shift from ${dayClock(row.start_time)} was still open after ${SAFETY_CLOSE_HOURS} hours and has been ended at ${dayClock(endIso)}. Correct the times if needed.`,
-              `Your shift from ${dayClock(row.start_time)} was still open after ${SAFETY_CLOSE_HOURS} hours, so it has been ended. Remember to end your shift when you finish.`, nowIso);
+              `${name}'s shift from ${dayClock(row.start_time)} was still open after ${limitHours} hours and has been ended at ${dayClock(endIso)}. Correct the times if needed.`,
+              `Your shift from ${dayClock(row.start_time)} was still open after ${limitHours} hours, so it has been ended. Remember to end your shift when you finish.`, nowIso);
           }
         }
         continue;

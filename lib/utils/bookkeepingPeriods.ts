@@ -1,3 +1,4 @@
+import { DEFAULT_MONEY_FORMAT, formatMoney, type MoneyFormat } from '@/lib/money';
 // =============================================================================
 // BOOKKEEPING PERIODS — period maths for week / month / custom bookkeeping
 // =============================================================================
@@ -212,8 +213,8 @@ export function prorateCost(
   return Math.round(dailyRate * activeDays * 100) / 100;
 }
 
-/** Human summary of a recurring charge, e.g. "€400.00 / month". */
-export function describeFrequency(amount: number, frequency: CostFrequency): string {
+/** Human summary of a recurring charge, e.g. "€400.00 / month", in the fleet's currency. */
+export function describeFrequency(amount: number, frequency: CostFrequency, money: MoneyFormat = DEFAULT_MONEY_FORMAT): string {
   const unit = frequency === 'weekly' ? 'week' : frequency === 'yearly' ? 'year' : 'month';
-  return `€${amount.toFixed(2)} / ${unit}`;
+  return `${formatMoney(amount, money)} / ${unit}`;
 }

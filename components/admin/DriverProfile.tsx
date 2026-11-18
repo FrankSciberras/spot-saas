@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import DeleteDriverButton from '@/components/admin/DeleteDriverButton';
 import styles from './DriverProfile.module.css';
 
@@ -74,19 +75,20 @@ const formatDate = (dateStr: string | null): string => {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const getExpiryStatus = (dateStr: string | null): 'ok' | 'warning' | 'danger' | null => {
+/** `warnDays` = the fleet's warning window (Settings → Documents). */
+const getExpiryStatus = (dateStr: string | null, warnDays: number): 'ok' | 'warning' | 'danger' | null => {
   if (!dateStr) return null;
   const date = new Date(dateStr);
   const now = new Date();
-  const thirtyDays = new Date();
-  thirtyDays.setDate(now.getDate() + 30);
+  const soon = new Date();
+  soon.setDate(now.getDate() + warnDays);
   if (date < now) return 'danger';
-  if (date <= thirtyDays) return 'warning';
+  if (date <= soon) return 'warning';
   return 'ok';
 };
 
-const getExpiryLabel = (dateStr: string | null): string => {
-  const status = getExpiryStatus(dateStr);
+const getExpiryLabel = (dateStr: string | null, warnDays: number): string => {
+  const status = getExpiryStatus(dateStr, warnDays);
   if (status === 'danger') return 'Expired';
   if (status === 'warning') return 'Expiring soon';
   return '';
@@ -150,8 +152,9 @@ function EditableField({
     if (e.key === 'Escape') cancel();
   };
 
-  const expiryStatus = expiryDate ? getExpiryStatus(expiryDate) : null;
-  const expiryText = expiryDate ? getExpiryLabel(expiryDate) : '';
+  const warnDays = useFleetSetting('documents.expiry_warning_days');
+  const expiryStatus = expiryDate ? getExpiryStatus(expiryDate, warnDays) : null;
+  const expiryText = expiryDate ? getExpiryLabel(expiryDate, warnDays) : '';
 
   if (editing) {
     return (
@@ -288,6 +291,7 @@ function StatCard({ icon, label, value, sub, accent }: {
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function DriverProfile({ driver: initialDriver, vehicles, documents: initialDocuments, recentShifts, isAdmin, alsoStaff: initialAlsoStaff }: DriverProfileProps) {
   const router = useRouter();
+  const warnDays = useFleetSetting('documents.expiry_warning_days');
   const [driver, setDriver] = useState(initialDriver);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [alsoStaff, setAlsoStaff] = useState(initialAlsoStaff ?? false);
@@ -483,7 +487,7 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
     const days = Math.ceil((+new Date(docExpiries[0].date) - Date.now()) / 86_400_000);
     expirySub = docExpiries[0].label;
     if (days < 0) { expiryValue = 'Expired'; expiryColor = 'var(--neg)'; }
-    else { expiryValue = `${days} day${days === 1 ? '' : 's'}`; expiryColor = days <= 30 ? 'var(--warn)' : 'var(--accent)'; }
+    else { expiryValue = `${days} day${days === 1 ? '' : 's'}`; expiryColor = days <= warnDays ? 'var(--warn)' : 'var(--accent)'; }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════

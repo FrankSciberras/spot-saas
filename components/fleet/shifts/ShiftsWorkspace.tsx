@@ -1,6 +1,7 @@
 'use client';
 
 import { type CSSProperties, useMemo, useState } from 'react';
+import { useFleetSetting, usePreference } from '@/components/fleet/FleetSettingsProvider';
 import FleetIcon from '@/components/fleet/FleetIcon';
 
 export interface ShiftItem {
@@ -117,6 +118,9 @@ function DetailItem({ label, value, accent }: { label: string; value: string; ac
 }
 
 function ShiftDetailModal({ s, onClose }: { s: ShiftItem; onClose: () => void }) {
+  // Checks the fleet doesn't ask for (Settings → Shifts) aren't shown as "not checked".
+  const askDashcam = useFleetSetting('shifts.check_dashcam') || s.dashcam;
+  const askInterior = useFleetSetting('shifts.check_interior') || s.internal;
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40, backdropFilter: 'blur(2px)' }} />
@@ -137,8 +141,8 @@ function ShiftDetailModal({ s, onClose }: { s: ShiftItem; onClose: () => void })
             <DetailItem label="Clock out" value={s.end} />
             <DetailItem label="Duration" value={s.status === 'live' ? `${s.hours.toFixed(1)}h` : `${Math.floor(s.hours)}h ${String(Math.round((s.hours % 1) * 60)).padStart(2, '0')}m`} />
             <DetailItem label="Start mileage" value={s.mileage ? `${s.mileage.toLocaleString()} km` : '—'} />
-            <DetailItem label="Dashcam" value={s.dashcam ? 'Checked' : 'Not checked'} accent={s.dashcam ? 'var(--pos)' : 'var(--neg)'} />
-            <DetailItem label="Interior" value={s.internal ? 'Checked' : 'Not checked'} accent={s.internal ? 'var(--pos)' : 'var(--neg)'} />
+            {askDashcam && <DetailItem label="Dashcam" value={s.dashcam ? 'Checked' : 'Not checked'} accent={s.dashcam ? 'var(--pos)' : 'var(--neg)'} />}
+            {askInterior && <DetailItem label="Interior" value={s.internal ? 'Checked' : 'Not checked'} accent={s.internal ? 'var(--pos)' : 'var(--neg)'} />}
           </div>
           <a href={`/fleet/shifts/${s.id}`} style={{ display: 'block', textAlign: 'center', padding: '10px', background: 'var(--accent)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>View shift details</a>
         </div>
@@ -150,7 +154,8 @@ function ShiftDetailModal({ s, onClose }: { s: ShiftItem; onClose: () => void })
 export default function ShiftsWorkspace({ shifts, driverNames }: Props) {
   const [filterDriver, setFilterDriver] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterDay, setFilterDay] = useState('14d');
+  // Starting period: your preference (Settings → Preferences → Lists).
+  const [filterDay, setFilterDay] = useState<string>(usePreference('lists.shifts_period'));
   const [selectedShift, setSelectedShift] = useState<ShiftItem | null>(null);
 
   const list = useMemo(() => {

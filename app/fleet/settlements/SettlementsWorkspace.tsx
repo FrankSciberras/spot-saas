@@ -17,20 +17,14 @@ import {
   type PlatformConfig,
   type SettlementComponents,
 } from '@/lib/config/settlements';
-import {
-  calculateSettlement,
-  formatCurrency,
-  periodWeeks,
-  round2,
-  scaleWeekly,
-  type PlatformEarningsInput
-} from '@/lib/utils/settlementCalculations';
+import { calculateSettlement, periodWeeks, round2, scaleWeekly, type PlatformEarningsInput } from '@/lib/utils/settlementCalculations';
 import { exportMonthlySettlementsPdf, exportSettlementsPdf, toPdfSettlement } from '@/lib/utils/settlementPdfExport';
 import { calculateAdjustmentsNet } from '@/lib/utils/adjustments';
 import { derivePeriodBounds, parseDate, toISODate, daysInclusive } from '@/lib/utils/bookkeepingPeriods';
 import type { Driver, DriverSettlement, SettlementPlatform, DriverAdjustment, SettlementPreset } from '@/lib/types/database';
 import styles from './settlements.module.css';
 import bulkStyles from '@/components/admin/ServicesList.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 function addDaysISO(iso: string, days: number): string {
   return toISODate(new Date(parseDate(iso).getTime() + days * 86_400_000));
@@ -119,6 +113,8 @@ export default function SettlementsWorkspace({
   orgDefaultPresetId,
   platforms: platformsProp,
 }: SettlementsWorkspaceProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const router = useRouter();
 
   // Fleet platforms for the entry form, deduped by id. A user who belongs to
@@ -539,11 +535,12 @@ export default function SettlementsWorkspace({
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
     await exportMonthlySettlementsPdf({
+      money: formatCurrency.format,
       monthLabel: `${monthNames[selectedMonth]} ${selectedYear}`,
       settlements: monthSettlements.map((s) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver')),
       adjustmentsBySettlement: await fetchFrozenAdjustments(monthSettlements.map((s) => s.id)),
     });
-  }, [monthNames, monthSettlements, selectedMonth, selectedYear]);
+  }, [formatCurrency.format, monthNames, monthSettlements, selectedMonth, selectedYear]);
 
   // Export PDF handler — one page per driver for the selected period, each
   // ending with what's owed so far this month (earlier weeks come from history).
@@ -554,13 +551,14 @@ export default function SettlementsWorkspace({
     const toPdf = (s: SettlementWithRelations) => toPdfSettlement(s, s.drivers?.full_name || 'Unknown Driver');
 
     await exportSettlementsPdf({
+      money: formatCurrency.format,
       periodLabel: currentPeriod.label,
       periodName: currentPeriod.periodName,
       settlements: periodSettlements.map(toPdf),
       history: settlements.filter((s) => driverIds.has(s.driver_id)).map(toPdf),
       adjustmentsBySettlement: await fetchFrozenAdjustments(periodSettlements.map((s) => s.id)),
     });
-  }, [currentPeriod, periodSettlements, settlements]);
+  }, [currentPeriod, formatCurrency.format, periodSettlements, settlements]);
 
   // Get driver's settlement status
   const getDriverStatus = useCallback((driverId: string) => {

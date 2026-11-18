@@ -12,7 +12,6 @@
 import { type CSSProperties, type FormEvent, type ReactNode, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { fmtEUR } from '@/components/fleet/FleetCharts';
 import {
   createPartAction,
   updatePartAction,
@@ -21,6 +20,7 @@ import {
   recordUsageAction,
   type PartInput,
 } from '@/lib/actions/parts';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export interface PartRow {
   id: string;
@@ -110,6 +110,8 @@ function QtyPill({ part }: { part: PartRow }) {
 }
 
 export default function PartsWorkspace({ parts, usage, vehicles, isAdmin }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'low'>('all');
   const [search, setSearch] = useState('');
@@ -310,6 +312,8 @@ function PartModal({
   onUse: (qty: number, vehicleId: string, notes: string) => void;
   onRestock: (qty: number) => void;
 }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const editing = modal.mode === 'edit' ? modal.part : null;
   const [form, setForm] = useState({
     name: editing?.name ?? '',
@@ -378,7 +382,7 @@ function PartModal({
             {field('Category', <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={st.input} placeholder="e.g. Filters" />)}
             {field('Quantity in stock', <input type="number" min={0} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={st.input} />)}
             {field('Low-stock alert at', <input type="number" min={0} value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} style={st.input} />)}
-            {field('Unit cost (€)', <input type="number" min={0} step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} style={st.input} placeholder="0.00" />)}
+            {field(`Unit cost (${money.symbol})`, <input type="number" min={0} step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} style={st.input} placeholder="0.00" />)}
             {field('Supplier', <input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} style={st.input} />)}
             <div style={{ gridColumn: '1 / -1' }}>{field('Storage location', <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} style={st.input} placeholder="Shelf, garage, van…" />)}</div>
             <div style={{ gridColumn: '1 / -1' }}>{field('Notes', <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ ...st.input, minHeight: 56, resize: 'vertical' }} />)}</div>

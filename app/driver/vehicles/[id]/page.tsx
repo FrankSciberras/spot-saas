@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
+import { getFleetSettings } from '@/lib/settings/server';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import type { Vehicle, FileRecord } from '@/lib/types/database';
@@ -61,15 +62,17 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
     });
   };
 
+  // "Expiring soon" uses the fleet's warning window (Settings → Documents).
+  const warnDays = (await getFleetSettings(user.organization_id))['documents.expiry_warning_days'];
   const getExpiryClass = (dateStr: string | null): string => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     const now = new Date();
-    const thirtyDays = new Date();
-    thirtyDays.setDate(now.getDate() + 30);
+    const soon = new Date();
+    soon.setDate(now.getDate() + warnDays);
 
     if (date < now) return styles.expiryDanger;
-    if (date <= thirtyDays) return styles.expiryWarning;
+    if (date <= soon) return styles.expiryWarning;
     return styles.expiryOk;
   };
 
@@ -80,9 +83,9 @@ export default async function DriverVehicleDetailPage({ params }: PageProps) {
 
     if (date < now) return ' (Expired)';
 
-    const thirtyDays = new Date();
-    thirtyDays.setDate(now.getDate() + 30);
-    if (date <= thirtyDays) return ' (Expiring soon)';
+    const soon = new Date();
+    soon.setDate(now.getDate() + warnDays);
+    if (date <= soon) return ' (Expiring soon)';
 
     return '';
   };

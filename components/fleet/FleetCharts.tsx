@@ -1,14 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-
-export const fmtEUR = (n: number, opts: { decimals?: number; compact?: boolean } = {}) => {
-  const { decimals = 2, compact = false } = opts;
-  if (compact && Math.abs(n) >= 1000) {
-    return '€' + (n / 1000).toFixed(n >= 10000 ? 1 : 2) + 'k';
-  }
-  return '€' + n.toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-};
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 interface Pt { x: number; y: number; }
 
@@ -33,6 +26,8 @@ function smoothPath(points: Pt[], tension = 0.35) {
 export interface EarningsDatum { label: string; income: number; expenses: number; profit: number; }
 
 export const EarningsLineChart = ({ data, w = 760, h = 240 }: { data: EarningsDatum[]; w?: number; h?: number }) => {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const [hover, setHover] = useState<number | null>(null);
   if (data.length < 2) {
     return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>Not enough data to plot.</div>;
@@ -84,7 +79,7 @@ export const EarningsLineChart = ({ data, w = 760, h = 240 }: { data: EarningsDa
       {ticks.map((t, i) => (
         <g key={i}>
           <line x1={padL} x2={w - padR} y1={t.y} y2={t.y} stroke="var(--chart-grid)" strokeDasharray={i === 0 ? '0' : '2 4'} />
-          <text x={padL - 8} y={t.y + 4} textAnchor="end" fontSize="10.5" fill="var(--text-3)" fontFamily="Geist Mono, monospace">€{t.label >= 1000 ? t.label / 1000 + 'k' : t.label}</text>
+          <text x={padL - 8} y={t.y + 4} textAnchor="end" fontSize="10.5" fill="var(--text-3)" fontFamily="Geist Mono, monospace">{money(t.label, { compact: true, decimals: 0 })}</text>
         </g>
       ))}
       {xLabels.map((l, i) => (
@@ -104,11 +99,11 @@ export const EarningsLineChart = ({ data, w = 760, h = 240 }: { data: EarningsDa
             <rect width="130" height="68" rx="6" fill="var(--bg-1)" stroke="var(--line-2)" />
             <text x="10" y="16" fontSize="10.5" fill="var(--text-2)" fontFamily="Geist Mono, monospace">{data[hover].label}</text>
             <circle cx="14" cy="30" r="3" fill="#3ecf8e" />
-            <text x="22" y="33" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">€{data[hover].income.toLocaleString()}</text>
+            <text x="22" y="33" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">{money(data[hover].income, { trim: true })}</text>
             <circle cx="14" cy="44" r="3" fill="#f06464" />
-            <text x="22" y="47" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">€{data[hover].expenses.toLocaleString()}</text>
+            <text x="22" y="47" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">{money(data[hover].expenses, { trim: true })}</text>
             <circle cx="14" cy="58" r="3" fill="#2bbd7e" />
-            <text x="22" y="61" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">€{data[hover].profit.toLocaleString()}</text>
+            <text x="22" y="61" fontSize="11" fill="var(--text-1)" fontFamily="Geist Mono, monospace">{money(data[hover].profit, { trim: true })}</text>
           </g>
         </g>
       )}
@@ -135,6 +130,8 @@ export const ProfitDonut = ({ income, expenses, size = 168 }: { income: number; 
 export interface ExpenseDatum { label: string; amount: number; color: string; }
 
 export const ExpenseBars = ({ data }: { data: ExpenseDatum[] }) => {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const max = Math.max(...data.map((d) => d.amount)) || 1;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -145,7 +142,7 @@ export const ExpenseBars = ({ data }: { data: ExpenseDatum[] }) => {
               <span style={{ width: 6, height: 6, borderRadius: 2, background: d.color }} />
               {d.label}
             </div>
-            <span className="mono tnum" style={{ fontSize: 12, color: 'var(--text-3)' }}>€{d.amount.toLocaleString()}</span>
+            <span className="mono tnum" style={{ fontSize: 12, color: 'var(--text-3)' }}>{money(d.amount, { trim: true })}</span>
           </div>
           <div style={{ height: 6, background: 'var(--bg-2)', borderRadius: 3, overflow: 'hidden' }}>
             <div style={{ width: `${(d.amount / max) * 100}%`, height: '100%', background: d.color, opacity: 0.85, borderRadius: 3 }} />

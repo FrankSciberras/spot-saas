@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import SafetyEventsWorkspace, { type DetailEvent } from '@/components/fleet/safety/SafetyEventsWorkspace';
-import { countBehaviorKinds, safetyScore, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
+import { countBehaviorKinds, safetyScore, scoreBandsFrom, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
+import { getFleetSettings } from '@/lib/settings/server';
 
 interface PageProps {
   params: Promise<{ driverId: string }>;
@@ -50,6 +51,8 @@ async function DriverSafetyContent({
   initialEventId: string | null;
 }) {
   const supabase = await createClient();
+  // Good / Fair thresholds (Settings → Live Map → Safety scores).
+  const bands = scoreBandsFrom(await getFleetSettings(orgId));
   const since = new Date(Date.now() - days * 86400_000).toISOString();
 
   const { data: driver } = await supabase
@@ -187,14 +190,14 @@ async function DriverSafetyContent({
       </Link>
 
       <div style={st.head}>
-        <div style={{ ...st.scoreBadge, borderColor: scoreColor(score) }}>
-          <span style={{ fontSize: 19, fontWeight: 700, color: scoreColor(score) }}>{score}</span>
+        <div style={{ ...st.scoreBadge, borderColor: scoreColor(score, bands) }}>
+          <span style={{ fontSize: 19, fontWeight: 700, color: scoreColor(score, bands) }}>{score}</span>
           <span style={{ fontSize: 9.5, color: 'var(--text-4)', letterSpacing: '0.04em' }}>SCORE</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={st.name}>
             {driver.full_name || 'Unknown driver'}
-            <span style={{ fontSize: 11, fontWeight: 600, color: scoreColor(score) }}>{scoreLabel(score)}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: scoreColor(score, bands) }}>{scoreLabel(score, bands)}</span>
           </div>
           <div style={st.sub}>
             {distanceKm >= 1 ? `${distanceKm.toFixed(0)} km driven` : 'under 1 km driven'}

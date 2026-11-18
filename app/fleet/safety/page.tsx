@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { countBehaviorKinds, safetyScore, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
+import { countBehaviorKinds, safetyScore, scoreBandsFrom, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
+import { getFleetSettings } from '@/lib/settings/server';
 import FleetSafetyMap, { type FleetMapEvent } from '@/components/fleet/safety/FleetSafetyMap';
 
 interface DriverStats {
@@ -36,6 +37,8 @@ export default async function SafetyPage() {
 }
 
 async function SafetyContent({ orgId }: { orgId: string }) {
+  // Good / Fair thresholds (Settings → Live Map → Safety scores).
+  const bands = scoreBandsFrom(await getFleetSettings(orgId));
   const supabase = await createClient();
   const since = new Date(Date.now() - 7 * 86400_000).toISOString();
 
@@ -138,14 +141,14 @@ async function SafetyContent({ orgId }: { orgId: string }) {
 
       {active.map((s) => (
         <Link key={s.driverId} href={`/fleet/safety/${s.driverId}`} className="fleetHover" style={st.card}>
-          <div style={{ ...st.scoreBadge, borderColor: scoreColor(s.score) }}>
-            <span style={{ fontSize: 19, fontWeight: 700, color: scoreColor(s.score) }}>{s.score}</span>
+          <div style={{ ...st.scoreBadge, borderColor: scoreColor(s.score, bands) }}>
+            <span style={{ fontSize: 19, fontWeight: 700, color: scoreColor(s.score, bands) }}>{s.score}</span>
             <span style={{ fontSize: 9.5, color: 'var(--text-4)', letterSpacing: '0.04em' }}>SCORE</span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={st.name}>
               {s.name}
-              <span style={{ ...st.tag, color: scoreColor(s.score) }}>{scoreLabel(s.score)}</span>
+              <span style={{ ...st.tag, color: scoreColor(s.score, bands) }}>{scoreLabel(s.score, bands)}</span>
             </div>
             <div style={st.metaRow}>
               <span style={st.meta}>{s.distanceKm >= 1 ? `${s.distanceKm.toFixed(0)} km driven` : 'under 1 km driven'}</span>

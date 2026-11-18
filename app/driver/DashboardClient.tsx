@@ -15,8 +15,9 @@ import {
   Legend,
 } from 'recharts';
 import ShiftSharingStatus from '@/components/driver/ShiftSharingStatus';
-import { formatCurrency, safeNumber } from '@/lib/utils/settlementCalculations';
+import { safeNumber } from '@/lib/utils/settlementCalculations';
 import styles from './driver.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 type NextShift = {
   assignment_date: string;
@@ -70,6 +71,8 @@ export default function DashboardClient(props: {
   /** The fleet expects location sharing during shifts. */
   liveTracking: boolean;
 }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const router = useRouter();
   const [ending, setEnding] = useState(false);
   const [endError, setEndError] = useState('');

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getFleetSettings, getUserPreferencesForUsers } from '@/lib/settings/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmailNotification } from '@/lib/notifications/email';
 import { sendPushNotification } from '@/lib/notifications/push';
@@ -83,8 +84,10 @@ export async function POST(request: Request) {
       .eq('is_active', true)
       .maybeSingle();
 
-    // Default threshold if no rule found - still create notifications
-    let thresholdKm = 2000; // Default 2000km threshold
+    // No rule (or no distance on it): the fleet's "Service due soon within"
+    // setting (Settings → Maintenance, 2000 km unless changed).
+    const fleetDueKm = (await getFleetSettings(vehicle.organization_id))['maintenance.service_due_km'];
+    let thresholdKm = fleetDueKm;
     let useDefaultTemplate = false;
 
     if (ruleError || !serviceRule) {
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
       useDefaultTemplate = true;
     } else {
       // Get threshold from rule config
-      thresholdKm = (serviceRule.trigger_config as { km_threshold?: number })?.km_threshold || 2000;
+      thresholdKm = (serviceRule.trigger_config as { km_threshold?: number })?.km_threshold || fleetDueKm;
     }
 
     // The service record that defines this vehicle's next service — chosen by
@@ -336,7 +339,8 @@ export async function POST(request: Request) {
 
       // Resolve recipients based on target_role
       const target = effectiveTargetRole;
-      const recipients: { user_id: string; email: string | null; full_name: string | null }[] = [];
+      // wantsEmail / wantsPush: a manager's own alert channels (Settings → Preferences → Notifications).
+      const recipients: { user_id: string; email: string | null; full_name: string | null; wantsEmail?: boolean; wantsPush?: boolean }[] = [];
 
       let adminRecipientCount = 0;
       let driverRecipientCount = 0;
@@ -345,12 +349,15 @@ export async function POST(request: Request) {
         // Org-scoped: only THIS fleet's admins/staff (avoid the cross-tenant leak
         // a global users query causes under the service role).
         const adminUsers = await orgAdminStaffUsers(adminClient, vehicle.organization_id);
+        const prefs = await getUserPreferencesForUsers(adminUsers.map((u) => u.id));
 
         for (const u of adminUsers) {
           recipients.push({
             user_id: u.id,
             email: u.email,
             full_name: u.full_name,
+            wantsEmail: prefs.get(u.id)?.['notifications.alert_emails'] !== false,
+            wantsPush: prefs.get(u.id)?.['notifications.alert_push'] !== false,
           });
         }
 
@@ -392,6 +399,7 @@ export async function POST(request: Request) {
           console.warn('Email notifications not configured (missing RESEND_API_KEY)');
         }
         for (const r of recipients) {
+          if (r.wantsEmail === false) continue;
           if (!r.email) {
             emailResults.failed++;
             continue;
@@ -415,6 +423,7 @@ export async function POST(request: Request) {
 
       if (shouldSendPush && pushResults) {
         for (const r of recipients) {
+          if (r.wantsPush === false) continue;
           try {
             const sent = await sendPushNotification(r.user_id, {
               title: finalTitle,

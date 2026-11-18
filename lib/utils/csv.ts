@@ -82,12 +82,14 @@ export function parseCsv(text: string): ParsedCsv {
 }
 
 /**
- * Parse a money/number cell tolerantly: strips currency symbols and spaces,
+ * Parse a money/number cell tolerantly: strips currency symbols and codes
+ * (€, £, $, CHF, kr, zł…), spaces and apostrophe thousands marks (1'234.56),
  * accepts both 1,234.56 (EN) and 1.234,56 (EU) — the RIGHTMOST separator is
  * taken as the decimal point when both appear. Returns 0 for blank/invalid.
  */
 export function parseLocaleNumber(raw: string): number {
-  let s = (raw || '').replace(/[€$£\s]/g, '').trim();
+  // Keep digits, separators, minus signs and accounting brackets; drop the rest.
+  let s = (raw || '').replace(/\u2212/g, '-').replace(/[^\d.,()-]/g, '').trim();
   if (!s) return 0;
   const negative = /^\(.*\)$/.test(s) || s.startsWith('-');
   s = s.replace(/[()-]/g, '');

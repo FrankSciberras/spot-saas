@@ -449,3 +449,241 @@ input:checked + .toggleSlider:before {
   gap: 10px;
   margin-top: 4px;
 }
+
+/* =============================================================================
+   Tabs (General · Branding · Live Map · …) — same look as the Bolt page tabs.
+   ============================================================================= */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 22px;
+  border-bottom: 1px solid var(--line-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  padding: 10px 14px 11px;
+  font-size: 14px;
+  color: var(--text-3);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms ease;
+}
+
+.tab:hover {
+  color: var(--text-1);
+}
+
+.tab[data-active='true'] {
+  color: var(--text-1);
+  font-weight: 500;
+  border-bottom-color: var(--accent);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 6px 6px 0 0;
+}
+
+.panel {
+  animation: panelIn 160ms ease-out;
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+}
+
+/* Loading placeholder for a tab's cards */
+.skeletonCard {
+  height: 84px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+  50% { opacity: 0.55; }
+}
+
+/* Small inline number fields inside a setting card (shift check, speed limit) */
+.inlineFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.inlineField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.numInput {
+  width: 72px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-1);
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.numInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(26, 143, 90, 0.12));
+}
+
+/* Two-way choice (Preferences → Theme) */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+}
+
+.segment {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.segment:hover {
+  color: var(--text-1);
+}
+
+.segment[data-active='true'] {
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .inlineFields {
+    justify-content: center;
+  }
+}
+
+/* Choice list for catalog settings with more than three options */
+.selectInput {
+  min-width: 180px;
+  max-width: 100%;
+  padding: 7px 30px 7px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-1);
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.selectInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(26, 143, 90, 0.12));
+}
+
+.selectInput:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* "Reset to default" under a changed setting */
+.linkButton {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.linkButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.settingMeta + .settingMeta,
+.settingContent > .settingMeta {
+  margin-top: 8px;
+}
+
+/* Live Map → starting view picker */
+.mapPicker {
+  position: relative;
+  /* Keep Leaflet's own z-indexes (400+) inside the box, under the sticky top bar. */
+  isolation: isolate;
+  z-index: 0;
+  height: 300px;
+  margin-top: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.mapPickerBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mapPickerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .mapPicker {
+    height: 240px;
+  }
+  .mapPickerActions {
+    width: 100%;
+  }
+  .mapPickerActions > * {
+    flex: 1 1 auto;
+  }
+}
