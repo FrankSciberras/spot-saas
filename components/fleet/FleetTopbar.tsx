@@ -11,6 +11,7 @@ import FleetAccountMenu from './FleetAccountMenu';
 import FleetNotifications from './FleetNotifications';
 import MessagesButton from '@/components/messages/MessagesButton';
 import FleetSettingsGear from './FleetSettingsGear';
+import FleetQuickButtons from './FleetQuickButtons';
 
 interface FleetTopbarProps {
   title: string;
@@ -91,7 +92,7 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
       {/* No page title here: every page prints its own, right below this bar.
           Repeating it wrapped onto three lines on a phone and pushed into the
           action buttons. The bar is just navigation + actions now. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }} className="fleetTopLeft">
         <button onClick={onMenuClick} className="show-mobile-only fleetIconBtn fleetIconBtnBare" style={st.menuBtn} aria-label="Open menu">
           <FleetIcon name="menu" size={20} stroke={2} />
         </button>
@@ -99,8 +100,11 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
           <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{dateStr}</span>
           <span className="mono tnum" style={{ fontSize: 12, color: 'var(--text-3)' }}>{timeStr}</span>
         </div>
+        {/* Personal shortcuts (up to four) and the dashed "Add quick button". */}
+        {variant === 'fleet' && <FleetQuickButtons isAdmin={isAdmin} />}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      {/* minWidth 0 so the search box (below) can give way to the quick buttons. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, marginLeft: 12 }}>
         {variant === 'fleet' && (
           <>
             {/* Desktop: a real button dressed as an input — opens the ⌘K palette. */}
@@ -211,7 +215,9 @@ const st: Record<string, CSSProperties> = {
   // NOTE: no background/border/colour here — those live in fleet-theme.css so
   // the :hover rules can win the cascade. Inline styles always outrank them.
   menuBtn: { width: 36, height: 36, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  searchBox: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, color: 'var(--text-3)', width: 320, minWidth: 0, flexShrink: 1, cursor: 'pointer', textAlign: 'left' },
+  // 320px when there is room; it is what shrinks (down to 120px) before the
+  // bar would push into the date and quick buttons on a laptop or tablet.
+  searchBox: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, color: 'var(--text-3)', flex: '0 1 320px', minWidth: 120, cursor: 'pointer', textAlign: 'left' },
   searchText: { flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'inherit', color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   kbd: { fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: 'var(--text-3)', background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3, border: '1px solid var(--line-1)' },
   ghostBtn: { width: 32, height: 32, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' },

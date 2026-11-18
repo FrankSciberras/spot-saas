@@ -14,25 +14,21 @@ import {
 export const metadata = marketingMetadata({
   title: 'Fleet Management Software Integrations — Rovora',
   description:
-    'Connect Rovora to the tools you already run: GPS trackers (Wialon, Traccar, flespi, Navixy, Samsara, Geotab, Mapon), Bolt, and QuickBooks or Xero by CSV — with more links coming.',
+    'What connects to Rovora today: GPS trackers (Wialon, Traccar, flespi, Teltonika, Navixy, Samsara, Geotab, Mapon), your Bolt fleet account, Xero and QuickBooks by CSV export, and a REST API.',
   path: '/integrations',
   keywords: [
     'fleet management software integrations',
     'QuickBooks fleet integration',
     'Xero fleet integration',
     'export fleet expenses to CSV',
-    'GPS telematics integration',
-    'Uber Bolt fleet integration',
-    'fleet software integrations marketplace',
+    'Bolt fleet integration',
+    'Bolt Fleet API',
+    'fleet management API',
   ],
 });
 
-/** A few standout tiles for the hero "logo cloud". */
-const HERO_MARKS = INTEGRATION_CATEGORIES.flatMap((c) => c.items).filter((it) =>
-  ['Wialon', 'Traccar', 'Uber', 'Stripe', 'WhatsApp', 'Xero', 'QuickBooks', 'flespi'].includes(
-    it.name,
-  ),
-);
+/** Every live connection, for the hero "logo cloud". */
+const HERO_MARKS = INTEGRATION_CATEGORIES.flatMap((c) => c.items);
 
 // The free-trial length is admin-set (/admin → Trials), so re-render hourly
 // to pick up a campaign starting or ending.
@@ -43,11 +39,11 @@ export default async function IntegrationsPage() {
   return (
     <FeatureShell>
       <FeatureHero
-        eyebrow="Integrations · Marketplace"
-        title="Fleet integrations for the tools"
-        accent="you already run."
-        sub="A growing marketplace of native connections — GPS trackers, ride-hail platforms, messaging and your accountant's software. Stop copying trips and payouts by hand and let the data flow straight into Rovora."
-        micro={[trial.freeLabel, 'No card required', 'More integrations shipping every month']}
+        eyebrow={`Integrations · ${INTEGRATION_COUNT} live`}
+        title="What Rovora connects to,"
+        accent="today."
+        sub="The GPS trackers already in your cars, your Bolt fleet account, your accountant’s software, your own tools through the API. Everything on this page works now. Nothing here is a promise."
+        micro={[trial.freeLabel, 'No card required', 'Everything listed is live']}
         visual={
           <div className="integ-cloud" aria-hidden>
             {HERO_MARKS.map((it) => (
@@ -56,7 +52,7 @@ export default async function IntegrationsPage() {
                 className="integ-cloud-tile"
                 style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
               >
-                {it.mark}
+                {it.logo === 'bolt' ? <BoltMark size={30} /> : it.mark}
               </span>
             ))}
           </div>
@@ -66,12 +62,11 @@ export default async function IntegrationsPage() {
       <section className="sec-pad" id="marketplace">
         <div className="container">
           <div className="sec-head center reveal" style={{ marginBottom: 48 }}>
-            <span className="kicker">On the roadmap · {INTEGRATION_COUNT} connections</span>
-            <h2 className="sec-title">Everything your fleet talks to, in one place</h2>
+            <span className="kicker">Live today · {INTEGRATION_COUNT} connections</span>
+            <h2 className="sec-title">Every connection, and what it actually does</h2>
             <p className="sec-desc">
-              We&rsquo;re building each of these as a first-class connection inside Rovora. The ones
-              marked <em>Live</em> work today; the rest are landing soon — tell us which you need
-              first and we&rsquo;ll prioritise it.
+              Each one says plainly whether it is a live connection or a file you export. What
+              we&rsquo;re building next is on the <Link href="/roadmap">roadmap</Link>.
             </p>
           </div>
 
@@ -84,9 +79,7 @@ export default async function IntegrationsPage() {
               <div className="integ-grid">
                 {cat.items.map((it) => (
                   <div className="integ" key={it.name}>
-                    <span className={it.status === 'live' ? 'integ-live' : 'integ-soon'}>
-                      {it.status === 'live' ? 'Live' : 'Coming soon'}
-                    </span>
+                    <span className="integ-live">Live</span>
                     <div
                       className="integ-logo"
                       style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
@@ -96,6 +89,13 @@ export default async function IntegrationsPage() {
                     </div>
                     <div className="integ-name">{it.name}</div>
                     <p className="integ-desc">{it.desc}</p>
+                    {it.more && (
+                      <p className="integ-desc">
+                        <Link href={it.more} style={{ color: 'var(--accent)', fontWeight: 500 }}>
+                          Learn more →
+                        </Link>
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -103,15 +103,15 @@ export default async function IntegrationsPage() {
           ))}
 
           <p className="integ-note">
-            Want a platform we haven&rsquo;t listed?{' '}
-            <a href={REQUEST_INTEGRATION_MAILTO}>Tell us</a> and we&rsquo;ll prioritise it.
+            Need a connection that isn&rsquo;t here? <a href={REQUEST_INTEGRATION_MAILTO}>Tell us</a>{' '}
+            which one, or see what&rsquo;s planned on the <Link href="/roadmap">roadmap</Link>.
           </p>
         </div>
       </section>
 
       <CtaBand
-        title="Run your fleet on the tools you already love."
-        body={`Get your ${trial.first} free today and be first in line as each integration goes live.`}
+        title="Connect what you already run."
+        body={`Get your ${trial.first} free, no card. Paste a key from your GPS platform or your Bolt fleet account and the data is in Rovora within the hour.`}
       />
 
       <p style={{ textAlign: 'center', margin: '8px 0 0' }}>

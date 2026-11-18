@@ -59,7 +59,6 @@ export default function LiveMapSettings({ notify }: { notify: Notify }) {
         ) : tracking ? (
           <>
             <ToggleCard
-              icon="📍"
               label="Live location during shifts"
               description={
                 <>
@@ -75,7 +74,6 @@ export default function LiveMapSettings({ notify }: { notify: Notify }) {
             />
             {tracking.on && (
               <ToggleCard
-                icon="🛡️"
                 label="Require location to start a shift"
                 description={
                   <>
@@ -109,7 +107,6 @@ export default function LiveMapSettings({ notify }: { notify: Notify }) {
 
       <SettingsSection title="Zones">
         <LinkCard
-          icon="🗺️"
           label="Zones and arrival alerts"
           description="Draw zones around places you care about — depots, the airport, a client’s site — and get notified when a driver enters or leaves. Zones are drawn right on the map."
           href="/fleet/tracking"
@@ -150,8 +147,7 @@ function SpeedLimitCard({ notify }: { notify: Notify }) {
   };
 
   return (
-    <form className={styles.settingCard} onSubmit={onSave}>
-      <div className={styles.settingIcon} aria-hidden>🚦</div>
+    <form className={styles.settingCard} data-control="stack" onSubmit={onSave}>
       <div className={styles.settingContent}>
         <div className={styles.settingLabel}>Fleet speed limit</div>
         <div className={styles.settingDescription}>

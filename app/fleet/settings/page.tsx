@@ -44,7 +44,6 @@ type PanelProps = { notify: Notify; isAdmin: boolean };
 const SettlementsPanel = () => (
   <SettingsSection title="Settlement rules" description="How driver earnings are split and settled each week.">
     <LinkCard
-      icon="🧾"
       label="Revenue split, tax and rent presets"
       description="Create presets for how each driver’s revenue is split, taxed and charged rent, pick the fleet default, assign presets to drivers and set up recurring adjustments."
       href="/fleet/settlements/settings"
@@ -106,6 +105,17 @@ function SettingsContent() {
     messageTimer.current = setTimeout(() => setMessage(null), 4000);
   }, []);
 
+  // On a phone the tab row scrolls sideways; bring the open tab into view so
+  // a deep link to ?tab=settlements doesn't land with its tab off-screen.
+  const tabsRef = useRef<HTMLElement>(null);
+  const requestedTab = searchParams.get('tab');
+  const ready = !!user;
+  useEffect(() => {
+    if (!ready) return;
+    const current = tabsRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [requestedTab, ready]);
+
   if (!user) return <SettingsLoading user={user} />;
 
   const isAdmin = user.role === 'admin';
@@ -141,7 +151,7 @@ function SettingsContent() {
           </div>
         </div>
 
-        <nav className={styles.tabs} aria-label="Settings sections">
+        <nav className={styles.tabs} aria-label="Settings sections" ref={tabsRef}>
           {tabs.map((t) => (
             <Link
               key={t.key}

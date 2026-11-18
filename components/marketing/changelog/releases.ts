@@ -35,13 +35,343 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-rovora-ai',
+    date: '2026-11-18',
+    dateHuman: 'November 2026',
+    title: 'Rovora AI: ask your fleet anything',
+    summary:
+      'Ask a question in plain English and get the answer from your own fleet’s data — costs, drivers, shifts, services, documents — with links to the records behind it. It’s in every plan today.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Rovora AI',
+        text: 'Click Ask AI in the top bar (or press ⌘K and type a question) to ask things like “which car cost me the most last month?” or “who skipped a pre-shift check this week?”.',
+      },
+      {
+        tag: 'new',
+        area: 'Rovora AI',
+        text: 'Every answer shows the dates it used and links to the drivers, cars and pages it came from, so you can check the numbers in one click.',
+      },
+      {
+        tag: 'security',
+        area: 'Rovora AI',
+        text: 'It only reads — it never changes anything. Staff only get answers about what their role can already see, and money questions stay with fleet admins. ID and licence numbers, contact details, photos and locations are never sent to the AI.',
+      },
+      {
+        tag: 'new',
+        area: 'Rovora AI',
+        text: 'Included in every plan with a monthly allowance. Fleet admins can switch it off under Integrations → Your modules.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-gps-settings',
+    date: '2026-11-18',
+    dateHuman: 'November 2026',
+    title: 'Your GPS trackers on the map, and settings that fit your fleet',
+    summary:
+      'Already have trackers in your cars? Connect them and see every car on the Live Map next to your drivers. Settings has been rebuilt with the rules your fleet actually runs by, and every vehicle now has its whole story on one tabbed page.',
+    items: [
+      {
+        tag: 'new',
+        area: 'GPS trackers',
+        text: 'Connect the GPS platform you already use — Traccar, flespi, Wialon, Navixy, Samsara, Geotab or Mapon — by pasting its key. Each tracker is matched to your car by number plate and its position updates every minute.',
+      },
+      {
+        tag: 'improved',
+        area: 'Live tracking',
+        text: 'The Live Map now has Drivers and Cars tickboxes. A driver on shift is drawn inside their car, and a new Cars tab shows which cars are moving and where each one has been today.',
+      },
+      {
+        tag: 'security',
+        area: 'Privacy',
+        text: 'A car with nobody on shift in it is hidden from the map and no route is kept for it. That is the default; fleet admins can change it.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Settings is now split into tabs — General, Branding, Documents, Maintenance, Live Map, Shifts, Messages, Notifications, Settlements and Preferences — and other pages link straight to their own tab.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Decide how early you are warned before a document expires, how many kilometres before a service counts as due soon, and how long expired documents keep alerting.',
+      },
+      {
+        tag: 'new',
+        area: 'Shifts',
+        text: 'Choose your own start- and end-of-shift rules: switch the dashcam or interior check off, make vehicle photos optional, required or hidden, and decide whether the closing odometer reading is required.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Set your fleet’s currency and number format once, and it is used everywhere your fleet sees money. Pick where the Live Map opens by clicking on a map.',
+      },
+      {
+        tag: 'new',
+        area: 'Vehicles',
+        text: 'The vehicle page is now split into tabs — Overview, Shifts, Service & parts, Damages, Costs, Documents and Timeline — with “coming up” tiles for the next service, insurance and road licence, and a 12-month cost summary per car for admins.',
+      },
+      {
+        tag: 'new',
+        area: 'Vehicles',
+        text: 'Switch the Vehicles list between cards and a sortable table: status, driver, odometer, next service, insurance and road licence expiry, open damages and 7-day use, one row per car.',
+      },
+      {
+        tag: 'improved',
+        area: 'Navigation',
+        text: 'A tidier sidebar: Live Map, GPS Trackers, Trips and Safety sit together under Tracking, Bolt moves to Financial, and every section can be folded away.',
+      },
+      {
+        tag: 'new',
+        area: 'Dashboard',
+        text: 'Quick buttons: pin up to four shortcuts — add an expense, new roster, driver balances, Live Map and more — to the top bar, next to the page title. They are yours alone and follow you to every device.',
+      },
+      {
+        tag: 'improved',
+        area: 'Settings',
+        text: 'Settings is easier to read, especially on a phone: each section is one clean list, switches sit beside their label, and choices and fields are full-width and easy to tap.',
+      },
+      {
+        tag: 'improved',
+        area: 'Preferences',
+        text: 'Your theme is saved to your account, so it follows you to every device. Each person also chooses their start page and whether fleet alerts reach them by email, by push, or both.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-messages-bolt',
+    date: '2026-11-17',
+    dateHuman: 'November 2026',
+    title: 'Retire the WhatsApp group — and connect Bolt',
+    summary:
+      'Talk to your drivers inside Rovora instead of a WhatsApp group that never quite matches who works for you, and see your Bolt rides, fares and drivers next to everything else. Plus a much shorter sign-up for new fleets.',
+    items: [
+      {
+        tag: 'new',
+        area: 'Messages',
+        text: 'Chat with your drivers in Rovora: one-to-one chats, groups you create, announcement-only groups, and an automatic “Everyone” group that drivers join and leave with the fleet — so nobody who has left is still reading.',
+      },
+      {
+        tag: 'new',
+        area: 'Messages',
+        text: 'Send photos and files, see when a message has been read, mute a chat, or delete a message for everyone. Unread badges in the sidebar, the top bar and the driver’s bottom tabs, and browser notifications for managers.',
+      },
+      {
+        tag: 'new',
+        area: 'Messages',
+        text: 'You decide whether drivers can message each other directly. In the Rovora Driver app, tapping a message notification opens that chat.',
+      },
+      {
+        tag: 'new',
+        area: 'Bolt',
+        text: 'Connect your Bolt fleet account with a Fleet API key and Rovora imports your Bolt drivers, vehicles and rides, refreshed every hour. Keys are encrypted before they are stored.',
+      },
+      {
+        tag: 'new',
+        area: 'Bolt',
+        text: 'A Bolt dashboard with five tabs: an overview (rides, fares, tips, acceptance, rating and who is online on Bolt right now), per-driver figures, revenue by day and hour, every ride offer, and per-car figures including idle cars.',
+      },
+      {
+        tag: 'improved',
+        area: 'Bolt',
+        text: 'Bolt drivers are matched to your Rovora drivers automatically by email, phone or name, and you can correct any match by hand. Fares are shown before Bolt’s commission, which Bolt does not share yet.',
+      },
+      {
+        tag: 'improved',
+        area: 'Onboarding',
+        text: 'Setting up a new fleet is now one screen — name your fleet and you are in. Vehicles, drivers and pay are covered by the getting-started checklist on the dashboard.',
+      },
+      {
+        tag: 'improved',
+        area: 'Sign-up',
+        text: 'The verification email has a one-tap “Verify my email” button, with the code still underneath. Switching to your mail app and back no longer loses the code screen.',
+      },
+      {
+        tag: 'improved',
+        area: 'Billing',
+        text: 'Fleet admins get an email a few days before the free period ends, and again if it has ended, so the dashboard pausing is never a surprise. Your data is always kept.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Settlements',
+        text: 'Settlement PDFs now print the € sign and Maltese letters (ħ, ġ, ż, ċ) correctly on iPhone, iPad and Mac. Before, “€1048.06” could read as “€048.06”.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Adjustments',
+        text: 'On phones, the add/edit dialog is no longer hidden behind the bottom navigation, and the filter bar has its own phone layout.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-safety-billing',
+    date: '2026-10-26',
+    dateHuman: 'October 2026',
+    title: 'Every harsh-driving event, on the map',
+    summary:
+      'Click any safety event and see exactly where and how it happened. The driver app also got much better at telling a real harsh brake from a pothole. Billing now shows what you will actually pay, extra vehicles included.',
+    items: [
+      {
+        tag: 'new',
+        area: 'Safety',
+        text: 'Open any driver’s safety card to see every event — harsh braking, acceleration, cornering and speeding — on a map, with the route a few minutes either side, speed before and after, how strong it was, the car, the shift and the street name. Links straight to Google Maps and Street View.',
+      },
+      {
+        tag: 'new',
+        area: 'Safety',
+        text: 'A fleet-wide “Where events happen” map shows the spots where your drivers brake or corner hard most often.',
+      },
+      {
+        tag: 'improved',
+        area: 'Driver app',
+        text: 'Smarter harsh-driving detection (Rovora Driver 1.0.4): potholes and bumps no longer count, picking up or moving the phone is ignored, sharp cornering is now detected, and each event records its exact spot and speed.',
+      },
+      {
+        tag: 'improved',
+        area: 'Billing',
+        text: 'Plan cards show how many vehicles are included and the price per extra vehicle, and the Billing page shows your real monthly total with a breakdown. Changing plan updates your existing subscription instead of starting a second one.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Billing',
+        text: 'Choosing a plan could show an error page in rare cases; it now always either opens checkout or tells you what went wrong.',
+      },
+      {
+        tag: 'security',
+        area: 'Privacy',
+        text: 'The rovora.eu website has a cookie banner with equally weighted Allow and Decline buttons, respects Global Privacy Control, and loads no Google tags until you click Allow. Nothing tracks you inside the signed-in app.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-tracking',
+    date: '2026-10-05',
+    dateHuman: 'October 2026',
+    title: 'On shift means on the map',
+    summary:
+      'A driver on shift but missing from the map now gets noticed — by the app, and by you, with the exact reason and how to fix it. Shifts left open by mistake close themselves, and you can sign in with Google.',
+    items: [
+      {
+        tag: 'new',
+        area: 'Live tracking',
+        text: 'An “On shift, not sharing location” box on the Live Map lists every on-shift driver you can’t see, with the specific reason and what to tell them — for example “location only allowed while the app is open” or “using the website instead of the app”.',
+      },
+      {
+        tag: 'improved',
+        area: 'Live tracking',
+        text: 'Parked cars stay on the map as “Parked” instead of dropping to “Offline”, and if the phone stops sharing mid-shift the app restarts it. The Activity feed shows when a driver’s signal was lost and when it came back.',
+      },
+      {
+        tag: 'improved',
+        area: 'Driver app',
+        text: 'Before tracking starts, the app checks location access and, if something is missing, shows a pop-up that takes the driver straight to the fix. It keeps reminding on-shift drivers who aren’t sharing, even with the app closed.',
+      },
+      {
+        tag: 'new',
+        area: 'Shifts',
+        text: '“Are you still on shift?” — choose after how many hours drivers are asked, and how long they have to answer before the shift is ended automatically at the moment they were asked. No more 20-hour shifts from a forgotten tap.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Fleet settings to turn live location during shifts on or off, and to require working location access before a driver can start a shift. Fleet admins can also edit the fleet’s name, legal name, VAT number and contact details.',
+      },
+      {
+        tag: 'new',
+        area: 'Driver app',
+        text: 'Drivers on an old version of Rovora Driver see an “Update required” screen that opens Google Play, so everyone is on the version with the latest fixes.',
+      },
+      {
+        tag: 'new',
+        area: 'Sign-in',
+        text: 'Sign in and sign up with Google.',
+      },
+      {
+        tag: 'security',
+        area: 'Invitations',
+        text: 'Adding someone who already has a Rovora account now sends them an invitation to accept or decline, instead of adding them to your fleet straight away. A driver in two fleets can’t be on shift in both at once.',
+      },
+      {
+        tag: 'security',
+        area: 'Sign-in',
+        text: 'Password-reset emails can be resent from a “Check your inbox” screen, with server-side limits so the button can’t be abused to flood an inbox.',
+      },
+      {
+        tag: 'improved',
+        area: 'Staff',
+        text: 'The staff details page now matches the driver page, shows the person’s role in this fleet and when they joined, and dates in your fleet’s time zone.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Drivers',
+        text: 'Admins can remove a driver again, from the bottom of the driver page. The confirmation explains what is deleted and suggests setting the driver to Inactive to keep their history.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Driver app',
+        text: 'The Android app no longer asks for the “physical activity” permission — harsh-driving detection never needed it.',
+      },
+    ],
+  },
+  {
+    id: '2026-09-settlements-api',
+    date: '2026-09-30',
+    dateHuman: 'September 2026',
+    title: 'Faster settlements, clearer PDFs and an open API',
+    summary:
+      'Running the weekly settlement takes fewer clicks, and every PDF now starts with the one number drivers care about: what they are owed. Developers can connect their own tools with the new Rovora API.',
+    items: [
+      {
+        tag: 'new',
+        area: 'API',
+        text: 'The Rovora REST API, on plans that include API access: create API keys in the dashboard and read, add and update drivers, vehicles and bookkeeping transactions from your own tools. Full documentation at rovora.eu/docs/api.',
+      },
+      {
+        tag: 'improved',
+        area: 'Settlements',
+        text: 'Setting up a week is quicker: “Next week” and “Next 4 weeks” chips continue from your latest week, the end date fills itself in, and you are told when rent, wages and flat tax will be scaled for a shorter or longer period.',
+      },
+      {
+        tag: 'improved',
+        area: 'Settlements',
+        text: 'Spreadsheet-style entry: Enter moves to the next field, Ctrl/⌘+Enter saves a draft, and Previous / Next show the neighbouring driver’s name. The driver list shows each driver’s balance for the week.',
+      },
+      {
+        tag: 'new',
+        area: 'Settlements',
+        text: 'Settlement PDFs lead with “Amount owed to driver” — the weeks earned this month minus those already paid — and fit each driver on a single page.',
+      },
+      {
+        tag: 'improved',
+        area: 'Settlements',
+        text: 'The setup wizard now asks whether your drivers keep cash fares or hand them in, instead of always deducting cash.',
+      },
+      {
+        tag: 'new',
+        area: 'Billing',
+        text: 'See your invoice history (with PDFs) on the Billing page, and update your card or cancel from “Manage payment method”.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Sign-in',
+        text: 'Passwords of 6 or 7 characters were accepted by the form but then refused when saved. The minimum is now 6 everywhere.',
+      },
+      {
+        tag: 'security',
+        area: 'Platform',
+        text: 'Core platform components updated, including a critical framework security fix. No known vulnerabilities.',
+      },
+    ],
+  },
+  {
     id: '2026-09-ledger',
     date: '2026-09-16',
     dateHuman: 'September 2026',
     title: 'Book it the moment it happens',
     summary:
       'Spent €20 on a car wash today? It goes in today — from your phone, receipt photo and all. Bookkeeping is now a running ledger of dated transactions, the way Xero and QuickBooks work, so there is nothing to remember until the end of the week and nothing to add up on Sunday.',
-    highlight: true,
     items: [
       {
         tag: 'new',

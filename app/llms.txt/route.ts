@@ -1,5 +1,5 @@
 import { SITE_URL } from '@/lib/seo';
-import { FEATURES, featureHref } from '@/components/marketing/links';
+import { FEATURES, AUDIENCES, featureHref, audienceHref } from '@/components/marketing/links';
 import { BLOG_POSTS, blogHref } from '@/components/marketing/blog/posts';
 import { getPublicPlans } from '@/lib/billing/plans-data';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
@@ -50,8 +50,9 @@ ${planLines.join('\n')}
 
 ## Features
 ${FEATURES.map((f) => `- [${f.label}](${SITE_URL}${featureHref(f.slug)}): ${f.blurb}`).join('\n')}
-- [Integrations](${SITE_URL}/integrations): export fleet expenses to QuickBooks or Xero by CSV today; GPS, ride-hail and messaging connections are coming.
-- [Rovora AI](${SITE_URL}/ai): in development (early access) — receipt reading, Uber/Bolt statement import, repair-quote checks.
+- [Integrations](${SITE_URL}/integrations): live today — Bolt fleet account (Fleet API key), Xero and QuickBooks by CSV export, REST API, Google sign-in, email notifications.
+${AUDIENCES.map((a) => `- [For ${a.label}](${SITE_URL}${audienceHref(a.slug)}): ${a.blurb}`).join('\n')}
+- [Rovora AI](${SITE_URL}/ai): fleet assistant live in every plan (plain-English questions answered from the fleet's own data, with links to the records); in development (early access) — receipt reading, Uber/Bolt statement import, repair-quote checks.
 - [Developer API](${SITE_URL}/docs/api): REST API with scoped keys and an OpenAPI spec.
 
 ## Guides
@@ -63,6 +64,7 @@ ${BLOG_POSTS.map((p) => `- [${p.heading}](${SITE_URL}${blogHref(p.slug)}): ${p.d
 - [Security](${SITE_URL}/security)
 - [Privacy policy](${SITE_URL}/privacy)
 - [What's new](${SITE_URL}/changelog)
+- [Roadmap: shipped, in progress and next](${SITE_URL}/roadmap)
 `;
 
   return new Response(body, {

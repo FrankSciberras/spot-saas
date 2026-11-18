@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -71,11 +72,11 @@ export default async function DamageFeaturePage() {
           <SplitRow
             icon="camera"
             title="Log damage with photos &amp; zones"
-            body="Tap the exact spot on a vehicle diagram, set the severity, describe what happened and attach photos. Each incident is tied to the car — and to the shift it appeared on."
+            body="Tap the exact spot on a vehicle diagram, set the severity, describe what happened and attach photos. Each incident stays on the record of the car it happened to."
             bullets={[
               'Pinpoint the damage on a car-zone diagram',
               'Severity, description and photo evidence on every report',
-              'Linked to the vehicle and the shift it surfaced in',
+              'Kept on the vehicle’s record, with the date',
             ]}
             visual={
               <ShotFrame path="damages/new" tight>
@@ -93,11 +94,11 @@ export default async function DamageFeaturePage() {
             icon="coins"
             flip
             title="Track repair cost &amp; status"
-            body="Move each incident from open to repairing to closed, record what the fix cost and when it was done. Repair spend rolls straight into your fleet financials."
+            body="Move each incident from open to monitoring to repaired, and record what the fix cost and when it was done. Repair spend adds up per car, so you can see which vehicles cost you most."
             bullets={[
-              'Open → repairing → closed status on every incident',
+              'Open → monitoring → repaired status on every incident',
               'Repair cost and repaired date captured',
-              'Damage spend rolled into your financials',
+              'Repair spend totalled per vehicle',
             ]}
             visual={
               <ShotFrame path="damages/12-d-4471" tight>
@@ -113,9 +114,9 @@ export default async function DamageFeaturePage() {
           <SplitRow
             icon="shield"
             title="Pre-shift checks at clock-in"
-            body="Before a driver can go online they photograph all four sides of the car and confirm its condition. So if damage turns up unreported, the record shows it wasn't there at handover — and whose shift it was."
+            body="Before a driver can go online they confirm the car’s condition, and can photograph it from all four sides. So if damage turns up unreported, you have a record of the car at handover — and whose shift it was."
             bullets={[
-              'Four-side photo check required before going online',
+              'Front, left, right and back photos at the start of a shift',
               'Driver confirms condition and flags any existing damage',
               'A clear handover trail for every shift',
             ]}
@@ -140,14 +141,16 @@ export default async function DamageFeaturePage() {
             items={[
               { icon: 'camera', title: 'Photo evidence', body: 'Every report backed by photos of the actual damage.' },
               { icon: 'car', title: 'Zone logging', body: 'Pinpoint damage on a per-vehicle car diagram.' },
-              { icon: 'coins', title: 'Repair costs', body: 'Track what each fix cost, rolled into financials.' },
+              { icon: 'coins', title: 'Repair costs', body: 'Track what each fix cost, per incident and per car.' },
               { icon: 'shield', title: 'Driver accountability', body: 'Pre-shift checks tie damage to the right handover.' },
               { icon: 'file', title: 'Full history', body: 'A complete, dated damage record per vehicle.' },
-              { icon: 'bell', title: 'Status alerts', body: 'Know what is open, repairing or overdue to close.' },
+              { icon: 'bell', title: 'Status alerts', body: 'See what is open, being monitored or repaired.' },
             ]}
           />
         </div>
       </section>
+
+      <FeatureExtras slug="damage" />
 
       <CtaBand
         title="Catch every knock before it costs you."

@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -148,6 +149,8 @@ export default async function FlexiblePayFeaturePage() {
           />
         </div>
       </section>
+
+      <FeatureExtras slug="flexible-pay" />
 
       <CtaBand
         title="Run the pay deals you actually have."
