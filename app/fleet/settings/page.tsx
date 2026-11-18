@@ -1,370 +1,174 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
+import { useEnabledModules } from '@/components/fleet/FleetModulesProvider';
 import { SessionUser } from '@/lib/types/database';
+import { settingsForTab } from '@/lib/settings/catalog';
+import { SETTINGS_TABS, type SettingsTabKey } from '@/lib/settings/types';
+import { safeReturnPath, settingsHref } from '@/lib/settings/pages';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
+import { fleetPageName } from '@/components/fleet/navConfig';
+import CatalogSettings from './CatalogSettings';
 import BrandingSettings from './BrandingSettings';
 import FleetDetailsSettings from './FleetDetailsSettings';
+import LiveMapSettings from './LiveMapSettings';
+import ShiftSettings from './ShiftSettings';
+import MessagesSettings from './MessagesSettings';
+import NotificationSettings from './NotificationSettings';
+import PreferencesSettings from './PreferencesSettings';
+import { LinkCard, SettingsSection, type Notify } from './SettingsParts';
 import styles from './settings.module.css';
 
+// =============================================================================
+// SETTINGS — one tab per part of Rovora. The active tab lives in ?tab= so other
+// pages can deep-link straight to their settings (e.g. /fleet/settings?tab=live-map).
+// Tabs tied to a module hide when the fleet has that module switched off, the
+// same way the sidebar does. Everything but Preferences is admin-only.
+// The tab list lives in lib/settings/types.ts; the settings on each tab come
+// from hand-written panels below plus lib/settings/catalog.ts.
+// =============================================================================
+
+type TabKey = SettingsTabKey;
+
+/**
+ * Hand-written panels. Tabs not listed here (Documents, Maintenance) are
+ * drawn entirely from lib/settings/catalog.ts; every tab also
+ * gets the catalog settings filed under it, below its own panel.
+ */
+type PanelProps = { notify: Notify; isAdmin: boolean };
+
+const SettlementsPanel = () => (
+  <SettingsSection title="Settlement rules" description="How driver earnings are split and settled each week.">
+    <LinkCard
+      icon="🧾"
+      label="Revenue split, tax and rent presets"
+      description="Create presets for how each driver’s revenue is split, taxed and charged rent, pick the fleet default, assign presets to drivers and set up recurring adjustments."
+      href="/fleet/settlements/settings"
+      cta="Open settlement rules"
+    />
+  </SettingsSection>
+);
+
+const PANELS: Partial<Record<TabKey, { Panel: ComponentType<PanelProps>; catalogFirst?: boolean; ownSections?: string[] }>> = {
+  general: { Panel: FleetDetailsSettings },
+  branding: { Panel: BrandingSettings },
+  'live-map': { Panel: LiveMapSettings },
+  // Starting / ending a shift (catalog) read best above the forgotten-shift check.
+  shifts: { Panel: ShiftSettings, catalogFirst: true, ownSections: ['Forgotten shifts'] },
+  messages: { Panel: MessagesSettings },
+  notifications: { Panel: NotificationSettings },
+  settlements: { Panel: SettlementsPanel },
+  preferences: { Panel: PreferencesSettings, ownSections: ['Appearance'] },
+};
+
+/** Tab link; keeps ?from= so "Back to …" survives switching tabs. */
+const hrefFor = (key: TabKey, first: TabKey, from: string | null) =>
+  key === first && !from ? '/fleet/settings' : settingsHref(key, from);
+
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<SettingsLoading user={null} />}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsLoading({ user }: { user: SessionUser | null }) {
+  return (
+    <FleetShell user={user as SessionUser} title="Settings">
+      <FleetPageSkeleton variant="form" />
+    </FleetShell>
+  );
+}
+
+function SettingsContent() {
+  const searchParams = useSearchParams();
+  const enabledModules = useEnabledModules();
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [driverPushPrompt, setDriverPushPrompt] = useState<boolean | null>(null);
-  const [savingDriverPush, setSavingDriverPush] = useState(false);
-  const [liveTracking, setLiveTracking] = useState<{ on: boolean; moduleOn: boolean } | null>(null);
-  const [savingLiveTracking, setSavingLiveTracking] = useState(false);
-  // Fleet rule: shifts only start from the app, with location working.
-  const [requireLocation, setRequireLocation] = useState(false);
-  const [savingRequire, setSavingRequire] = useState(false);
-  // "Still on shift?" check: ask after N hours, end the shift if no answer.
-  const [shiftCheck, setShiftCheck] = useState<{ enabled: boolean; afterHours: number; graceMinutes: number } | null>(null);
-  const [shiftCheckDraft, setShiftCheckDraft] = useState({ afterHours: '12', graceMinutes: '30' });
-  const [savingShiftCheck, setSavingShiftCheck] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    fetchData();
+    fetch('/api/auth/user')
+      .then((r) => r.json())
+      .then(setUser)
+      .catch(() => setMessage({ type: 'error', text: 'Failed to load settings' }));
   }, []);
 
-  const fetchData = async () => {
-    try {
-      const userRes = await fetch('/api/auth/user');
-      const userData = await userRes.json();
-      setUser(userData);
-
-      const pushRes = await fetch('/api/fleet/driver-push-prompt');
-      if (pushRes.ok) {
-        const pushData = await pushRes.json();
-        setDriverPushPrompt(pushData.prompt_drivers_push !== false);
-      }
-
-      const trackingRes = await fetch('/api/fleet/live-tracking', { cache: 'no-store' });
-      if (trackingRes.ok) {
-        const t = await trackingRes.json();
-        setLiveTracking({ on: t.track_location_on_shift !== false, moduleOn: t.module_enabled !== false });
-        setRequireLocation(t.require_location_for_shift === true);
-      }
-
-      const shiftCheckRes = await fetch('/api/fleet/shift-check', { cache: 'no-store' });
-      if (shiftCheckRes.ok) {
-        const sc = await shiftCheckRes.json();
-        setShiftCheck(sc);
-        setShiftCheckDraft({ afterHours: String(sc.afterHours), graceMinutes: String(sc.graceMinutes) });
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      showMessage('error', 'Failed to load settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleDriverPushPrompt = async () => {
-    if (driverPushPrompt === null) return;
-    const next = !driverPushPrompt;
-    setSavingDriverPush(true);
-    try {
-      const res = await fetch('/api/fleet/driver-push-prompt', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: next }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setDriverPushPrompt(updated.prompt_drivers_push !== false);
-        showMessage('success', `Setting updated successfully`);
-      } else {
-        throw new Error('Failed to update');
-      }
-    } catch (error) {
-      console.error('Error updating driver push prompt setting:', error);
-      showMessage('error', 'Failed to update setting');
-    } finally {
-      setSavingDriverPush(false);
-    }
-  };
-
-  const toggleLiveTracking = async () => {
-    if (liveTracking === null) return;
-    const next = !liveTracking.on;
-    setSavingLiveTracking(true);
-    try {
-      const res = await fetch('/api/fleet/live-tracking', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: next }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Failed to update setting');
-      setLiveTracking({ on: body.track_location_on_shift !== false, moduleOn: body.module_enabled !== false });
-      showMessage('success', next ? 'Live location during shifts is on' : 'Live location during shifts is off');
-    } catch (error) {
-      console.error('Error updating live tracking setting:', error);
-      showMessage('error', error instanceof Error ? error.message : 'Failed to update setting');
-    } finally {
-      setSavingLiveTracking(false);
-    }
-  };
-
-  const toggleRequireLocation = async () => {
-    const next = !requireLocation;
-    setSavingRequire(true);
-    try {
-      const res = await fetch('/api/fleet/live-tracking', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ require: next }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Failed to update setting');
-      setRequireLocation(body.require_location_for_shift === true);
-      showMessage('success', next ? 'Drivers now need location working to start a shift' : 'Location is no longer required to start a shift');
-    } catch (error) {
-      console.error('Error updating require-location setting:', error);
-      showMessage('error', error instanceof Error ? error.message : 'Failed to update setting');
-    } finally {
-      setSavingRequire(false);
-    }
-  };
-
-  const saveShiftCheck = async (patch: { enabled?: boolean; afterHours?: number; graceMinutes?: number }) => {
-    setSavingShiftCheck(true);
-    try {
-      const res = await fetch('/api/fleet/shift-check', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Failed to save');
-      setShiftCheck(body);
-      setShiftCheckDraft({ afterHours: String(body.afterHours), graceMinutes: String(body.graceMinutes) });
-      showMessage('success', 'Shift check saved');
-    } catch (error) {
-      showMessage('error', error instanceof Error ? error.message : 'Failed to save');
-    } finally {
-      setSavingShiftCheck(false);
-    }
-  };
-
-  const showMessage = (type: 'success' | 'error', text: string) => {
+  // Stable so the tab panels can list it as an effect dependency.
+  const notify: Notify = useCallback((type, text) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 4000);
-  };
+    if (messageTimer.current) clearTimeout(messageTimer.current);
+    messageTimer.current = setTimeout(() => setMessage(null), 4000);
+  }, []);
 
-  if (loading || !user) {
-    return (
-      <FleetShell user={user as SessionUser} title="Settings">
-        <FleetPageSkeleton variant="form" />
-      </FleetShell>
-    );
-  }
+  if (!user) return <SettingsLoading user={user} />;
+
+  const isAdmin = user.role === 'admin';
+  const hasCatalog = (key: TabKey) =>
+    settingsForTab(key).some(({ def }) => !def.ownPanel && (def.scope === 'user' || isAdmin) && (!def.module || enabledModules.has(def.module)));
+  const tabs = SETTINGS_TABS.filter(
+    (t) =>
+      (isAdmin || ('everyone' in t && t.everyone)) &&
+      (!('module' in t) || enabledModules.has(t.module)) &&
+      (PANELS[t.key] || hasCatalog(t.key))
+  );
+  const first = tabs[0].key;
+  const requested = searchParams.get('tab');
+  const active: TabKey = tabs.find((t) => t.key === requested)?.key ?? first;
+  // Came here from a page's gear (lib/settings/pages.ts): offer the way back.
+  const from = safeReturnPath(searchParams.get('from'));
+  const fromName = from ? fleetPageName(from) : null;
+  const panel = PANELS[active];
+  const Panel = panel?.Panel;
+  const catalog = <CatalogSettings tab={active} isAdmin={isAdmin} notify={notify} skipSections={panel?.ownSections} />;
 
   return (
     <FleetShell user={user} title="Settings">
       <div className={styles.container}>
+        {from && <FleetBackLink href={from} label={`Back to ${fromName ?? 'previous page'}`} />}
         <div className={`${styles.header} header-mobile-row`}>
           <div>
             <div className={styles.breadcrumb}>Admin / Settings</div>
             <div className={styles.titleRow}>
               <h1 className={styles.title}>Settings</h1>
             </div>
-            <p className={styles.subtitle}>Your fleet’s details, branding and preferences</p>
+            <p className={styles.subtitle}>Your fleet’s details, branding and how each part of Rovora works for your team</p>
           </div>
         </div>
 
+        <nav className={styles.tabs} aria-label="Settings sections">
+          {tabs.map((t) => (
+            <Link
+              key={t.key}
+              href={hrefFor(t.key, first, from)}
+              className={styles.tab}
+              data-active={active === t.key ? 'true' : undefined}
+              aria-current={active === t.key ? 'page' : undefined}
+              scroll={false}
+              replace
+              // A banner from the last tab shouldn't follow you to the next one.
+              onClick={() => setMessage(null)}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+
         {message && (
-          <div className={`${styles.message} ${styles[message.type]}`}>
+          <div className={`${styles.message} ${styles[message.type]}`} role="status">
             {message.text}
           </div>
         )}
 
-        {user.role === 'admin' && <FleetDetailsSettings />}
-        {user.role === 'admin' && <BrandingSettings />}
-
-        <div className={styles.settingsGrid}>
-          {user.role === 'admin' && liveTracking !== null && (
-            <div className={styles.settingCard}>
-              <div className={styles.settingIcon}>📍</div>
-              <div className={styles.settingContent}>
-                <div className={styles.settingLabel}>Live location during shifts</div>
-                <div className={styles.settingDescription}>
-                  When on, starting a shift in the Rovora Driver app shares the driver&apos;s live
-                  location on your Live Map. The app checks the phone&apos;s location settings and
-                  asks the driver to fix them, and keeps reminding on-shift drivers who aren&apos;t
-                  sharing. Turn this off to start shifts without location sharing.
-                  {!liveTracking.moduleOn && (
-                    <>
-                      {' '}
-                      <strong>
-                        The Live Tracking module is switched off, so this has no effect until you turn it
-                        on in <Link href="/fleet/integrations">Integrations</Link>.
-                      </strong>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className={styles.settingAction}>
-                <label className={`${styles.toggle} ${savingLiveTracking ? styles.toggleDisabled : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={liveTracking.on}
-                    onChange={toggleLiveTracking}
-                    disabled={savingLiveTracking}
-                    aria-label="Live location during shifts"
-                  />
-                  <span className={styles.toggleSlider}></span>
-                </label>
-                <span className={styles.statusLabel}>
-                  {liveTracking.on ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {user.role === 'admin' && liveTracking !== null && liveTracking.on && (
-            <div className={styles.settingCard}>
-              <div className={styles.settingIcon}>🛡️</div>
-              <div className={styles.settingContent}>
-                <div className={styles.settingLabel}>Require location to start a shift</div>
-                <div className={styles.settingDescription}>
-                  When on, drivers can only go online from the Rovora Driver app, and only once their
-                  phone&apos;s location is set up properly — the app shows them exactly what to fix.
-                  Shifts can no longer be started from a web browser. Drivers on an older version of
-                  the app are let through until they update.
-                </div>
-              </div>
-              <div className={styles.settingAction}>
-                <label className={`${styles.toggle} ${savingRequire ? styles.toggleDisabled : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={requireLocation}
-                    onChange={toggleRequireLocation}
-                    disabled={savingRequire}
-                    aria-label="Require location to start a shift"
-                  />
-                  <span className={styles.toggleSlider}></span>
-                </label>
-                <span className={styles.statusLabel}>{requireLocation ? 'Required' : 'Optional'}</span>
-              </div>
-            </div>
-          )}
-
-          {user.role === 'admin' && shiftCheck !== null && (
-            <div className={styles.settingCard}>
-              <div className={styles.settingIcon}>⏱️</div>
-              <div className={styles.settingContent}>
-                <div className={styles.settingLabel}>“Still on shift?” check</div>
-                <div className={styles.settingDescription}>
-                  Catches shifts drivers forget to end. After the hours below, Rovora asks the driver if
-                  they&apos;re still working (a phone notification from the app, plus in-app and email).
-                  Opening the app answers it and the shift carries on — they&apos;re asked again after the
-                  same number of hours. If there&apos;s no answer in time, the shift ends at the moment we
-                  asked and you&apos;re notified.
-                  {!shiftCheck.enabled && ' While off, shifts still open after 24 hours are ended automatically.'}
-                </div>
-                {shiftCheck.enabled && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 12, fontSize: 14 }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      Ask after
-                      <input
-                        type="number"
-                        min={1}
-                        max={23}
-                        step={0.5}
-                        value={shiftCheckDraft.afterHours}
-                        onChange={(e) => setShiftCheckDraft((d) => ({ ...d, afterHours: e.target.value }))}
-                        style={{ width: 64, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line-2, #d0d5dd)', background: 'var(--bg-1, #fff)', color: 'inherit' }}
-                        aria-label="Ask after hours on shift"
-                      />
-                      hours on shift
-                    </label>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      · end the shift if no answer within
-                      <input
-                        type="number"
-                        min={15}
-                        max={240}
-                        step={5}
-                        value={shiftCheckDraft.graceMinutes}
-                        onChange={(e) => setShiftCheckDraft((d) => ({ ...d, graceMinutes: e.target.value }))}
-                        style={{ width: 64, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line-2, #d0d5dd)', background: 'var(--bg-1, #fff)', color: 'inherit' }}
-                        aria-label="Minutes to wait for an answer"
-                      />
-                      minutes
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={
-                        savingShiftCheck ||
-                        (shiftCheckDraft.afterHours === String(shiftCheck.afterHours) &&
-                          shiftCheckDraft.graceMinutes === String(shiftCheck.graceMinutes))
-                      }
-                      onClick={() =>
-                        saveShiftCheck({
-                          afterHours: Number(shiftCheckDraft.afterHours),
-                          graceMinutes: Number(shiftCheckDraft.graceMinutes),
-                        })
-                      }
-                    >
-                      {savingShiftCheck ? 'Saving…' : 'Save'}
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className={styles.settingAction}>
-                <label className={`${styles.toggle} ${savingShiftCheck ? styles.toggleDisabled : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={shiftCheck.enabled}
-                    onChange={() => saveShiftCheck({ enabled: !shiftCheck.enabled })}
-                    disabled={savingShiftCheck}
-                    aria-label="Still on shift check"
-                  />
-                  <span className={styles.toggleSlider}></span>
-                </label>
-                <span className={styles.statusLabel}>{shiftCheck.enabled ? 'Enabled' : 'Disabled'}</span>
-              </div>
-            </div>
-          )}
-
-          {user.role === 'admin' && driverPushPrompt !== null && (
-            <div className={styles.settingCard}>
-              <div className={styles.settingIcon}>🔔</div>
-              <div className={styles.settingContent}>
-                <div className={styles.settingLabel}>Prompt drivers to enable notifications</div>
-                <div className={styles.settingDescription}>
-                  When enabled, drivers in your fleet who haven&apos;t turned on push
-                  notifications see a &ldquo;Stay in the loop&rdquo; prompt on login. Turn this off
-                  to stop nudging them.
-                </div>
-              </div>
-              <div className={styles.settingAction}>
-                <label className={`${styles.toggle} ${savingDriverPush ? styles.toggleDisabled : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={driverPushPrompt}
-                    onChange={toggleDriverPushPrompt}
-                    disabled={savingDriverPush}
-                  />
-                  <span className={styles.toggleSlider}></span>
-                </label>
-                <span className={styles.statusLabel}>
-                  {driverPushPrompt ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {!(user.role === 'admin' && (driverPushPrompt !== null || liveTracking !== null)) && (
-            <div className={styles.empty}>
-              <p>No settings available for your role yet.</p>
-            </div>
-          )}
+        <div className={styles.panel} key={active}>
+          {panel?.catalogFirst && catalog}
+          {Panel && <Panel notify={notify} isAdmin={isAdmin} />}
+          {!panel?.catalogFirst && catalog}
         </div>
       </div>
     </FleetShell>

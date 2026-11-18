@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import DeleteRecordButton from '@/components/fleet/DeleteRecordButton';
 import styles from './VehicleProfile.module.css';
 
@@ -82,17 +83,18 @@ const formatDate = (d: string | null): string => {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const getExpiryStatus = (d: string | null): 'ok' | 'warning' | 'danger' | null => {
+/** `warnDays` = the fleet's warning window (Settings → Documents). */
+const getExpiryStatus = (d: string | null, warnDays: number): 'ok' | 'warning' | 'danger' | null => {
   if (!d) return null;
   const date = new Date(d), now = new Date(), soon = new Date();
-  soon.setDate(now.getDate() + 30);
+  soon.setDate(now.getDate() + warnDays);
   if (date < now) return 'danger';
   if (date <= soon) return 'warning';
   return 'ok';
 };
 
-const getExpiryLabel = (d: string | null): string => {
-  const s = getExpiryStatus(d);
+const getExpiryLabel = (d: string | null, warnDays: number): string => {
+  const s = getExpiryStatus(d, warnDays);
   if (s === 'danger') return 'Expired';
   if (s === 'warning') return 'Expiring soon';
   return '';
@@ -151,8 +153,9 @@ function EditableField({
     if (e.key === 'Escape') cancel();
   };
 
-  const expiryStatus = expiryDate ? getExpiryStatus(expiryDate) : null;
-  const expiryText = expiryDate ? getExpiryLabel(expiryDate) : '';
+  const warnDays = useFleetSetting('documents.expiry_warning_days');
+  const expiryStatus = expiryDate ? getExpiryStatus(expiryDate, warnDays) : null;
+  const expiryText = expiryDate ? getExpiryLabel(expiryDate, warnDays) : '';
 
   if (editing) {
     return (
@@ -281,6 +284,9 @@ export default function VehicleProfile({
   nextServiceDue, vehicleModels, isAdmin,
 }: VehicleProfileProps) {
   const router = useRouter();
+  // "Due soon" distance (Settings → Maintenance); red at a quarter of it.
+  const dueSoonKm = useFleetSetting('maintenance.service_due_km');
+  const dueUrgentKm = Math.round(dueSoonKm / 4);
   const [vehicle, setVehicle] = useState(initialVehicle);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
@@ -380,7 +386,7 @@ export default function VehicleProfile({
       nextServiceSub = 'Overdue'; nextServiceColor = 'var(--neg)';
     } else {
       nextServiceValue = `${kmUntilService.toLocaleString()} km`;
-      nextServiceSub = 'Remaining'; nextServiceColor = kmUntilService <= 2000 ? 'var(--warn)' : 'var(--accent)';
+      nextServiceSub = 'Remaining'; nextServiceColor = kmUntilService <= dueSoonKm ? 'var(--warn)' : 'var(--accent)';
     }
   }
 
@@ -532,16 +538,16 @@ export default function VehicleProfile({
         <div className={styles.sectionBody}>
           {/* Service Due Alert */}
           {kmUntilService !== null && (
-            <div className={`${styles.serviceAlert} ${kmUntilService <= 500 ? styles.serviceAlertRed : kmUntilService <= 2000 ? styles.serviceAlertOrange : styles.serviceAlertGreen}`}>
+            <div className={`${styles.serviceAlert} ${kmUntilService <= dueUrgentKm ? styles.serviceAlertRed : kmUntilService <= dueSoonKm ? styles.serviceAlertOrange : styles.serviceAlertGreen}`}>
               <div>
-                <div className={styles.serviceAlertLabel} style={{ color: kmUntilService <= 500 ? 'var(--neg)' : kmUntilService <= 2000 ? 'var(--warn)' : 'var(--pos)' }}>
+                <div className={styles.serviceAlertLabel} style={{ color: kmUntilService <= dueUrgentKm ? 'var(--neg)' : kmUntilService <= dueSoonKm ? 'var(--warn)' : 'var(--pos)' }}>
                   Next Service Due
                 </div>
                 <div className={`${styles.serviceAlertSub} mono tnum`}>
                   at {nextServiceDue?.next_service_mileage?.toLocaleString()} km
                 </div>
               </div>
-              <span className={`${styles.serviceAlertValue} mono tnum`} style={{ color: kmUntilService <= 500 ? 'var(--neg)' : kmUntilService <= 2000 ? 'var(--warn)' : 'var(--pos)' }}>
+              <span className={`${styles.serviceAlertValue} mono tnum`} style={{ color: kmUntilService <= dueUrgentKm ? 'var(--neg)' : kmUntilService <= dueSoonKm ? 'var(--warn)' : 'var(--pos)' }}>
                 {kmUntilService <= 0
                   ? `${Math.abs(kmUntilService).toLocaleString()} km overdue`
                   : `${kmUntilService.toLocaleString()} km remaining`

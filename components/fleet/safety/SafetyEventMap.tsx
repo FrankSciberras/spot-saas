@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useMapStartView } from '@/components/fleet/FleetSettingsProvider';
 
 export interface MapEvent {
   id: string;
@@ -24,7 +25,6 @@ interface Props {
   height?: number;
 }
 
-const FALLBACK_CENTER: [number, number] = [35.9, 14.45];
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -45,6 +45,8 @@ export default function SafetyEventMap({ events, selectedId, onSelect, route, tr
   const onSelectRef = useRef(onSelect);
   const eventsRef = useRef(events);
   const [ready, setReady] = useState(false);
+  // Before the events are fitted: the fleet's starting view (Settings → Live Map → Map).
+  const startViewRef = useRef(useMapStartView());
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -63,7 +65,7 @@ export default function SafetyEventMap({ events, selectedId, onSelect, route, tr
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
-      map.setView(FALLBACK_CENTER, 11);
+      map.setView(startViewRef.current.center, startViewRef.current.zoom);
       linesRef.current = L.layerGroup().addTo(map);
       pinsRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;

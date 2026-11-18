@@ -78,27 +78,28 @@ export async function updateFleetDetailsAction(input: FleetDetailsInput): Promis
     }
   }
 
-  let speed_limit_kmh: number | null = null;
-  if (input.speed_limit_kmh !== undefined && input.speed_limit_kmh !== null && String(input.speed_limit_kmh).trim() !== '') {
-    const n = Number(input.speed_limit_kmh);
-    if (!Number.isInteger(n) || n < 20 || n > 200) return { error: 'Speed limit must be a whole number between 20 and 200 km/h.' };
-    speed_limit_kmh = n;
+  const update: Record<string, unknown> = {
+    name,
+    legal_name: clean(input.legal_name, 160),
+    vat_number: clean(input.vat_number, 40),
+    contact_email,
+    contact_phone: clean(input.contact_phone, 40),
+    address: clean(input.address, 400),
+    website,
+    updated_at: new Date().toISOString(),
+  };
+  // The speed limit lives on the Live Map settings tab now, which saves it with
+  // updateSpeedLimitAction — only touch it here when a caller passes it.
+  if (input.speed_limit_kmh !== undefined) {
+    const speed = parseSpeedLimit(input.speed_limit_kmh);
+    if ('error' in speed) return { error: speed.error };
+    update.speed_limit_kmh = speed.value;
   }
 
   const admin = createAdminClient();
   const { error } = await admin
     .from('organizations')
-    .update({
-      name,
-      legal_name: clean(input.legal_name, 160),
-      vat_number: clean(input.vat_number, 40),
-      contact_email,
-      contact_phone: clean(input.contact_phone, 40),
-      address: clean(input.address, 400),
-      website,
-      speed_limit_kmh,
-      updated_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq('id', user.organization_id);
 
   if (error) {
@@ -108,5 +109,31 @@ export async function updateFleetDetailsAction(input: FleetDetailsInput): Promis
 
   // The fleet name shows in the sidebar, account menu and page titles.
   revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+function parseSpeedLimit(raw: string | number | null): { value: number | null } | { error: string } {
+  if (raw === null || String(raw).trim() === '') return { value: null };
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 20 || n > 200) return { error: 'Speed limit must be a whole number between 20 and 200 km/h.' };
+  return { value: n };
+}
+
+/** Save only the fleet speed limit (empty / null turns speeding alerts off). */
+export async function updateSpeedLimitAction(raw: string | number | null): Promise<Result> {
+  const user = await requireRole(['admin']);
+  const speed = parseSpeedLimit(raw);
+  if ('error' in speed) return { error: speed.error };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organizations')
+    .update({ speed_limit_kmh: speed.value, updated_at: new Date().toISOString() })
+    .eq('id', user.organization_id);
+
+  if (error) {
+    console.error('updateSpeedLimitAction failed:', error);
+    return { error: 'Could not save the speed limit.' };
+  }
   return { ok: true };
 }

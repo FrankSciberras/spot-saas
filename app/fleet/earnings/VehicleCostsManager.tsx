@@ -19,6 +19,7 @@ import {
 import { nextDueDate } from '@/lib/bookkeeping/recurring';
 import { formatDayHeading, todayISO } from '@/lib/utils/financeRanges';
 import type { VehicleOption } from './TransactionModal';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 interface VehicleCostsManagerProps {
   costs: VehicleRecurringCost[];
@@ -51,6 +52,8 @@ function vehicleLabel(v: VehicleOption): string {
 export default function VehicleCostsManager({
   costs, categories, vehicles, onClose,
 }: VehicleCostsManagerProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +182,7 @@ export default function VehicleCostsManager({
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div>
-          <label style={st.fieldLabel}>Amount (€)</label>
+          <label style={st.fieldLabel}>Amount ({money.symbol})</label>
           <input type="number" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="0.00" style={st.input} />
         </div>
         <div>
@@ -242,7 +245,7 @@ export default function VehicleCostsManager({
               <div>
                 <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-1)' }}>Recurring costs</div>
                 <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>
-                  {costs.length === 0 ? 'Nothing set up yet' : `≈ €${monthlyTotal.toFixed(2)} per month`}
+                  {costs.length === 0 ? 'Nothing set up yet' : `≈ ${money(monthlyTotal)} per month`}
                 </div>
               </div>
               <button style={st.linkBtn} onClick={startAdd} disabled={pending || expenseCategories.length === 0}>+ Add</button>
@@ -269,7 +272,7 @@ export default function VehicleCostsManager({
                         {!cost.is_active && <span style={{ color: 'var(--text-3)', fontSize: 11 }}> · paused</span>}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span className="mono">{describeFrequency(Number(cost.amount), cost.frequency)}</span>
+                        <span className="mono">{describeFrequency(Number(cost.amount), cost.frequency, money.format)}</span>
                         <span>·</span>
                         <span>{vehicle ? vehicle.registration_number : 'Whole fleet'}</span>
                         {(() => {
@@ -312,7 +315,7 @@ export default function VehicleCostsManager({
           </div>
 
           <div style={{ fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            Each cost posts one expense line for the full amount on its due date — a €400/month lease that
+            Each cost posts one expense line for the full amount on its due date — a {money(400, { trim: true })}/month lease that
             starts on the 5th appears on the 5th of every month, marked “Auto”. Pausing stops future lines;
             anything already posted stays and can be edited like any other line.
           </div>

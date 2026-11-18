@@ -110,14 +110,8 @@ export function getPlatformConfig(platformId: string): PlatformConfig | undefine
   return PLATFORMS.find(p => p.id === platformId);
 }
 
-/**
- * Currency configuration
- */
-export const CURRENCY = {
-  symbol: '€',
-  code: 'EUR',
-  locale: 'en-MT',
-};
+// Currency: each fleet picks its own (Settings → General → Money); amounts
+// are formatted with lib/money.ts.
 
 /**
  * Settlement scheme — the configurable revenue-sharing rules for a fleet.

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { isPlatformAdmin } from '@/lib/auth/platform';
 import { countBehaviorKinds, safetyScore } from '@/lib/tracking/safety';
+import { getFleetSettingsForOrgs } from '@/lib/settings/server';
 
 /**
  * GET /api/cron/safety-report
@@ -75,8 +76,11 @@ export async function GET(request: Request) {
       byOrg.set(d.organization_id, agg);
     }
 
+    // Fleets can switch the report off (Settings → Live Map → Weekly safety report).
+    const fleetSettings = await getFleetSettingsForOrgs(Array.from(byOrg.keys()));
     let sent = 0;
     for (const [orgId, agg] of byOrg) {
+      if (fleetSettings.get(orgId)?.['safety.weekly_report'] === false) continue;
       const avg = Math.round(agg.scores.reduce((s, x) => s + x.score, 0) / agg.scores.length);
       const worst = agg.scores.reduce((min, x) => (x.score < min.score ? x : min), agg.scores[0]);
       const body =

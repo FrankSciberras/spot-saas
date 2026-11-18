@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
+import { getFleetSettings } from '@/lib/settings/server';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import type { CreateDamageInput } from '@/lib/types/database';
 
@@ -95,7 +96,8 @@ export async function POST(request: Request, { params }: RouteParams) {
         severity: body.severity || 'minor',
         status: body.status || 'open',
         repair_cost: body.repair_cost || null,
-        currency: body.currency || 'EUR',
+        // Defaults to the fleet's currency (Settings → General → Money).
+        currency: body.currency || (await getFleetSettings(session.organization_id))['finance.currency'],
         images: body.images || [],
         reported_by: session.id,
         notes: body.notes || null,

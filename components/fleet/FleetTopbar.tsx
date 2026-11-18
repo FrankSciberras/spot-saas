@@ -4,11 +4,13 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
+import AskAiButton from '@/components/assistant/AskAiButton';
 import FleetIcon from './FleetIcon';
 import { useEnabledModules } from './FleetModulesProvider';
 import FleetAccountMenu from './FleetAccountMenu';
 import FleetNotifications from './FleetNotifications';
 import MessagesButton from '@/components/messages/MessagesButton';
+import FleetSettingsGear from './FleetSettingsGear';
 
 interface FleetTopbarProps {
   title: string;
@@ -123,8 +125,11 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
           </>
         )}
 
+        {/* Shown only on pages that have settings (lib/settings/pages.ts). */}
+        {variant === 'fleet' && <FleetSettingsGear isAdmin={isAdmin} />}
         <MessagesButton variant={variant} />
         <FleetNotifications variant={variant} isMobile={isMobile} />
+        {variant === 'fleet' && <AskAiButton />}
 
         {variant === 'fleet' && (
         <>

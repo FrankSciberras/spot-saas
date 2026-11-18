@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { PLATFORMS, platformInitial } from '@/lib/config/settlements';
-import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
 import styles from './driver-settlements.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 interface SettlementWithPlatforms extends DriverSettlement {
   settlement_platforms: SettlementPlatform[];
@@ -41,6 +41,8 @@ function isSettlementPaid(settlement: SettlementWithPlatforms): boolean {
 }
 
 export default function SettlementsClient({ settlements: allSettlements }: SettlementsClientProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const [filterMode, setFilterMode] = useState<FilterMode>('recent');
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);

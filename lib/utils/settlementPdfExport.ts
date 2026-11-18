@@ -28,7 +28,8 @@ import {
   type SettlementComponents,
 } from '@/lib/config/settlements';
 import { calculateAdjustmentsNet, signedAdjustmentAmount } from './adjustments';
-import { formatCurrency, round2 } from './settlementCalculations';
+import { round2 } from './settlementCalculations';
+import { DEFAULT_MONEY_FORMAT, formatMoney, formatMoneyNumber, moneySymbol, pdfText, type MoneyFormat } from '@/lib/money';
 import { loadPdfFonts, pdfFont, registerPdfFonts } from './pdfFonts';
 
 // ── Input ────────────────────────────────────────────────────────────────────
@@ -202,22 +203,58 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/** €12.50 / -€12.50 — the minus goes in front of the euro sign. */
-function money(value: number): string {
-  const v = round2(value);
-  return v < 0 ? `-${formatCurrency(-v)}` : formatCurrency(v);
+// The fleet's currency and number style (Settings → General → Money) for the
+// document being built. Each build* entry point sets it from its options; PDFs
+// are only built in the browser, one at a time, for the signed-in fleet.
+let pdfMoney: MoneyFormat = DEFAULT_MONEY_FORMAT;
+
+/** How amounts are written: with the currency (€12.50) or bare (12.50) for tight tables. */
+interface AmountFns {
+  /** €12.50 / -€12.50 — the minus goes in front of the currency sign. */
+  money: (value: number) => string;
+  /** Always signed, for additions and adjustments: +€12.50 / -€12.50. */
+  signed: (value: number) => string;
+  /** A deduction printed as a subtraction: -€12.50. */
+  minus: (value: number) => string;
 }
 
-/** Always signed, for additions and adjustments: +€12.50 / -€12.50. */
-function signedMoney(value: number): string {
-  const v = round2(value);
-  return v < 0 ? `-${formatCurrency(-v)}` : `+${formatCurrency(v)}`;
+function amountFns(withSymbol: boolean): AmountFns {
+  // Unsigned amount in the fleet's currency / number style, safe for the PDF font.
+  const a = (v: number) => pdfText(withSymbol ? formatMoney(v, pdfMoney) : formatMoneyNumber(v, pdfMoney));
+  return {
+    money: (value) => {
+      const v = round2(value);
+      return v < 0 ? `-${a(-v)}` : a(v);
+    },
+    signed: (value) => {
+      const v = round2(value);
+      return v < 0 ? `-${a(-v)}` : `+${a(v)}`;
+    },
+    minus: (value) => {
+      const v = Math.abs(round2(value));
+      return v === 0 ? a(0) : `-${a(v)}`;
+    },
+  };
 }
 
-/** A deduction printed as a subtraction: -€12.50. */
-function minusMoney(value: number): string {
-  const v = Math.abs(round2(value));
-  return v === 0 ? formatCurrency(0) : `-${formatCurrency(v)}`;
+const money = (value: number) => amountFns(true).money(value);
+const signedMoney = (value: number) => amountFns(true).signed(value);
+const minusMoney = (value: number) => amountFns(true).minus(value);
+
+/**
+ * Whether a table's cells fit across the page on one line each (bold, at this
+ * density). Long currency formats ("CHF 1'234.50", "HUF 12,345.00") can be too
+ * wide for the 8-column platform table; callers then print bare numbers.
+ */
+function cellsFit(doc: jsPDF, d: Density, head: string[], body: string[][], firstColWidth: number): boolean {
+  doc.setFont(pdfFont(doc), 'bold');
+  doc.setFontSize(d.font);
+  let total = firstColWidth;
+  for (let c = 1; c < head.length; c++) {
+    const widest = Math.max(doc.getTextWidth(head[c]), ...body.map((row) => doc.getTextWidth(row[c] ?? '')));
+    total += widest + 4.5; // 2 mm padding each side + a little slack
+  }
+  return total <= contentWidth(doc);
 }
 
 function shortDate(iso: string): string {
@@ -573,26 +610,34 @@ function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, sta
 
   const on = lines.on;
   const sharePct = uniformPct(rows, (s) => s.driverSharePct);
-  const columns: { title: string; cell: (a: PlatformLines) => string }[] = [
-    ...(on.share || on.fee || lines.gross > 0 ? [{ title: 'Gross', cell: (a: PlatformLines) => money(a.gross) }] : []),
-    ...(on.share ? [{ title: sharePct !== null ? `Share ${sharePct}%` : 'Share', cell: (a: PlatformLines) => money(a.share) }] : []),
-    ...(on.fee ? [{ title: 'Fee', cell: (a: PlatformLines) => minusMoney(a.fee) }] : []),
-    ...(on.share || on.fee ? [{ title: 'Net', cell: (a: PlatformLines) => money(a.net) }] : []),
-    ...(on.cash ? [{ title: 'Cash kept', cell: (a: PlatformLines) => minusMoney(a.cash) }] : []),
-    ...(on.tips ? [{ title: withPct('Tips', uniformPct(rows, (s) => s.tipsDriverPct)), cell: (a: PlatformLines) => signedMoney(a.tips) }] : []),
+  const columns: { title: string; cell: (a: PlatformLines, f: AmountFns) => string }[] = [
+    ...(on.share || on.fee || lines.gross > 0 ? [{ title: 'Gross', cell: (a: PlatformLines, f: AmountFns) => f.money(a.gross) }] : []),
+    ...(on.share ? [{ title: sharePct !== null ? `Share ${sharePct}%` : 'Share', cell: (a: PlatformLines, f: AmountFns) => f.money(a.share) }] : []),
+    ...(on.fee ? [{ title: 'Fee', cell: (a: PlatformLines, f: AmountFns) => f.minus(a.fee) }] : []),
+    ...(on.share || on.fee ? [{ title: 'Net', cell: (a: PlatformLines, f: AmountFns) => f.money(a.net) }] : []),
+    ...(on.cash ? [{ title: 'Cash kept', cell: (a: PlatformLines, f: AmountFns) => f.minus(a.cash) }] : []),
+    ...(on.tips ? [{ title: withPct('Tips', uniformPct(rows, (s) => s.tipsDriverPct)), cell: (a: PlatformLines, f: AmountFns) => f.signed(a.tips) }] : []),
     ...(on.campaigns
-      ? [{ title: withPct('Campaigns', uniformPct(rows, (s) => s.campaignsDriverPct)), cell: (a: PlatformLines) => signedMoney(a.campaigns) }]
+      ? [{ title: withPct('Campaigns', uniformPct(rows, (s) => s.campaignsDriverPct)), cell: (a: PlatformLines, f: AmountFns) => f.signed(a.campaigns) }]
       : []),
-    { title: 'Balance', cell: (a) => money(a.balance) },
+    { title: 'Balance', cell: (a, f) => f.money(a.balance) },
   ];
 
   const platforms = [...byPlatform.values()].sort((a, b) => a.name.localeCompare(b.name));
-  const body = [
-    ...platforms.map((a) => [a.name, ...columns.map((c) => c.cell(a))]),
-    ['TOTAL', ...columns.map((c) => c.cell(lines))],
+  const bodyWith = (f: AmountFns) => [
+    ...platforms.map((a) => [a.name, ...columns.map((c) => c.cell(a, f))]),
+    ['TOTAL', ...columns.map((c) => c.cell(lines, f))],
   ];
 
   const width = contentWidth(doc);
+  const head = ['Platform', ...columns.map((c) => c.title)];
+  // Amounts with their currency when they fit; otherwise bare numbers, with
+  // the currency named once in the section title.
+  let body = bodyWith(amountFns(true));
+  if (!cellsFit(doc, d, head, body, width * 0.17)) {
+    body = bodyWith(amountFns(false));
+    title = `${title} · amounts in ${pdfText(moneySymbol(pdfMoney))}`;
+  }
   const columnStyles: Record<number, { halign: 'left' | 'right'; cellWidth?: number }> = {
     0: { halign: 'left', cellWidth: width * 0.17 },
   };
@@ -603,7 +648,7 @@ function drawPlatformTable(doc: jsPDF, rows: PdfSettlement[], title: string, sta
   const top = sectionTitle(doc, title, startY, 6 + (body.length + 1) * rowMm(d));
   autoTable(doc, {
     startY: top,
-    head: [['Platform', ...columns.map((c) => c.title)]],
+    head: [head],
     body,
     margin: TABLE_MARGIN,
     styles: tableStyles(doc, d),
@@ -885,6 +930,8 @@ function adjustmentsFor(rows: PdfSettlement[], bySettlement: Record<string, Driv
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 interface PeriodPdfOptions {
+  /** The fleet's currency and number style (default: euro). */
+  money?: MoneyFormat;
   periodLabel: string;
   periodName: string | null;
   /** This period's settlements, one per driver. */
@@ -900,6 +947,7 @@ interface PeriodPdfOptions {
 
 /** One settlement period: a page per driver. */
 export function buildSettlementsPdf(options: PeriodPdfOptions): jsPDF {
+  pdfMoney = options.money ?? DEFAULT_MONEY_FORMAT;
   const { settlements, history = [], adjustmentsBySettlement } = options;
   const doc = newDoc();
   const ordered = [...settlements].sort((a, b) => a.driverName.localeCompare(b.driverName));
@@ -928,6 +976,8 @@ export async function exportSettlementsPdf(options: PeriodPdfOptions): Promise<v
 }
 
 interface MonthPdfOptions {
+  /** The fleet's currency and number style (default: euro). */
+  money?: MoneyFormat;
   monthLabel: string;
   /** Every settlement filed under the month. */
   settlements: PdfSettlement[];
@@ -937,6 +987,7 @@ interface MonthPdfOptions {
 
 /** One month for the whole fleet: an overview of what's owed, then a page per driver. */
 export function buildMonthlySettlementsPdf(options: MonthPdfOptions): jsPDF {
+  pdfMoney = options.money ?? DEFAULT_MONEY_FORMAT;
   const { monthLabel, settlements, adjustmentsBySettlement } = options;
   const doc = newDoc();
   const width = contentWidth(doc);
@@ -1032,6 +1083,8 @@ export async function exportMonthlySettlementsPdf(options: MonthPdfOptions): Pro
 }
 
 interface DriverMonthPdfOptions {
+  /** The fleet's currency and number style (default: euro). */
+  money?: MoneyFormat;
   driverName: string;
   monthLabel: string;
   settlements: PdfSettlement[];
@@ -1040,6 +1093,7 @@ interface DriverMonthPdfOptions {
 
 /** The driver's own month, from the driver app. */
 export function buildDriverMonthlySettlementPdf(options: DriverMonthPdfOptions): jsPDF {
+  pdfMoney = options.money ?? DEFAULT_MONEY_FORMAT;
   const doc = newDoc();
   drawOnOnePage(doc, (target, d) =>
     drawMonthDriverPage(

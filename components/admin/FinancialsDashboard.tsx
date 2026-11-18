@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { usePreference, useMoney } from '@/components/fleet/FleetSettingsProvider';
 import type { Driver, DriverAdjustment, DriverSettlement, SettlementPlatform, FinanceTransaction } from '@/lib/types/database';
 import type { FinanceCategory } from '@/lib/config/financeCategories';
 import { buildBookkeepingTxns, toQuickBooksCsv, toXeroCsv } from '@/lib/utils/accountingExport';
@@ -85,10 +86,6 @@ function safeIso(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
-}
-
-function formatCurrencyEUR(value: number): string {
-  return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(value);
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -214,6 +211,8 @@ function calculateAdjustmentsNet(adjustments: DriverAdjustment[]): number {
 }
 
 export default function FinancialsDashboard({ transactions, categories, drivers, settlements }: FinancialsDashboardProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrencyEUR = useMoney();
   const [mode, setMode] = useState<DashboardMode>('fleet');
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
@@ -275,7 +274,8 @@ export default function FinancialsDashboard({ transactions, categories, drivers,
 
   const activeRange = mode === 'fleet' ? bookkeepingRange : settlementsRange;
 
-  const [groupBy, setGroupBy] = useState<GroupByWithAllTime>('monthly');
+  // Starting grouping: your preference (Settings → Preferences → Lists).
+  const [groupBy, setGroupBy] = useState<GroupByWithAllTime>(usePreference('lists.financials_grouping'));
   const [startDate, setStartDate] = useState<string>(activeRange.start);
   const [endDate, setEndDate] = useState<string>(activeRange.end);
 
