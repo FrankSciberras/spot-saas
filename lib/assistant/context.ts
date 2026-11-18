@@ -4,6 +4,8 @@
 
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { getEnabledModuleKeys } from '@/lib/modules/server';
+import { getFleetSettings } from '@/lib/settings/server';
+import { formatMoney, moneyFormatFrom, moneySymbol } from '@/lib/money';
 import type { SessionUser } from '@/lib/types/database';
 import { todayIn } from './period';
 import type { AssistantContext, AssistantPage, AssistantRole } from './types';
@@ -15,11 +17,6 @@ import type { AssistantContext, AssistantPage, AssistantRole } from './types';
  */
 export const FLEET_TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
 
-/**
- * Money is EUR across the dashboard today. When the per-fleet currency setting
- * (lib/money.ts, `finance.currency`) lands, read it here.
- */
-const FLEET_CURRENCY = { code: 'EUR', symbol: '€' };
 
 /** Map a session to an assistant role. Drivers (without also_staff) get none. */
 export function assistantRoleFor(session: Pick<SessionUser, 'role' | 'also_staff'>): AssistantRole | null {
@@ -50,7 +47,12 @@ export async function buildAssistantContext(
   role: AssistantRole,
   page?: AssistantPage,
 ): Promise<AssistantContext> {
-  const [db, modules] = await Promise.all([createClient(), getEnabledModuleKeys(session.organization_id)]);
+  const [db, modules, fleet] = await Promise.all([
+    createClient(),
+    getEnabledModuleKeys(session.organization_id),
+    getFleetSettings(session.organization_id),
+  ]);
+  const money = moneyFormatFrom(fleet);
   return {
     orgId: session.organization_id,
     orgName: session.organization_name ?? 'your fleet',
@@ -63,7 +65,13 @@ export async function buildAssistantContext(
     admin: createAdminClient,
     timeZone: FLEET_TIME_ZONE,
     today: todayIn(FLEET_TIME_ZONE),
-    currency: FLEET_CURRENCY,
+    currency: { code: money.currency, symbol: moneySymbol(money), example: formatMoney(1234.56, money) },
+    settings: {
+      docWarningDays: Number(fleet['documents.expiry_warning_days']) || 30,
+      serviceDueKm: Number(fleet['maintenance.service_due_km']) || 2000,
+      safetyGood: Number(fleet['safety.good_score']) || 90,
+      safetyFair: Number(fleet['safety.fair_score']) || 70,
+    },
     page,
   };
 }

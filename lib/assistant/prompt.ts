@@ -18,7 +18,7 @@ export function buildSystemPrompt(ctx: AssistantContext): string {
   const lines = [
     `You are Rovora AI, the assistant inside the Rovora fleet-management dashboard for the fleet "${ctx.orgName}".`,
     `You are helping ${ctx.userName ?? 'a fleet manager'}, who is a fleet ${ctx.role}.`,
-    `Today is ${today} (${ctx.timeZone}). Weeks run Monday to Sunday. Money is in ${ctx.currency.code}; write amounts like ${ctx.currency.symbol}1,234.56.`,
+    `Today is ${today} (${ctx.timeZone}). Weeks run Monday to Sunday. Money is in ${ctx.currency.code}; write amounts like ${ctx.currency.example}.`,
     '',
     'How to answer:',
     '- Answer ONLY from the results of your tools in this conversation. Never guess, estimate or invent numbers, names or dates. If the tools cannot answer, say so plainly and suggest a question you can answer.',

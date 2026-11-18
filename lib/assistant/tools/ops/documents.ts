@@ -26,14 +26,14 @@ export const documentsExpiringTool: AssistantTool = {
   parameters: {
     type: 'object',
     properties: {
-      within_days: { type: 'integer', description: 'Look this many days ahead (default 30, max 365).' },
+      within_days: { type: 'integer', description: 'Look this many days ahead (default: the fleet\'s warning window, usually 30; max 365).' },
       include_expired: { type: 'boolean', description: 'Include documents that have already expired (default true).' },
       kind: { type: 'string', enum: ['all', 'drivers', 'vehicles'], description: 'Default all.' },
     },
   },
   roles: ['admin', 'staff'],
   async run(ctx, args) {
-    const withinDays = argInt(args, 'within_days', 30, 0, 365);
+    const withinDays = argInt(args, 'within_days', ctx.settings.docWarningDays, 0, 365);
     const includeExpired = args.include_expired !== false;
     const kind = argEnum(args, 'kind', ['all', 'drivers', 'vehicles'] as const, 'all');
 

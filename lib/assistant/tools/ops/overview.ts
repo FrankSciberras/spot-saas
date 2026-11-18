@@ -15,18 +15,17 @@ import { REMINDERS_NOT_ALLOWED, canViewReminders, isOverdue, loadActiveReminders
 // Same document set as documents_expiring, so the two tools agree.
 const DRIVER_DOC_COLUMNS = ['id_card_expiry_date', 'police_conduct_expiry_date', 'driving_license_expiry_date', 'tag_license_expiry_date'] as const;
 const VEHICLE_DOC_COLUMNS = ['insurance_expiry_date', 'road_license_expiry_date'] as const;
-const DOC_HORIZON_DAYS = 30;
 
 export const fleetOverviewTool: AssistantTool = {
   name: 'fleet_overview',
   status: 'Looking over the fleet…',
   description:
-    'A snapshot of the whole fleet right now: drivers active / inactive, vehicles by status (active, in service, out of service), who is on shift now, how many documents are expired or expire within 30 days, vehicles overdue / due soon for service, open damages, and open / overdue reminders. Use for "how is the fleet doing", "give me an overview", "how many drivers are working right now", or as a first step before drilling in with a more specific tool.',
+    'A snapshot of the whole fleet right now: drivers active / inactive, vehicles by status (active, in service, out of service), who is on shift now, how many documents are expired or expire soon (within the fleet’s warning window, 30 days unless changed in Settings), vehicles overdue / due soon for service, open damages, and open / overdue reminders. Use for "how is the fleet doing", "give me an overview", "how many drivers are working right now", or as a first step before drilling in with a more specific tool.',
   parameters: { type: 'object', properties: {} },
   roles: ['admin', 'staff'],
   async run(ctx) {
     const until = new Date(`${ctx.today}T00:00:00Z`);
-    until.setUTCDate(until.getUTCDate() + DOC_HORIZON_DAYS);
+    until.setUTCDate(until.getUTCDate() + ctx.settings.docWarningDays);
     const horizon = until.toISOString().slice(0, 10);
     const maintenanceOn = ctx.modules.has('maintenance');
     const remindersOn = ctx.modules.has('reminders');

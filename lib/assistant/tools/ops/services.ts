@@ -11,13 +11,9 @@ import { PERIOD_SCHEMA, daysBetween, resolvePeriod } from '../../period';
 import { latestServiceByVehicle } from '@/lib/maintenance/serviceDue';
 import { readAll } from './shifts';
 
-/**
- * "Due soon" distance: the Services page's amber "near" badge
- * (components/fleet/services/ServicesWorkspace.tsx, kmRemaining < 2000).
- * A per-fleet `maintenance.service_due_km` setting is coming — when it lands,
- * read it here and nowhere else.
- */
-export const SERVICE_DUE_SOON_KM = 2000;
+// "Due soon" distance comes from the fleet's own `maintenance.service_due_km`
+// setting (ctx.settings.serviceDueKm, default 2000 km) — the same value the
+// Services page uses for its amber "due soon" badge.
 
 /**
  * Date-based look-ahead for records that set next_service_date: the default
@@ -65,7 +61,7 @@ export async function loadServiceDue(
   ctx: AssistantContext,
   opts: { vehicleId?: string; withinKm?: number; withinDays?: number } = {},
 ): Promise<{ due: ServiceDue[]; vehiclesWithoutTarget: number }> {
-  const withinKm = opts.withinKm ?? SERVICE_DUE_SOON_KM;
+  const withinKm = opts.withinKm ?? ctx.settings.serviceDueKm;
   const withinDays = opts.withinDays ?? SERVICE_DUE_SOON_DAYS;
 
   let vehicleQuery = ctx.db
@@ -161,11 +157,11 @@ export const servicesDueTool: AssistantTool = {
   name: 'services_due',
   status: 'Checking services…',
   description:
-    `Vehicles OVERDUE or DUE SOON for their next service, from the latest service record per vehicle: by km (due soon = within ${SERVICE_DUE_SOON_KM} km of the next-service odometer, the Services page's rule) or by next-service date (due soon = within ${SERVICE_DUE_SOON_DAYS} days). Also lists services logged in a period (default the last 30 days). Use for "which cars need a service", "is anything overdue for service", "what was serviced this month". No costs — use the money tools for spend.`,
+    `Vehicles OVERDUE or DUE SOON for their next service, from the latest service record per vehicle: by km (due soon = within the fleet's "service due soon" distance of the next-service odometer, the Services page's rule) or by next-service date (due soon = within ${SERVICE_DUE_SOON_DAYS} days). Also lists services logged in a period (default the last 30 days). Use for "which cars need a service", "is anything overdue for service", "what was serviced this month". No costs — use the money tools for spend.`,
   parameters: {
     type: 'object',
     properties: {
-      within_km: { type: 'integer', description: `Count as due soon when this many km or fewer are left (default ${SERVICE_DUE_SOON_KM}).` },
+      within_km: { type: 'integer', description: `Count as due soon when this many km or fewer are left (default: the fleet's setting).` },
       within_days: { type: 'integer', description: `Count as due soon when the next-service date is this many days away or fewer (default ${SERVICE_DUE_SOON_DAYS}).` },
       period: { ...PERIOD_SCHEMA, description: 'Range for the list of recent services (default the last 30 days).' },
     },
@@ -173,7 +169,7 @@ export const servicesDueTool: AssistantTool = {
   roles: ['admin', 'staff'],
   module: 'maintenance',
   async run(ctx, args) {
-    const withinKm = argInt(args, 'within_km', SERVICE_DUE_SOON_KM, 0, 50_000);
+    const withinKm = argInt(args, 'within_km', ctx.settings.serviceDueKm, 0, 50_000);
     const withinDays = argInt(args, 'within_days', SERVICE_DUE_SOON_DAYS, 0, 365);
     const period = resolvePeriod(ctx, args.period, 'last_30_days');
 

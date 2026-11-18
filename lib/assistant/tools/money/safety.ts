@@ -21,14 +21,11 @@ import { countBehaviorKinds, safetyScore } from '@/lib/tracking/safety';
 import { readAllPages } from './finance';
 
 /**
- * Score bands — the thresholds scoreLabel() / scoreColor() in
- * lib/tracking/safety.ts use today (Good ≥ 90, Fair ≥ 70). Kept in this one
- * const so a configurable setting can replace it in one place.
+ * Score bands — the fleet's own Settings → Live Map values (safety.good_score /
+ * safety.fair_score, default 90 / 70), the same ones the Safety page colours by.
  */
-export const SAFETY_SCORE_BANDS = { good: 90, fair: 70 } as const;
-
-const bandOf = (score: number) =>
-  score >= SAFETY_SCORE_BANDS.good ? 'Good' : score >= SAFETY_SCORE_BANDS.fair ? 'Fair' : 'Needs attention';
+const bandOf = (score: number, bands: { good: number; fair: number }) =>
+  score >= bands.good ? 'Good' : score >= bands.fair ? 'Fair' : 'Needs attention';
 
 const DAY_MS = 86_400_000;
 const RAW_GPS_RETENTION_DAYS = 90;
@@ -62,6 +59,7 @@ export const safetySummaryTool: AssistantTool = {
   roles: ['admin', 'staff'],
   module: 'tracking',
   async run(ctx, args) {
+    const bands = { good: ctx.settings.safetyGood, fair: ctx.settings.safetyFair };
     const driverId = argId(args, 'driver_id');
     const limit = argInt(args, 'limit', 20, 1, 40);
     const nowMs = Date.now();
@@ -211,9 +209,9 @@ export const safetySummaryTool: AssistantTool = {
         from: localDay(sinceIso, ctx.timeZone),
         to: untilIso ? localDay(new Date(Date.parse(untilIso) - 1).toISOString(), ctx.timeZone) : ctx.today,
         score_bands: {
-          good: `${SAFETY_SCORE_BANDS.good} and above`,
-          fair: `${SAFETY_SCORE_BANDS.fair} to ${SAFETY_SCORE_BANDS.good - 1}`,
-          needs_attention: `below ${SAFETY_SCORE_BANDS.fair}`,
+          good: `${bands.good} and above`,
+          fair: `${bands.fair} to ${bands.good - 1}`,
+          needs_attention: `below ${bands.fair}`,
         },
         scoring:
           'Weighted events per 100 km driven (speeding weighs most, then sharp braking, acceleration, cornering); 100 = clean record. Scores are indicative: detection thresholds are still being tuned.',
@@ -227,7 +225,7 @@ export const safetySummaryTool: AssistantTool = {
         drivers: list.items.map((s) => ({
           driver: s.name,
           score: s.score,
-          band: bandOf(s.score),
+          band: bandOf(s.score, bands),
           km_driven: Math.round(s.distanceKm * 10) / 10,
           ...(s.topSpeed != null ? { top_speed_kmh: s.topSpeed } : {}),
           speeding: s.counts.speeding,

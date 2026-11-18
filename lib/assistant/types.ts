@@ -49,8 +49,24 @@ export interface AssistantContext {
   timeZone: string;
   /** Today's date (YYYY-MM-DD) in the fleet's time zone. */
   today: string;
-  /** The fleet's currency. Tools return plain numbers; the model formats them. */
-  currency: { code: string; symbol: string };
+  /**
+   * The fleet's currency (Settings → General → Money). Tools return plain
+   * numbers; the model formats them like `example`.
+   */
+  currency: { code: string; symbol: string; example: string };
+  /**
+   * The fleet's own thresholds (lib/settings/catalog.ts), so answers match what
+   * the dashboard shows for this fleet.
+   */
+  settings: {
+    /** documents.expiry_warning_days — "expiring soon" window. */
+    docWarningDays: number;
+    /** maintenance.service_due_km — "service due soon" distance. */
+    serviceDueKm: number;
+    /** safety.good_score / safety.fair_score — score bands. */
+    safetyGood: number;
+    safetyFair: number;
+  };
   page?: AssistantPage;
 }
 
