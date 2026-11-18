@@ -330,8 +330,10 @@ export async function deleteDraftAction(id: string): Promise<ActionResult> {
 }
 
 /**
- * Starts a credit note for an issued invoice. 'full' copies whatever can still
- * be credited as the invoice's own lines; 'blank' starts with one empty line.
+ * Starts a credit note for an issued invoice. 'full' copies the invoice's own
+ * lines when nothing has been credited yet (the usual "cancel the whole
+ * invoice"); once part of it has been credited the lines are left empty, since
+ * a full copy could no longer be issued. 'blank' always starts empty.
  * If a draft credit note for the invoice already exists, that one is returned.
  */
 export async function startCreditNoteAction(invoiceId: string, mode: 'full' | 'blank' = 'full'): Promise<ActionResult<{ id: string }>> {

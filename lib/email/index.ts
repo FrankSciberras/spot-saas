@@ -44,13 +44,28 @@ export interface SendEmailInput {
   /** Optional plaintext fallback. */
   text?: string;
   replyTo?: string;
+  /** Files to attach, e.g. an invoice PDF. `content` is the raw bytes or base64. */
+  attachments?: EmailAttachment[];
+  /**
+   * Who the email is from, as the recipient sees it: "Spot Cabs Ltd via Rovora".
+   * The address stays ours (it has to, to be deliverable); only the display
+   * name changes (through fromWithName, which strips anything that could
+   * break the header). Used when a fleet writes to its own customer.
+   */
+  fromName?: string;
+}
+
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer | string;
+  contentType?: string;
 }
 
 /**
  * Send one email via Resend. Returns false (without throwing) when email isn't
  * configured or Resend reports an error, so callers can treat it as best-effort.
  */
-export async function sendEmail({ to, subject, html, text, replyTo }: SendEmailInput): Promise<boolean> {
+export async function sendEmail({ to, subject, html, text, replyTo, attachments, fromName }: SendEmailInput): Promise<boolean> {
   const resend = getResendClient();
   if (!resend) {
     console.log(`[email] not configured (missing RESEND_API_KEY) — would send "${subject}" to ${Array.isArray(to) ? to.join(', ') : to}`);
@@ -59,12 +74,13 @@ export async function sendEmail({ to, subject, html, text, replyTo }: SendEmailI
 
   try {
     const { error } = await resend.emails.send({
-      from: emailFrom(),
+      from: fromName ? fromWithName(`${fromName} via ${appName()}`) : emailFrom(),
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
       ...(text ? { text } : {}),
       ...(replyTo ? { replyTo } : {}),
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
     if (error) {
       console.error('[email] Resend error:', error);
