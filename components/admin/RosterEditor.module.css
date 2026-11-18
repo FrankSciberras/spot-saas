@@ -15,8 +15,22 @@
 
 .headerLeft {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
 }
 
 .headerRight {
@@ -491,8 +505,31 @@
   }
 
   .headerLeft {
-    flex-direction: column;
     align-items: flex-start;
+  }
+
+  .pageTitle {
+    font-size: 21px;
+  }
+
+  /* Each field takes the full card width; without the explicit width the
+     inputs kept their intrinsic size and stuck out past the card edge. */
+  .weekInputGroup {
+    flex: none !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .weekInputGroup .textInput,
+  .weekInputGroup .dateInput {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .headerRight button {
+    min-height: 44px;
   }
 
   .headerRight {

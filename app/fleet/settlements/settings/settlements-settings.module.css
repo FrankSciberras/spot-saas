@@ -458,8 +458,14 @@
     justify-content: flex-start;
   }
   .assignRow {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+    padding: 12px 10px;
+  }
+  .assignRow select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
   }
 }
 
@@ -472,10 +478,12 @@
       'actions actions';
     gap: 8px;
   }
-  .driverName { grid-area: name; }
-  .pctField { grid-area: field; }
-  .effective { grid-area: effective; justify-content: flex-end; }
-  .rowActions { grid-area: actions; justify-content: flex-start; }
+  /* Scoped to .driverRow: .assignRow reuses .driverName / .effective, and
+     named areas it does not define stacked its cells on top of each other. */
+  .driverRow .driverName { grid-area: name; }
+  .driverRow .pctField { grid-area: field; }
+  .driverRow .effective { grid-area: effective; justify-content: flex-end; }
+  .driverRow .rowActions { grid-area: actions; justify-content: flex-start; }
 }
 
 /* ─── Pay-model templates + component toggles (pay-models update) ─── */

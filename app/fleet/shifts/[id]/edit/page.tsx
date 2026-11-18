@@ -183,7 +183,7 @@ export default function EditShiftPage({ params }: PageProps) {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '800px' }}>
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <div className={styles.pageTitleMain}>

@@ -524,6 +524,5 @@ textarea.fieldInput { resize: vertical; font-family: inherit; min-height: 72px; 
   .heroActions { width: 100%; flex-wrap: wrap; }
 }
 
-@media (max-width: 480px) {
-  .statsRow { grid-template-columns: 1fr; }
-}
+/* Stats stay two-up on a phone, like the vehicle profile: one per row turned
+   four small numbers into a full screen of scrolling. */

@@ -147,7 +147,10 @@
 .tableWrapper {
   background: var(--bg-1);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* Scroll, don't clip: on a phone the Edit / Delete columns were cut off with
+     no way to reach them. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line-1);
 }
 

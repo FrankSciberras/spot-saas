@@ -134,6 +134,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Without this the date pickers set the column's minimum width and the
+     filters run off the side of a phone. */
+  min-width: 0;
 }
 
 .filterLabel {
@@ -475,7 +478,10 @@
 .journalTableWrap {
   border: 1px solid var(--line-1);
   border-radius: 10px;
-  overflow: hidden;
+  /* Scroll sideways rather than silently cutting the Debit / Credit columns
+     off when the table is wider than the screen. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-1);
 }
 
@@ -554,11 +560,11 @@
 
 @media (max-width: 1100px) {
   .grid3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .journalGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -578,21 +584,32 @@
   }
 
   .grid2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Four exports as a 2×2 block rather than a column of full-width bars. */
   .actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .actionBtn,
   .actionBtnSecondary {
     width: 100%;
+    min-height: 40px;
     justify-content: center;
   }
 
   .filtersGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .select {
+    min-height: 44px;
+    font-size: 16px;
   }
 
   .filterGroupWide {

@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import SafetyEventsWorkspace, { type DetailEvent } from '@/components/fleet/safety/SafetyEventsWorkspace';
 import { countBehaviorKinds, safetyScore, scoreBandsFrom, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
@@ -185,11 +186,8 @@ async function DriverSafetyContent({
 
   return (
     <div style={st.wrap}>
-      <Link href="/fleet/safety" className="fleetHover" style={st.back}>
-        ← All drivers
-      </Link>
-
       <div style={st.head}>
+        <FleetBackLink href="/fleet/safety" label="Back to all drivers" />
         <div style={{ ...st.scoreBadge, borderColor: scoreColor(score, bands) }}>
           <span style={{ fontSize: 19, fontWeight: 700, color: scoreColor(score, bands) }}>{score}</span>
           <span style={{ fontSize: 9.5, color: 'var(--text-4)', letterSpacing: '0.04em' }}>SCORE</span>
@@ -226,7 +224,6 @@ async function DriverSafetyContent({
 
 const st: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 960 },
-  back: { fontSize: 12.5, color: 'var(--text-3)', textDecoration: 'none', alignSelf: 'flex-start' },
   head: {
     display: 'flex',
     alignItems: 'center',

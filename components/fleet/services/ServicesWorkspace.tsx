@@ -183,7 +183,7 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
                 <div
                   key={s.id}
                   style={{ ...st.svcRow, borderBottom: i < list.length - 1 ? '1px solid var(--line-1)' : 'none', cursor: 'pointer' }}
-                  className="fleetNavItem"
+                  className="fleetNavItem fleetRowStack"
                   onClick={() => router.push(`/fleet/services/${s.id}`)}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, minWidth: 0, flex: 1 }}>
@@ -199,7 +199,7 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
                           title={`Open vehicle ${s.plate}`}
                           onClick={(e) => { e.stopPropagation(); router.push(`/fleet/vehicles/${s.vehicleId}`); }}
                           onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); router.push(`/fleet/vehicles/${s.vehicleId}`); } }}
-                          style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4, cursor: 'pointer' }}
+                          style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
                           {s.plate}
                         </span>
@@ -209,8 +209,8 @@ export default function ServicesWorkspace({ records, spend6mo, dueSoon, overdueC
                       </div>
                     </div>
                   </div>
-                  <div style={st.svcRight}>
-                    <div style={{ textAlign: 'right' }}>
+                  <div style={st.svcRight} className="fleetRowStackEnd">
+                    <div style={{ textAlign: 'right' }} className="fleetRowStackMeta">
                       <div className="mono tnum" style={{ fontSize: 13, fontWeight: 500, color: s.cost ? 'var(--text-1)' : 'var(--text-3)' }}>
                         {s.cost ? fmtEUR(s.cost, { decimals: 0 }) : '—'}
                       </div>

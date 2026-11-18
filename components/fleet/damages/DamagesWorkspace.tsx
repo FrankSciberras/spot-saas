@@ -87,20 +87,20 @@ export default function DamagesWorkspace({ vehicles, canManage }: Props) {
                 <CarTopMini color={v.color} damages={v.damages.severe} />
               </div>
               <div style={{ minWidth: 0, textAlign: 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span className="mono" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)', letterSpacing: '0.03em' }}>{v.plate}</span>
-                  <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{v.model}{v.year ? ` (${v.year})` : ''}</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }} className="fleetPlateLine">
+                  <span className="mono" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>{v.plate}</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--text-3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.model}{v.year ? ` (${v.year})` : ''}</span>
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="fleetDamagePills">
               {v.damages.total === 0 ? (
-                <span style={{ fontSize: 11.5, color: 'var(--pos)', fontFamily: 'Geist Mono, monospace', letterSpacing: '0.04em' }}>NO DAMAGES</span>
+                <span style={{ fontSize: 11.5, color: 'var(--pos)', fontFamily: 'Geist Mono, monospace', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>NO DAMAGES</span>
               ) : (
                 <>
                   {v.damages.severe > 0 && <span style={st.pillSevere}>{v.damages.severe} severe</span>}
                   <span style={st.pillOpen}>{v.damages.open} open</span>
-                  <span style={st.pillTotal}>{v.damages.total} total</span>
+                  <span style={st.pillTotal} className="hide-mobile">{v.damages.total} total</span>
                 </>
               )}
               <FleetIcon name="chevron-right" size={14} />

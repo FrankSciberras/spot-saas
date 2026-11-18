@@ -103,7 +103,7 @@ function QtyPill({ part }: { part: PartRow }) {
   const color = zero ? 'var(--neg)' : low ? 'var(--warn)' : 'var(--text-2)';
   const bg = zero ? 'var(--neg-soft)' : low ? 'var(--warn-soft)' : 'var(--bg-2)';
   return (
-    <span className="mono tnum" style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: bg, color }}>
+    <span className="mono tnum" style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: bg, color, whiteSpace: 'nowrap' }}>
       {part.quantity} in stock
     </span>
   );
@@ -200,7 +200,7 @@ export default function PartsWorkspace({ parts, usage, vehicles, isAdmin }: Prop
           <CardHeader title="Stock list" subtitle={`${list.length} of ${parts.length} parts`} />
           <div style={{ borderTop: '1px solid var(--line-1)' }}>
             {list.map((p, i) => (
-              <div key={p.id} style={{ ...st.partRow, borderBottom: i < list.length - 1 ? '1px solid var(--line-1)' : 'none' }}>
+              <div key={p.id} className="fleetRowStack" style={{ ...st.partRow, borderBottom: i < list.length - 1 ? '1px solid var(--line-1)' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, minWidth: 0, flex: 1 }}>
                   <div style={st.partIcon}><FleetIcon name="box" size={15} /></div>
                   <div style={{ minWidth: 0 }}>
@@ -213,14 +213,14 @@ export default function PartsWorkspace({ parts, usage, vehicles, isAdmin }: Prop
                     </div>
                   </div>
                 </div>
-                <div style={st.partRight}>
-                  <div style={{ textAlign: 'right' }}>
+                <div style={st.partRight} className="fleetRowStackEnd">
+                  <div style={{ textAlign: 'right' }} className="fleetRowStackMeta">
                     <div className="mono tnum" style={{ fontSize: 13, fontWeight: 500, color: p.unitCost != null ? 'var(--text-1)' : 'var(--text-3)' }}>
                       {p.unitCost != null ? fmtEUR(p.unitCost) : '—'}
                     </div>
                     <div style={{ marginTop: 3 }}><QtyPill part={p} /></div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6 }} className="fleetRowBtns">
                     <button style={st.rowBtn} className="fleetHover" disabled={isPending || p.quantity === 0} title={p.quantity === 0 ? 'Out of stock' : 'Log usage'} onClick={() => { setError(''); setModal({ mode: 'use', part: p }); }}>Use</button>
                     <button style={st.rowBtn} className="fleetHover" disabled={isPending} title="Add stock" onClick={() => { setError(''); setModal({ mode: 'restock', part: p }); }}>+</button>
                     <button style={st.rowBtn} className="fleetHover" disabled={isPending} title="Edit part" onClick={() => { setError(''); setModal({ mode: 'edit', part: p }); }}>Edit</button>

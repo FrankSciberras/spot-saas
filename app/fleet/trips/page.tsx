@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageHeader from '@/components/fleet/FleetPageHeader';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import TripsWorkspace, { type TripDriver } from '@/components/fleet/tracking/TripsWorkspace';
 
@@ -11,6 +12,7 @@ export default async function TripsPage() {
   await requireModule(user.organization_id, 'tracking');
   return (
     <FleetShell user={user} title="Trips">
+      <FleetPageHeader breadcrumb="Tracking / Trips" title="Trips" />
       <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
         <TripsContent orgId={user.organization_id} />
       </Suspense>

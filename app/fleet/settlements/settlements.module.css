@@ -1746,6 +1746,34 @@
     scroll-snap-align: center;
   }
 
+  /* Folded "2026 › November › week 2 · dates · Change week" line: it must wrap
+     as whole phrases. As a single non-wrapping row the dates broke one word
+     per line and "Change week" hung off the right edge of the screen. */
+  .navSummary {
+    padding: 10px 12px;
+  }
+
+  .navSummaryBtn {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 4px 8px;
+    padding: 4px;
+    text-align: left;
+  }
+
+  .navSummaryCrumb,
+  .navSummaryCurrent,
+  .navSummaryDates,
+  .navSummaryChange {
+    white-space: nowrap;
+  }
+
+  .navSummaryChange {
+    margin-left: auto;
+    padding: 6px 0;
+  }
+
   /* Weeks header: month title + Export + New Week no longer fight for one row */
   .weeksList {
     padding: 12px;
@@ -1835,8 +1863,10 @@
   }
 
   /* ─── Driver list ─── */
+  /* Tabs + search + "Add driver" already take ~170px of this card; at 300px
+     only two and a half drivers were visible in the list. */
   .driverSidebar {
-    max-height: 300px;
+    max-height: min(64vh, 480px);
   }
 
   .driverItem {
