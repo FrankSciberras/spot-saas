@@ -35,13 +35,63 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-phone-tablet',
+    date: '2026-11-18',
+    dateHuman: 'November 2026',
+    title: 'Built for your phone and tablet',
+    summary:
+      'We went through every page of the fleet dashboard and the driver app on phones and tablets, upright and sideways. Nothing runs off the edge any more, buttons are big enough to tap, and text is the same size wherever you are.',
+    highlight: true,
+    items: [
+      {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'On iPhone, some text (driver names in the vehicles table, for example) came out far bigger than everything around it. Text is now one consistent size.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'Forms, filters and date pickers no longer run off the side of a phone screen — Add vehicle, Financials, Settlements and the rest all fit.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'On phones, the Save buttons in pop-ups like Add expense were hidden behind the bottom menu bar. Pop-ups now sit on top.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'The side menu on a phone now scrolls all the way down to Settings.',
+      },
+      {
+        tag: 'improved',
+        area: 'Platform',
+        text: 'The top bar is cleaner: the page title now sits once on the page instead of being squeezed into the bar, and sub-pages have a small back arrow next to their title.',
+      },
+      {
+        tag: 'improved',
+        area: 'Platform',
+        text: 'On a tablet the menu starts as a slim icon bar, the dashboard and lists lay out two-up instead of squeezing, and wide tables scroll sideways with the plate number pinned.',
+      },
+      {
+        tag: 'improved',
+        area: 'Shifts',
+        text: 'Shift, parts, service, reminder and damage lists are easy to read on a phone instead of being squeezed into thin columns.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Driver app',
+        text: 'Drivers’ Notifications page no longer shows “Something went wrong” on phones, and the dashboard no longer scrolls sideways.',
+      },
+    ],
+  },
+  {
     id: '2026-11-rovora-ai',
     date: '2026-11-18',
     dateHuman: 'November 2026',
     title: 'Rovora AI: ask your fleet anything',
     summary:
       'Ask a question in plain English and get the answer from your own fleet’s data — costs, drivers, shifts, services, documents — with links to the records behind it. It’s in every plan today.',
-    highlight: true,
     items: [
       {
         tag: 'new',

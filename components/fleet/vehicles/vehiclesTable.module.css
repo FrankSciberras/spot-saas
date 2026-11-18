@@ -235,6 +235,26 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* Phones and tablets scroll the table sideways: keep the plate column pinned
+   so you still know which car a row is once Insurance or Damages is in view. */
+@media (max-width: 1099px) {
+  .table th:first-child,
+  .table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg-1);
+    box-shadow: 1px 0 0 var(--line-1);
+  }
+  .table thead th:first-child {
+    z-index: 2;
+    background: var(--bg-2);
+  }
+  .row:hover td:first-child {
+    background: var(--bg-hover);
+  }
+}
+
 @media (max-width: 720px) {
   .viewLabel {
     display: none;

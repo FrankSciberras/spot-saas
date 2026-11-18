@@ -206,8 +206,10 @@ const st: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    background: 'var(--topbar-bg)',
-    backdropFilter: 'blur(10px)',
+    // Solid, not 85% see-through: where the blur isn't applied (iOS Safari
+    // before 18) the page scrolled visibly underneath the buttons. Same fix
+    // as the marketing site's nav.
+    background: 'var(--bg-0)',
     position: 'sticky',
     top: 0,
     zIndex: 10,

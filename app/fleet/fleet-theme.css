@@ -676,7 +676,10 @@
 .fleetCanvas .fleetSidebar { height: 100vh; height: 100dvh; }
 .fleetCanvas .fleetDrawer { height: 100%; max-height: 100vh; max-height: 100dvh; overflow: hidden; }
 @media (max-width: 720px) {
-  .fleetCanvas .fleetDrawer .fleetNavItem { min-height: 44px; font-size: 15px !important; }
+  /* One scale for the drawer: 14px links, 11px section labels, 14px fleet
+     name — a 15px link under a 10px label looked lopsided. */
+  .fleetCanvas .fleetDrawer .fleetNavItem { min-height: 44px; font-size: 14px !important; }
+  .fleetCanvas .fleetDrawer .fleetNavGroupBtn { font-size: 11px !important; padding-top: 10px !important; }
   /* Before the page hydrates the shell still thinks it is on a desktop; don't
      let the full sidebar flash across a phone for that moment. */
   .fleetCanvas .fleetSidebar { display: none; }
