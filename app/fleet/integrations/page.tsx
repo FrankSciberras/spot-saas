@@ -66,12 +66,12 @@ export default async function FleetIntegrationsPage() {
           <ModuleToggles enabledKeys={Array.from(enabledModules)} />
         </section>
 
-        {/* ── Third-party integrations (coming-soon marketplace) ── */}
+        {/* ── Third-party integrations (live connections only) ── */}
         <section className={styles.category}>
           <div className={styles.categoryHead}>
             <h2 className={styles.categoryTitle}>Third-party integrations</h2>
             <p className={styles.categoryBlurb}>
-              Connect Rovora to your trackers, ride-hail platforms, messaging and accounting tools.
+              What Rovora connects to today: ride-hailing platforms, accounting exports and your own tools.
             </p>
           </div>
 
@@ -80,12 +80,11 @@ export default async function FleetIntegrationsPage() {
               <FleetIcon name="plug" size={20} stroke={1.7} />
             </div>
             <div>
-              <strong>The marketplace is growing.</strong>
+              <strong>Everything here works today.</strong>
               <p>
-                Connections marked <em>Live</em> work today. The rest are in active development
-                &mdash; tap <em>Notify me</em> on the ones you need and we&rsquo;ll email you the
-                moment they go live, or{' '}
-                <a href={REQUEST_INTEGRATION_MAILTO}>request one we haven&rsquo;t listed</a>.
+                Need a connection that isn&rsquo;t listed?{' '}
+                <a href={REQUEST_INTEGRATION_MAILTO}>Tell us which one</a>, or see what&rsquo;s
+                planned on the <a href="https://rovora.eu/roadmap" target="_blank" rel="noopener noreferrer">roadmap</a>.
               </p>
             </div>
           </div>
@@ -117,9 +116,11 @@ export default async function FleetIntegrationsPage() {
                     <p className={styles.desc}>{it.desc}</p>
                     <div className={styles.actions}>
                       {it.status === 'live' ? (
-                        <a className={styles.openBtn} href={it.href ?? '/fleet'}>
-                          Open
-                        </a>
+                        it.href ? (
+                          <a className={styles.openBtn} href={it.href}>
+                            Open
+                          </a>
+                        ) : null
                       ) : (
                         <>
                           <button className={styles.connectBtn} type="button" disabled>

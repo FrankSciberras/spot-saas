@@ -15,9 +15,10 @@
  *   2. When work starts on something, move it to 'in-progress'.
  *   3. Bump ROADMAP_UPDATED.
  *
- * Only list things the rest of the site already promises (the /ai page, the
- * integrations catalog, the modules catalog) or that are actually being
- * built. No dates — we say what is coming, not when.
+ * This is the ONE place planned work is listed: /integrations shows live
+ * connections only. List things that are actually being built or that we
+ * have committed to (the /ai page, the modules catalog). No dates — we say
+ * what is coming, not when.
  */
 
 export type RoadmapStatus = 'in-progress' | 'next' | 'later';
@@ -82,7 +83,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'Uber integration',
     text: 'Trips and weekly earnings imported automatically, the way Bolt works today. Fleet-plan customers are first in line.',
-    href: '/integrations',
   },
   {
     id: 'bolt-settlements',
@@ -122,7 +122,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'FreeNow integration',
     text: 'Trip data pulled in across your whole fleet.',
-    href: '/integrations',
   },
   {
     id: 'accounting-sync',
@@ -130,7 +129,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'Direct Xero & QuickBooks sync',
     text: 'Settlements and expenses pushed straight into your accounting software, instead of downloading a CSV.',
-    href: '/integrations',
   },
   {
     id: 'stripe-payouts',
@@ -138,7 +136,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'One-click driver payouts',
     text: 'Pay drivers what their settlement says through Stripe, reconciled automatically.',
-    href: '/integrations',
   },
   {
     id: 'gps-hardware',
@@ -146,7 +143,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Live tracking',
     title: 'GPS hardware trackers',
     text: 'Live positions and trips from Wialon, Traccar, flespi and Teltonika trackers, for fleets that already have hardware fitted.',
-    href: '/integrations',
   },
   {
     id: 'whatsapp',
@@ -154,7 +150,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'WhatsApp reminders',
     text: 'Shift reminders and alerts sent to drivers on WhatsApp.',
-    href: '/integrations',
   },
   {
     id: 'invoices',

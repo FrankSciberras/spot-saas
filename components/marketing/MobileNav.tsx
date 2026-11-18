@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FEATURES, featureHref, SIGN_IN, START_TRIAL } from './links';
-import { FEATURE_ICONS } from './FeaturesMenu';
+import { FEATURES, AUDIENCES, featureHref, audienceHref, SIGN_IN, START_TRIAL } from './links';
+import { FEATURE_ICONS } from './feature-icons';
 import { Icon } from './feature/icons';
 import RovoraThemeToggle from './RovoraThemeToggle';
 import { useNavViewer } from './useNavViewer';
@@ -89,6 +89,11 @@ export default function MobileNav({ onHome = false }: { onHome?: boolean }) {
               </div>
             )}
 
+            {AUDIENCES.map((a) => (
+              <Link key={a.slug} className="mnav-link" href={audienceHref(a.slug)} onClick={close}>
+                {a.label}
+              </Link>
+            ))}
             <Link className="mnav-link" href="/integrations" onClick={close}>Integrations</Link>
             <Link className="mnav-link" href="/ai" onClick={close}>
               Rovora AI

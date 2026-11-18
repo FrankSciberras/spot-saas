@@ -22,6 +22,26 @@ export const FEATURES: FeatureLink[] = [
   { slug: 'settlements', label: 'Weekly settlements', blurb: 'Reconcile every driver’s week into one payable number.' },
   { slug: 'flexible-pay', label: 'Flexible pay', blurb: 'Per-driver splits for fares, tips, campaigns and fees.' },
   { slug: 'adjustments', label: 'Adjustments', blurb: 'Bonuses, expenses and deductions, applied automatically.' },
+  { slug: 'messages', label: 'Driver messaging', blurb: 'Chats, groups and announcements with your drivers, instead of a WhatsApp group.' },
+  { slug: 'driver-app', label: 'Driver app', blurb: 'Shifts, checks, rosters, earnings and messages on the driver’s phone.' },
+  { slug: 'safety', label: 'Driver safety', blurb: 'Harsh braking, cornering and speeding, scored per driver and shown on a map.' },
+  { slug: 'bolt', label: 'Bolt integration', blurb: 'Your Bolt rides, fares and drivers next to the rest of your fleet.' },
+  { slug: 'bookkeeping', label: 'Bookkeeping & financials', blurb: 'Record every expense the day it happens; profit by day, week or month.' },
 ];
 
 export const featureHref = (slug: string) => `/features/${slug}`;
+
+export interface AudienceLink {
+  slug: string;
+  label: string;
+  blurb: string;
+}
+
+/** "Who it's for" pages under /for/<slug>. */
+export const AUDIENCES: AudienceLink[] = [
+  { slug: 'bolt-uber-fleets', label: 'Bolt & Uber fleets', blurb: 'Ride-hailing fleets that pay drivers a share of what they earn each week.' },
+  { slug: 'small-fleets', label: 'Small fleets, 2–10 cars', blurb: 'Owners who do the rosters, the pay and the paperwork themselves.' },
+  { slug: 'growing-fleets', label: 'Growing fleets, 10–75 cars', blurb: 'Fleets with office staff, where things need to run without the owner.' },
+];
+
+export const audienceHref = (slug: string) => `/for/${slug}`;

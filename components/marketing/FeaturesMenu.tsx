@@ -2,20 +2,11 @@
 
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import Link from 'next/link';
-import { FEATURES, featureHref } from './links';
-import { Icon, type IconName } from './feature/icons';
+import { FEATURES, AUDIENCES, featureHref, audienceHref } from './links';
+import { Icon } from './feature/icons';
+import { FEATURE_ICONS } from './feature-icons';
 
-/** Which icon represents each feature page — shared with the mobile menu. */
-export const FEATURE_ICONS: Record<string, IconName> = {
-  vehicles: 'car',
-  maintenance: 'wrench',
-  damage: 'camera',
-  'live-tracking': 'pulse',
-  rosters: 'calendar',
-  settlements: 'coins',
-  'flexible-pay': 'sliders',
-  adjustments: 'plusCircle',
-};
+export { FEATURE_ICONS };
 
 /** A feature page in the sheet: its slug plus the things it actually covers. */
 interface MenuItem {
@@ -32,6 +23,7 @@ const GROUPS: { heading: string; items: MenuItem[] }[] = [
       { slug: 'vehicles', tags: ['Documents & expiry', 'Live kilometres', 'Utilisation'] },
       { slug: 'maintenance', tags: ['Service due by km & date', 'Costs', 'Full history'] },
       { slug: 'damage', tags: ['Photo reports', 'Repair status', 'Cost per car'] },
+      { slug: 'bookkeeping', tags: ['Expenses & income', 'Receipts', 'Xero & QuickBooks CSV'] },
     ],
   },
   {
@@ -39,6 +31,9 @@ const GROUPS: { heading: string; items: MenuItem[] }[] = [
     items: [
       { slug: 'live-tracking', tags: ['Live map', 'Trips & stops', 'Safety scores'] },
       { slug: 'rosters', tags: ['Weekly planner', 'Vehicle assignment', 'Shift log'] },
+      { slug: 'messages', tags: ['Direct & group chats', 'Announcements', 'Read receipts'] },
+      { slug: 'driver-app', tags: ['Shifts & checks', 'Earnings', 'Android'] },
+      { slug: 'safety', tags: ['Harsh events on a map', 'Weekly score', 'Speeding'] },
     ],
   },
   {
@@ -47,6 +42,7 @@ const GROUPS: { heading: string; items: MenuItem[] }[] = [
       { slug: 'settlements', tags: ['Auto reconciliation', 'PDF statements', 'Approvals'] },
       { slug: 'flexible-pay', tags: ['Pay presets', 'Hourly & fixed wage', 'Rent & tax'] },
       { slug: 'adjustments', tags: ['One-off & recurring', 'Deductions', 'Applied automatically'] },
+      { slug: 'bolt', tags: ['Rides & fares', 'Per-driver figures', 'Hourly sync'] },
     ],
   },
 ];
@@ -69,7 +65,6 @@ const PLATFORM: { href: string; label: string; icon: ComponentType; soon?: boole
 /** Shipped with every plan, but without a marketing page of their own. */
 const INCLUDED = [
   'Parts & inventory',
-  'Bookkeeping & reports',
   'Reminders & renewals',
   'Roles & permissions',
   'Audit log',
@@ -184,6 +179,14 @@ export default function FeaturesMenu({ sectionHref }: { sectionHref: string }) {
                     </Link>
                   );
                 })}
+
+                <div className="mm-heading" style={{ marginTop: 18 }}>Who it&rsquo;s for</div>
+                {AUDIENCES.map((a) => (
+                  <Link key={a.slug} href={audienceHref(a.slug)} className="mm-mini" role="menuitem" onClick={close}>
+                    <Icon.users />
+                    {a.label}
+                  </Link>
+                ))}
 
                 <div className="mm-card">
                   <span className="mm-card-k">Free driver app</span>

@@ -26,22 +26,13 @@ import FeaturesAccordion from './FeaturesAccordion';
 import { SIGN_IN, START_TRIAL, featureHref } from './links';
 import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import { Icon, type IconName } from './feature/icons';
-import { markFontSize } from '@/lib/integrations/catalog';
+import { INTEGRATION_CATEGORIES, markFontSize } from '@/lib/integrations/catalog';
+import BoltMark from '@/components/shared/BoltMark';
 
-/** A representative tile from each marketplace category — full list at /integrations. */
-const INTEGRATIONS: {
-  name: string;
-  mark: string;
-  bg: string;
-  fg: string;
-  desc: string;
-  live?: boolean;
-}[] = [
-  { name: 'Accountant CSV export', mark: 'CSV', bg: '#64748b', fg: '#ffffff', desc: 'QuickBooks & Xero-ready CSV of your books, one click.', live: true },
-  { name: 'Wialon', mark: 'W', bg: '#f26722', fg: '#ffffff', desc: 'Import GPS positions & trips from your trackers.' },
-  { name: 'Uber', mark: 'U', bg: '#000000', fg: '#ffffff', desc: 'Auto-import trips & weekly earnings.' },
-  { name: 'WhatsApp', mark: 'WA', bg: '#25d366', fg: '#06341c', desc: 'Send shift reminders straight to drivers.' },
-];
+/** The headline live connections — full list at /integrations. */
+const INTEGRATIONS = INTEGRATION_CATEGORIES.flatMap((c) => c.items).filter((it) =>
+  ['Bolt', 'Xero', 'QuickBooks', 'Rovora API'].includes(it.name),
+);
 
 /** Quick "everything Rovora does" overview grid on the homepage. */
 const WAYS: { icon: IconName; label: string; href: string }[] = [
@@ -147,8 +138,12 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
         <MarketingNav onHome />
 
         {/* HERO */}
-        <section className="hero" id="top">
-          <div className="container reveal-stagger">
+        {/* Desktop: two columns — the pitch and the buttons on the left, the
+            demo video on the right, so both are on screen without scrolling.
+            Below 1024px it stacks back into the centred, one-column hero. */}
+        <section className="hero hero-split" id="top">
+          <div className="container hero-split-grid">
+          <div className="hero-copy reveal-stagger">
             <h1 className="hero-title">Run your whole fleet <span className="pos">from one screen</span>.</h1>
             {/* One line on purpose. The feature list that used to live here just
                 pushed the video further down — and the page spends the next
@@ -184,7 +179,7 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
               without scrolling or hunting for a "watch" section. It deliberately
               stands alone: nothing overlaps it, so the play button is the most
               obvious thing on the page after the CTA. */}
-          <div className="container hero-stage reveal">
+          <div className="hero-stage reveal">
             <div className="hero-video">
               {/* Self-hosted MP4/WebM when the files are in public/videos (full
                   HD, exactly the encode we ship); otherwise the YouTube embed,
@@ -196,6 +191,7 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
                 <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority autoplay />
               )}
             </div>
+          </div>
           </div>
 
           {/* The EU-hosted / Encrypted / GDPR strip used to sit here. Removed so
@@ -341,16 +337,16 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
         <section className="sec-pad" id="integrations" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
           <div className="container">
             <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <span className="kicker">Integrations · On the roadmap</span>
+              <span className="kicker">Integrations · Live today</span>
               <h2 className="sec-title">Built to work with the tools you already run</h2>
-              <p className="sec-desc">Stop copying trip data, positions and payouts by hand. We&rsquo;re building native connections across GPS &amp; telematics, ride-hail platforms, messaging and accounting — so everything flows straight into Rovora.</p>
+              <p className="sec-desc">Connect your Bolt fleet account, hand your accountant a Xero or QuickBooks file, or plug in your own tools through the API. Everything shown here works today.</p>
             </div>
 
             <div className="integ-grid reveal-stagger">
               {INTEGRATIONS.map((it) => (
                 <div className="integ" key={it.name}>
-                  <span className={it.live ? 'integ-live' : 'integ-soon'}>{it.live ? 'Live' : 'Coming soon'}</span>
-                  <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.mark}</div>
+                  <span className="integ-live">Live</span>
+                  <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}</div>
                   <div className="integ-name">{it.name}</div>
                   <p className="integ-desc">{it.desc}</p>
                 </div>
@@ -358,7 +354,7 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
             </div>
 
             <div className="reveal" style={{ textAlign: 'center', marginTop: 32 }}>
-              <Link className="btn btn-primary btn-lg" href="/integrations">Explore all integrations</Link>
+              <Link className="btn btn-primary btn-lg" href="/integrations">See all integrations</Link>
             </div>
 
             <p className="integ-note">

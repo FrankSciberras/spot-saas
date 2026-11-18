@@ -24,8 +24,10 @@ PR:
    - When an item ships, delete it from `ROADMAP` (it now appears under
      Shipped via the changelog). When work starts on one, set it to
      `in-progress`. Bump `ROADMAP_UPDATED`.
-   - Only list things the site already promises (`/ai`, the integrations and
-     modules catalogs) or that are actually being built. No dates.
+   - Only list things that are actually being built or already committed to
+     (`/ai`, the modules catalog). No dates. `/integrations` lists live
+     connections only, so a planned integration belongs here, not there —
+     and moves to `lib/integrations/catalog.ts` the day it ships.
 
 If a change makes a "coming soon" claim elsewhere true (the `/ai` page,
 `lib/integrations/catalog.ts`, `lib/modules/catalog.ts`,

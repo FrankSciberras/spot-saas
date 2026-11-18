@@ -221,7 +221,7 @@ export const RELEASES: Release[] = [
       {
         tag: 'new',
         area: 'API',
-        text: 'The Rovora REST API: create API keys in the dashboard and read, add and update drivers, vehicles and bookkeeping transactions from your own tools. Full documentation at rovora.eu/docs/api.',
+        text: 'The Rovora REST API, on plans that include API access: create API keys in the dashboard and read, add and update drivers, vehicles and bookkeeping transactions from your own tools. Full documentation at rovora.eu/docs/api.',
       },
       {
         tag: 'improved',

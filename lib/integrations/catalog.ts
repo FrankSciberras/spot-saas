@@ -1,8 +1,9 @@
 // Single source of truth for the integrations marketplace, shared by the public
 // marketing page (/integrations) and the fleet dashboard (/fleet/integrations).
-// Every entry is presented as a coloured logo tile + a "Coming soon" badge — we
-// don't ship the real third-party marks (trademarks), so the tile uses a short
-// mark and brand-ish colours instead.
+// Only connections that work today are listed here; what is planned lives on
+// the public roadmap (components/marketing/roadmap/roadmap.ts). We don't ship
+// the real third-party marks (trademarks), so each tile uses a short mark and
+// brand-ish colours instead.
 
 export type IntegrationStatus = 'live' | 'coming-soon';
 
@@ -20,6 +21,8 @@ export interface Integration {
   status: IntegrationStatus;
   /** Where a LIVE integration opens inside the dashboard (e.g. '/fleet/financials'). */
   href?: string;
+  /** Public page that explains it (shown as "Learn more" on /integrations). */
+  more?: string;
   /**
    * A real logomark to draw in the tile instead of the text `mark` — only for
    * integrations that are actually live. Rendered by components/shared
@@ -61,141 +64,100 @@ export function markFontSize(mark: string): number {
 
 export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
   {
-    key: 'gps',
-    title: 'GPS & telematics',
-    blurb:
-      'Bring live vehicle positions and trip data into Rovora from the trackers you already run — no rip-and-replace.',
-    items: [
-      {
-        name: 'Wialon',
-        mark: 'W',
-        bg: '#f26722',
-        fg: '#ffffff',
-        desc: 'Import GPS positions and trips from your Wialon units.',
-        status: 'coming-soon',
-      },
-      {
-        name: 'Traccar',
-        mark: 'T',
-        bg: '#2f6fed',
-        fg: '#ffffff',
-        desc: 'Pull live vehicle locations from your Traccar server.',
-        status: 'coming-soon',
-      },
-      {
-        name: 'flespi',
-        mark: 'f',
-        bg: '#12b886',
-        fg: '#ffffff',
-        desc: 'Stream telematics from any device through the flespi API.',
-        status: 'coming-soon',
-      },
-      {
-        name: 'Teltonika Trackers',
-        mark: 'Tt',
-        bg: '#4c9c2e',
-        fg: '#ffffff',
-        desc: 'Connect Teltonika FMB/FMC trackers for live GPS.',
-        status: 'coming-soon',
-      },
-    ],
-  },
-  {
     key: 'ride-hail',
-    title: 'Ride-hail platforms',
+    title: 'Ride-hailing platforms',
     blurb:
-      'Auto-import trips and payouts from the platforms your drivers already work on — no more manual copying.',
+      'See what your drivers and cars did on the platform, next to the rest of your fleet.',
     items: [
-      {
-        name: 'Uber',
-        mark: 'U',
-        bg: '#000000',
-        fg: '#ffffff',
-        desc: 'Auto-import trips and weekly earnings.',
-        status: 'coming-soon',
-      },
       {
         name: 'Bolt',
         mark: 'b',
         logo: 'bolt',
         bg: '#34d186',
         fg: '#ffffff',
-        desc: 'Rides, fares, tips and acceptance rates per driver, plus who is online right now.',
+        desc: 'Connect your Bolt fleet account with a Fleet API key: rides, fares, tips and acceptance per driver and per car, refreshed every hour, plus who is online right now.',
         status: 'live',
         href: '/fleet/bolt',
-      },
-      {
-        name: 'FreeNow',
-        mark: 'F',
-        bg: '#00b9b0',
-        fg: '#04211f',
-        desc: 'Pull trip data across your whole fleet.',
-        status: 'coming-soon',
-      },
-    ],
-  },
-  {
-    key: 'communication',
-    title: 'Communication',
-    blurb:
-      'Reach drivers where they already are and keep everyone in the loop automatically.',
-    items: [
-      {
-        name: 'WhatsApp',
-        mark: 'WA',
-        bg: '#25d366',
-        fg: '#06341c',
-        desc: 'Send shift reminders and alerts to drivers on WhatsApp.',
-        status: 'coming-soon',
-      },
-      {
-        name: 'Email',
-        mark: '@',
-        bg: '#5b6ee1',
-        fg: '#ffffff',
-        desc: 'Automated email updates for drivers, staff and accountants.',
-        status: 'coming-soon',
+        more: '/features/bolt',
       },
     ],
   },
   {
     key: 'accounting',
-    title: 'Accounting & payments',
+    title: 'Accounting',
     blurb:
-      'Send settlements, expenses and payouts straight to your books — and out to your drivers.',
+      'Hand your accountant the fleet’s income and expenses in the layout their software imports.',
     items: [
       {
         name: 'Xero',
         mark: 'X',
         bg: '#13b5ea',
         fg: '#ffffff',
-        desc: 'Push settlements and expenses to your Xero ledger.',
-        status: 'coming-soon',
+        desc: 'Export your transactions as a Xero bank-statement CSV, one line per dated transaction. A file you import, not a live sync.',
+        status: 'live',
+        href: '/fleet/financials',
+        more: '/features/bookkeeping',
       },
       {
         name: 'QuickBooks',
         mark: 'qb',
         bg: '#2ca01c',
         fg: '#ffffff',
-        desc: 'Sync payouts and costs into QuickBooks Online.',
-        status: 'coming-soon',
+        desc: 'Export the same transactions as a QuickBooks bank CSV with credit and debit columns. A file you import, not a live sync.',
+        status: 'live',
+        href: '/fleet/financials',
+        more: '/features/bookkeeping',
       },
       {
-        name: 'Stripe',
-        mark: 'S',
-        bg: '#635bff',
-        fg: '#ffffff',
-        desc: 'Pay drivers out in one click, fully reconciled.',
-        status: 'coming-soon',
-      },
-      {
-        name: 'CSV export for accountants',
+        name: 'CSV download',
         mark: 'CSV',
         bg: '#64748b',
         fg: '#ffffff',
-        desc: 'One-click QuickBooks & Xero-ready CSV of your income, expenses and driver pay.',
+        desc: 'Download any view of the bookkeeping ledger as a CSV, for a spreadsheet or any other accounting tool.',
         status: 'live',
-        href: '/fleet/financials',
+        href: '/fleet/earnings',
+        more: '/features/bookkeeping',
+      },
+    ],
+  },
+  {
+    key: 'developers',
+    title: 'Developers',
+    blurb: 'Connect your own tools to your fleet’s data.',
+    items: [
+      {
+        name: 'Rovora API',
+        mark: 'API',
+        bg: '#0f172a',
+        fg: '#ffffff',
+        desc: 'A REST API for drivers, vehicles and bookkeeping transactions, with scoped keys and an OpenAPI spec. On plans that include API access.',
+        status: 'live',
+        href: '/fleet/api',
+        more: '/docs/api',
+      },
+    ],
+  },
+  {
+    key: 'accounts',
+    title: 'Sign-in & notifications',
+    blurb: 'The everyday services Rovora already works with.',
+    items: [
+      {
+        name: 'Google sign-in',
+        mark: 'G',
+        bg: '#4285f4',
+        fg: '#ffffff',
+        desc: 'Sign in and sign up with your Google account instead of another password.',
+        status: 'live',
+      },
+      {
+        name: 'Email notifications',
+        mark: '@',
+        bg: '#5b6ee1',
+        fg: '#ffffff',
+        desc: 'Published rosters, expiring documents, services due and shift checks sent by email to the people who need them.',
+        status: 'live',
+        href: '/fleet/notifications',
       },
     ],
   },

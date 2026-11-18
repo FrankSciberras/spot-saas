@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -116,7 +117,7 @@ export default async function MaintenanceFeaturePage() {
             bullets={[
               'Provider, work and cost on every record',
               'Full service history for each vehicle',
-              'Maintenance spend rolled into your financials',
+              'Service costs kept on each vehicle’s record',
             ]}
             visual={
               <ShotFrame path="services/12-d-4471" tight>
@@ -139,13 +140,15 @@ export default async function MaintenanceFeaturePage() {
               { icon: 'calendar', title: 'Service scheduling', body: 'Plan oil changes, tyres, brakes and inspections per vehicle.' },
               { icon: 'gauge', title: 'Mileage triggers', body: 'Due dates driven by live odometer readings, not the calendar alone.' },
               { icon: 'bell', title: 'Automatic alerts', body: 'Fired on check-in the instant a car crosses its threshold.' },
-              { icon: 'coins', title: 'Cost tracking', body: 'Every job costed, rolled into your fleet financials.' },
+              { icon: 'coins', title: 'Cost tracking', body: 'Every job costed and kept on the vehicle’s record.' },
               { icon: 'file', title: 'Service history', body: 'A complete, dated record for every vehicle you run.' },
               { icon: 'shield', title: 'Damage log', body: 'Record incidents and repairs against any car, with photos.' },
             ]}
           />
         </div>
       </section>
+
+      <FeatureExtras slug="maintenance" />
 
       <CtaBand
         title="Keep every car serviced and on the road."

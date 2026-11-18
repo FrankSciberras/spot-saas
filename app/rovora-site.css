@@ -480,6 +480,37 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 /* The embed sets its own 16/9 box; this just keeps its corners inside the frame. */
 .rovora-site .hero-video .ytlite { border-radius: inherit; }
 
+/* ─── Homepage hero, two columns on desktop ───
+   Text and buttons left, demo video right. Scoped to .hero-split so the
+   feature pages, which share .hero, keep their centred layout. Below 1024px
+   none of this applies and the hero stacks: copy, then video. */
+@media (min-width: 1024px) {
+  .rovora-site .hero.hero-split { padding: 64px 0 0; text-align: left; }
+  .rovora-site .hero-split-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+    gap: 56px;
+    align-items: center;
+    margin-bottom: 96px;
+  }
+  .rovora-site .hero-split h1.hero-title {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 12ch;
+    font-size: clamp(44px, 4.5vw, 64px);
+  }
+  .rovora-site .hero-split .hero-sub { margin-left: 0; margin-right: 0; max-width: 34ch; }
+  .rovora-site .hero-split .hero-cta,
+  .rovora-site .hero-split .hero-micro,
+  .rovora-site .hero-split .hero-stars { justify-content: flex-start; }
+  .rovora-site .hero-split .trial-promo { justify-content: flex-start; }
+  .rovora-site .hero-split .hero-stage { margin: 0; }
+  .rovora-site .hero-split .hero-video { max-width: none; border-radius: 20px; }
+  /* The bloom sat under the centre of a full-width video; tuck it behind the
+     right-hand frame instead. */
+  .rovora-site .hero-split .hero-stage::before { top: 12%; width: 70%; height: 70%; }
+}
+
 @media (max-width: 720px) {
   .rovora-site .hero-stage { margin-top: 20px; margin-bottom: 56px; }
   .rovora-site .hero-video { border-radius: 16px; }

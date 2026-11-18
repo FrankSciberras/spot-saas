@@ -46,8 +46,8 @@ const FEATURES: Feature[] = [
   {
     key: 'live',
     title: 'Live shift status',
-    desc: 'Every clock-in, shift hour and euro earned, streaming in as it happens. Know who is driving, who is available and who is running late — without making a single call.',
-    points: ['On shift, off duty or running late — at a glance', 'Per-driver earnings as the day unfolds', 'Document checks flagged before they expire'],
+    desc: 'Every clock-in and shift hour, streaming in as it happens. Know who is driving, in which car and for how long — without making a single call.',
+    points: ['On shift or off duty — at a glance', 'Hours and kilometres per driver, as they work', 'Document checks flagged before they expire'],
     href: '/features/live-tracking',
     shot: (
       <>
@@ -150,7 +150,7 @@ const FEATURES: Feature[] = [
   {
     key: 'rosters',
     title: 'Rosters',
-    desc: 'Build weekly schedules, assign cars to drivers and catch clashes before the shift starts. Drivers see their week in the app the moment you publish.',
+    desc: 'Build weekly schedules, assign cars to drivers and publish the week in one click. Drivers see their week in the app the moment you publish.',
     points: ['Weekly grid: drivers × vehicles × days', 'Publish once — every driver is notified', 'Copy last week forward in one tap'],
     href: '/features/rosters',
     shot: (

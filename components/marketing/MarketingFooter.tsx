@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SIGN_IN, START_TRIAL, featureHref } from './links';
+import { SIGN_IN, START_TRIAL, AUDIENCES, featureHref, audienceHref } from './links';
 import RovoraThemeToggle from './RovoraThemeToggle';
 import { CookieSettingsButton } from '@/components/analytics/CookieBanner';
 
@@ -50,6 +50,9 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href={featureHref('damage')}>Damage &amp; repairs</Link>
               <Link href={featureHref('live-tracking')}>Live driver tracking</Link>
               <Link href={featureHref('rosters')}>Rosters &amp; shifts</Link>
+              <Link href={featureHref('messages')}>Driver messaging</Link>
+              <Link href={featureHref('safety')}>Driver safety</Link>
+              <Link href={featureHref('driver-app')}>Driver app</Link>
             </div>
 
             <div className="foot-col">
@@ -57,18 +60,24 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href={featureHref('settlements')}>Weekly settlements</Link>
               <Link href={featureHref('flexible-pay')}>Flexible pay</Link>
               <Link href={featureHref('adjustments')}>Adjustments</Link>
-              <a href={h('features')}>Financials &amp; bookkeeping</a>
+              <Link href={featureHref('bookkeeping')}>Financials &amp; bookkeeping</Link>
               <Link href="/pricing">Plans &amp; billing</Link>
             </div>
 
             <div className="foot-col">
               <h5>Integrations</h5>
-              <Link href="/integrations">GPS &amp; telematics</Link>
-              <Link href="/integrations">Ride-hail platforms</Link>
-              <Link href="/integrations">WhatsApp &amp; email</Link>
-              <Link href="/integrations">Xero &amp; QuickBooks</Link>
+              <Link href={featureHref('bolt')}>Bolt integration</Link>
+              <Link href="/integrations">Xero &amp; QuickBooks export</Link>
+              <Link href="/integrations">All integrations</Link>
               <Link href="/docs/api">Developer API</Link>
               <a href="mailto:hello@rovora.eu?subject=Integration%20request">Request an integration</a>
+            </div>
+
+            <div className="foot-col">
+              <h5>Who it&rsquo;s for</h5>
+              {AUDIENCES.map((a) => (
+                <Link key={a.slug} href={audienceHref(a.slug)}>{a.label}</Link>
+              ))}
             </div>
 
             <div className="foot-col">
