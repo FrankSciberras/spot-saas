@@ -40,7 +40,7 @@ export const RELEASES: Release[] = [
     dateHuman: 'November 2026',
     title: 'Your GPS trackers on the map, and settings that fit your fleet',
     summary:
-      'Already have trackers in your cars? Connect them and see every car on the Live Map next to your drivers. And Settings has been rebuilt: one tab for each part of Rovora, with the rules your fleet actually runs by.',
+      'Already have trackers in your cars? Connect them and see every car on the Live Map next to your drivers. Settings has been rebuilt with the rules your fleet actually runs by, and every vehicle now has its whole story on one tabbed page.',
     highlight: true,
     items: [
       {
@@ -77,6 +77,21 @@ export const RELEASES: Release[] = [
         tag: 'new',
         area: 'Settings',
         text: 'Set your fleet’s currency and number format once, and it is used everywhere your fleet sees money. Pick where the Live Map opens by clicking on a map.',
+      },
+      {
+        tag: 'new',
+        area: 'Vehicles',
+        text: 'The vehicle page is now split into tabs — Overview, Shifts, Service & parts, Damages, Costs, Documents and Timeline — with “coming up” tiles for the next service, insurance and road licence, and a 12-month cost summary per car for admins.',
+      },
+      {
+        tag: 'new',
+        area: 'Vehicles',
+        text: 'Switch the Vehicles list between cards and a sortable table: status, driver, odometer, next service, insurance and road licence expiry, open damages and 7-day use, one row per car.',
+      },
+      {
+        tag: 'improved',
+        area: 'Navigation',
+        text: 'A tidier sidebar: Live Map, GPS Trackers, Trips and Safety sit together under Tracking, Bolt moves to Financial, and every section can be folded away.',
       },
       {
         tag: 'new',
