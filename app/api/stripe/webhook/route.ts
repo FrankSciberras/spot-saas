@@ -4,6 +4,7 @@ import { getStripe, isStripeEnabled, appBaseUrl } from '@/lib/billing/stripe';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmail, renderBrandedEmail, isEmailConfigured } from '@/lib/email';
 import { isExtraVehicleItem, syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
+import { isGpsTrackerItem, syncGpsTrackerBillingSafe } from '@/lib/billing/gps-billing';
 
 // Stripe needs the Node runtime (crypto) and the raw, unbuffered request body.
 export const runtime = 'nodejs';
@@ -107,9 +108,9 @@ async function planKeyForPrice(price: Stripe.Price | undefined | null): Promise<
   return null;
 }
 
-/** The plan behind a subscription — its base item, never the extra-vehicles add-on. */
+/** The plan behind a subscription — its base item, never an add-on (extra vehicles, GPS trackers). */
 function planKeyForSubscription(sub: Stripe.Subscription): Promise<string | null> {
-  const base = sub.items.data.find((it) => !isExtraVehicleItem(it)) ?? sub.items.data[0];
+  const base = sub.items.data.find((it) => !isExtraVehicleItem(it) && !isGpsTrackerItem(it)) ?? sub.items.data[0];
   return planKeyForPrice(base?.price);
 }
 
@@ -185,8 +186,9 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
     throw error;
   }
 
-  // Cars added while they were on the payment page.
+  // Cars / GPS trackers added while they were on the payment page.
   await syncExtraVehicleBillingSafe(orgId);
+  await syncGpsTrackerBillingSafe(orgId);
 
   // Best-effort confirmation email — never let a mail failure fail the webhook
   // (that would make Stripe retry and re-activate).
@@ -283,6 +285,7 @@ async function handleSubscriptionChange(sub: Stripe.Subscription, deleted: boole
   if (!deleted && sub.status !== 'canceled') {
     for (const row of (updated || []) as { id: string }[]) {
       await syncExtraVehicleBillingSafe(row.id);
+      await syncGpsTrackerBillingSafe(row.id);
     }
   }
 }

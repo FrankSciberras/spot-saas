@@ -7,7 +7,18 @@ import FleetIcon from '@/components/fleet/FleetIcon';
 import { diagnoseNotSharing, diagnoseSilent, type SharingDiagnosis } from '@/lib/tracking/sharing-diagnosis';
 import { loadSharingInfo, type SharingInfo } from '@/lib/tracking/sharing-info';
 import { loadActivity, type ActivityItem } from '@/lib/tracking/activity';
+import {
+  GPS_DEVICE_MAP_COLUMNS,
+  metersApart,
+  toVehicleGpsItem,
+  vehicleMotion,
+  type GpsDeviceMapRow,
+  type VehicleGpsItem,
+  type VehicleMotion,
+} from '@/lib/gps/live-map-shared';
 import 'leaflet/dist/leaflet.css';
+
+export type { VehicleGpsItem } from '@/lib/gps/live-map-shared';
 
 export interface PositionItem {
   driverId: string;
@@ -46,6 +57,9 @@ export interface OnShiftItem {
   driverId: string;
   name: string;
   startTime: string;
+  /** The car this shift is in — links the driver to that car's GPS tracker. */
+  vehicleId?: string | null;
+  vehiclePlate?: string | null;
 }
 
 interface TrackingWorkspaceProps {
@@ -60,6 +74,54 @@ interface TrackingWorkspaceProps {
   initialZones: ZoneItem[];
   initialActivity: ActivityItem[];
   initialSpeedLimit: number | null;
+  /** A GPS platform is connected (lib/gps) — enables the Vehicles layer. */
+  gpsConnected: boolean;
+  /** Every GPS tracker with a position fix. */
+  initialVehicles: VehicleGpsItem[];
+  /** Privacy: cars only show while a driver is on shift in them. */
+  gpsHideOffShift?: boolean;
+}
+
+/** Which marker layers the map shows. Remembered per fleet in this browser. */
+interface Layers {
+  drivers: boolean;
+  vehicles: boolean;
+}
+
+/** A driver's phone this close to their shift car = the same place → one marker. */
+const MERGE_DISTANCE_M = 300;
+
+const MOTION_COLOR: Record<VehicleMotion, string> = {
+  moving: '#2bbd7e',
+  idling: '#f5b54a',
+  parked: '#64748b',
+  'no-signal': '#94a3b8',
+};
+
+const MOTION_LABEL: Record<VehicleMotion, string> = {
+  moving: 'Moving',
+  idling: 'Engine on',
+  parked: 'Parked',
+  'no-signal': 'No signal',
+};
+
+const CAR_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14v-5l-2-5H7l-2 5v5z"/><path d="M5 12h14"/><circle cx="8" cy="17" r="1.6" fill="#fff"/><circle cx="16" cy="17" r="1.6" fill="#fff"/></svg>';
+
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+interface MapMarker {
+  key: string;
+  lat: number;
+  lng: number;
+  html: string;
+  /** Leaflet divIcon size + anchor (car pills size themselves via CSS). */
+  size: [number, number];
+  anchor: [number, number];
+  tooltip: string;
+  z: number;
+  onClick: () => void;
 }
 
 const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
@@ -68,7 +130,7 @@ const FALLBACK_CENTER: [number, number] = [35.9, 14.42];
 const ZONE_COLOR = '#3b6ad9';
 
 type LiveStatus = 'live' | 'stale' | 'offline';
-type Tab = 'drivers' | 'zones' | 'activity';
+type Tab = 'drivers' | 'vehicles' | 'zones' | 'activity';
 
 /** Stable avatar colour for a driver who has no position yet. */
 function colorFor(id: string): string {
@@ -151,10 +213,49 @@ export default function TrackingWorkspace({
   initialZones,
   initialActivity,
   initialSpeedLimit,
+  gpsConnected,
+  initialVehicles,
+  gpsHideOffShift = true,
 }: TrackingWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const [positions, setPositions] = useState<Map<string, PositionItem>>(
     () => new Map(initialPositions.map((p) => [p.driverId, p]))
+  );
+  const [vehicles, setVehicles] = useState<Map<string, VehicleGpsItem>>(
+    () => new Map(initialVehicles.map((v) => [v.deviceId, v]))
+  );
+  const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
+  const [vehicleRealtimeOk, setVehicleRealtimeOk] = useState<boolean | null>(null);
+  // Tickboxes: with no GPS platform connected the map is drivers only.
+  const [layers, setLayersState] = useState<Layers>({ drivers: true, vehicles: gpsConnected });
+  const layersKey = `rovora.liveMap.layers.${orgId}`;
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(layersKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Partial<Layers>;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser storage is only readable after mount
+      setLayersState({ drivers: saved.drivers !== false, vehicles: gpsConnected && saved.vehicles !== false });
+    } catch {
+      /* private mode / bad JSON — keep the defaults */
+    }
+  }, [layersKey, gpsConnected]);
+  const setLayer = (layer: keyof Layers, on: boolean) => {
+    setLayersState((prev) => {
+      const next = { ...prev, [layer]: on };
+      try {
+        window.localStorage.setItem(layersKey, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+  // Plate + model per linked vehicle, so Realtime rows (no join) keep their label.
+  const vehicleInfoRef = useRef<globalThis.Map<string, { label: string; model: string | null }>>(
+    new globalThis.Map(
+      initialVehicles.filter((v) => v.vehicleId).map((v) => [v.vehicleId!, { label: v.label, model: v.model }])
+    )
   );
   const [zones, setZones] = useState<ZoneItem[]>(initialZones);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
@@ -290,6 +391,107 @@ export default function TrackingWorkspace({
     };
   }, [supabase, orgId]);
 
+  // GPS trackers: apply a gps_devices row (Realtime or a refetch) to state.
+  const applyVehicleRow = useCallback(
+    async (row: GpsDeviceMapRow) => {
+      let info = row.vehicle_id ? vehicleInfoRef.current.get(row.vehicle_id) : undefined;
+      if (row.vehicle_id && !info && !row.vehicles) {
+        const { data } = await supabase
+          .from('vehicles')
+          .select('registration_number, make, model')
+          .eq('id', row.vehicle_id)
+          .maybeSingle();
+        if (data) {
+          info = {
+            label: data.registration_number || row.name || 'Vehicle',
+            model: [data.make, data.model].filter(Boolean).join(' ') || null,
+          };
+          vehicleInfoRef.current.set(row.vehicle_id, info);
+        }
+      }
+      const item = toVehicleGpsItem(
+        row,
+        info ? { registration_number: info.label, make: info.model, model: null } : undefined
+      );
+      if (item?.vehicleId && !info) vehicleInfoRef.current.set(item.vehicleId, { label: item.label, model: item.model });
+      setVehicles((prev) => {
+        const next = new Map(prev);
+        if (item) next.set(item.deviceId, item);
+        else next.delete(row.id);
+        return next;
+      });
+    },
+    [supabase]
+  );
+
+  const refetchVehicles = useCallback(async () => {
+    const { data } = await supabase.from('gps_devices').select(GPS_DEVICE_MAP_COLUMNS).eq('organization_id', orgId);
+    if (!data) return;
+    const next = new Map<string, VehicleGpsItem>();
+    for (const r of data as unknown as GpsDeviceMapRow[]) {
+      const item = toVehicleGpsItem(r);
+      if (!item) continue;
+      next.set(item.deviceId, item);
+      if (item.vehicleId) vehicleInfoRef.current.set(item.vehicleId, { label: item.label, model: item.model });
+    }
+    setVehicles(next);
+  }, [supabase, orgId]);
+
+  // Realtime: stream tracker moves (the server writes gps_devices ~every minute).
+  useEffect(() => {
+    if (!gpsConnected) return;
+    const channel = supabase
+      .channel(`gps-devices-${orgId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'gps_devices', filter: `organization_id=eq.${orgId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string } | null)?.id;
+            if (id) {
+              setVehicles((prev) => {
+                const next = new Map(prev);
+                next.delete(id);
+                return next;
+              });
+            }
+            return;
+          }
+          const row = payload.new as GpsDeviceMapRow | null;
+          if (row?.id) void applyVehicleRow(row);
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setVehicleRealtimeOk(true);
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setVehicleRealtimeOk(false);
+      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, orgId, gpsConnected, applyVehicleRow]);
+
+  // While the map is open, ask the server to pull fresh tracker positions
+  // (it skips the call if the scheduler did so moments ago).
+  useEffect(() => {
+    if (!gpsConnected) return;
+    let stopped = false;
+    const pull = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        await fetch('/api/fleet/gps/refresh', { method: 'POST' });
+      } catch {
+        /* offline — try again next round */
+      }
+      if (!stopped && vehicleRealtimeOk !== true) void refetchVehicles();
+    };
+    void pull();
+    const t = setInterval(() => void pull(), 30_000);
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [gpsConnected, vehicleRealtimeOk, refetchVehicles]);
+
   const refetchActivity = useCallback(async () => {
     setActivity(await loadActivity(supabase, orgId));
   }, [supabase, orgId]);
@@ -309,17 +511,26 @@ export default function TrackingWorkspace({
   const refetchOnShift = useCallback(async () => {
     const { data } = await supabase
       .from('driver_shifts')
-      .select('driver_id, start_time, drivers:driver_id (full_name)')
+      .select('driver_id, start_time, vehicle_id, drivers:driver_id (full_name), vehicles:vehicle_id (registration_number)')
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true });
     if (!data) return;
-    type Row = { driver_id: string; start_time: string; drivers: DriverRel | DriverRel[] | null };
     type DriverRel = { full_name: string | null };
+    type VehicleRel = { registration_number: string | null };
+    type Row = {
+      driver_id: string;
+      start_time: string;
+      vehicle_id: string | null;
+      drivers: DriverRel | DriverRel[] | null;
+      vehicles: VehicleRel | VehicleRel[] | null;
+    };
     const next = (data as unknown as Row[]).map((s) => ({
       driverId: s.driver_id,
       name: (Array.isArray(s.drivers) ? s.drivers[0] : s.drivers)?.full_name || 'Unknown driver',
       startTime: s.start_time,
+      vehicleId: s.vehicle_id ?? null,
+      vehiclePlate: (Array.isArray(s.vehicles) ? s.vehicles[0] : s.vehicles)?.registration_number ?? null,
     }));
     setOnShift(next);
     // Keep the "why not sharing" reasons current as drivers open the app.
@@ -366,56 +577,203 @@ export default function TrackingWorkspace({
     const interval = setInterval(() => {
       setNow(Date.now());
       void refetchActivity();
-      if (expectSharing) void refetchOnShift();
+      // Shifts also tell the map which car each driver is in (GPS merge).
+      if (expectSharing || gpsConnected) void refetchOnShift();
       if (realtimeOk !== true) void refetchPositions();
     }, 20_000);
     return () => clearInterval(interval);
-  }, [supabase, orgId, realtimeOk, refetchActivity, refetchOnShift, expectSharing]);
+  }, [supabase, orgId, realtimeOk, refetchActivity, refetchOnShift, expectSharing, gpsConnected]);
 
-  // Sync driver markers with state.
+  // ── Drivers × vehicles ──────────────────────────────────────────────────
+  // The car each on-shift driver is in, when that car has a GPS tracker.
+  const trackerByVehicle = useMemo(() => {
+    const m = new Map<string, VehicleGpsItem>();
+    if (!gpsConnected) return m;
+    for (const v of vehicles.values()) if (v.vehicleId) m.set(v.vehicleId, v);
+    return m;
+  }, [vehicles, gpsConnected]);
+  const carOfDriver = useMemo(() => {
+    const m = new Map<string, VehicleGpsItem>();
+    for (const s of onShift) {
+      const car = s.vehicleId ? trackerByVehicle.get(s.vehicleId) : undefined;
+      if (car) m.set(s.driverId, car);
+    }
+    return m;
+  }, [onShift, trackerByVehicle]);
+  const driverInCar = useMemo(() => {
+    const m = new Map<string, OnShiftItem>();
+    for (const s of onShift) {
+      const car = carOfDriver.get(s.driverId);
+      if (car) m.set(car.deviceId, s);
+    }
+    return m;
+  }, [onShift, carOfDriver]);
+
+  // Privacy setting: off-shift cars stay off the map (and out of the Cars list).
+  const visibleVehicles = useMemo(
+    () => Array.from(vehicles.values()).filter((v) => !gpsHideOffShift || driverInCar.has(v.deviceId)),
+    [vehicles, gpsHideOffShift, driverInCar]
+  );
+  const hiddenVehicleCount = vehicles.size - visibleVehicles.length;
+
+  const driverColor = useCallback(
+    (driverId: string) => positions.get(driverId)?.color ?? colorFor(driverId),
+    [positions]
+  );
+
+  /**
+   * What to draw. Drivers come from their phones, vehicles from GPS trackers.
+   * With both ticked, a driver whose phone is with their shift car (or whose
+   * phone isn't live) is drawn INSIDE the car marker — one marker per person
+   * in a car, like the trackers' own apps do. With only Drivers ticked, a
+   * driver whose phone has gone quiet is placed at their car's GPS position.
+   */
+  const { markers, driverMarkerKey } = useMemo(() => {
+    const out: MapMarker[] = [];
+    const keyOf = new Map<string, string>();
+
+    if (layers.vehicles) {
+      for (const v of visibleVehicles) {
+        const motion = vehicleMotion(v, now);
+        const color = MOTION_COLOR[motion];
+        const shift = driverInCar.get(v.deviceId);
+        const driverName = shift?.name ?? null;
+        const badge = shift
+          ? `<span class="trkCarDriver" style="--dc:${driverColor(shift.driverId)}">${escapeHtml(initialsOf(shift.name))}</span>`
+          : '';
+        const arrow =
+          motion === 'moving' && v.heading != null
+            ? `<span class="trkCarArrow" style="transform:rotate(${Math.round(v.heading)}deg)"></span>`
+            : '';
+        const html = `
+          <div class="trkCar${motion === 'no-signal' ? ' trkCarQuiet' : ''}${selectedVehicle === v.deviceId ? ' trkCarSel' : ''}" style="--mk:${color}">
+            <span class="trkCarIcon">${CAR_SVG}${arrow}</span>
+            <span class="trkCarLabel">${escapeHtml(v.label)}</span>${badge}
+          </div>`;
+        const speed = v.speedKmh != null ? Math.round(v.speedKmh) : null;
+        out.push({
+          key: `v:${v.deviceId}`,
+          lat: v.latitude,
+          lng: v.longitude,
+          html,
+          size: [0, 0],
+          anchor: [0, 0],
+          z: shift ? 600 : 400,
+          tooltip:
+            `<strong>${escapeHtml(v.label)}</strong>${v.model ? ` · ${escapeHtml(v.model)}` : ''}` +
+            `<br/>${MOTION_LABEL[motion]}${motion === 'moving' && speed != null ? ` · ${speed} km/h` : ''}` +
+            (v.ignition != null && motion !== 'moving' ? ` · engine ${v.ignition ? 'on' : 'off'}` : '') +
+            `<br/>GPS tracker · ${agoLabel(v.recordedAt, now)}` +
+            (driverName ? `<br/>Driver on shift: ${escapeHtml(driverName)}` : ''),
+          onClick: () => setSelectedVehicle(v.deviceId),
+        });
+        if (shift) keyOf.set(shift.driverId, `v:${v.deviceId}`);
+      }
+    }
+
+    if (layers.drivers) {
+      const drawn = new Set<string>();
+      for (const p of positions.values()) {
+        const car = carOfDriver.get(p.driverId);
+        const status = statusOf(p, now);
+        const carFresh = !!car && vehicleMotion(car, now) !== 'no-signal';
+        // Drawn inside the car marker instead.
+        if (layers.vehicles && carFresh && (status !== 'live' || metersApart(p.latitude, p.longitude, car!.latitude, car!.longitude) <= MERGE_DISTANCE_M)) {
+          continue;
+        }
+        // Drivers only, phone quiet, car tracker live → show them at the car.
+        const viaCar = !layers.vehicles && carFresh && status !== 'live';
+        const lat = viaCar ? car!.latitude : p.latitude;
+        const lng = viaCar ? car!.longitude : p.longitude;
+        const html = `
+          <div class="trkMarker${status === 'live' ? ' trkMarkerLive' : ''}${viaCar ? ' trkMarkerViaCar' : ''}" style="--mk:${p.color};opacity:${status === 'offline' && !viaCar ? 0.45 : 1}">
+            <span>${escapeHtml(p.initials)}</span>
+          </div>`;
+        const speedNow = kmh(p.speed);
+        const speedMax = kmh(p.maxSpeedToday);
+        out.push({
+          key: `d:${p.driverId}`,
+          lat,
+          lng,
+          html,
+          size: [34, 34],
+          anchor: [17, 17],
+          z: 500,
+          tooltip: viaCar
+            ? `<strong>${escapeHtml(p.name)}</strong><br/>Phone quiet ${agoLabel(p.recordedAt, now)} — shown at ${escapeHtml(car!.label)} (car GPS, ${agoLabel(car!.recordedAt, now)})`
+            : `<strong>${escapeHtml(p.name)}</strong><br/>${agoLabel(p.recordedAt, now)}` +
+              (speedNow != null && status === 'live' ? `<br/>Speed: ${speedNow} km/h` : '') +
+              (speedMax != null ? `<br/>Top today: ${speedMax} km/h` : '') +
+              (p.batteryPct != null ? `<br/>Battery: ${p.batteryPct}%${p.batteryCharging ? ' (charging)' : ''}` : ''),
+          onClick: () => setSelected(p.driverId),
+        });
+        keyOf.set(p.driverId, `d:${p.driverId}`);
+        drawn.add(p.driverId);
+      }
+      // On shift, never shared a position, but their car has a tracker.
+      if (!layers.vehicles) {
+        for (const s of onShift) {
+          if (drawn.has(s.driverId) || positions.has(s.driverId)) continue;
+          const car = carOfDriver.get(s.driverId);
+          if (!car || vehicleMotion(car, now) === 'no-signal') continue;
+          out.push({
+            key: `d:${s.driverId}`,
+            lat: car.latitude,
+            lng: car.longitude,
+            html: `<div class="trkMarker trkMarkerViaCar" style="--mk:${colorFor(s.driverId)}"><span>${escapeHtml(initialsOf(s.name))}</span></div>`,
+            size: [34, 34],
+            anchor: [17, 17],
+            z: 500,
+            tooltip: `<strong>${escapeHtml(s.name)}</strong><br/>Not sharing from the phone — shown at ${escapeHtml(car.label)} (car GPS, ${agoLabel(car.recordedAt, now)})`,
+            onClick: () => setSelected(s.driverId),
+          });
+          keyOf.set(s.driverId, `d:${s.driverId}`);
+        }
+      }
+    }
+    return { markers: out, driverMarkerKey: keyOf };
+  }, [layers, visibleVehicles, positions, onShift, carOfDriver, driverInCar, driverColor, selectedVehicle, now]);
+
+  // Sync Leaflet markers with `markers`.
   useEffect(() => {
     const L = leafletRef.current;
     const map = mapRef.current;
     if (!L || !map) return;
 
-    for (const p of positions.values()) {
-      const status = statusOf(p, now);
-      const html = `
-        <div class="trkMarker${status === 'live' ? ' trkMarkerLive' : ''}" style="--mk:${p.color};opacity:${status === 'offline' ? 0.45 : 1}">
-          <span>${p.initials}</span>
-        </div>`;
-      const icon = L.divIcon({ html, className: 'trkMarkerWrap', iconSize: [34, 34], iconAnchor: [17, 17] });
-      let marker = markersRef.current.get(p.driverId);
+    const wanted = new Set<string>();
+    for (const m of markers) {
+      wanted.add(m.key);
+      const icon = L.divIcon({
+        html: m.html,
+        className: m.key.startsWith('v:') ? 'trkCarWrap' : 'trkMarkerWrap',
+        iconSize: m.size,
+        iconAnchor: m.anchor,
+      });
+      let marker = markersRef.current.get(m.key);
       if (!marker) {
-        marker = L.marker([p.latitude, p.longitude], { icon }).addTo(map);
-        marker.on('click', () => setSelected(p.driverId));
-        markersRef.current.set(p.driverId, marker);
+        marker = L.marker([m.lat, m.lng], { icon, zIndexOffset: m.z }).addTo(map);
+        markersRef.current.set(m.key, marker);
       } else {
-        marker.setLatLng([p.latitude, p.longitude]);
+        marker.setLatLng([m.lat, m.lng]);
         marker.setIcon(icon);
+        marker.setZIndexOffset(m.z);
       }
-      const speedNow = kmh(p.speed);
-      const speedMax = kmh(p.maxSpeedToday);
-      marker.bindTooltip(
-        `<strong>${p.name}</strong><br/>${agoLabel(p.recordedAt, now)}` +
-          (speedNow != null && status === 'live' ? `<br/>Speed: ${speedNow} km/h` : '') +
-          (speedMax != null ? `<br/>Top today: ${speedMax} km/h` : '') +
-          (p.batteryPct != null ? `<br/>Battery: ${p.batteryPct}%${p.batteryCharging ? ' (charging)' : ''}` : ''),
-        { direction: 'top', offset: [0, -16] }
-      );
+      marker.off('click');
+      marker.on('click', m.onClick);
+      marker.bindTooltip(m.tooltip, { direction: 'top', offset: m.key.startsWith('v:') ? [0, -14] : [0, -16] });
     }
-    for (const [id, marker] of markersRef.current) {
-      if (!positions.has(id)) {
+    for (const [key, marker] of markersRef.current) {
+      if (!wanted.has(key)) {
         marker.remove();
-        markersRef.current.delete(id);
+        markersRef.current.delete(key);
       }
     }
-    if (!didFitRef.current && positions.size > 0) {
+    if (!didFitRef.current && markers.length > 0) {
       didFitRef.current = true;
-      const pts = Array.from(positions.values()).map((p) => [p.latitude, p.longitude] as [number, number]);
+      const pts = markers.map((m) => [m.lat, m.lng] as [number, number]);
       map.fitBounds(L.latLngBounds(pts).pad(0.3), { maxZoom: 14 });
     }
-  }, [positions, now]);
+  }, [markers]);
 
   // Sync zone circles with state.
   useEffect(() => {
@@ -474,10 +832,27 @@ export default function TrackingWorkspace({
     }
   }, [draft]);
 
-  const focusDriver = (p: PositionItem) => {
-    setSelected(p.driverId);
-    mapRef.current?.flyTo([p.latitude, p.longitude], Math.max(mapRef.current.getZoom(), 14), { duration: 0.6 });
-    markersRef.current.get(p.driverId)?.openTooltip();
+  /** Fly to wherever the driver is drawn (their own marker, or inside their car). */
+  const focusDriver = (driverId: string) => {
+    setSelected(driverId);
+    const key = driverMarkerKey.get(driverId);
+    const marker = key ? markersRef.current.get(key) : undefined;
+    const p = positions.get(driverId);
+    const car = carOfDriver.get(driverId);
+    const target =
+      marker?.getLatLng() ??
+      (p ? { lat: p.latitude, lng: p.longitude } : car ? { lat: car.latitude, lng: car.longitude } : null);
+    if (!target || !mapRef.current) return;
+    mapRef.current.flyTo([target.lat, target.lng], Math.max(mapRef.current.getZoom(), 14), { duration: 0.6 });
+    marker?.openTooltip();
+  };
+
+  const focusVehicle = (v: VehicleGpsItem) => {
+    setSelectedVehicle(v.deviceId);
+    if (!layers.vehicles) setLayer('vehicles', true);
+    mapRef.current?.flyTo([v.latitude, v.longitude], Math.max(mapRef.current.getZoom(), 14), { duration: 0.6 });
+    // The marker may only exist after the layer switch re-renders.
+    setTimeout(() => markersRef.current.get(`v:${v.deviceId}`)?.openTooltip(), 650);
   };
 
   const focusZone = (z: ZoneItem) => {
@@ -522,6 +897,41 @@ export default function TrackingWorkspace({
     routeLineRef.current.bindTooltip(`${p.name} — route today (${pts.length} points)`);
     map.fitBounds(routeLineRef.current.getBounds().pad(0.2));
     setRouteDriver(p.driverId);
+  };
+
+  // Same for a GPS tracker: today's trail from gps_device_locations.
+  const toggleVehicleRoute = async (v: VehicleGpsItem) => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!L || !map) return;
+    const key = `v:${v.deviceId}`;
+    if (routeDriver === key) {
+      clearRoute();
+      return;
+    }
+    clearRoute();
+    setRouteLoading(true);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const { data } = await supabase
+      .from('gps_device_locations')
+      .select('latitude, longitude')
+      .eq('device_id', v.deviceId)
+      .gte('recorded_at', startOfDay.toISOString())
+      .order('recorded_at', { ascending: true })
+      .limit(5000);
+    setRouteLoading(false);
+    const pts = ((data || []) as { latitude: number; longitude: number }[]).map(
+      (r) => [r.latitude, r.longitude] as [number, number]
+    );
+    if (pts.length < 2) {
+      window.alert(`${v.label} hasn’t moved enough today to draw a route yet.`);
+      return;
+    }
+    routeLineRef.current = L.polyline(pts, { color: '#3b6ad9', weight: 4, opacity: 0.85 }).addTo(map);
+    routeLineRef.current.bindTooltip(`${v.label} — route today (GPS tracker)`);
+    map.fitBounds(routeLineRef.current.getBounds().pad(0.2));
+    setRouteDriver(key);
   };
 
   const saveSpeedLimit = async () => {
@@ -723,14 +1133,20 @@ export default function TrackingWorkspace({
 
       <div style={st.panel} className="trkPanel">
         <div style={st.tabs}>
-          {(['drivers', 'zones', 'activity'] as Tab[]).map((t) => (
+          {((gpsConnected ? ['drivers', 'vehicles', 'zones', 'activity'] : ['drivers', 'zones', 'activity']) as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className="fleetHover"
               style={{ ...st.tabBtn, ...(tab === t ? st.tabBtnActive : {}) }}
             >
-              {t === 'drivers' ? `Drivers (${liveCount})` : t === 'zones' ? `Zones (${zones.length})` : 'Activity'}
+              {t === 'drivers'
+                ? `Drivers (${liveCount})`
+                : t === 'vehicles'
+                  ? `Cars (${visibleVehicles.length})`
+                  : t === 'zones'
+                    ? `Zones (${zones.length})`
+                    : 'Activity'}
             </button>
           ))}
         </div>
@@ -761,6 +1177,9 @@ export default function TrackingWorkspace({
               const showingRoute = routeDriver === r.driverId;
               // On shift but not showing live → don't call them "Offline"; they're working.
               const shiftNoLocation = !!r.shift && status !== 'live';
+              // Their shift car has a live GPS tracker → we still know where they are.
+              const car = r.shift ? carOfDriver.get(r.driverId) : undefined;
+              const carCovers = shiftNoLocation && !!car && vehicleMotion(car, now) !== 'no-signal';
               const open = openProblems.has(r.driverId);
               const groupLabel =
                 onShiftCount > 0 && i === 0
@@ -773,7 +1192,7 @@ export default function TrackingWorkspace({
                   {groupLabel && <div style={{ ...st.groupLabel, ...(i > 0 ? { marginTop: 10 } : {}) }}>{groupLabel}</div>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <button
-                    onClick={() => (p ? focusDriver(p) : toggleProblem(r.driverId))}
+                    onClick={() => (p || car ? focusDriver(r.driverId) : toggleProblem(r.driverId))}
                     className="fleetHover"
                     style={{ ...st.row, ...(active ? st.rowActive : {}), flex: 1, minWidth: 0, marginBottom: 0 }}
                   >
@@ -787,14 +1206,33 @@ export default function TrackingWorkspace({
                             On shift
                           </span>
                         )}
+                        {r.shift?.vehiclePlate && (
+                          <span
+                            style={{ ...st.carPill, ...(car ? st.carPillGps : {}) }}
+                            title={car ? `${r.shift.vehiclePlate} has a GPS tracker` : `Shift in ${r.shift.vehiclePlate}`}
+                          >
+                            {r.shift.vehiclePlate}
+                          </span>
+                        )}
                       </span>
                       <span style={st.rowMeta}>
-                        <span style={{ ...st.dot, background: shiftNoLocation ? 'var(--warn, #f5b54a)' : STATUS_COLOR[status] }} />
-                        {!p
-                          ? 'No location yet'
-                          : shiftNoLocation
-                            ? `Not on map · last seen ${agoLabel(p.recordedAt, now)}`
-                            : `${status === 'live' ? (p.speed != null && p.speed < 0.5 ? 'Parked' : 'Live') : status === 'stale' ? 'Stale' : 'Offline'} · ${agoLabel(p.recordedAt, now)}`}
+                        <span
+                          style={{
+                            ...st.dot,
+                            background: shiftNoLocation
+                              ? carCovers
+                                ? MOTION_COLOR[vehicleMotion(car!, now)]
+                                : 'var(--warn, #f5b54a)'
+                              : STATUS_COLOR[status],
+                          }}
+                        />
+                        {carCovers
+                          ? `${p ? 'Phone quiet' : 'Phone not sharing'} · car GPS ${agoLabel(car!.recordedAt, now)}`
+                          : !p
+                            ? 'No location yet'
+                            : shiftNoLocation
+                              ? `Not on map · last seen ${agoLabel(p.recordedAt, now)}`
+                              : `${status === 'live' ? (p.speed != null && p.speed < 0.5 ? 'Parked' : 'Live') : status === 'stale' ? 'Stale' : 'Offline'} · ${agoLabel(p.recordedAt, now)}`}
                         {km != null && ` · ${km} km`}
                         {p && p.batteryPct != null && (
                           <span
@@ -860,6 +1298,106 @@ export default function TrackingWorkspace({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {tab === 'vehicles' && (
+          <div style={st.list}>
+            {vehicleRealtimeOk === false && (
+              <div style={st.pollNote}>Live stream unavailable — refreshing every 30s.</div>
+            )}
+            {!layers.vehicles && visibleVehicles.length > 0 && (
+              <button type="button" className="fleetHover" style={st.layerNote} onClick={() => setLayer('vehicles', true)}>
+                Cars are hidden on the map — tap to show them
+              </button>
+            )}
+            {hiddenVehicleCount > 0 && (
+              <div style={st.privacyNote}>
+                {hiddenVehicleCount} car{hiddenVehicleCount === 1 ? '' : 's'} hidden — nobody is on shift in{' '}
+                {hiddenVehicleCount === 1 ? 'it' : 'them'} (privacy setting
+                {canManage ? (
+                  <>
+                    {', '}
+                    <a href="/fleet/gps#privacy" style={{ color: 'inherit' }}>change</a>
+                  </>
+                ) : null}
+                ).
+              </div>
+            )}
+            {vehicles.size === 0 && (
+              <div style={st.empty}>
+                <FleetIcon name="vehicle" size={28} stroke={1.4} />
+                <div style={{ marginTop: 10, fontWeight: 500, color: 'var(--text-2)' }}>No car positions yet</div>
+                <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                  Your GPS platform is connected — trackers appear here as soon as they report their first position.
+                  {canManage && (
+                    <>
+                      {' '}
+                      <a href="/fleet/gps" style={{ color: 'var(--accent, #2bbd7e)' }}>Check GPS trackers →</a>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            {visibleVehicles
+              .map((v) => ({ v, motion: vehicleMotion(v, now), shift: driverInCar.get(v.deviceId) }))
+              .sort(
+                (a, b) =>
+                  (a.shift ? 0 : 1) - (b.shift ? 0 : 1) ||
+                  ['moving', 'idling', 'parked', 'no-signal'].indexOf(a.motion) -
+                    ['moving', 'idling', 'parked', 'no-signal'].indexOf(b.motion) ||
+                  a.v.label.localeCompare(b.v.label)
+              )
+              .map(({ v, motion, shift }) => {
+                const key = `v:${v.deviceId}`;
+                const showingRoute = routeDriver === key;
+                const speed = v.speedKmh != null ? Math.round(v.speedKmh) : null;
+                return (
+                  <div key={v.deviceId} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                    <button
+                      onClick={() => focusVehicle(v)}
+                      className="fleetHover"
+                      style={{ ...st.row, ...(selectedVehicle === v.deviceId ? st.rowActive : {}), flex: 1, minWidth: 0, marginBottom: 0 }}
+                    >
+                      <span style={{ ...st.avatar, background: MOTION_COLOR[motion] }}>
+                        <FleetIcon name="vehicle" size={16} stroke={1.8} />
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                        <span style={st.nameLine}>
+                          <span style={{ ...st.rowName, minWidth: 0 }}>{v.label}</span>
+                          {shift && (
+                            <span style={st.shiftPill} title={`${shift.name} is on shift in this car`}>
+                              <span style={{ ...st.dot, width: 6, height: 6, background: 'var(--pos, #2bbd7e)' }} />
+                              {shift.name.split(/\s+/)[0]}
+                            </span>
+                          )}
+                        </span>
+                        <span style={st.rowMeta}>
+                          <span style={{ ...st.dot, background: MOTION_COLOR[motion] }} />
+                          {MOTION_LABEL[motion]} · {agoLabel(v.recordedAt, now)}
+                          {v.model && <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}> · {v.model}</span>}
+                          {!v.vehicleId && <span style={{ color: 'var(--warn, #a06400)', whiteSpace: 'nowrap' }}> · not linked</span>}
+                        </span>
+                      </span>
+                      {motion === 'moving' && speed != null && (
+                        <span style={st.speedBadge}>
+                          <span style={st.speedValue}>{speed}</span>
+                          <span style={st.speedUnit}>km/h</span>
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      className="fleetHover"
+                      style={{ ...st.routeBtn, ...(showingRoute ? st.routeBtnActive : {}) }}
+                      title={showingRoute ? 'Hide route' : "Show today's route"}
+                      onClick={() => void toggleVehicleRoute(v)}
+                      disabled={routeLoading}
+                    >
+                      <FleetIcon name="pin" size={14} />
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         )}
 
@@ -1018,6 +1556,33 @@ export default function TrackingWorkspace({
       <div style={st.mapCard} className="trkMapCard">
         <div ref={mapDivRef} style={st.map} />
         {picking && <div style={st.mapHint}>Click anywhere on the map to place the zone centre</div>}
+        <div style={st.layerBox} className="trkLayerBox">
+          <span style={st.layerTitle}>Show</span>
+          <label style={st.layerLabel}>
+            <input type="checkbox" checked={layers.drivers} onChange={(e) => setLayer('drivers', e.target.checked)} />
+            Drivers <span style={st.layerSub}>phones</span>
+          </label>
+          <label
+            style={{ ...st.layerLabel, ...(gpsConnected ? {} : st.layerLabelOff) }}
+            title={gpsConnected ? 'Cars from your GPS trackers' : 'Connect your GPS trackers to see cars on the map'}
+          >
+            <input
+              type="checkbox"
+              checked={gpsConnected && layers.vehicles}
+              disabled={!gpsConnected}
+              onChange={(e) => setLayer('vehicles', e.target.checked)}
+            />
+            Cars <span style={st.layerSub}>GPS</span>
+          </label>
+          {!gpsConnected &&
+            (canManage ? (
+              <a href="/fleet/gps" style={st.layerLink}>
+                Connect GPS →
+              </a>
+            ) : (
+              <span style={st.layerSub}>No GPS connected</span>
+            ))}
+        </div>
       </div>
     </div>
   );
@@ -1040,6 +1605,44 @@ const markerCss = `
 @keyframes trkPulse {
   0% { transform: scale(0.8); opacity: 0.6; }
   100% { transform: scale(1.5); opacity: 0; }
+}
+/* Driver shown at their car's GPS position (phone quiet): dashed ring. */
+.trkMarkerViaCar { border-style: dashed; }
+
+/* GPS tracker (car) pill: [car icon] PLATE [driver initials]. The divIcon is
+   0x0, so the pill centres itself on the point. */
+.trkCarWrap { background: transparent; border: none; }
+.trkCar {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 7px 3px 3px; border-radius: 9px;
+  background: #1b2230; color: #fff; white-space: nowrap;
+  border: 2px solid var(--mk, #64748b);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  font: 600 11.5px/1 Geist, system-ui, sans-serif; letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.trkCarSel { box-shadow: 0 0 0 3px rgba(59,106,217,0.55), 0 2px 8px rgba(0,0,0,0.35); }
+.trkCarQuiet { opacity: 0.55; }
+.trkCarIcon {
+  position: relative; width: 20px; height: 20px; border-radius: 6px;
+  background: var(--mk, #64748b);
+  display: flex; align-items: center; justify-content: center;
+}
+.trkCarIcon svg { width: 14px; height: 14px; }
+.trkCarArrow {
+  position: absolute; inset: -7px; pointer-events: none;
+}
+.trkCarArrow::before {
+  content: ''; position: absolute; left: 50%; top: -1px; transform: translateX(-50%);
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-bottom: 6px solid var(--mk, #2bbd7e);
+}
+.trkCarDriver {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--dc, #2bbd7e); border: 1.5px solid #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; margin-left: 1px;
 }
 .leaflet-container { font-family: inherit; }
 .leaflet-tooltip { font-size: 12px; line-height: 1.45; }
@@ -1134,6 +1737,70 @@ const st: Record<string, CSSProperties> = {
     background: 'var(--accent-soft, rgba(43,189,126,0.15))',
     whiteSpace: 'nowrap',
   },
+  carPill: {
+    flexShrink: 0,
+    padding: '1px 6px',
+    borderRadius: 5,
+    fontSize: 10.5,
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+    color: 'var(--text-2)',
+    background: 'var(--bg-2)',
+    border: '1px solid var(--line-2)',
+    whiteSpace: 'nowrap',
+  },
+  carPillGps: { color: '#3b6ad9', borderColor: 'rgba(59,106,217,0.45)' },
+  layerNote: {
+    display: 'block',
+    width: '100%',
+    marginBottom: 6,
+    padding: '7px 10px',
+    border: '1px dashed var(--line-2)',
+    borderRadius: 8,
+    background: 'transparent',
+    color: 'var(--text-2)',
+    fontSize: 12,
+    fontFamily: 'inherit',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  privacyNote: {
+    marginBottom: 6,
+    padding: '7px 10px',
+    borderRadius: 8,
+    background: 'var(--bg-2)',
+    color: 'var(--text-3)',
+    fontSize: 11.5,
+    lineHeight: 1.45,
+  },
+  layerBox: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    padding: '7px 12px',
+    background: 'var(--bg-1)',
+    border: '1px solid var(--line-2)',
+    borderRadius: 10,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+    fontSize: 12.5,
+    color: 'var(--text-1)',
+  },
+  layerTitle: {
+    fontSize: 10.5,
+    fontWeight: 600,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
+  },
+  layerLabel: { display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' },
+  layerLabelOff: { color: 'var(--text-4)', cursor: 'not-allowed' },
+  layerSub: { fontSize: 11, fontWeight: 400, color: 'var(--text-4)' },
+  layerLink: { fontSize: 12, fontWeight: 500, color: 'var(--accent, #2bbd7e)', textDecoration: 'none', whiteSpace: 'nowrap' },
   whyBox: {
     margin: '0 36px 6px 52px',
     padding: '6px 9px',

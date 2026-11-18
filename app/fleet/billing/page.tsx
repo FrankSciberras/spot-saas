@@ -5,6 +5,7 @@ import { getFleetBilling } from '@/lib/billing/fleet-billing';
 import { getPlans } from '@/lib/billing/plans-data';
 import { getPlanDef, monthlyPriceFor, type PlanDef } from '@/lib/billing/plans';
 import { listFleetInvoices, hasBillingAccount } from '@/lib/billing/invoices';
+import { countHostedTrackers, gpsTrackerPriceEur } from '@/lib/billing/gps-billing';
 import ManageBillingButton from './ManageBillingButton';
 import styles from './fleetBilling.module.css';
 
@@ -83,11 +84,18 @@ function Meter({
 export default async function FleetBillingPage() {
   const user = await requireRole(['admin', 'staff']);
   const isAdmin = user.role === 'admin';
-  const [plans, billing, invoices] = await Promise.all([
+  const [plans, billing, invoices, gpsTrackers] = await Promise.all([
     getPlans(),
     getFleetBilling(user.organization_id),
     listFleetInvoices(user.organization_id),
+    countHostedTrackers(user.organization_id),
   ]);
+  // Rovora GPS trackers are billed per tracker on top of the plan.
+  const gpsPrice = gpsTrackerPriceEur();
+  const gpsMonthly = gpsPrice && gpsTrackers > 0 ? gpsPrice * gpsTrackers : 0;
+  const gpsNote = gpsMonthly
+    ? ` + ${gpsTrackers} Rovora GPS tracker${gpsTrackers === 1 ? '' : 's'} × ${euro(gpsPrice!)}`
+    : '';
   const hasStripeCustomer = invoices.length > 0 || (await hasBillingAccount(user.organization_id));
 
   const currentDef = getPlanDef(plans, billing.plan); // undefined while on trial
@@ -112,15 +120,15 @@ export default async function FleetBillingPage() {
   const priceLabel = billing.onTrial
     ? 'Free'
     : billsMonthly
-      ? euro(monthlyPriceFor(currentDef!, billing.vehicles))
+      ? euro(monthlyPriceFor(currentDef!, billing.vehicles) + gpsMonthly)
       : currentDef?.priceLabel ?? '—';
   const priceUnit = billing.onTrial ? 'for now' : billsMonthly ? '/ mo' : currentDef?.priceUnit ?? '';
   const breakdown = billsMonthly
     ? extraVehicles(currentDef) > 0
-      ? `${euro(currentDef!.priceAmount)} plan (${currentDef!.includedVehicles} vehicles included) + ${extraVehicles(currentDef)} extra vehicle${extraVehicles(currentDef) === 1 ? '' : 's'} × ${euro(perVehicle(currentDef)!)}`
+      ? `${euro(currentDef!.priceAmount)} plan (${currentDef!.includedVehicles} vehicles included) + ${extraVehicles(currentDef)} extra vehicle${extraVehicles(currentDef) === 1 ? '' : 's'} × ${euro(perVehicle(currentDef)!)}${gpsNote}`
       : currentDef!.includedVehicles != null
-        ? `Includes ${currentDef!.includedVehicles} vehicles${perVehicle(currentDef) ? ` · ${euro(perVehicle(currentDef)!)} / mo per extra vehicle` : ''}`
-        : null
+        ? `Includes ${currentDef!.includedVehicles} vehicles${perVehicle(currentDef) ? ` · ${euro(perVehicle(currentDef)!)} / mo per extra vehicle` : ''}${gpsNote}`
+        : gpsNote ? `${euro(currentDef!.priceAmount)} plan${gpsNote}` : null
     : billing.onTrial && recommendedDef && !recommendedDef.isCustom
       ? `On ${recommendedDef.name} your ${billing.vehicles} vehicle${billing.vehicles === 1 ? '' : 's'} would be ${euro(monthlyPriceFor(recommendedDef, billing.vehicles))} / mo`
       : null;
