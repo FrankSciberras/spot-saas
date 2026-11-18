@@ -79,6 +79,16 @@ export const RELEASES: Release[] = [
         text: 'Set your fleet’s currency and number format once, and it is used everywhere your fleet sees money. Pick where the Live Map opens by clicking on a map.',
       },
       {
+        tag: 'new',
+        area: 'Dashboard',
+        text: 'Quick buttons: pin up to four shortcuts — add an expense, new roster, driver balances, Live Map and more — to the top bar, next to the page title. They are yours alone and follow you to every device.',
+      },
+      {
+        tag: 'improved',
+        area: 'Settings',
+        text: 'Settings is easier to read, especially on a phone: each section is one clean list, switches sit beside their label, and choices and fields are full-width and easy to tap.',
+      },
+      {
         tag: 'improved',
         area: 'Preferences',
         text: 'Your theme is saved to your account, so it follows you to every device. Each person also chooses their start page and whether fleet alerts reach them by email, by push, or both.',

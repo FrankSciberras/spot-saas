@@ -260,6 +260,131 @@
 .fleetCanvas .fleetSearchBtn:hover { background: var(--bg-hover); border-color: var(--line-3); }
 .fleetCanvas .fleetSearchBtn:hover svg { color: var(--accent); }
 
+/* ─── Quick buttons (FleetQuickButtons): personal shortcuts beside the page title ─── */
+.fleetCanvas .fleetQuick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-2);
+}
+.fleetCanvas .fleetQuickBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-ui) var(--ease-ui), border-color var(--dur-ui) var(--ease-ui),
+              color var(--dur-ui) var(--ease-ui), transform var(--dur-ui) var(--ease-ui);
+}
+.fleetCanvas .fleetQuickBtn svg { color: var(--text-3); transition: color var(--dur-ui) var(--ease-ui); }
+.fleetCanvas .fleetQuickBtn:hover { background: var(--bg-hover); border-color: var(--accent-line); }
+.fleetCanvas .fleetQuickBtn:hover svg { color: var(--accent); }
+.fleetCanvas .fleetQuickBtn:active { transform: translateY(0.5px); }
+.fleetCanvas .fleetQuickBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Title, date and quick buttons keep their size; the search box is what shrinks. */
+@media (min-width: 721px) {
+  .fleetCanvas .fleetTopLeft { flex-shrink: 0; }
+}
+
+/* The empty slot: dashed and greyed, so it reads as "something can go here". */
+.fleetCanvas .fleetQuickAdd {
+  border-style: dashed;
+  border-color: var(--line-3);
+  background: transparent;
+  color: var(--text-3);
+  font-weight: 400;
+}
+.fleetCanvas .fleetQuickAdd:hover { color: var(--text-1); background: var(--bg-hover); border-color: var(--accent); }
+/* Once a button is pinned it is just a dashed "+" (or a pencil when full). */
+.fleetCanvas .fleetQuick:not([data-empty]) .fleetQuickAdd { width: 30px; padding: 0; justify-content: center; }
+
+/* Tighter screens: icons only (the title is in the tooltip), then nothing. */
+@media (max-width: 1560px) {
+  .fleetCanvas .fleetQuick:not([data-empty]) .fleetQuickBtn { width: 30px; padding: 0; justify-content: center; }
+  .fleetCanvas .fleetQuick:not([data-empty]) .fleetQuickLbl { display: none; }
+}
+@media (max-width: 1180px) {
+  .fleetCanvas .fleetQuick { display: none; }
+}
+
+.fleetCanvas .fleetQuickMenu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 14px;
+  width: 316px;
+  padding: 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 40;
+}
+.fleetCanvas .fleetQuickMenuHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 10px 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.fleetCanvas .fleetQuickMenuHead .mono { font-size: 11.5px; font-weight: 500; color: var(--text-3); }
+.fleetCanvas .fleetQuickMenuHead .mono[data-full] { color: var(--accent); }
+.fleetCanvas .fleetQuickMenuSub { margin: 3px 0 4px; padding: 0 10px; font-size: 12px; line-height: 1.45; color: var(--text-3); }
+.fleetCanvas .fleetQuickMenuList { max-height: min(60vh, 440px); overflow-y: auto; }
+.fleetCanvas .fleetQuickMenuLabel {
+  padding: 10px 10px 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.fleetCanvas .fleetQuickItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--text-1);
+}
+.fleetCanvas .fleetQuickItem:hover:not(:disabled) { background: var(--bg-hover); }
+.fleetCanvas .fleetQuickItem:disabled { opacity: 0.45; cursor: not-allowed; }
+.fleetCanvas .fleetQuickItemIco { flex-shrink: 0; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; }
+.fleetCanvas .fleetQuickItem[data-on] .fleetQuickItemIco { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.fleetCanvas .fleetQuickItemText { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fleetCanvas .fleetQuickItemTitle { font-size: 13px; font-weight: 500; }
+.fleetCanvas .fleetQuickItemHint { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fleetCanvas .fleetQuickItemCheck {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px dashed var(--line-3);
+  color: var(--text-3);
+}
+.fleetCanvas .fleetQuickItem[data-on] .fleetQuickItemCheck { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.fleetCanvas .fleetQuickMenuError { margin: 6px 10px 6px; font-size: 12px; color: var(--neg); }
+
 /* ─── "New" quick-create rows ─── */
 .fleetCanvas .fleetNewItem { background: transparent; }
 .fleetCanvas .fleetNewItemIco {

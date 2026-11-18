@@ -19,6 +19,7 @@
 // =============================================================================
 
 import { coerceSettingValue, type SettingDef, type SettingsTabKey, type StoredValue } from './types';
+import { NO_QUICK_BUTTON, QUICK_BUTTON_OPTIONS } from '@/lib/quick-buttons';
 
 export const SETTINGS = {
   // ---------------------------------------------------------------------------
@@ -363,6 +364,55 @@ export const SETTINGS = {
       { value: 'vehicles', label: 'Vehicles' },
       { value: 'messages', label: 'Messages' },
     ],
+  },
+  // Up to four shortcuts each person pins to the top bar (lib/quick-buttons.ts).
+  'quick_buttons.slot_1': {
+    scope: 'user',
+    tab: 'preferences',
+    section: 'Quick buttons',
+    label: 'Quick button 1',
+    description: 'A shortcut pinned to the top bar, next to the page title.',
+    type: 'select',
+    default: NO_QUICK_BUTTON,
+    options: QUICK_BUTTON_OPTIONS,
+    // Chosen from the top bar itself (components/fleet/FleetQuickButtons).
+    ownPanel: true,
+  },
+  'quick_buttons.slot_2': {
+    scope: 'user',
+    tab: 'preferences',
+    section: 'Quick buttons',
+    label: 'Quick button 2',
+    description: 'A shortcut pinned to the top bar, next to the page title.',
+    type: 'select',
+    default: NO_QUICK_BUTTON,
+    options: QUICK_BUTTON_OPTIONS,
+    // Chosen from the top bar itself (components/fleet/FleetQuickButtons).
+    ownPanel: true,
+  },
+  'quick_buttons.slot_3': {
+    scope: 'user',
+    tab: 'preferences',
+    section: 'Quick buttons',
+    label: 'Quick button 3',
+    description: 'A shortcut pinned to the top bar, next to the page title.',
+    type: 'select',
+    default: NO_QUICK_BUTTON,
+    options: QUICK_BUTTON_OPTIONS,
+    // Chosen from the top bar itself (components/fleet/FleetQuickButtons).
+    ownPanel: true,
+  },
+  'quick_buttons.slot_4': {
+    scope: 'user',
+    tab: 'preferences',
+    section: 'Quick buttons',
+    label: 'Quick button 4',
+    description: 'A shortcut pinned to the top bar, next to the page title.',
+    type: 'select',
+    default: NO_QUICK_BUTTON,
+    options: QUICK_BUTTON_OPTIONS,
+    // Chosen from the top bar itself (components/fleet/FleetQuickButtons).
+    ownPanel: true,
   },
   'notifications.alert_emails': {
     scope: 'user',

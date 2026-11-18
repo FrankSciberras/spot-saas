@@ -11,6 +11,7 @@ import FleetAccountMenu from './FleetAccountMenu';
 import FleetNotifications from './FleetNotifications';
 import MessagesButton from '@/components/messages/MessagesButton';
 import FleetSettingsGear from './FleetSettingsGear';
+import FleetQuickButtons from './FleetQuickButtons';
 
 interface FleetTopbarProps {
   title: string;
@@ -88,7 +89,7 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
 
   return (
     <div style={st.topbar} className="topbar-mobile">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }} className="fleetTopLeft">
         <button onClick={onMenuClick} className="show-mobile-only fleetIconBtn fleetIconBtnBare" style={st.menuBtn} aria-label="Open menu">
           <FleetIcon name="menu" size={20} stroke={2} />
         </button>
@@ -98,8 +99,11 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
           <span className="hide-mobile" style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{dateStr}</span>
           <span className="mono tnum hide-mobile" style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4 }}>{timeStr}</span>
         </div>
+        {/* Personal shortcuts (up to four) and the dashed "Add quick button". */}
+        {variant === 'fleet' && <FleetQuickButtons isAdmin={isAdmin} />}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* minWidth 0 so the search box (below) can give way to the quick buttons. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, marginLeft: 12 }}>
         {variant === 'fleet' && (
           <>
             {/* Desktop: a real button dressed as an input — opens the ⌘K palette. */}
@@ -210,8 +214,10 @@ const st: Record<string, CSSProperties> = {
   // NOTE: no background/border/colour here — those live in fleet-theme.css so
   // the :hover rules can win the cascade. Inline styles always outrank them.
   menuBtn: { width: 36, height: 36, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  searchBox: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, color: 'var(--text-3)', minWidth: 320, cursor: 'pointer', textAlign: 'left' },
-  searchText: { flex: 1, fontSize: 13, fontFamily: 'inherit', color: 'var(--text-3)' },
+  // 320px when there is room; shrinks (to 180px) before it would push into the
+  // title and quick buttons on a 1366px laptop.
+  searchBox: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, color: 'var(--text-3)', flex: '0 1 320px', minWidth: 180, cursor: 'pointer', textAlign: 'left' },
+  searchText: { flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'inherit', color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   kbd: { fontSize: 10.5, fontFamily: 'Geist Mono, monospace', color: 'var(--text-3)', background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3, border: '1px solid var(--line-1)' },
   ghostBtn: { width: 32, height: 32, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--accent)', border: '1px solid var(--accent)', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer' },

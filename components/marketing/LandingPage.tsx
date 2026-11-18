@@ -23,7 +23,7 @@ const testimonials = liveTestimonials();
 const hasHeroVideo = existsSync(join(process.cwd(), 'public', 'videos', 'hero.mp4'));
 import ReplacesSection from './ReplacesSection';
 import FeaturesAccordion from './FeaturesAccordion';
-import { SIGN_IN, START_TRIAL, featureHref } from './links';
+import { SIGN_IN, START_TRIAL, AUDIENCES, featureHref, audienceHref } from './links';
 import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import { Icon, type IconName } from './feature/icons';
 import { INTEGRATION_CATEGORIES, markFontSize } from '@/lib/integrations/catalog';
@@ -285,6 +285,29 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
                 same features, one screenful, with a live mock for whichever
                 row is open. Copy + mocks live in FeaturesAccordion.tsx. */}
             <FeaturesAccordion />
+          </div>
+        </section>
+
+        {/* WHO IT'S FOR — three doors, one per kind of fleet. A visitor who
+            recognises their own situation reads on; "software for fleets"
+            alone describes nobody in particular. */}
+        <section className="sec-pad" id="who" style={{ paddingTop: 0 }}>
+          <div className="container">
+            <div className="sec-head center reveal" style={{ marginBottom: 44 }}>
+              <span className="kicker">Who it&rsquo;s for</span>
+              <h2 className="sec-title">Find the fleet that looks like yours</h2>
+              <p className="sec-desc">Rovora is the same product for all three. What you need from it on day one is not.</p>
+            </div>
+            <div className="mini-grid reveal-stagger" style={{ marginTop: 0 }}>
+              {AUDIENCES.map((a) => (
+                <Link key={a.slug} href={audienceHref(a.slug)} className="mini" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+                  <div className="mi mi-green"><Icon.users /></div>
+                  <h4>{a.label}</h4>
+                  <p>{a.blurb}</p>
+                  <p style={{ color: 'var(--accent)', fontWeight: 500, marginTop: 12 }}>See how it works for you →</p>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
