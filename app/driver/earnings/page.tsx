@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageHeader from '@/components/fleet/FleetPageHeader';
 import { resolvePlatforms } from '@/lib/config/settlements';
 import EarningsClient from './EarningsClient';
 import type { DriverSettlement, SettlementPlatform } from '@/lib/types/database';
@@ -68,6 +69,7 @@ export default async function DriverEarningsPage() {
 
   return (
     <FleetShell user={user} variant="driver" title="My Earnings">
+      <FleetPageHeader breadcrumb="Financial / Earnings" title="My earnings" />
       <EarningsClient
         settlements={(settlements || []) as SettlementWithPlatforms[]}
         driverName={driver.full_name}

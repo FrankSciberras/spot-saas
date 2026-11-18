@@ -157,8 +157,14 @@
   color: var(--color-primary);
 }
 
+/* Plate over model. They were two inline spans with nothing between them, so
+   the card read "DEMO-001Toyota Corolla". */
 .vehicleInfo {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .vehicleReg {

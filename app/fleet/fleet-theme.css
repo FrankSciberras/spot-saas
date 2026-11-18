@@ -611,6 +611,17 @@
    desktop. Hiding a cell with .hide-mobile leaves the other cells squeezed
    into the same narrow tracks, so each row gets a hook here to re-flow. */
 @media (max-width: 720px) {
+  /* ── Touch targets ──
+     Controls were sized for a cursor (27–32px). On a phone anything you tap
+     gets at least ~36px, without changing how it looks on a desktop. */
+  .fleetCanvas .topbar-mobile .fleetIconBtn,
+  .fleetCanvas .topbar-mobile .fleetAvatarBtn { width: 38px !important; height: 38px !important; }
+  .fleetCanvas .topbar-mobile { gap: 8px; }
+  .fleetCanvas button.fleetHover,
+  .fleetCanvas a.fleetHover { min-height: 36px; }
+  .fleetCanvas .chips-scroll > button { min-height: 36px; flex-shrink: 0; }
+  .fleetCanvas .fleetGhostBtn { min-height: 36px; }
+
   /* Segmented tabs and select pills: finger-sized, and they share the row. */
   .fleetCanvas .fleetFilterGroup { width: 100%; }
   .fleetCanvas .fleetSegTabs { display: flex !important; width: 100%; }

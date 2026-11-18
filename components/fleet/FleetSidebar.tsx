@@ -397,7 +397,9 @@ export default function FleetSidebar({
         </aside>
         <nav style={s.bottomBar}>
           {(isDriver ? bottomTabs.slice(0, 2) : bottomTabs).map(renderBottomTab)}
-          {isDriver && <DriverShiftFab driverId={user.driver_id ?? null} />}
+          {/* `user` is still null while a client page (driver Notifications) loads
+              its session — reading it unguarded crashed the page on phones. */}
+          {isDriver && <DriverShiftFab driverId={user?.driver_id ?? null} />}
           {isDriver && bottomTabs.slice(2).map(renderBottomTab)}
           <button
             onClick={onMenuToggle}

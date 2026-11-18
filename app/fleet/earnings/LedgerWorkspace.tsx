@@ -508,7 +508,7 @@ export default function LedgerWorkspace({
         className="show-mobile-only fleetHover"
         onClick={() => setModal({ kind: 'expense' })}
         aria-label="Add expense"
-        style={{ position: 'fixed', right: 16, bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 16px)', width: 54, height: 54, borderRadius: 27, background: 'var(--accent)', color: '#fff', border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 50 }}
+        style={{ position: 'fixed', right: 16, bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 16px)', width: 54, height: 54, borderRadius: 27, background: 'var(--accent)', color: '#fff', border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 20 }}
       >
         <FleetIcon name="plus" size={24} stroke={2.2} />
       </button>

@@ -130,8 +130,14 @@
 
 .dashboardGrid {
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, …): a bare 1fr column grows to fit the chart inside it, which
+     pushed every card a few pixels past the right edge of a phone. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+
+.dashboardGrid > * {
+  min-width: 0;
 }
 
 .sideCol {
@@ -253,7 +259,9 @@
 
 .kpiGrid {
   display: grid;
-  grid-template-columns: 1fr;
+  /* Two-up even on a phone: six full-width tiles was a screen and a half of
+     scrolling for six short numbers. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 18px;
 }
@@ -646,26 +654,24 @@
   animation: fadeIn 0.5s ease-out 0.2s both;
 }
 
-@media (min-width: 900px) {
-  .dashboardGrid {
-    grid-template-columns: 2fr 1fr;
-    gap: 18px;
-  }
-
-  .kpiGrid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-}
-
 @media (min-width: 600px) {
   .dashboardShell {
     padding: 24px;
     gap: 24px;
   }
+}
+
+/* Must come after the 600px block — it used to sit before it, so the two-up
+   rule there always won and the three-up layout never applied. */
+@media (min-width: 900px) {
+  .dashboardGrid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 18px;
+  }
 
   .kpiGrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
   }
 }
 
@@ -1342,13 +1348,9 @@
   background: rgba(var(--color-primary-rgb), 0.1);
 }
 
-/* Quick Actions */
-.quickActions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: fadeInUp 0.5s ease-out 0.2s both;
-}
+/* (A second, older `.quickActions` rule used to live here. It stacked the
+   tiles in one column and, being later in the file, silently overrode the
+   two-up grid defined with the dashboard cards above.) */
 
 .sectionTitle {
   font-size: 0.75rem;

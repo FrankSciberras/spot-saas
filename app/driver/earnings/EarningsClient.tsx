@@ -503,7 +503,7 @@ export default function EarningsClient({ settlements: allSettlements, driverName
                       />
                       <YAxis
                         tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                        tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                        tickFormatter={(v) => { const n = Number(v); return n >= 1000 ? `${+(n / 1000).toFixed(1)}k` : `${Math.round(n)}`; }}
                       />
                       <Tooltip
                         contentStyle={{

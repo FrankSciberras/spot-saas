@@ -88,7 +88,12 @@ export default function FleetShell({ user, title, children, variant = 'fleet' }:
       />
       {/* The bottom nav pads itself past the iPhone home indicator, so the
           content above it has to clear the nav AND that same inset. */}
-      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, paddingBottom: isMobile ? 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))' : 0 }}>
+      {/* No z-index here on purpose. A z-index made <main> its own stacking
+          layer, which trapped every dialog, sheet and floating button inside
+          it UNDER the phone's bottom tab bar — the Save button of "Add
+          expense" sat hidden behind the tabs. Without it, their own z-indexes
+          (200–1000) apply against the whole page, as they were written to. */}
+      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', paddingBottom: isMobile ? 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))' : 0 }}>
         {variant === 'fleet' && <FleetTrialBanner />}
         <FleetTopbar
           title={title}

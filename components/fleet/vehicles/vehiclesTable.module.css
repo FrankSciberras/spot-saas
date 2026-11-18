@@ -235,8 +235,14 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-@media (max-width: 719px) {
+@media (max-width: 720px) {
   .viewLabel {
     display: none;
+  }
+
+  .viewBtn {
+    min-width: 40px;
+    min-height: 36px;
+    justify-content: center;
   }
 }
