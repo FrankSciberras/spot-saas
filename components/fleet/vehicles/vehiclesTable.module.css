@@ -1,0 +1,242 @@
+/* Vehicles table view. Every cell style is explicit so the app-wide table
+   rules in app/globals.css (14px padding, uppercase headers) don't leak in. */
+
+.wrap {
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line-1);
+  color: var(--text-1);
+  background: transparent;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-2);
+  padding: 0;
+  font-weight: 500;
+}
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.row {
+  cursor: pointer;
+}
+.row:hover td {
+  background: var(--bg-hover);
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: left;
+}
+.right .sortBtn {
+  justify-content: flex-end;
+}
+.sortBtn:hover,
+.sortActive {
+  color: var(--text-1);
+}
+.sortBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.arrow {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.right {
+  text-align: right !important;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 12.5px !important;
+}
+
+.vehicleCell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.plate {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+  text-decoration: none;
+}
+.plate:hover {
+  color: var(--accent);
+}
+.plate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.sub {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+.muted {
+  color: var(--text-4) !important;
+}
+.warn {
+  color: var(--warn);
+}
+.bad {
+  color: var(--neg);
+}
+.warn .sub,
+.bad .sub {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.status {
+  display: inline-block;
+  font-size: 10.5px;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.stActive {
+  color: var(--pos);
+  background: var(--pos-soft);
+}
+.stService {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.stIdle {
+  color: var(--text-3);
+  background: var(--bg-3);
+}
+
+.dmg {
+  display: inline-flex;
+  gap: 4px;
+}
+.dmgSevere,
+.dmgOpen {
+  font-size: 10.5px;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dmgSevere {
+  color: var(--neg);
+  background: var(--neg-soft);
+}
+.dmgOpen {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.utilWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.utilBar {
+  width: 48px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  overflow: hidden;
+  display: inline-block;
+}
+.utilBar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-3);
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
+}
+
+/* View switch (Grid / Table) — lives here so both views share one stylesheet. */
+.viewSwitch {
+  display: inline-flex;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.viewBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.viewBtn:hover {
+  color: var(--text-1);
+}
+.viewBtnOn {
+  background: var(--bg-3);
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.viewBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (max-width: 719px) {
+  .viewLabel {
+    display: none;
+  }
+}
