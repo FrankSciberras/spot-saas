@@ -11,6 +11,10 @@
 // The rules that matter (numbering, freezing, balances, credit limits) are
 // enforced by the database functions; these actions validate input, call them,
 // and turn their messages into something to show.
+//
+// After anything that changes what Xero should hold (issue, void, payment in
+// or out), a sync is queued to run once the response has been sent — a no-op
+// for fleets that haven't connected Xero.
 // =============================================================================
 
 import { revalidatePath } from 'next/cache';
@@ -18,6 +22,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth/session';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { getFleetSettings } from '@/lib/settings/server';
+import { queueXeroSync } from '@/lib/xero/sync';
 import { fromCents, lineAmounts, documentTotals, toCents, toScaled } from '@/lib/invoices/math';
 import { ensureInvoiceSettings, getDocument, invoiceErrorMessage, invoiceToday } from '@/lib/invoices/server';
 import {
@@ -396,6 +401,7 @@ export async function issueDocumentAction(id: string, issueDate?: string | null)
     { number: issued.number, total: issued.total },
   );
   refresh(id);
+  queueXeroSync(orgId, createAdminClient);
   return { ok: true, number: issued.number };
 }
 
@@ -416,6 +422,7 @@ export async function voidDocumentAction(id: string, reason?: string | null): Pr
     reason: clean(reason, 500),
   });
   refresh(id);
+  queueXeroSync(orgId, createAdminClient);
   return { ok: true };
 }
 
@@ -460,6 +467,7 @@ export async function recordPaymentAction(input: {
   });
   refresh(input.invoiceId);
   revalidatePath('/fleet/earnings');
+  queueXeroSync(orgId, createAdminClient);
   return { ok: true, paymentId: payment.id };
 }
 
@@ -476,6 +484,7 @@ export async function deletePaymentAction(paymentId: string): Promise<ActionResu
   });
   refresh(payment?.invoice_id);
   revalidatePath('/fleet/earnings');
+  queueXeroSync(orgId, createAdminClient);
   return { ok: true };
 }
 

@@ -20,7 +20,9 @@ export function rovoraRef(id: string): string {
 
 /** Reference stored on a Xero payment: our tag, then whatever the admin typed. */
 export function paymentReference(payment: LocalPayment): string {
-  const typed = (payment.reference ?? '').trim();
+  // Quotes and backslashes are dropped so the reference can be looked up again
+  // with an exact-match filter (see findPaymentByReference).
+  const typed = (payment.reference ?? '').replace(/["\\]/g, '').replace(/\s+/g, ' ').trim();
   return (typed ? `${rovoraRef(payment.id)} ${typed}` : rovoraRef(payment.id)).slice(0, 250);
 }
 
@@ -143,8 +145,13 @@ export function buildCreditNote(doc: LocalDocument, ctx: DocumentContext & { inv
   return payload;
 }
 
-export function buildAllocation(amount: number, invoiceXeroId: string, date: string): Record<string, unknown> {
-  return { Amount: amount, Invoice: { InvoiceID: invoiceXeroId }, Date: date };
+/**
+ * Applies part of a credit note to an invoice. No date is sent: Xero sets it
+ * itself (the later of the two documents' dates) and treats the field as
+ * read-only.
+ */
+export function buildAllocation(amount: number, invoiceXeroId: string): Record<string, unknown> {
+  return { Amount: amount, Invoice: { InvoiceID: invoiceXeroId } };
 }
 
 /** A payment received on an invoice, or a refund paid out on a credit note. */

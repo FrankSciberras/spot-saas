@@ -43,6 +43,7 @@ on:
     - cron: '10 * * * *'    # trip builder (trips/stops + GPS retention)
     - cron: '*/30 * * * *'  # reminders
     - cron: '20 * * * *'    # Bolt sync (drivers, vehicles, rides for connected fleets)
+    - cron: '50 * * * *'    # Xero sync (invoices, credit notes, payments for connected fleets)
     - cron: '40 * * * *'    # "still on shift?" check (backup — also runs every minute in-app)
     - cron: '0 4 * * *'     # daily recurring bookkeeping costs (repeating bills)
     - cron: '0 5 * * *'     # daily notification rules sweep
@@ -96,6 +97,13 @@ jobs:
           curl -fsS -m 300 --retry 2 --retry-delay 10 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/cron/bolt-sync"
+
+      - name: Xero sync (hourly)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '50 * * * *'
+        run: |
+          curl -fsS -m 300 --retry 2 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/xero-sync"
 
       - name: Open-shift watch (hourly)
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '40 * * * *'

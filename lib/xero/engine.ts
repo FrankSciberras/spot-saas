@@ -351,7 +351,7 @@ export async function runXeroSync(ctx: SyncContext): Promise<SyncOutcome> {
         }
         const made = await api.allocateCredit(
           creditXeroId,
-          buildAllocation(allocation.amount, invoiceXeroId, allocation.allocated_on),
+          buildAllocation(allocation.amount, invoiceXeroId),
           `allocation:${allocation.id}`,
         );
         return { xero_id: made.id ?? `${creditXeroId}:${invoiceXeroId}`, remote_state: 'active' };
