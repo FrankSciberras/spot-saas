@@ -34,8 +34,6 @@ interface BaseDef {
   section: string;
   label: string;
   description: string;
-  /** Emoji shown on the card, like the hand-written setting cards. */
-  icon: string;
   /** Only show while this fleet module is on (lib/modules/catalog.ts). */
   module?: string;
   /** Where the setting takes effect, shown under the card ("Used on …"). */

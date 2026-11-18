@@ -40,7 +40,6 @@ export default function NotificationSettings({ notify }: { notify: Notify }) {
         <PanelLoading rows={1} />
       ) : prompt !== null ? (
         <ToggleCard
-          icon="🔔"
           label="Prompt drivers to enable notifications"
           description={
             <>

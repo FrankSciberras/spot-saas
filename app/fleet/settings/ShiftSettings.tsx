@@ -54,7 +54,6 @@ export default function ShiftSettings({ notify, isAdmin }: { notify: Notify; isA
         <PanelLoading rows={1} />
       ) : check ? (
         <ToggleCard
-          icon="⏱️"
           label="“Still on shift?” check"
           description={
             <>

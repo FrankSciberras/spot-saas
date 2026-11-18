@@ -41,7 +41,6 @@ export default function MessagesSettings({ notify }: { notify: Notify }) {
         <PanelLoading rows={1} />
       ) : driverDms !== null ? (
         <ToggleCard
-          icon="💬"
           label="Let drivers message each other privately"
           description="Off: drivers can message managers, and talk to each other in the groups you create. On: drivers can also start one-to-one chats with other drivers."
           checked={driverDms}

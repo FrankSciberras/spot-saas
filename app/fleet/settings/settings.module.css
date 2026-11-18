@@ -73,38 +73,36 @@
 
 /* ─── Feature-toggle cards ─── */
 .settingsGrid {
+  /* One list per section: rows separated by hairlines instead of a stack of
+     separate cards, so a tab reads as a few groups rather than a dozen boxes. */
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.settingsGrid > * + * {
+  border-top: 1px solid var(--line-1);
+}
+
+/* A section with nothing in it (every setting hidden by a module) draws no box. */
+.settingsGrid:empty {
+  display: none;
 }
 
 .settingCard {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 18px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius-lg);
-  transition: border-color 0.15s, transform 0.15s;
+  gap: 24px;
+  padding: 16px 20px;
+  transition: background 0.15s;
 }
 
 .settingCard:hover {
-  border-color: var(--line-3);
-  transform: translateY(-1px);
-}
-
-.settingIcon {
-  font-size: 20px;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  background: var(--bg-2);
-  border: 1px solid var(--line-2);
-  border-radius: 10px;
-  flex-shrink: 0;
+  background: color-mix(in srgb, var(--bg-2) 45%, transparent);
 }
 
 .settingContent {
@@ -113,7 +111,7 @@
 }
 
 .settingLabel {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-1);
@@ -121,9 +119,10 @@
 }
 
 .settingDescription {
-  font-size: 13px;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--text-2);
-  margin-bottom: 6px;
+  max-width: 62ch;
 }
 
 .settingMeta {
@@ -133,16 +132,16 @@
 
 .settingAction {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
 .statusLabel {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-2);
+  color: var(--text-3);
+  white-space: nowrap;
 }
 
 /* ─── Toggle switch ─── */
@@ -263,7 +262,7 @@ input:checked + .toggleSlider:before {
 }
 
 .sectionTitle {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-1);
@@ -272,8 +271,14 @@ input:checked + .toggleSlider:before {
 
 .sectionSub {
   font-size: 13px;
+  line-height: 1.5;
   color: var(--text-3);
-  margin: 0 0 16px;
+  margin: 0 0 12px;
+  max-width: 70ch;
+}
+
+.sectionTitle + .settingsGrid {
+  margin-top: 10px;
 }
 
 .brandCard {
@@ -374,15 +379,6 @@ input:checked + .toggleSlider:before {
 
 /* ─── Responsive ─── */
 @media (max-width: 640px) {
-  .settingCard {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .settingAction {
-    flex-direction: row;
-  }
-
   .colorRow {
     flex-direction: column;
     align-items: flex-start;
@@ -460,6 +456,7 @@ input:checked + .toggleSlider:before {
   border-bottom: 1px solid var(--line-1);
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-behavior: smooth;
 }
 
 .tabs::-webkit-scrollbar {
@@ -496,6 +493,9 @@ input:checked + .toggleSlider:before {
 
 .panel {
   animation: panelIn 160ms ease-out;
+  /* Settings rows are a label and a control. Stretched across a 1800px
+     screen the two end up a metre apart, so the column is capped. */
+  max-width: 920px;
 }
 
 @keyframes panelIn {
@@ -509,10 +509,8 @@ input:checked + .toggleSlider:before {
 
 /* Loading placeholder for a tab's cards */
 .skeletonCard {
-  height: 84px;
+  height: 76px;
   background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius-lg);
   animation: skeletonPulse 1.2s ease-in-out infinite;
 }
 
@@ -593,11 +591,6 @@ input:checked + .toggleSlider:before {
   outline-offset: 1px;
 }
 
-@media (max-width: 640px) {
-  .inlineFields {
-    justify-content: center;
-  }
-}
 
 /* Choice list for catalog settings with more than three options */
 .selectInput {
@@ -685,5 +678,136 @@ input:checked + .toggleSlider:before {
   }
   .mapPickerActions > * {
     flex: 1 1 auto;
+  }
+}
+
+/* =============================================================================
+   Phone layout
+   A switch sits beside its label (thumb-reachable, one row). Everything else —
+   a choice, a number, a link — goes underneath at full width, left-aligned,
+   with touch-sized targets. 16px inputs stop iOS zooming the page on focus.
+   ============================================================================= */
+@media (max-width: 640px) {
+  .header {
+    margin-bottom: 14px;
+  }
+
+  .breadcrumb,
+  .subtitle {
+    display: none;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  /* Ten tabs don't fit: let the row scroll edge to edge, fade the side that
+     has more, and keep the active tab in view (see page.tsx). */
+  .tabs {
+    /* 14px = the fleet shell's phone gutter (.pad-mobile). */
+    margin: 0 -14px 16px;
+    padding: 0 14px;
+    gap: 2px;
+    scroll-padding: 0 24px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
+  }
+
+  .tab {
+    padding: 11px 12px 12px;
+    font-size: 14.5px;
+  }
+
+  .settingsGrid {
+    margin-bottom: 22px;
+  }
+
+  .settingCard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px 14px;
+    padding: 14px 16px;
+  }
+
+  .settingCard:hover {
+    background: none;
+  }
+
+  .settingCard[data-control='stack'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settingCard[data-control='stack'] .settingAction {
+    width: 100%;
+  }
+
+  .settingCard[data-control='stack'] .settingAction > :global(.btn) {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* A number or speed row repeats its saved value on the right; on a phone the
+     field itself is enough. */
+  .settingCard[data-control='stack'] .settingAction:has(> .statusLabel:only-child) {
+    display: none;
+  }
+
+  /* The switch already says on or off. */
+  .settingCard[data-control='toggle'] .statusLabel {
+    display: none;
+  }
+
+  .settingDescription {
+    font-size: 13.5px;
+  }
+
+  .toggle {
+    width: 50px;
+    height: 30px;
+  }
+
+  .toggleSlider:before {
+    width: 22px;
+    height: 22px;
+  }
+
+  .segmented {
+    display: flex;
+    width: 100%;
+  }
+
+  .segment {
+    flex: 1;
+    min-height: 40px;
+    padding: 8px 6px;
+    font-size: 14px;
+  }
+
+  .selectInput {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .numInput {
+    width: 96px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .inlineFields {
+    justify-content: flex-start;
+  }
+
+  .inlineFields > :global(.btn) {
+    min-height: 44px;
+  }
+
+  .formActions > :global(.btn) {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
   }
 }
