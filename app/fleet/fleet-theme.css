@@ -160,6 +160,18 @@
 }
 
 /* ─── Sidebar nav items ─── */
+.fleetCanvas .fleetNavGroupBtn {
+  color: var(--text-4);
+  transition: color var(--dur-ui) var(--ease-ui);
+}
+.fleetCanvas .fleetNavGroupBtn:hover {
+  color: var(--text-2);
+}
+.fleetCanvas .fleetNavGroupBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .fleetCanvas .fleetNavItem {
   position: relative;
   overflow: hidden;
