@@ -21,6 +21,7 @@ import {
   canSeeNavItem,
   type NavItem,
 } from './navConfig';
+import { useCollapsedNavGroups } from './useCollapsedNavGroups';
 import FleetIcon from './FleetIcon';
 import { badgeText, useUnreadMessages } from '@/components/messages/useUnreadMessages';
 
@@ -206,6 +207,8 @@ export default function FleetSidebar({
   const isDriver = variant === 'driver';
   const rootHref = isDriver ? '/driver' : '/fleet';
   const navGroups = isDriver ? DRIVER_NAV_GROUPS : NAV_GROUPS;
+  // Sections the person has folded away (remembered per browser).
+  const { collapsed: foldedGroups, toggle: toggleGroup } = useCollapsedNavGroups();
 
   // Identity, billing, profile, help and sign-out now live in the topbar
   // account menu (FleetAccountMenu) — the sidebar is navigation only.
@@ -291,11 +294,35 @@ export default function FleetSidebar({
 
       <nav style={{ ...s.nav, ...(railed ? s.navRail : {}) }}>
         {navGroups.map((g, gi) => {
-          const items = g.items.filter(canSee);
-          if (!items.length) return null;
+          const allItems = g.items.filter(canSee);
+          if (!allItems.length) return null;
+          // A folded section still shows the page you're on, so you never lose
+          // your place. The icon rail never folds (no headers to click there).
+          const folded = !railed && !!g.label && foldedGroups.has(g.label);
+          const items = folded ? allItems.filter((item) => isActive(item.href)) : allItems;
+          const listId = `fleet-nav-${gi}`;
           return (
-            <div key={gi} style={{ marginBottom: railed ? 8 : 14 }}>
-              {g.label && (railed ? <div style={s.railDivider} /> : <div style={s.navLabel}>{g.label}</div>)}
+            <div key={gi} style={{ marginBottom: railed ? 8 : folded ? 6 : 14 }}>
+              {g.label &&
+                (railed ? (
+                  <div style={s.railDivider} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(g.label!)}
+                    aria-expanded={!folded}
+                    aria-controls={listId}
+                    className="fleetNavGroupBtn"
+                    style={s.navGroupBtn}
+                    title={folded ? `Show ${g.label}` : `Hide ${g.label}`}
+                  >
+                    <span>{g.label}</span>
+                    <span style={{ display: 'flex', transition: 'transform 0.15s ease', transform: folded ? 'rotate(-90deg)' : 'none' }}>
+                      <FleetIcon name="chevron-down" size={12} stroke={2} />
+                    </span>
+                  </button>
+                ))}
+              <div id={listId}>
               {items.map((item) => {
                 const active = isActive(item.href);
                 return (
@@ -332,6 +359,7 @@ export default function FleetSidebar({
                   </Link>
                 );
               })}
+              </div>
             </div>
           );
         })}
@@ -474,8 +502,25 @@ const s: Record<string, CSSProperties> = {
   },
   nav:{ flex: 1, overflowY: 'auto', padding: '14px 10px' },
   navRail: { padding: '14px 8px', overflowX: 'hidden' },
-  navLabel: { fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-4)', padding: '8px 10px 4px' },
   railDivider: { height: 1, background: 'var(--line-1)', margin: '6px 8px 8px' },
+  // Section header that folds its list: same look as the old static label.
+  navGroupBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    fontFamily: 'inherit',
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    padding: '8px 10px 4px',
+    background: 'none',
+    border: 'none',
+    borderRadius: 5,
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
   navItem: {
     display: 'flex',
     alignItems: 'center',

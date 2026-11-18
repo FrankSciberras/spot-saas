@@ -37,11 +37,16 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'vehicles', name: 'Vehicles', href: '/fleet/vehicles', icon: 'vehicle' },
       { id: 'rosters', name: 'Rosters', href: '/fleet/rosters', icon: 'roster' },
       { id: 'shifts', name: 'Shifts', href: '/fleet/shifts', icon: 'shift' },
+    ],
+  },
+  {
+    // Everything that comes from drivers' phones / trackers on the road (the
+    // Live Tracking module). Split out of Operations to keep that list short.
+    label: 'Tracking',
+    items: [
       { id: 'tracking', name: 'Live Map', href: '/fleet/tracking', icon: 'map' },
       { id: 'trips', name: 'Trips', href: '/fleet/trips', icon: 'pin' },
       { id: 'safety', name: 'Safety', href: '/fleet/safety', icon: 'warning' },
-      // Shown once the fleet has connected its Bolt account (the 'bolt' module).
-      { id: 'bolt', name: 'Bolt', href: '/fleet/bolt', icon: 'bolt', roles: ['admin'] },
     ],
   },
   {
@@ -59,6 +64,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'financials', name: 'Financials', href: '/fleet/financials', icon: 'chart', roles: ['admin'] },
       { id: 'settlements', name: 'Settlements', href: '/fleet/settlements', icon: 'settle', roles: ['admin'] },
       { id: 'adjustments', name: 'Adjustments', href: '/fleet/adjustments', icon: 'adjust', roles: ['admin'] },
+      // Rides and earnings from the fleet's Bolt account (the 'bolt' module).
+      { id: 'bolt', name: 'Bolt', href: '/fleet/bolt', icon: 'bolt', roles: ['admin'] },
     ],
   },
   {
