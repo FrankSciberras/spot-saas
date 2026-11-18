@@ -20,8 +20,9 @@ import {
 } from './console/types';
 
 export const dynamic = 'force-dynamic';
-// Email campaigns are sent by a server action invoked from this page; a large
-// audience is ~1s per 100 recipients, so give it room beyond the default.
+// Email campaigns are sent by a server action invoked from this page (~1s per
+// 100 recipients). Production is a long-running Docker container with no
+// request time limit; this only matters if the app is ever run serverless.
 export const maxDuration = 300;
 
 const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f0a35e', '#7c9cff', '#f06464'];
