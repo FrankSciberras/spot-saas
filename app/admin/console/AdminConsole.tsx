@@ -20,6 +20,7 @@ import PackagesManager from './PackagesManager';
 import AddOperatorModal from './AddOperatorModal';
 import OperatorDetailModal from './OperatorDetailModal';
 import BroadcastCenter from './BroadcastCenter';
+import EmailCampaigns from './EmailCampaigns';
 import AnalyticsPage from './AnalyticsPage';
 import TrialOfferCard from './TrialOfferCard';
 import { currentTrialDays } from '@/lib/billing/trial-offer';
@@ -271,7 +272,7 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 );
 
 // ── nav ──
-type PageId = 'overview' | 'analytics' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'inquiries' | 'broadcasts' | 'support' | 'settings' | 'vehicle-models';
+type PageId = 'overview' | 'analytics' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'inquiries' | 'broadcasts' | 'emails' | 'support' | 'settings' | 'vehicle-models';
 
 function buildNav(data: AdminData) {
   const pastDue = data.billing.filter((b) => b.status === 'past_due').length;
@@ -295,6 +296,7 @@ function buildNav(data: AdminData) {
     { label: 'Admin', items: [
       { id: 'inquiries' as PageId, name: 'Inquiries', icon: 'audit', badge: newInquiries ? String(newInquiries) : undefined, dot: newInquiries > 0 },
       { id: 'broadcasts' as PageId, name: 'Broadcasts', icon: 'bell', badge: undefined, dot: false },
+      { id: 'emails' as PageId, name: 'Email campaigns', icon: 'mail', badge: undefined, dot: false },
       { id: 'support' as PageId, name: 'Support', icon: 'staff', badge: undefined, dot: false },
       { id: 'settings' as PageId, name: 'Settings', icon: 'adjust', badge: undefined, dot: false },
     ]},
@@ -1421,6 +1423,7 @@ const PAGE_META: Record<PageId, { title: string; subtitle: string }> = {
   churn: { title: 'Churn', subtitle: 'Retention & recovery' },
   inquiries: { title: 'Inquiries', subtitle: 'Contact form inbox' },
   broadcasts: { title: 'Broadcasts', subtitle: 'Message operators & drivers' },
+  emails: { title: 'Email campaigns', subtitle: 'Newsletters & product updates' },
   support: { title: 'Support', subtitle: 'Operator directory' },
   settings: { title: 'Settings', subtitle: 'Platform configuration' },
   'vehicle-models': { title: 'Vehicle Models', subtitle: 'Car diagram presets' },
@@ -1475,6 +1478,15 @@ export default function AdminConsole({ data }: { data: AdminData }) {
               <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Message your operators &amp; their drivers.</div>
             </div>
             <BroadcastCenter />
+          </div>
+        )}
+        {active === 'emails' && (
+          <div style={ap.scroll} className="pad-mobile">
+            <div style={{ padding: '24px 0 16px', maxWidth: 640 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Email campaigns</div>
+              <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Send newsletters &amp; product updates by email.</div>
+            </div>
+            <EmailCampaigns />
           </div>
         )}
         {active === 'support' && <SupportPage data={data} />}

@@ -20,6 +20,9 @@ import {
 } from './console/types';
 
 export const dynamic = 'force-dynamic';
+// Email campaigns are sent by a server action invoked from this page; a large
+// audience is ~1s per 100 recipients, so give it room beyond the default.
+export const maxDuration = 300;
 
 const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f0a35e', '#7c9cff', '#f06464'];
 

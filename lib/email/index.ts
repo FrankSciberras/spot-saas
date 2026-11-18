@@ -77,6 +77,137 @@ export async function sendEmail({ to, subject, html, text, replyTo }: SendEmailI
   }
 }
 
+/** The bare address part of EMAIL_FROM, e.g. "noreply@rovora.eu". */
+export function emailFromAddress(): string {
+  const from = emailFrom();
+  return (from.match(/<([^>]+)>/)?.[1] ?? from).trim();
+}
+
+/** The display-name part of EMAIL_FROM, e.g. "Rovora". */
+export function emailFromName(): string {
+  const name = emailFrom().split('<')[0].trim().replace(/^"|"$/g, '');
+  return name || appName();
+}
+
+/**
+ * Build a From header with a custom display name on the configured (verified)
+ * address. Characters that would break the header are stripped, so an admin-
+ * typed name can't inject extra addresses.
+ */
+export function fromWithName(displayName?: string | null): string {
+  const clean = (displayName ?? '').replace(/["<>\r\n,;:@()[\]\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return clean ? `${clean} <${emailFromAddress()}>` : emailFrom();
+}
+
+export interface BatchEmail {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  /** Full From header; defaults to EMAIL_FROM. Must use the verified domain. */
+  from?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+  /** Resend tags (ASCII letters, digits, _ and - only). */
+  tags?: { name: string; value: string }[];
+}
+
+export interface BatchSendResult {
+  sent: number;
+  failed: number;
+  /** A few human-readable error messages, for the campaign log. */
+  errors: string[];
+}
+
+/** Resend's batch endpoint takes at most 100 emails per call. */
+const BATCH_SIZE = 100;
+/** Stay under Resend's default rate limit (2 requests/second). */
+const BATCH_PAUSE_MS = 600;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Send many individual emails (one recipient each) via Resend's batch API,
+ * 100 per request.
+ *
+ * - `idempotencyKey` is suffixed per chunk, so retrying a chunk — or the whole
+ *   call — within 24h never delivers the same email twice.
+ * - Rate-limit and server errors are retried with backoff; a bad address only
+ *   fails its own email ('permissive' validation), not its whole chunk.
+ * - Never throws. Unconfigured email (no RESEND_API_KEY) counts every message
+ *   as failed.
+ */
+export async function sendEmailBatch(
+  messages: BatchEmail[],
+  opts: { idempotencyKey?: string } = {},
+): Promise<BatchSendResult> {
+  const result: BatchSendResult = { sent: 0, failed: 0, errors: [] };
+  if (messages.length === 0) return result;
+
+  const resend = getResendClient();
+  if (!resend) {
+    console.log(`[email] not configured (missing RESEND_API_KEY) — would batch-send ${messages.length} email(s)`);
+    return { sent: 0, failed: messages.length, errors: ['Email is not configured (RESEND_API_KEY is missing).'] };
+  }
+
+  const noteError = (msg: string) => {
+    if (result.errors.length < 20 && !result.errors.includes(msg)) result.errors.push(msg);
+  };
+
+  for (let start = 0, chunkNo = 0; start < messages.length; start += BATCH_SIZE, chunkNo++) {
+    if (chunkNo > 0) await sleep(BATCH_PAUSE_MS);
+    const chunk = messages.slice(start, start + BATCH_SIZE);
+    const payload = chunk.map((m) => ({
+      from: m.from || emailFrom(),
+      to: [m.to],
+      subject: m.subject,
+      html: m.html,
+      ...(m.text ? { text: m.text } : {}),
+      ...(m.replyTo ? { replyTo: m.replyTo } : {}),
+      ...(m.headers ? { headers: m.headers } : {}),
+      ...(m.tags ? { tags: m.tags } : {}),
+    }));
+
+    let done = false;
+    for (let attempt = 0; attempt < 4 && !done; attempt++) {
+      if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+      try {
+        const { data, error } = await resend.batch.send(payload, {
+          batchValidation: 'permissive',
+          ...(opts.idempotencyKey ? { idempotencyKey: `${opts.idempotencyKey}-${chunkNo}` } : {}),
+        });
+        if (error) {
+          const retryable =
+            error.name === 'rate_limit_exceeded' ||
+            error.name === 'internal_server_error' ||
+            error.name === 'application_error' ||
+            error.name === 'concurrent_idempotent_requests' ||
+            (error.statusCode ?? 0) >= 500;
+          if (retryable && attempt < 3) continue;
+          console.error('[email] Resend batch error:', error);
+          noteError(error.message || error.name);
+          result.failed += chunk.length;
+          done = true;
+          continue;
+        }
+        const rejected = data?.errors ?? [];
+        for (const e of rejected) noteError(`${chunk[e.index]?.to ?? 'unknown'}: ${e.message}`);
+        result.failed += rejected.length;
+        result.sent += chunk.length - rejected.length;
+        done = true;
+      } catch (err) {
+        if (attempt < 3) continue;
+        console.error('[email] batch send failed:', err);
+        noteError(err instanceof Error ? err.message : 'Network error talking to Resend');
+        result.failed += chunk.length;
+        done = true;
+      }
+    }
+  }
+
+  return result;
+}
+
 export interface BrandedEmailOptions {
   /** Big heading at the top of the card (often the same as the subject). */
   heading: string;
