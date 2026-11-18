@@ -303,11 +303,13 @@ export default function SettlementSettingsClient({ presets, defaultPresetId, dri
 
   return (
     <div className={styles.container}>
-      <FleetBackLink href="/fleet/settlements" label="Back to settlements" />
       <div className={styles.header}>
         <div className={styles.breadcrumb}>Settlements / Settlement Rules</div>
         <div className={styles.titleRow}>
-          <h1 className={styles.title}>Settlement Rules</h1>
+          <div className="fleetTitleRow">
+            <FleetBackLink href="/fleet/settlements" label="Back to settlements" />
+            <h1 className={styles.title}>Settlement Rules</h1>
+          </div>
           <Link href="/fleet/settlements/setup" className="btn btn-secondary btn-sm">
             ✨ Guided setup
           </Link>

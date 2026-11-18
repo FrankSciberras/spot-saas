@@ -161,7 +161,6 @@ export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: P
 
   return (
     <>
-      <FleetBackLink href="/fleet/services" label="Back to services" />
       <div style={st.header} className="header-mobile-row">
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>
@@ -169,7 +168,10 @@ export default function ServiceDetail({ service, vehicle, siblings, isAdmin }: P
             {vehicle && <> / <span style={{ color: 'var(--text-2)' }}>{vehicle.plate}</span></>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 style={st.h1}>{service.typeLabel}</h1>
+            <div className="fleetTitleRow">
+              <FleetBackLink href="/fleet/services" label="Back to services" />
+              <h1 style={st.h1}>{service.typeLabel}</h1>
+            </div>
             <StatusPill status={service.status} />
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 5 }}>

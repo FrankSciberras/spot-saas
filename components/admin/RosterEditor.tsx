@@ -278,7 +278,7 @@ export default function RosterEditor({ roster, vehicles, drivers, mode, isAdmin 
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <FleetBackLink href="/fleet/rosters" label="Back to rosters" flush />
+          <FleetBackLink href="/fleet/rosters" label="Back to rosters" />
         </div>
         <div className={styles.headerRight}>
           {isAdmin && (

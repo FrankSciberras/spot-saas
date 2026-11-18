@@ -130,11 +130,11 @@ function SettingsContent() {
   return (
     <FleetShell user={user} title="Settings">
       <div className={styles.container}>
-        {from && <FleetBackLink href={from} label={`Back to ${fromName ?? 'previous page'}`} />}
         <div className={`${styles.header} header-mobile-row`}>
           <div>
             <div className={styles.breadcrumb}>Admin / Settings</div>
-            <div className={styles.titleRow}>
+            <div className={`${styles.titleRow} fleetTitleRow`}>
+              {from && <FleetBackLink href={from} label={`Back to ${fromName ?? 'previous page'}`} />}
               <h1 className={styles.title}>Settings</h1>
             </div>
             <p className={styles.subtitle}>Your fleet’s details, branding and how each part of Rovora works for your team</p>

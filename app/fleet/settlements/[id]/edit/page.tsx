@@ -47,10 +47,12 @@ export default async function EditSettlementPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title="Edit Settlement">
-      <FleetBackLink href="/fleet/settlements" label="Back to settlements" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
-          <h2>Edit Settlement</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href="/fleet/settlements" label="Back to settlements" />
+            <h2>Edit Settlement</h2>
+          </div>
           <p className={styles.pageSubtitle}>
             {driverName} • {settlement.week_label}
           </p>

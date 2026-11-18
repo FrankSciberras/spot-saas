@@ -6,6 +6,7 @@ import FleetShell from '@/components/fleet/FleetShell';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import DeleteStaffButton from '@/components/admin/DeleteStaffButton';
 // Same look as the driver page (hero card + sectioned field grid).
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from '@/components/admin/DriverProfile.module.css';
 
 interface StaffDetailPageProps {
@@ -72,11 +73,8 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
     <FleetShell user={user} title="Staff Details">
       <div className={styles.container}>
         <div className={styles.header}>
-          <Link href="/fleet/staff" className={styles.backLink}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-            Back to staff
-          </Link>
-          <div className={styles.heroCard} style={{ flexWrap: 'wrap' }}>
+          <div className={styles.heroCard}>
+            <FleetBackLink href="/fleet/staff" label="Back to staff" />
             <div className={styles.avatar}>{initialsOf(name)}</div>
             <div className={styles.heroInfo}>
               <h1 className={styles.heroName}>{name}</h1>
@@ -86,7 +84,7 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
               </div>
             </div>
             <div className={styles.heroActions}>
-              <Link href={`/fleet/staff/${staff.id}/edit`} className={styles.backLink} style={{ alignSelf: 'auto' }}>
+              <Link href={`/fleet/staff/${staff.id}/edit`} className={styles.heroBtn}>
                 <FleetIcon name="pencil" size={14} />
                 Edit
               </Link>

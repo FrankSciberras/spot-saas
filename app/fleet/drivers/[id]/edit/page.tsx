@@ -61,11 +61,13 @@ export default async function EditDriverPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title={`Edit: ${driver.full_name}`}>
-      <FleetBackLink href={`/fleet/drivers/${id}`} label="Back to driver" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <div className={styles.pageTitleMain}>
-            <h2>{driver.full_name}</h2>
+            <div className="fleetTitleRow">
+              <FleetBackLink href={`/fleet/drivers/${id}`} label="Back to driver" />
+              <h2>{driver.full_name}</h2>
+            </div>
             <span className={styles.subtitle}>
               <span className="badge badge-info">Editing</span>
             </span>

@@ -544,6 +544,24 @@
   .fleetCanvas .fleet-skel::after { animation: none; }
 }
 
+/* ─── Sidebar / mobile drawer height ───
+   100vh on a phone is the screen WITHOUT the browser's address bar taken off,
+   so a 100vh drawer ran past the visible area and its last links (Settings…)
+   could never be scrolled into view. dvh tracks what is actually visible. */
+.fleetCanvas .fleetSidebar { height: 100vh; height: 100dvh; }
+.fleetCanvas .fleetDrawer { height: 100%; max-height: 100vh; max-height: 100dvh; overflow: hidden; }
+@media (max-width: 720px) {
+  .fleetCanvas .fleetDrawer .fleetNavItem { min-height: 44px; font-size: 15px !important; }
+  /* Before the page hydrates the shell still thinks it is on a desktop; don't
+     let the full sidebar flash across a phone for that moment. */
+  .fleetCanvas .fleetSidebar { display: none; }
+}
+
+/* ─── Page title with an inline back arrow (<FleetBackLink>) ─── */
+.fleetCanvas .fleetTitleRow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fleetCanvas .fleetTitleRow > h1,
+.fleetCanvas .fleetTitleRow > h2 { min-width: 0; overflow-wrap: anywhere; }
+
 /* ─── Responsive overrides ─── */
 @media (max-width: 720px) {
   .fleetCanvas { font-size: 13.5px; }
@@ -559,7 +577,6 @@
   .fleetCanvas .pad-mobile { padding: 18px 14px 100px !important; }
   .fleetCanvas .hero-h1-mobile { font-size: 19px !important; }
   .fleetCanvas .topbar-mobile { padding: 0 14px !important; height: 54px !important; }
-  .fleetCanvas .topbar-mobile h1 { font-size: 16px !important; }
   .fleetCanvas .header-mobile-row { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
   .fleetCanvas .stats-row-mobile { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
   .fleetCanvas .chips-scroll { overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
@@ -567,6 +584,58 @@
 }
 @media (min-width: 721px) {
   .fleetCanvas .show-mobile-only { display: none !important; }
+}
+
+/* ─── Workspace rows & filter bars on a phone ───
+   The workspaces lay their rows out with inline grid styles sized for a
+   desktop. Hiding a cell with .hide-mobile leaves the other cells squeezed
+   into the same narrow tracks, so each row gets a hook here to re-flow. */
+@media (max-width: 720px) {
+  /* Segmented tabs and select pills: finger-sized, and they share the row. */
+  .fleetCanvas .fleetFilterGroup { width: 100%; }
+  .fleetCanvas .fleetSegTabs { display: flex !important; width: 100%; }
+  .fleetCanvas .fleetSegTabs > button { flex: 1; min-height: 38px; white-space: nowrap; }
+  .fleetCanvas .fleetSelectWrap { flex: 1 1 140px; min-width: 0; min-height: 40px; }
+  .fleetCanvas .fleetSelectWrap select { flex: 1; min-width: 0; width: 100%; font-size: 14px !important; min-height: 28px; }
+
+  /* Standalone filter <select>s and search boxes take a full row. */
+  .fleetCanvas .fleetFilterSelect { flex: 1 1 100%; width: 100% !important; min-height: 40px; font-size: 14px !important; }
+  .fleetCanvas .fleetFilterSearch { flex: 1 1 100% !important; min-height: 40px; }
+  .fleetCanvas .fleetFilterSearch input { font-size: 16px !important; }
+
+  /* Bookkeeping header: three secondary actions on one line, the two that
+     add money on the next — instead of five buttons wrapping wherever. */
+  .fleetCanvas .fleetLedgerActions { display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr)); width: 100%; }
+  .fleetCanvas .fleetLedgerActions > button { justify-content: center; min-height: 40px; padding-left: 6px !important; padding-right: 6px !important; white-space: nowrap; }
+  .fleetCanvas .fleetLedgerActions > button:nth-child(1) { grid-column: span 5; }
+  .fleetCanvas .fleetLedgerActions > button:nth-child(2) { grid-column: span 4; }
+  .fleetCanvas .fleetLedgerActions > button:nth-child(3) { grid-column: span 3; }
+  .fleetCanvas .fleetLedgerActions > button:nth-last-child(-n + 2) { grid-column: span 6; }
+
+  /* Shifts: who + status on top, times and mileage underneath. */
+  .fleetCanvas .fleetShiftRow {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px 12px !important;
+    padding: 12px 14px !important;
+  }
+  .fleetCanvas .fleetShiftWho { grid-column: 1; grid-row: 1; }
+  .fleetCanvas .fleetShiftMeta { display: contents !important; }
+  .fleetCanvas .fleetShiftMeta > span { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+  .fleetCanvas .fleetShiftTime {
+    grid-column: 1; grid-row: 2;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+    text-align: left !important;
+  }
+  .fleetCanvas .fleetShiftTime > div { margin-top: 0 !important; }
+  .fleetCanvas .fleetShiftKm {
+    grid-column: 2; grid-row: 2;
+    display: flex; align-items: baseline; gap: 6px; justify-content: flex-end;
+  }
+  .fleetCanvas .fleetShiftKm > div { margin-top: 0 !important; }
+  .fleetCanvas .fleetShiftKm > div:last-child { display: none; }
+}
+@media (max-width: 400px) {
+  .fleetCanvas .fleetLedgerActions > button:nth-child(-n + 3) svg { display: none; }
 }
 @media (max-width: 480px) {
   .fleetCanvas .grid-4 { grid-template-columns: 1fr !important; }

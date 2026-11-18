@@ -32,7 +32,9 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, …) — a bare 1fr track refuses to go narrower than its widest
+     child, so one long <select> option pushed the whole form off a phone. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -40,6 +42,7 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
+  min-width: 0;
 }
 
 .formGroup label {
@@ -60,6 +63,17 @@
   font-family: inherit;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+  /* Fill the column and be allowed to shrink with it (a select otherwise sizes
+     itself to its longest option). */
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* :where() keeps this at single-class weight so components that bring their own
+   inputs (the date picker) can still override it. */
+.formGroup :where(select, textarea, input:not([type='checkbox']):not([type='radio']):not([type='file'])) {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .formGroup input:focus,
@@ -528,6 +542,7 @@
 
 .documentInfo {
   flex: 1;
+  min-width: 0;
 }
 
 .documentLabel {
@@ -689,7 +704,17 @@
   .formGrid,
   .detailGrid,
   .optionGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .formSection {
+    padding: 16px 14px;
+  }
+
+  /* 16px stops iOS Safari zooming the page in every time a field is focused. */
+  .formGroup :where(select, textarea, input:not([type='checkbox']):not([type='radio']):not([type='file'])) {
+    font-size: 16px;
+    min-height: 44px;
   }
 
   .formActions {
@@ -698,6 +723,7 @@
 
   .formActions :global(.btn) {
     width: 100%;
+    min-height: 44px;
     justify-content: center;
   }
 
@@ -713,7 +739,13 @@
 @media (max-width: 640px) {
   .documentRow {
     flex-direction: column;
+    align-items: stretch;
     gap: 12px;
+  }
+
+  .documentInfo {
+    flex: none;
+    width: 100%;
   }
 
   .documentUpload {

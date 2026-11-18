@@ -98,12 +98,14 @@ export default async function VehicleDamagesPage({ params }: PageProps) {
       user={user}
       title={`Damages - ${vehicle.registration_number}`}
     >
-      <FleetBackLink href={`/fleet/vehicles/${id}`} label="Back to vehicle" />
       <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitle}>
           <div className={styles.pageTitleMain}>
             <div className={styles.breadcrumb}>Vehicles / {vehicle.registration_number} / Damages</div>
-            <h2>Vehicle Damages</h2>
+            <div className="fleetTitleRow">
+              <FleetBackLink href={`/fleet/vehicles/${id}`} label="Back to vehicle" />
+              <h2>Vehicle Damages</h2>
+            </div>
             <span className={styles.subtitle}>
               {vehicle.registration_number} · {vehicle.make} {vehicle.model} {vehicle.year && `(${vehicle.year})`}
             </span>

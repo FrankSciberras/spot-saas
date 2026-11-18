@@ -113,11 +113,13 @@ export default async function ShiftDetailPage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title="Shift Details">
-      <FleetBackLink href="/fleet/shifts" label="Back to shifts" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <div className={styles.pageTitleMain}>
-            <h2>Shift Details</h2>
+            <div className="fleetTitleRow">
+              <FleetBackLink href="/fleet/shifts" label="Back to shifts" />
+              <h2>Shift Details</h2>
+            </div>
             <span className={styles.subtitle}>
               <span className={`badge ${isActiveShift ? 'badge-success' : 'badge-secondary'}`}>
                 {isActiveShift ? 'Active' : 'Completed'}

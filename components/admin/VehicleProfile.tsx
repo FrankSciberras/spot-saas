@@ -6,6 +6,7 @@ import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import DeleteRecordButton from '@/components/fleet/DeleteRecordButton';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './VehicleProfile.module.css';
 import {
   ComingUp,
@@ -487,11 +488,8 @@ export default function VehicleProfile({
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/fleet/vehicles" className={styles.backLink}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          Back to vehicles
-        </Link>
         <div className={styles.heroCard}>
+          <FleetBackLink href="/fleet/vehicles" label="Back to vehicles" />
           <div className={styles.avatar}><FleetIcon name="vehicle" size={26} /></div>
           <div className={styles.heroInfo}>
             <h1 className={styles.heroName}>{vehicle.registration_number}</h1>

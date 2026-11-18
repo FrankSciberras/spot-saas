@@ -35,13 +35,12 @@ export default async function NewServicePage({ searchParams }: PageProps) {
 
   return (
     <FleetShell user={user} title="Add Service">
-      <FleetBackLink
-        href={preselectedVehicleId ? `/fleet/vehicles/${preselectedVehicleId}` : '/fleet/services'}
-        label={preselectedVehicleId ? 'Back to vehicle' : 'Back to services'}
-      />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
-          <h2>Add Service Record</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href={preselectedVehicleId ? `/fleet/vehicles/${preselectedVehicleId}` : '/fleet/services'} label={preselectedVehicleId ? 'Back to vehicle' : 'Back to services'} />
+            <h2>Add Service Record</h2>
+          </div>
           <span className={styles.subtitle}>
             {preselectedVehicle
               ? `For ${preselectedVehicle.registration_number} - ${preselectedVehicle.make} ${preselectedVehicle.model}`

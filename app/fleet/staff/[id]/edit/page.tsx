@@ -39,10 +39,12 @@ export default async function EditStaffPage({ params }: EditStaffPageProps) {
 
   return (
     <FleetShell user={user} title="Edit Staff">
-      <FleetBackLink href={`/fleet/staff/${staff.id}`} label="Back to staff member" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
-          <h2>Edit Staff</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href={`/fleet/staff/${staff.id}`} label="Back to staff member" />
+            <h2>Edit Staff</h2>
+          </div>
           <span className={styles.subtitle}>Update staff member details</span>
         </div>
       </div>

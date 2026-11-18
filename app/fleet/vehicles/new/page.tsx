@@ -22,11 +22,13 @@ export default async function NewVehiclePage() {
 
   return (
     <FleetShell user={user} title="Add New Vehicle">
-      <FleetBackLink href="/fleet/vehicles" label="Back to vehicles" />
       <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitleMain}>
           <div className={styles.breadcrumb}>Operations / Vehicles / New</div>
-          <h2>Add New Vehicle</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href="/fleet/vehicles" label="Back to vehicles" />
+            <h2>Add New Vehicle</h2>
+          </div>
           <span className={styles.subtitle}>Register a new vehicle to your fleet</span>
         </div>
       </div>

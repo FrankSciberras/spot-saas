@@ -6,6 +6,7 @@ import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import DeleteDriverButton from '@/components/admin/DeleteDriverButton';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './DriverProfile.module.css';
 
 /* ─── Types ─── */
@@ -504,11 +505,8 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/fleet/drivers" className={styles.backLink}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          Back to drivers
-        </Link>
         <div className={styles.heroCard}>
+          <FleetBackLink href="/fleet/drivers" label="Back to drivers" />
           <div className={styles.avatar}>{getInitials(driver.full_name)}</div>
           <div className={styles.heroInfo}>
             <h1 className={styles.heroName}>{driver.full_name}</h1>

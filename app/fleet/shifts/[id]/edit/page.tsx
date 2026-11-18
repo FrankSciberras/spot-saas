@@ -184,11 +184,13 @@ export default function EditShiftPage({ params }: PageProps) {
 
   return (
     <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-      <FleetBackLink href={`/fleet/shifts/${shiftId}`} label="Back to shift" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <div className={styles.pageTitleMain}>
-            <h2>Edit Shift</h2>
+            <div className="fleetTitleRow">
+              <FleetBackLink href={`/fleet/shifts/${shiftId}`} label="Back to shift" />
+              <h2>Edit Shift</h2>
+            </div>
             <span className={styles.subtitle}>
               <span className="badge badge-info">Editing</span>
               <span style={{ marginLeft: '8px', color: 'var(--text-muted)' }}>
