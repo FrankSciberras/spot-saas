@@ -14,7 +14,7 @@ import {
 export const metadata = marketingMetadata({
   title: 'Fleet Management Software Integrations — Rovora',
   description:
-    'Connect Rovora to the tools you already run. Export fleet expenses to QuickBooks or Xero by CSV today, with GPS, ride-hail and messaging links coming.',
+    'Connect Rovora to the tools you already run: GPS trackers (Wialon, Traccar, flespi, Navixy, Samsara, Geotab, Mapon), Bolt, and QuickBooks or Xero by CSV — with more links coming.',
   path: '/integrations',
   keywords: [
     'fleet management software integrations',

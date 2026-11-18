@@ -172,6 +172,22 @@ export const FLEET_MODULES: FleetModule[] = [
     routePrefixes: [],
   },
   {
+    // Same pattern as Bolt: off until a fleet connects a GPS platform at
+    // /fleet/gps (which switches it on → "GPS trackers" in the sidebar, and
+    // vehicles on the Live Map). The page itself stays reachable to connect.
+    key: 'gps',
+    name: 'GPS trackers',
+    tagline: 'Vehicles on the Live Map',
+    description:
+      'Connect the GPS trackers already in your cars (Traccar, flespi, Wialon, Navixy, Samsara, Geotab, Mapon) and see every vehicle live on the map — next to, or instead of, driver phones.',
+    icon: 'map',
+    category: 'Integrations',
+    status: 'available',
+    defaultEnabled: false,
+    navIds: ['gps'],
+    routePrefixes: [],
+  },
+  {
     key: 'invoices',
     name: 'Invoices',
     tagline: 'Bill customers & partners',

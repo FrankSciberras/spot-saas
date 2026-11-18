@@ -45,6 +45,8 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Tracking',
     items: [
       { id: 'tracking', name: 'Live Map', href: '/fleet/tracking', icon: 'map' },
+      // Shown once the fleet has connected a GPS platform (the 'gps' module).
+      { id: 'gps', name: 'GPS Trackers', href: '/fleet/gps', icon: 'pin', roles: ['admin'] },
       { id: 'trips', name: 'Trips', href: '/fleet/trips', icon: 'pin' },
       { id: 'safety', name: 'Safety', href: '/fleet/safety', icon: 'warning' },
     ],

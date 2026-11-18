@@ -32,6 +32,16 @@ export function startInternalScheduler(): void {
       await runShiftCheck();
     } catch (err) {
       console.error('[internal-scheduler] shift check failed:', err);
+    }
+    try {
+      // Latest positions from every fleet's connected GPS trackers.
+      const [{ runGpsSync }, { createAdminClient }] = await Promise.all([
+        import('@/lib/gps/sync'),
+        import('@/lib/supabase/server'),
+      ]);
+      await runGpsSync(createAdminClient(), 40_000);
+    } catch (err) {
+      console.error('[internal-scheduler] gps sync failed:', err);
     } finally {
       running = false;
     }

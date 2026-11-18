@@ -1,0 +1,661 @@
+/* =============================================================================
+   Operations → GPS trackers — Rovora Fleet flat aesthetic (same tokens as the
+   Bolt page: --bg-1/2, --line-1/2, --text-1..4, --accent, --pos, --neg).
+   ============================================================================= */
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+  max-width: 68ch;
+}
+
+.headerLinks {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ─── Buttons ─── */
+.primary,
+.ghostBtn,
+.dangerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.primary {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+}
+
+.ghostBtn {
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.ghostBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dangerBtn {
+  border: 1px solid var(--neg);
+  background: var(--neg);
+  color: #fff;
+}
+
+.primary:disabled,
+.ghostBtn:disabled,
+.dangerBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.error {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+
+.noteOk {
+  font-size: 12.5px;
+  color: var(--pos);
+}
+
+.noteError {
+  font-size: 12.5px;
+  color: var(--neg);
+}
+
+/* ─── Provider picker ─── */
+.sectionTitle {
+  margin: 4px 0 4px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.sectionLead {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-3);
+  max-width: 80ch;
+}
+
+.providerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.providerCard {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-2);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-1);
+  min-width: 0;
+}
+
+.providerCard:hover {
+  border-color: var(--line-2);
+}
+
+.providerCard[data-active='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.providerLogo {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.providerName {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.providerDesc {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
+/* ─── Connect form ─── */
+.connectWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+.connectCard,
+.steps,
+.panel {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  padding: 20px 22px 22px;
+  min-width: 0;
+}
+
+.connectCard,
+.panel {
+  background: var(--bg-2);
+}
+
+.steps {
+  background: var(--bg-1);
+}
+
+.connectTitle {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.connectLead {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+
+.label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--text-4);
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.hint svg {
+  vertical-align: -1px;
+  margin-right: 3px;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.pendingNote {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.stepsTitle {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.stepsTitle:not(:first-child) {
+  margin-top: 18px;
+}
+
+.stepList,
+.benefits {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+
+.stepList a,
+.stepsNote a {
+  color: var(--accent);
+}
+
+.stepsNote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+/* ─── Connected accounts ─── */
+.connList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.connStrip {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-2);
+  padding: 13px 15px;
+}
+
+.connStrip[data-status='error'] {
+  border-color: var(--neg);
+}
+
+.connInfo {
+  flex: 1;
+  min-width: 200px;
+}
+
+.connName {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.connAccount {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.connMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.connError {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--neg);
+}
+
+.chipOk,
+.chipBad,
+.chipMuted {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chipOk {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.chipBad {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.chipMuted {
+  background: var(--bg-3, var(--bg-1));
+  color: var(--text-3);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.controlRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.confirm {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  padding: 11px 13px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-width: 420px;
+}
+
+.confirm p {
+  margin: 0 0 10px;
+}
+
+/* ─── Devices table ─── */
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.panelMeta {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 -4px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 640px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--line-1);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line-1);
+  color: var(--text-1);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.devName {
+  font-weight: 500;
+}
+
+.devSub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.select {
+  width: 100%;
+  min-width: 170px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.linkSource {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+.muted {
+  color: var(--text-3);
+}
+
+.footNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-4);
+  max-width: 96ch;
+}
+
+/* ─── "No trackers yet?" advice ─── */
+.adviceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.advice {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-1);
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.advice strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+/* ─── Rovora GPS (own server) ─── */
+.rovoraPanel {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--bg-2);
+  padding: 18px 20px 20px;
+  margin-bottom: 22px;
+}
+
+.rovoraHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.setupBox {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  padding: 14px 16px;
+}
+
+.setupBox .stepList li {
+  margin-bottom: 8px;
+}
+
+.inlineSelect,
+.inlineInput {
+  margin-left: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.inlineInput {
+  width: 170px;
+}
+
+.smsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.sms {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px dashed var(--line-2);
+  color: var(--text-1);
+  font-family: ui-monospace, 'Geist Mono', Menlo, monospace;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.toggleRow input {
+  margin-top: 3px;
+}
+
+.toggleRow strong {
+  font-weight: 500;
+}
+
+.toggleHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+  max-width: 82ch;
+}
+
+@media (max-width: 900px) {
+  .connectWrap,
+  .adviceGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .controls {
+    align-items: flex-start;
+  }
+}

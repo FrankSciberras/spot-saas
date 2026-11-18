@@ -21,6 +21,7 @@ import {
   isExtraVehicleItem,
   syncExtraVehicleBilling,
 } from './vehicle-billing';
+import { countHostedTrackers, ensureGpsTrackerPrice, isGpsTrackerItem } from './gps-billing';
 
 interface CheckoutOk {
   url: string;
@@ -283,6 +284,18 @@ async function startCheckout(
     }
     if (extraPrice) lineItems.push({ price: extraPrice, quantity: extra });
   }
+  // Trackers on Rovora's own GPS server are a third line, per tracker.
+  const trackers = await countHostedTrackers(orgId);
+  if (trackers > 0) {
+    const gpsPrice = await ensureGpsTrackerPrice(stripe).catch((e) => {
+      console.error('GPS tracker price sync failed:', e);
+      return undefined;
+    });
+    if (gpsPrice === undefined) {
+      return { error: CHECKOUT_FAILED };
+    }
+    if (gpsPrice) lineItems.push({ price: gpsPrice, quantity: trackers });
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -330,7 +343,7 @@ async function changeExistingSubscription(
 
   const sub = await stripe.subscriptions.retrieve(subId).catch(() => null);
   if (!sub || !['active', 'trialing', 'past_due'].includes(sub.status)) return null;
-  const baseItem = sub.items.data.find((it) => !isExtraVehicleItem(it));
+  const baseItem = sub.items.data.find((it) => !isExtraVehicleItem(it) && !isGpsTrackerItem(it));
   if (!baseItem) return null;
 
   try {

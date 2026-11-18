@@ -38,7 +38,7 @@ const INTEGRATIONS: {
   live?: boolean;
 }[] = [
   { name: 'Accountant CSV export', mark: 'CSV', bg: '#64748b', fg: '#ffffff', desc: 'QuickBooks & Xero-ready CSV of your books, one click.', live: true },
-  { name: 'Wialon', mark: 'W', bg: '#f26722', fg: '#ffffff', desc: 'Import GPS positions & trips from your trackers.' },
+  { name: 'Wialon', mark: 'W', bg: '#f26722', fg: '#ffffff', desc: 'See every car from your GPS trackers on the live map.', live: true },
   { name: 'Uber', mark: 'U', bg: '#000000', fg: '#ffffff', desc: 'Auto-import trips & weekly earnings.' },
   { name: 'WhatsApp', mark: 'WA', bg: '#25d366', fg: '#06341c', desc: 'Send shift reminders straight to drivers.' },
 ];
@@ -67,7 +67,7 @@ export const LANDING_FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Do I need to buy GPS trackers for my cars?',
-    a: "No. Rovora's live map works through the free driver app on the phone your driver already carries — no hardware to buy, install or maintain, and no SIM contracts. Drivers share their location with one tap when a shift starts, you see the whole fleet live, and tracking stops when they stop. For a 10-car fleet that's typically €1,000+ saved up front versus dedicated trackers.",
+    a: "No. Rovora's live map works through the free driver app on the phone your driver already carries — no hardware to buy, install or maintain, and no SIM contracts. Drivers share their location with one tap when a shift starts, you see the whole fleet live, and tracking stops when they stop. For a 10-car fleet that's typically €1,000+ saved up front versus dedicated trackers. Already have trackers? Connect Wialon, Traccar, flespi, Navixy, Samsara, Geotab or Mapon and tick Drivers, Cars or both on the same map.",
   },
   {
     q: 'Can I move over my current vehicles and drivers?',
