@@ -95,6 +95,12 @@ export const PATCH = withApiAuth<RouteCtx>(
         'This line was posted automatically from a recurring cost and cannot be edited through the API. Change the recurring cost in Rovora instead.',
       );
     }
+    if (existing.source === 'invoice') {
+      return apiError(
+        'conflict',
+        'This line was posted by a payment on an invoice and cannot be edited through the API. Change the payment on the invoice in Rovora instead.',
+      );
+    }
 
     await verifyTransactionLinks(admin, ctx.organizationId, payload, errs);
     if (errs.any) return errs.response();
@@ -148,6 +154,12 @@ export const DELETE = withApiAuth<RouteCtx>(
       return apiError(
         'conflict',
         'This line was posted automatically from a recurring cost. Stop or edit the recurring cost in Rovora instead.',
+      );
+    }
+    if (existing.source === 'invoice') {
+      return apiError(
+        'conflict',
+        'This line was posted by a payment on an invoice. Remove the payment on the invoice in Rovora instead.',
       );
     }
 

@@ -24,6 +24,13 @@ export interface Integration {
   /** Public page that explains it (shown as "Learn more" on /integrations). */
   more?: string;
   /**
+   * Listed only while this capability is configured on the deployment. The Xero
+   * connection needs Rovora's own Xero app credentials (XERO_CLIENT_ID /
+   * XERO_CLIENT_SECRET); without them nobody can connect, so the tile is not
+   * shown and the page never promises something that cannot be used.
+   */
+  requires?: 'xero';
+  /**
    * A real logomark to draw in the tile instead of the text `mark` — only for
    * integrations that are actually live. Rendered by components/shared
    * (currently just 'bolt' → BoltMark), in the tile's `fg` colour.
@@ -170,6 +177,17 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
       'Hand your accountant the fleet’s income and expenses in the layout their software imports.',
     items: [
       {
+        name: 'Xero',
+        mark: 'x',
+        bg: '#13b5ea',
+        fg: '#ffffff',
+        desc: 'Connect your Xero organisation: invoices, credit notes and payments are created there within seconds of being issued here, and bookkeeping lines too if you choose. One-way, with a log of everything sent.',
+        status: 'live',
+        href: '/fleet/xero',
+        more: '/features/bookkeeping',
+        requires: 'xero',
+      },
+      {
         name: 'Xero CSV export',
         mark: 'X',
         bg: '#13b5ea',
@@ -243,6 +261,19 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
     ],
   },
 ];
+
+export interface IntegrationCapabilities {
+  /** Rovora's Xero app credentials are set (lib/xero/client.ts → isXeroConfigured). */
+  xero: boolean;
+}
+
+/** The categories to show, without tiles whose capability isn't configured. */
+export function integrationCategories(caps: IntegrationCapabilities): IntegrationCategory[] {
+  return INTEGRATION_CATEGORIES.map((category) => ({
+    ...category,
+    items: category.items.filter((item) => !item.requires || caps[item.requires]),
+  })).filter((category) => category.items.length > 0);
+}
 
 /** Flat count of everything in the marketplace (used for hero copy). */
 export const INTEGRATION_COUNT = INTEGRATION_CATEGORIES.reduce(

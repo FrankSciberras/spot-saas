@@ -3,8 +3,9 @@ import { getEnabledModuleKeys } from '@/lib/modules/server';
 import { CORE_FEATURES } from '@/lib/modules/catalog';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { isXeroConfigured } from '@/lib/xero/client';
 import {
-  INTEGRATION_CATEGORIES,
+  integrationCategories,
   REQUEST_INTEGRATION_MAILTO,
   notifyMailto,
   markFontSize,
@@ -89,7 +90,7 @@ export default async function FleetIntegrationsPage() {
             </div>
           </div>
 
-          {INTEGRATION_CATEGORIES.map((cat) => (
+          {integrationCategories({ xero: isXeroConfigured() }).map((cat) => (
             <section className={styles.category} key={cat.key}>
               <div className={styles.categoryHead}>
                 <h3 className={styles.categoryTitle}>{cat.title}</h3>

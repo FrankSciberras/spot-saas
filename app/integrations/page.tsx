@@ -4,9 +4,9 @@ import { FeatureHero, CtaBand } from '@/components/marketing/feature/Sections';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 import BoltMark from '@/components/shared/BoltMark';
+import { isXeroConfigured } from '@/lib/xero/client';
 import {
-  INTEGRATION_CATEGORIES,
-  INTEGRATION_COUNT,
+  integrationCategories,
   REQUEST_INTEGRATION_MAILTO,
   markFontSize,
 } from '@/lib/integrations/catalog';
@@ -27,8 +27,6 @@ export const metadata = marketingMetadata({
   ],
 });
 
-/** Every live connection, for the hero "logo cloud". */
-const HERO_MARKS = INTEGRATION_CATEGORIES.flatMap((c) => c.items);
 
 // The free-trial length is admin-set (/admin → Trials), so re-render hourly
 // to pick up a campaign starting or ending.
@@ -36,17 +34,21 @@ export const revalidate = 3600;
 
 export default async function IntegrationsPage() {
   const trial = await getTrialCopy();
+  // Tiles that need a capability this deployment doesn't have are left out.
+  const categories = integrationCategories({ xero: isXeroConfigured() });
+  const heroMarks = categories.flatMap((c) => c.items);
+  const count = heroMarks.length;
   return (
     <FeatureShell>
       <FeatureHero
-        eyebrow={`Integrations · ${INTEGRATION_COUNT} live`}
+        eyebrow={`Integrations · ${count} live`}
         title="What Rovora connects to,"
         accent="today."
         sub="The GPS trackers already in your cars, your Bolt fleet account, your accountant’s software, your own tools through the API. Everything on this page works now. Nothing here is a promise."
         micro={[trial.freeLabel, 'No card required', 'Everything listed is live']}
         visual={
           <div className="integ-cloud" aria-hidden>
-            {HERO_MARKS.map((it) => (
+            {heroMarks.map((it) => (
               <span
                 key={it.name}
                 className="integ-cloud-tile"
@@ -62,7 +64,7 @@ export default async function IntegrationsPage() {
       <section className="sec-pad" id="marketplace">
         <div className="container">
           <div className="sec-head center reveal" style={{ marginBottom: 48 }}>
-            <span className="kicker">Live today · {INTEGRATION_COUNT} connections</span>
+            <span className="kicker">Live today · {count} connections</span>
             <h2 className="sec-title">Every connection, and what it actually does</h2>
             <p className="sec-desc">
               Each one says plainly whether it is a live connection or a file you export. What
@@ -70,7 +72,7 @@ export default async function IntegrationsPage() {
             </p>
           </div>
 
-          {INTEGRATION_CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <div className="integ-cat reveal" key={cat.key}>
               <div className="integ-cat-head">
                 <h3 className="integ-cat-title">{cat.title}</h3>

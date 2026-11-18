@@ -838,7 +838,8 @@ export interface VehicleRecurringCost {
 // open or close. Direction comes from the category's kind.
 
 export type PaymentMethod = 'cash' | 'card' | 'bank' | 'other';
-export type TransactionSource = 'manual' | 'recurring' | 'period_import';
+/** 'invoice' = posted by a payment or refund recorded on an invoice / credit note (read-only in the ledger). */
+export type TransactionSource = 'manual' | 'recurring' | 'period_import' | 'invoice';
 
 export interface FinanceTransaction {
   id: string;

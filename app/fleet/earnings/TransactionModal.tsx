@@ -77,6 +77,8 @@ export default function TransactionModal({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isEdit = !!transaction;
+  /** Posted by an invoice payment: shown, but changed only through the invoice. */
+  const fromInvoice = transaction?.source === 'invoice';
 
   const categoryById = useMemo(() => {
     const m = new Map<string, FinanceCategory>();
@@ -444,7 +446,9 @@ export default function TransactionModal({
               <FleetIcon name="info" size={12} />
               {transaction?.source === 'recurring'
                 ? 'Posted automatically from a recurring vehicle cost. You can still change it.'
-                : 'Imported from your old period-based books (dated on the day that period ended).'}
+                : fromInvoice
+                  ? 'Posted by a payment on an invoice. To change or remove it, change the payment on the invoice and this line follows.'
+                  : 'Imported from your old period-based books (dated on the day that period ended).'}
             </div>
           )}
         </div>
@@ -452,7 +456,7 @@ export default function TransactionModal({
         {/* Footer */}
         <div style={st.modalFoot}>
           <div>
-            {isEdit && !confirmDelete && (
+            {isEdit && !confirmDelete && !fromInvoice && (
               <button style={{ ...st.miniBtn, color: 'var(--neg)', border: '1px solid rgba(240,100,100,0.25)' }} onClick={() => setConfirmDelete(true)} disabled={pending}>Delete</button>
             )}
             {isEdit && confirmDelete && (
@@ -470,9 +474,11 @@ export default function TransactionModal({
                 Save &amp; add another
               </button>
             )}
-            <button style={{ ...st.primaryBtn, opacity: canSave ? 1 : 0.5 }} className="fleetHover" onClick={() => save(false)} disabled={!canSave}>
-              {pending ? 'Saving…' : isEdit ? 'Save changes' : isExpense ? 'Save expense' : 'Save income'}
-            </button>
+            {!fromInvoice && (
+              <button style={{ ...st.primaryBtn, opacity: canSave ? 1 : 0.5 }} className="fleetHover" onClick={() => save(false)} disabled={!canSave}>
+                {pending ? 'Saving…' : isEdit ? 'Save changes' : isExpense ? 'Save expense' : 'Save income'}
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -66,6 +66,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'financials', name: 'Financials', href: '/fleet/financials', icon: 'chart', roles: ['admin'] },
       { id: 'settlements', name: 'Settlements', href: '/fleet/settlements', icon: 'settle', roles: ['admin'] },
       { id: 'adjustments', name: 'Adjustments', href: '/fleet/adjustments', icon: 'adjust', roles: ['admin'] },
+      { id: 'invoices', name: 'Invoices', href: '/fleet/invoices', icon: 'doc', roles: ['admin'] },
+      // Shown once the fleet has connected Xero (the 'xero' module).
+      { id: 'xero', name: 'Xero', href: '/fleet/xero', icon: 'plug', roles: ['admin'] },
       // Rides and earnings from the fleet's Bolt account (the 'bolt' module).
       { id: 'bolt', name: 'Bolt', href: '/fleet/bolt', icon: 'bolt', roles: ['admin'] },
     ],

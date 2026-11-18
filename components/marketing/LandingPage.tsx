@@ -26,13 +26,18 @@ import FeaturesAccordion from './FeaturesAccordion';
 import { SIGN_IN, START_TRIAL, AUDIENCES, featureHref, audienceHref } from './links';
 import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import { Icon, type IconName } from './feature/icons';
-import { INTEGRATION_CATEGORIES, markFontSize } from '@/lib/integrations/catalog';
+import { integrationCategories, markFontSize } from '@/lib/integrations/catalog';
+import { isXeroConfigured } from '@/lib/xero/client';
 import BoltMark from '@/components/shared/BoltMark';
 
-/** The headline live connections — full list at /integrations. */
-const INTEGRATIONS = INTEGRATION_CATEGORIES.flatMap((c) => c.items).filter((it) =>
-  ['Bolt', 'Traccar', 'Xero CSV export', 'Rovora API'].includes(it.name),
-);
+/** The headline live connections — full list at /integrations. Xero itself only once it can actually be connected. */
+function headlineIntegrations() {
+  const xero = isXeroConfigured();
+  const wanted = ['Bolt', 'Traccar', xero ? 'Xero' : 'Xero CSV export', 'Rovora API'];
+  return integrationCategories({ xero })
+    .flatMap((c) => c.items)
+    .filter((it) => wanted.includes(it.name));
+}
 
 /** Quick "everything Rovora does" overview grid on the homepage. */
 const WAYS: { icon: IconName; label: string; href: string }[] = [
@@ -366,7 +371,7 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
             </div>
 
             <div className="integ-grid reveal-stagger">
-              {INTEGRATIONS.map((it) => (
+              {headlineIntegrations().map((it) => (
                 <div className="integ" key={it.name}>
                   <span className="integ-live">Live</span>
                   <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}</div>

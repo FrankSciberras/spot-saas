@@ -208,12 +208,28 @@ export const FLEET_MODULES: FleetModule[] = [
     name: 'Invoices',
     tagline: 'Bill customers & partners',
     description:
-      'Create, send and track invoices for corporate accounts and partners. Coming soon.',
+      'Invoice hotels, companies and partners: numbered invoices with VAT, PDF and email, payments recorded against them, and credit notes to correct mistakes. Payments post to Bookkeeping on their own.',
     icon: 'doc',
     category: 'Financial',
-    status: 'coming-soon',
+    status: 'available',
+    defaultEnabled: true,
+    navIds: ['invoices'],
+    routePrefixes: ['/fleet/invoices'],
+  },
+  {
+    // Same pattern as Bolt: off until a fleet connects Xero at /fleet/xero
+    // (which switches it on → "Xero" in the sidebar). The page itself is NOT
+    // module-guarded, so it stays reachable to connect in the first place.
+    key: 'xero',
+    name: 'Xero',
+    tagline: 'Send invoices to your accountant',
+    description:
+      'Connect your Xero organisation and every invoice, credit note and payment is created there as it happens — and, if you choose, your bookkeeping lines too.',
+    icon: 'plug',
+    category: 'Integrations',
+    status: 'available',
     defaultEnabled: false,
-    navIds: [],
+    navIds: ['xero'],
     routePrefixes: [],
   },
 ];

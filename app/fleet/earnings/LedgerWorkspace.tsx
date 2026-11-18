@@ -425,6 +425,7 @@ export default function LedgerWorkspace({
                             <span style={{ fontSize: 13.5, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description || c?.name || 'Transaction'}</span>
                             {t.source === 'recurring' && <span style={st.badge} title="Posted automatically from a recurring cost">Auto</span>}
                             {t.source === 'period_import' && <span style={st.badge} title="Imported from the old period-based books">Imported</span>}
+                            {t.source === 'invoice' && <span style={st.badge} title="Posted by a payment recorded on an invoice">Invoice</span>}
                             {t.receipt_path && <FleetIcon name="doc" size={12} style={{ color: 'var(--text-3)', flexShrink: 0 }} />}
                           </span>
                           <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.join(' · ')}</span>

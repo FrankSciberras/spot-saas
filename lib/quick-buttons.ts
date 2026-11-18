@@ -38,6 +38,7 @@ export const QUICK_ACTIONS: readonly QuickAction[] = [
   { id: 'new-roster', label: 'Roster', title: 'New roster', hint: 'Plan a new weekly schedule', icon: 'roster', href: '/fleet/rosters/new', kind: 'add', module: 'rostering' },
   { id: 'new-driver', label: 'Driver', title: 'Add a driver', hint: 'A driver and their documents', icon: 'driver', href: '/fleet/drivers/new', kind: 'add' },
   { id: 'new-vehicle', label: 'Vehicle', title: 'Add a vehicle', hint: 'Register a car to the fleet', icon: 'vehicle', href: '/fleet/vehicles/new', kind: 'add' },
+  { id: 'new-invoice', label: 'Invoice', title: 'New invoice', hint: 'Bill a customer or a partner', icon: 'doc', href: '/fleet/invoices/new', kind: 'add', adminOnly: true, module: 'invoices' },
   { id: 'new-service', label: 'Service', title: 'Log a service', hint: 'A service or repair, with its cost', icon: 'wrench', href: '/fleet/services/new', kind: 'add', module: 'maintenance' },
   // ── Jump to a page ──
   { id: 'settlements', label: 'Balances', title: 'Driver balances', hint: 'This week’s settlements and what each driver is owed', icon: 'settle', href: '/fleet/settlements', kind: 'open', adminOnly: true, module: 'settlements' },
@@ -45,6 +46,7 @@ export const QUICK_ACTIONS: readonly QuickAction[] = [
   { id: 'shifts', label: 'Shifts', title: 'Shifts', hint: 'Today’s shifts, hours and kilometres', icon: 'shift', href: '/fleet/shifts', kind: 'open' },
   { id: 'rosters', label: 'Rosters', title: 'Rosters', hint: 'This week’s schedule', icon: 'calendar', href: '/fleet/rosters', kind: 'open', module: 'rostering' },
   { id: 'bookkeeping', label: 'Books', title: 'Bookkeeping', hint: 'The ledger of income and expenses', icon: 'book', href: '/fleet/earnings', kind: 'open', adminOnly: true, module: 'bookkeeping' },
+  { id: 'invoices', label: 'Invoices', title: 'Invoices', hint: 'What customers owe you, and what is overdue', icon: 'doc', href: '/fleet/invoices', kind: 'open', adminOnly: true, module: 'invoices' },
   { id: 'adjustments', label: 'Adjustments', title: 'Adjustments', hint: 'Bonuses, deductions and reimbursements', icon: 'adjust', href: '/fleet/adjustments', kind: 'open', adminOnly: true, module: 'settlements' },
   { id: 'damages', label: 'Damages', title: 'Damages', hint: 'Open damage reports across the fleet', icon: 'damage', href: '/fleet/damages', kind: 'open', module: 'maintenance' },
   { id: 'reminders', label: 'Reminders', title: 'Reminders', hint: 'Renewals and to-dos coming up', icon: 'bell', href: '/fleet/reminders', kind: 'open', module: 'reminders' },

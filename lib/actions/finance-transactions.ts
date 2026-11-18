@@ -116,6 +116,9 @@ async function assertOwnership(
   return null;
 }
 
+const INVOICE_LINE_MESSAGE =
+  'This line was posted by a payment on an invoice. Change or remove the payment on the invoice instead, and this line follows.';
+
 /** Record a transaction. */
 export async function createTransactionAction(input: FinanceTransactionInput): Promise<Result> {
   const user = await requireRole(['admin']);
@@ -148,7 +151,7 @@ export async function createTransactionAction(input: FinanceTransactionInput): P
   return { ok: true, id: data.id };
 }
 
-/** Edit a transaction. Generated lines (recurring / imported) can be edited too — they are just rows. */
+/** Edit a transaction. Generated lines (recurring / imported) can be edited too — they are just rows. Lines posted by invoice payments cannot. */
 export async function updateTransactionAction(id: string, input: FinanceTransactionInput): Promise<Result> {
   const user = await requireRole(['admin']);
   if (!id) return { error: 'Missing transaction.' };
@@ -165,6 +168,16 @@ export async function updateTransactionAction(id: string, input: FinanceTransact
     values.driver_id as string | null,
   );
   if (ownErr) return { error: ownErr };
+
+  // A line posted by an invoice payment mirrors that payment: editing it here
+  // would make the books disagree with the invoice.
+  const { data: current } = await admin
+    .from('finance_transactions')
+    .select('source')
+    .eq('id', id)
+    .eq('organization_id', user.organization_id)
+    .maybeSingle();
+  if (current?.source === 'invoice') return { error: INVOICE_LINE_MESSAGE };
 
   const { error } = await admin
     .from('finance_transactions')
@@ -190,11 +203,12 @@ export async function deleteTransactionAction(id: string): Promise<Result> {
 
   const { data: existing } = await admin
     .from('finance_transactions')
-    .select('id, receipt_path')
+    .select('id, receipt_path, source')
     .eq('id', id)
     .eq('organization_id', user.organization_id)
     .maybeSingle();
   if (!existing) return { error: 'Transaction not found.' };
+  if (existing.source === 'invoice') return { error: INVOICE_LINE_MESSAGE };
 
   const { error } = await admin
     .from('finance_transactions')
