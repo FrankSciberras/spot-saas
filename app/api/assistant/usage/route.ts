@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
+import { isPlatformAdmin } from '@/lib/auth/platform';
 import { getEnabledModuleKeys } from '@/lib/modules/server';
 import { assistantRoleFor } from '@/lib/assistant/context';
 import { assistantSwitchedOn, deniedMessage, getAssistantEntitlement, getUsageSummary } from '@/lib/assistant/limits';
@@ -19,7 +20,8 @@ export async function GET() {
   if (!role) return NextResponse.json({ available: false, reason: 'forbidden' }, { status: 200 });
 
   const modules = await getEnabledModuleKeys(session.organization_id);
-  if (!assistantSwitchedOn(session.organization_id, modules)) {
+  // Platform admins can always try it in their own fleets (see /api/assistant).
+  if (!assistantSwitchedOn(session.organization_id, modules) && !(await isPlatformAdmin())) {
     return NextResponse.json({ available: false, reason: 'not_enabled' }, { headers: { 'cache-control': 'private, no-store' } });
   }
 
