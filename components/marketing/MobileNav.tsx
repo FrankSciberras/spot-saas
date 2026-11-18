@@ -98,6 +98,7 @@ export default function MobileNav({ onHome = false }: { onHome?: boolean }) {
             <a className="mnav-link" href={h('faq')} onClick={close}>FAQ</a>
             <Link className="mnav-link" href="/blog" onClick={close}>Blog</Link>
             <Link className="mnav-link" href="/changelog" onClick={close}>What&rsquo;s new</Link>
+            <Link className="mnav-link" href="/roadmap" onClick={close}>Roadmap</Link>
             <Link className="mnav-link" href="/contact" onClick={close}>Contact us</Link>
 
             <div className="mnav-cta">

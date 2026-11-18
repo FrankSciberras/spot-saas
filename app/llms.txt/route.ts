@@ -63,6 +63,7 @@ ${BLOG_POSTS.map((p) => `- [${p.heading}](${SITE_URL}${blogHref(p.slug)}): ${p.d
 - [Security](${SITE_URL}/security)
 - [Privacy policy](${SITE_URL}/privacy)
 - [What's new](${SITE_URL}/changelog)
+- [Roadmap: shipped, in progress and next](${SITE_URL}/roadmap)
 `;
 
   return new Response(body, {

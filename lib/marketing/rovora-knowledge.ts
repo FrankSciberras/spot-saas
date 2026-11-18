@@ -75,6 +75,7 @@ function renderPageContext(page?: string): string {
     '/ai': 'the Rovora AI (coming soon) page',
     '/integrations': 'the integrations page',
     '/changelog': 'the changelog page',
+    '/roadmap': 'the product roadmap page',
   };
   const where = map[page] || (page.startsWith('/features/') ? `the "${page.slice(10)}" feature page` : `the ${page} page`);
   return `\n# WHERE THE VISITOR IS\nThey are reading ${where} right now. Use that as a hint about what they care about — but never say "I can see you're on…", it's unsettling. Just make your first answer relevant to it.\n`;

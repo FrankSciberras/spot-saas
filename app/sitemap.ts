@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/seo';
 import { BLOG_POSTS, blogHref } from '@/components/marketing/blog/posts';
 import { RELEASES } from '@/components/marketing/changelog/releases';
+import { ROADMAP_UPDATED } from '@/components/marketing/roadmap/roadmap';
 
 /**
  * Generated sitemap — replaces the old hand-written public/sitemap.xml plus the
@@ -31,6 +32,7 @@ const ROUTES: Array<{ path: string; priority: number; changeFrequency: MetadataR
   { path: '/about', priority: 0.6, changeFrequency: 'yearly' },
   { path: '/contact', priority: 0.6, changeFrequency: 'yearly' },
   { path: '/changelog', priority: 0.6, changeFrequency: 'weekly' },
+  { path: '/roadmap', priority: 0.6, changeFrequency: 'weekly' },
   { path: '/security', priority: 0.5, changeFrequency: 'yearly' },
   { path: '/careers', priority: 0.4, changeFrequency: 'monthly' },
   { path: '/privacy', priority: 0.3, changeFrequency: 'yearly' },
@@ -45,6 +47,8 @@ const ROUTES: Array<{ path: string; priority: number; changeFrequency: MetadataR
  */
 const KNOWN_LASTMOD: Record<string, string | undefined> = {
   '/changelog': RELEASES[0]?.date,
+  // The roadmap's shipped list is built from RELEASES, so it changes with either.
+  '/roadmap': [ROADMAP_UPDATED, RELEASES[0]?.date ?? ''].sort().at(-1),
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {
