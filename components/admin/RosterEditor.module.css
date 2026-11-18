@@ -35,7 +35,12 @@
 
 .headerRight {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
+}
+
+.headerRight button {
+  white-space: nowrap;
 }
 
 .saveBtn {
@@ -212,7 +217,13 @@
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
-  overflow: hidden;
+  /* Scrolls sideways: below ~1000px the week grid keeps a minimum width, and
+     with `overflow: hidden` here the weekend columns were cut off for good. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .grid {

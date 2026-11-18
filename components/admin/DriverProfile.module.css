@@ -411,6 +411,9 @@ textarea.fieldInput { resize: vertical; font-family: inherit; min-height: 72px; 
 
 .vehicleSelect {
   flex: 1;
+  /* A <select> is as wide as its longest option unless told otherwise — that
+     pushed the Add button out of the card on a narrow phone. */
+  min-width: 0;
   padding: 8px 10px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);

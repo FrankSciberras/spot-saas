@@ -133,7 +133,8 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
       </div>
 
       {/* Desktop table */}
-      <div style={st.tableWrap} className="hide-mobile">
+      {/* Desktop table — eight columns need ~1000px, so tablets get the cards too. */}
+      <div style={st.tableWrap} className="hide-mobile hide-tablet">
         <div style={st.thead}>
           <div style={st.col} onClick={() => setSortBy('name')}>Driver {sortBy === 'name' && <span style={{ color: 'var(--text-3)' }}>↓</span>}</div>
           <div style={st.col} onClick={() => setSortBy('status')}>Status</div>
@@ -213,7 +214,7 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
       </div>
 
       {/* Mobile cards */}
-      <div className="show-mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="show-mobile-only show-tablet fleetCardGrid" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {list.map((d) => (
           <div key={d.id} style={st.mobileCard} onClick={() => go(d.id)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

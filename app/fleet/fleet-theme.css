@@ -595,6 +595,16 @@
   .fleetCanvas .split-detail { grid-template-columns: minmax(0, 1fr) !important; }
   .fleetCanvas .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .fleetCanvas .grid-3 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  /* Filter bars (tabs + search + view switch) don't fit on one line here:
+     let them wrap instead of pushing the page sideways. */
+  .fleetCanvas .header-mobile-row { flex-wrap: wrap !important; row-gap: 10px !important; }
+  .fleetCanvas .header-mobile-row > * { min-width: 0; max-width: 100%; }
+
+  /* Wide desktop tables swap to their card list on a tablet as well. */
+  .fleetCanvas .hide-tablet { display: none !important; }
+  .fleetCanvas .show-tablet { display: flex !important; }
+  .fleetCanvas .fleetCardGrid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px !important; }
 }
 @media (min-width: 721px) and (max-width: 899px) {
   .fleetCanvas .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
@@ -694,6 +704,8 @@
 }
 @media (max-width: 400px) {
   .fleetCanvas .fleetLedgerActions > button:nth-child(-n + 3) svg { display: none; }
+  /* Narrowest phones: figures and buttons line up under the icon, and wrap. */
+  .fleetCanvas .fleetRowStackEnd { padding-left: 0; flex-wrap: wrap; }
 }
 @media (max-width: 480px) {
   .fleetCanvas .grid-4 { grid-template-columns: 1fr !important; }

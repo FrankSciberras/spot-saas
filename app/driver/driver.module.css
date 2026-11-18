@@ -169,9 +169,14 @@
   color: var(--text-muted);
 }
 
+/* The title block gives way so the "View details →" link stays on screen. */
+.cardHeader > :first-child {
+  min-width: 0;
+}
+
 .cardValue {
   margin-top: 6px;
-  font-size: 2.2rem;
+  font-size: clamp(1.6rem, 9vw, 2.2rem);
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.02em;
