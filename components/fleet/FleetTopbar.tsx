@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/types/database';
+import AskAiButton from '@/components/assistant/AskAiButton';
 import FleetIcon from './FleetIcon';
 import { useEnabledModules } from './FleetModulesProvider';
 import FleetAccountMenu from './FleetAccountMenu';
@@ -128,6 +129,7 @@ export default function FleetTopbar({ title, onMenuClick, isAdmin = false, varia
         {variant === 'fleet' && <FleetSettingsGear isAdmin={isAdmin} />}
         <MessagesButton variant={variant} />
         <FleetNotifications variant={variant} isMobile={isMobile} />
+        {variant === 'fleet' && <AskAiButton />}
 
         {variant === 'fleet' && (
         <>

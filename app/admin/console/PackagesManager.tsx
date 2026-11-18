@@ -76,6 +76,12 @@ interface Draft {
   apiRateLimitPerMin: string;
   apiRateLimitPerDay: string;
   apiMaxKeys: string;
+  /** False until the Rovora AI migration is applied — the AI fields stay hidden and unsaved. */
+  aiAvailable: boolean;
+  aiEnabled: boolean;
+  aiMonthlyBudgetEur: string;
+  aiRateLimitPerMin: string;
+  aiRateLimitPerDay: string;
 }
 
 const EMPTY_DRAFT: Draft = {
@@ -83,6 +89,8 @@ const EMPTY_DRAFT: Draft = {
   maxDrivers: '', maxVehicles: '', includedVehicles: '', perVehiclePrice: '', features: '', color: '', ctaLabel: '', ctaHref: '', isCustom: false, isPopular: false,
   stripePriceId: '', stripeProductId: '',
   apiEnabled: false, apiRateLimitPerMin: '', apiRateLimitPerDay: '', apiMaxKeys: '0',
+  // New packages get the DB defaults for Rovora AI; edit them after creating.
+  aiAvailable: false, aiEnabled: true, aiMonthlyBudgetEur: '1', aiRateLimitPerMin: '6', aiRateLimitPerDay: '60',
 };
 
 function rowToDraft(r: PlanRow): Draft {
@@ -110,6 +118,11 @@ function rowToDraft(r: PlanRow): Draft {
     apiRateLimitPerMin: r.api_rate_limit_per_min === null || r.api_rate_limit_per_min === undefined ? '' : String(r.api_rate_limit_per_min),
     apiRateLimitPerDay: r.api_rate_limit_per_day === null || r.api_rate_limit_per_day === undefined ? '' : String(r.api_rate_limit_per_day),
     apiMaxKeys: String(r.api_max_keys ?? 0),
+    aiAvailable: r.ai_monthly_budget_eur !== undefined && r.ai_monthly_budget_eur !== null,
+    aiEnabled: r.ai_enabled ?? true,
+    aiMonthlyBudgetEur: String(r.ai_monthly_budget_eur ?? '1'),
+    aiRateLimitPerMin: String(r.ai_rate_limit_per_min ?? 6),
+    aiRateLimitPerDay: String(r.ai_rate_limit_per_day ?? 60),
   };
 }
 
@@ -138,6 +151,14 @@ function draftToInput(d: Draft): PlanInput {
     apiRateLimitPerMin: intOrNull(d.apiRateLimitPerMin),
     apiRateLimitPerDay: intOrNull(d.apiRateLimitPerDay),
     apiMaxKeys: Number(d.apiMaxKeys) || 0,
+    ...(d.aiAvailable
+      ? {
+          aiEnabled: d.aiEnabled,
+          aiMonthlyBudgetEur: Number(d.aiMonthlyBudgetEur) || 0,
+          aiRateLimitPerMin: Number(d.aiRateLimitPerMin) || 1,
+          aiRateLimitPerDay: Number(d.aiRateLimitPerDay) || 1,
+        }
+      : {}),
   };
 }
 
@@ -247,6 +268,29 @@ const DraftFields = ({ d, set, disabled }: { d: Draft; set: (patch: Partial<Draf
         <input style={inp} type="number" value={d.apiMaxKeys} placeholder="0" disabled={disabled || !d.apiEnabled} onChange={(e) => set({ apiMaxKeys: e.target.value })} />
       </div>
     </div>
+    {/* Rovora AI allowance — what /api/assistant enforces (lib/assistant/limits.ts). */}
+    {d.aiAvailable && (
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={field(1, 180)}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--text-2)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={d.aiEnabled} disabled={disabled} onChange={(e) => set({ aiEnabled: e.target.checked })} />
+            Includes Rovora AI
+          </label>
+        </div>
+        <div style={field(1, 140)}>
+          <label style={lbl}>AI allowance € / fleet / month</label>
+          <input style={inp} type="number" min={0} step={0.5} value={d.aiMonthlyBudgetEur} placeholder="1" disabled={disabled || !d.aiEnabled} onChange={(e) => set({ aiMonthlyBudgetEur: e.target.value })} />
+        </div>
+        <div style={field(1, 120)}>
+          <label style={lbl}>AI questions / min / person</label>
+          <input style={inp} type="number" min={1} value={d.aiRateLimitPerMin} placeholder="6" disabled={disabled || !d.aiEnabled} onChange={(e) => set({ aiRateLimitPerMin: e.target.value })} />
+        </div>
+        <div style={field(1, 120)}>
+          <label style={lbl}>AI questions / day / person</label>
+          <input style={inp} type="number" min={1} value={d.aiRateLimitPerDay} placeholder="60" disabled={disabled || !d.aiEnabled} onChange={(e) => set({ aiRateLimitPerDay: e.target.value })} />
+        </div>
+      </div>
+    )}
     <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--text-2)', cursor: 'pointer' }}>
         <input type="checkbox" checked={d.isPopular} disabled={disabled} onChange={(e) => set({ isPopular: e.target.checked })} />
