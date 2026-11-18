@@ -53,6 +53,15 @@ export const ROADMAP: RoadmapItem[] = [
     note: 'Rolling out',
   },
 
+  {
+    id: 'xero',
+    status: 'in-progress',
+    area: 'Integrations',
+    title: 'Xero connection',
+    text: 'Connect your Xero organisation and every invoice, credit note and payment you record in Rovora is created there within seconds, with the same number, customer and VAT. Bookkeeping lines too, if you choose. One-way, with a log of everything sent.',
+    note: 'Rolling out',
+  },
+
   // ── Next ─────────────────────────────────────────────────────────────────
   {
     id: 'driver-push',
@@ -108,11 +117,11 @@ export const ROADMAP: RoadmapItem[] = [
     text: 'Trip data pulled in across your whole fleet.',
   },
   {
-    id: 'accounting-sync',
+    id: 'quickbooks-sync',
     status: 'later',
     area: 'Integrations',
-    title: 'Direct Xero & QuickBooks sync',
-    text: 'Settlements and expenses pushed straight into your accounting software, instead of downloading a CSV.',
+    title: 'Direct QuickBooks sync',
+    text: 'The same connection for QuickBooks Online, instead of downloading a CSV.',
   },
   {
     id: 'stripe-payouts',
@@ -127,13 +136,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'WhatsApp reminders',
     text: 'Shift reminders and alerts sent to drivers on WhatsApp.',
-  },
-  {
-    id: 'invoices',
-    status: 'later',
-    area: 'Invoices',
-    title: 'Invoices for customers and partners',
-    text: 'Create, send and track invoices for corporate accounts and partners.',
   },
   {
     id: 'ai-quotes',

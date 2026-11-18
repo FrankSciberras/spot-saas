@@ -35,13 +35,58 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-invoices',
+    date: '2026-11-18',
+    dateHuman: 'November 2026',
+    title: 'Invoices and credit notes',
+    summary:
+      'Bill the hotels, companies and partners who owe you money, straight from Rovora: numbered invoices with VAT, a PDF your customer can pay from, payments recorded against it — and a credit note when something needs correcting.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Invoices',
+        text: 'Create an invoice in a minute: pick the customer, add lines with quantity, price and VAT rate, and the totals work themselves out. Save it as a draft, or issue it and it gets the next number in your sequence.',
+      },
+      {
+        tag: 'new',
+        area: 'Invoices',
+        text: 'Download a PDF or email it to the customer from Rovora, with your business details, VAT number and bank details on it.',
+      },
+      {
+        tag: 'new',
+        area: 'Invoices',
+        text: 'Record payments as they arrive, in part or in full. Rovora shows what is still owed and what is overdue, and each payment is added to Bookkeeping on its own.',
+      },
+      {
+        tag: 'new',
+        area: 'Credit notes',
+        text: 'Correct an invoice with a credit note: it takes its own number, refers to the invoice, and reduces what the customer owes. If they had already paid, record the refund against it.',
+      },
+      {
+        tag: 'security',
+        area: 'Invoices',
+        text: 'An issued invoice cannot be edited or deleted, and numbers run in order with no gaps — the way your accountant and the tax office expect. Mistakes are corrected with a credit note, or the invoice is voided and keeps its number.',
+      },
+      {
+        tag: 'new',
+        area: 'Customers',
+        text: 'Keep the people you invoice in one list, with their address, VAT number and email. Each invoice remembers the details it was issued with, even if the customer’s details change later.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Choose your own number prefix, default VAT rate, payment terms and the bank details printed on every invoice.',
+      },
+    ],
+  },
+  {
     id: '2026-11-rovora-ai',
     date: '2026-11-18',
     dateHuman: 'November 2026',
     title: 'Rovora AI: ask your fleet anything',
     summary:
       'Ask a question in plain English and get the answer from your own fleet’s data — costs, drivers, shifts, services, documents — with links to the records behind it. It’s in every plan today.',
-    highlight: true,
     items: [
       {
         tag: 'new',
