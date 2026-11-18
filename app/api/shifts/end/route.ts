@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { getFleetSettings } from '@/lib/settings/server';
 
 /**
  * POST /api/shifts/end
@@ -8,7 +9,8 @@ import { getSession } from '@/lib/auth/session';
  * Ends the authenticated driver's currently-open shift (in the ACTIVE fleet) and
  * turns off their live location tracking flag.
  *
- * Body (JSON, all optional — legacy one-tap callers send none):
+ * Body (JSON). Whether the mileage and photos are required is the fleet's
+ * choice (Settings → Shifts → Ending a shift; mileage required by default):
  *   ending_mileage   closing odometer reading; must be >= the shift's starting
  *                    mileage. Also moves the vehicle's odometer forward.
  *   end_image_urls   up to 12 closing photos already uploaded to shift-images.
@@ -75,6 +77,15 @@ export async function POST(request: Request) {
 
     if (!activeShift) {
       return NextResponse.json({ error: 'No active shift to end' }, { status: 404 });
+    }
+
+    // Fleet rules (Settings → Shifts → Ending a shift).
+    const fleet = await getFleetSettings(orgId);
+    if (endingMileage === null && fleet['shifts.end_mileage'] === 'required') {
+      return NextResponse.json({ error: 'Enter the odometer reading to end your shift.' }, { status: 400 });
+    }
+    if (endImageUrls.length === 0 && fleet['shifts.end_photos'] === 'required') {
+      return NextResponse.json({ error: 'Your fleet needs at least one photo of the car to end the shift.' }, { status: 400 });
     }
 
     if (endingMileage !== null && endingMileage < activeShift.starting_mileage) {

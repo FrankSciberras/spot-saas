@@ -3,6 +3,8 @@ import { getSession } from '@/lib/auth/session';
 import { getPlatformAdmin } from '@/lib/auth/platform';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { countPendingInvites } from '@/lib/invites';
+import { getEnabledModuleKeys } from '@/lib/modules/server';
+import { getUserPreferences } from '@/lib/settings/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,5 +34,26 @@ export default async function DashboardResolver() {
   if (session.role === 'driver' && !session.also_staff) {
     redirect('/driver');
   }
-  redirect('/fleet');
+  redirect(await fleetStartPage(session.id, session.organization_id));
+}
+
+/**
+ * Where a manager lands: their "Start page" preference (Settings →
+ * Preferences), or the dashboard when the page belongs to a module the fleet
+ * has switched off.
+ */
+const START_PAGES: Record<string, { path: string; module?: string }> = {
+  dashboard: { path: '/fleet' },
+  tracking: { path: '/fleet/tracking', module: 'tracking' },
+  shifts: { path: '/fleet/shifts', module: 'rostering' },
+  drivers: { path: '/fleet/drivers' },
+  vehicles: { path: '/fleet/vehicles' },
+  messages: { path: '/fleet/messages', module: 'messaging' },
+};
+
+async function fleetStartPage(userId: string, organizationId: string): Promise<string> {
+  const [prefs, modules] = await Promise.all([getUserPreferences(userId), getEnabledModuleKeys(organizationId)]);
+  const page = START_PAGES[prefs['navigation.start_page']];
+  if (!page || (page.module && !modules.has(page.module))) return '/fleet';
+  return page.path;
 }

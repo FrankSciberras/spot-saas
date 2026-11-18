@@ -6,16 +6,9 @@ import Link from 'next/link';
 import FleetIcon from './FleetIcon';
 import GettingStartedCard, { type OnboardingState } from './GettingStartedCard';
 import { useEnabledModules } from './FleetModulesProvider';
-import {
-  fmtEUR,
-  EarningsLineChart,
-  ProfitDonut,
-  ExpenseBars,
-  Sparkline,
-  UtilRing,
-  type EarningsDatum,
-  type ExpenseDatum,
-} from './FleetCharts';
+import { useFleetSetting } from './FleetSettingsProvider';
+import { EarningsLineChart, ProfitDonut, ExpenseBars, Sparkline, UtilRing, type EarningsDatum, type ExpenseDatum } from './FleetCharts';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export interface DashStats {
   activeDrivers: number;
@@ -111,6 +104,8 @@ function HeroStrip({
   financialSeries: EarningsDatum[];
   isAdmin: boolean;
 }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const [greeting, setGreeting] = useState('Hello');
   useEffect(() => {
     const h = new Date().getHours();
@@ -252,6 +247,8 @@ function HeroTile({
 
 /* ───────────────────────── Earnings panel ───────────────────────── */
 function EarningsPanel({ data, totals }: { data: EarningsDatum[]; totals: { income: number; expenses: number; profit: number } }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const margin = totals.income > 0 ? (totals.profit / totals.income) * 100 : 0;
   return (
     <Card>
@@ -363,10 +360,13 @@ function RecentShiftsCard({ shifts }: { shifts: RecentShift[] }) {
 
 /* ───────────────────────── Expiring docs ───────────────────────── */
 function ExpiringDocsCard({ docs }: { docs: ExpiringDoc[] }) {
+  // Settings → Documents.
+  const warnDays = useFleetSetting('documents.expiry_warning_days');
+  const urgentDays = Math.min(useFleetSetting('documents.urgent_days'), warnDays);
   const sev = (d: number): { color: string; soft: string } =>
     d < 0 ? { color: 'var(--neg)', soft: 'var(--neg-soft)' }
-    : d <= 7 ? { color: 'var(--neg)', soft: 'var(--neg-soft)' }
-    : d <= 30 ? { color: 'var(--warn)', soft: 'var(--warn-soft)' }
+    : d <= urgentDays ? { color: 'var(--neg)', soft: 'var(--neg-soft)' }
+    : d <= warnDays ? { color: 'var(--warn)', soft: 'var(--warn-soft)' }
     : { color: 'var(--text-3)', soft: 'var(--bg-3)' };
 
   return (
@@ -378,7 +378,7 @@ function ExpiringDocsCard({ docs }: { docs: ExpiringDoc[] }) {
       />
       <div style={{ borderTop: '1px solid var(--line-1)' }}>
         {docs.length === 0 ? (
-          <EmptyRow text="Nothing expiring in the next 30 days. All good." />
+          <EmptyRow text={`Nothing expiring in the next ${warnDays} days. All good.`} />
         ) : (
           docs.map((d, i) => {
             const s = sev(d.daysLeft);

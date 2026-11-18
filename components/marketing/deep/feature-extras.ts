@@ -169,7 +169,7 @@ export const FEATURE_EXTRAS: Record<string, FeatureExtra> = {
     faq: [
       {
         q: 'Do I need to buy GPS trackers?',
-        a: 'No. The map runs from the Rovora Driver app on the phone each driver already carries, so there is nothing to fit to the car and no SIM contract. If you already have hardware trackers, connections to Wialon, Traccar, flespi and Teltonika are on the roadmap but not live yet.',
+        a: 'No. The map runs from the Rovora Driver app on the phone each driver already carries, so there is nothing to fit to the car and no SIM contract. If you already have hardware trackers, connect their platform (Traccar, flespi, Wialon, Navixy, Samsara, Geotab or Mapon) and the cars appear on the same map, matched by number plate.',
       },
       {
         q: 'Does phone tracking satisfy a regulator’s tracking-device requirement?',

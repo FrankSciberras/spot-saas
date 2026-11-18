@@ -201,6 +201,14 @@ export interface PlanRow {
   api_rate_limit_per_day: number | null;
   /** How many live API keys a fleet on this tier may hold. */
   api_max_keys: number;
+  /** Rovora AI (see 20261118_fleet_assistant.sql). Absent until that migration is applied. */
+  ai_enabled?: boolean;
+  /** Most one fleet on this tier may spend on Rovora AI per calendar month, in euros. */
+  ai_monthly_budget_eur?: number | string;
+  /** Rovora AI questions per minute, per person. */
+  ai_rate_limit_per_min?: number;
+  /** Rovora AI questions per day, per person. */
+  ai_rate_limit_per_day?: number;
   created_at: string;
   updated_at: string;
 }

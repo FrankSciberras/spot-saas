@@ -4,7 +4,7 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import FleetPageHeader, { fleetPrimaryBtn } from '@/components/fleet/FleetPageHeader';
-import { fmtEUR } from '@/components/fleet/FleetCharts';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export type VehStatus = 'active' | 'idle' | 'service';
 
@@ -73,6 +73,8 @@ function VehStat({ label, value, sub, icon, accent }: { label: string; value: st
 }
 
 function VehicleCard({ v, onClick }: { v: VehicleItem; onClick: () => void }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const sm = STATUS_MAP[v.status];
   return (
     <div onClick={onClick} style={st.vehCard} className="fleetNavItem">
@@ -129,6 +131,8 @@ function VehicleCard({ v, onClick }: { v: VehicleItem; onClick: () => void }) {
 }
 
 export default function VehiclesWorkspace({ vehicles, canAdd, hrefBase = '/fleet/vehicles', breadcrumb = 'Operations / Vehicles', showStats = true }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | VehStatus>('all');
   const [search, setSearch] = useState('');

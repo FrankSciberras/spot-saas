@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import CarDiagram, { ZONE_LABELS } from './CarDiagram';
 import type {
   VehicleDamage,
@@ -70,7 +71,10 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
   const [formSeverity, setFormSeverity] = useState<DamageSeverity>('minor');
   const [formStatus, setFormStatus] = useState<DamageStatus>('open');
   const [formRepairCost, setFormRepairCost] = useState('');
-  const [formCurrency, setFormCurrency] = useState('EUR');
+  // New damage costs default to the fleet's currency (Settings → General → Money).
+  const fleetCurrency = useFleetSetting('finance.currency');
+  const currencyChoices = Array.from(new Set([fleetCurrency, 'EUR', 'USD', 'GBP']));
+  const [formCurrency, setFormCurrency] = useState<string>(fleetCurrency);
   const [formNotes, setFormNotes] = useState('');
   const [formImages, setFormImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -115,7 +119,7 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
     setFormSeverity('minor');
     setFormStatus('open');
     setFormRepairCost('');
-    setFormCurrency('EUR');
+    setFormCurrency(fleetCurrency);
     setFormNotes('');
     setFormImages([]);
     setEditingDamage(null);
@@ -639,9 +643,9 @@ export default function VehicleDamageTracker({ vehicleId, initialDamages, isAdmi
                       onChange={(e) => setFormCurrency(e.target.value)}
                       style={{ width: '70px', flexShrink: 0 }}
                     >
-                      <option value="EUR">EUR</option>
-                      <option value="USD">USD</option>
-                      <option value="GBP">GBP</option>
+                      {currencyChoices.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
                     </select>
                     <input
                       type="number"

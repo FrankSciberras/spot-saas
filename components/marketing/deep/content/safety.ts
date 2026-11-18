@@ -121,7 +121,7 @@ export const SAFETY: DeepContent = {
     },
     {
       title: 'No engine or fuel data',
-      body: 'Rovora does not plug into the car, so there are no fault codes, fuel levels or idling figures. Connections to hardware trackers are on the roadmap.',
+      body: 'Harsh events are detected by the phone, not by the car. GPS trackers you connect add each car’s position to the live map, but Rovora does not read fault codes, fuel levels or idling figures.',
     },
     {
       title: 'One speed limit, not a limit per road',

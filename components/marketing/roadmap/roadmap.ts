@@ -44,22 +44,6 @@ export const ROADMAP_UPDATED = '2026-11-18';
 export const ROADMAP: RoadmapItem[] = [
   // ── In progress ──────────────────────────────────────────────────────────
   {
-    id: 'settings',
-    status: 'in-progress',
-    area: 'Settings',
-    title: 'Settings, reorganised',
-    text: 'One settings page with a tab for each part of Rovora, and new options: how early to warn about expiring documents, when a service counts as due, which start- and end-of-shift checks and photos are required, and your fleet’s currency and number format.',
-    note: 'In review',
-  },
-  {
-    id: 'preferences',
-    status: 'in-progress',
-    area: 'Settings',
-    title: 'Personal preferences that follow you',
-    text: 'Your theme and how you get alerts are saved to your account, not the browser, so they are the same on your laptop and your phone.',
-    note: 'In review',
-  },
-  {
     id: 'ai-assistant',
     status: 'in-progress',
     area: 'Rovora AI',
@@ -67,6 +51,15 @@ export const ROADMAP: RoadmapItem[] = [
     text: '“Which car cost me the most last month?” “Whose documents expire this month?” Ask in plain English from any page and get the answer from your own fleet’s data, linked to the records behind it. Read-only — it never changes anything.',
     href: '/ai',
     note: 'Private beta',
+  },
+
+  {
+    id: 'rovora-gps',
+    status: 'in-progress',
+    area: 'Live tracking',
+    title: 'Rovora GPS: plug-in trackers without a separate provider',
+    text: 'Add a Teltonika tracker by its IMEI and it reports straight to Rovora, billed per tracker on your Rovora invoice. For fleets that want a device in the car but no second GPS subscription to manage.',
+    note: 'Rolling out',
   },
 
   // ── Next ─────────────────────────────────────────────────────────────────
@@ -136,13 +129,6 @@ export const ROADMAP: RoadmapItem[] = [
     area: 'Integrations',
     title: 'One-click driver payouts',
     text: 'Pay drivers what their settlement says through Stripe, reconciled automatically.',
-  },
-  {
-    id: 'gps-hardware',
-    status: 'later',
-    area: 'Live tracking',
-    title: 'GPS hardware trackers',
-    text: 'Live positions and trips from Wialon, Traccar, flespi and Teltonika trackers, for fleets that already have hardware fitted.',
   },
   {
     id: 'whatsapp',

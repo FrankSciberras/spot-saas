@@ -6,6 +6,7 @@ import FleetSidebar from './FleetSidebar';
 import FleetTopbar from './FleetTopbar';
 import FleetTour from './FleetTour';
 import FleetCommandPalette from './FleetCommandPalette';
+import AssistantPanel from '@/components/assistant/AssistantPanel';
 import FleetTrialBanner from '@/components/shared/FleetTrialBanner';
 import PushNotificationPrompt from '@/components/shared/PushNotificationPrompt';
 import InstallPrompt from '@/components/shared/InstallPrompt';
@@ -87,6 +88,8 @@ export default function FleetShell({ user, title, children, variant = 'fleet' }:
         </div>
       </main>
       <FleetCommandPalette user={user} variant={variant} />
+      {/* Rovora AI — renders nothing unless switched on for this fleet. */}
+      {variant === 'fleet' && <AssistantPanel />}
       {user?.role && <PushNotificationPrompt variant={variant === 'driver' ? 'driver' : 'admin'} role={user.role} />}
       {/* Home-screen install nudge. Self-hiding when already installed, and
           re-openable from the account menu after it's been dismissed. */}

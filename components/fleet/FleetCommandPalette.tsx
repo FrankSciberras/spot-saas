@@ -9,6 +9,7 @@ import FleetIcon from './FleetIcon';
 import { useFleetTheme } from './FleetThemeRoot';
 import { useEnabledModules } from './FleetModulesProvider';
 import { canSeeNavItem, DRIVER_NAV_GROUPS, NAV_GROUPS, type NavItem } from './navConfig';
+import { openAssistant, useAssistantAvailability } from '@/components/assistant/client';
 
 interface FleetCommandPaletteProps {
   user: SessionUser;
@@ -30,6 +31,8 @@ interface Row {
   icon: string;
   href: string;
   section: string;
+  /** Set on the "Ask Rovora AI" row: the question to hand to the assistant. */
+  ask?: string;
 }
 
 /**
@@ -42,6 +45,8 @@ interface Row {
 export default function FleetCommandPalette({ user, variant = 'fleet' }: FleetCommandPaletteProps) {
   const router = useRouter();
   const { theme } = useFleetTheme();
+  // Rovora AI: offer "Ask AI" for whatever was typed (fleet only).
+  const assistant = useAssistantAvailability(variant !== 'driver');
   const enabledModules = useEnabledModules();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -156,8 +161,13 @@ export default function FleetCommandPalette({ user, variant = 'fleet' }: FleetCo
       section: h.kind === 'driver' ? 'Drivers' : 'Vehicles',
     }));
 
-    return [...pageRows, ...hitRows];
-  }, [pages, hits, q]);
+    const askRows: Row[] =
+      assistant?.available && q.trim().length >= 3
+        ? [{ key: 'ask-ai', label: `Ask Rovora AI: “${q.trim()}”`, sub: 'Answered from your fleet’s data', icon: 'chat', href: '', section: 'Ask AI', ask: q.trim() }]
+        : [];
+
+    return [...pageRows, ...hitRows, ...askRows];
+  }, [pages, hits, q, assistant?.available]);
 
   // Keep the cursor inside the list as results change.
   useEffect(() => { setCursor(0); }, [q]);
@@ -168,6 +178,10 @@ export default function FleetCommandPalette({ user, variant = 'fleet' }: FleetCo
   const pick = useCallback((row: Row | undefined) => {
     if (!row) return;
     close();
+    if (row.ask) {
+      openAssistant(row.ask);
+      return;
+    }
     router.push(row.href);
   }, [close, router]);
 

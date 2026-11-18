@@ -279,10 +279,14 @@ export default function PrivacyPage() {
                   <strong>Stripe</strong> — subscription billing and card payment processing.
                 </li>
                 <li>
-                  <strong>OpenAI</strong> — powers the assistant on our public website. Only the messages
-                  you type into that chat and the page you are on are sent to it; no fleet, driver or
-                  location data ever is. OpenAI does not use data sent through its API to train its
-                  models.
+                  <strong>OpenAI</strong> — powers the assistant on our public website and Rovora AI, the
+                  assistant inside the dashboard. For the website assistant, only the messages you type
+                  into that chat and the page you are on are sent. For Rovora AI — only for fleets that
+                  have it switched on, and only when someone asks it a question — the question and the
+                  fleet records needed to answer it are sent: for example driver names, vehicle plates,
+                  dates, shift hours and amounts. ID card and licence numbers, contact details, photos
+                  and GPS locations are never sent. Rovora AI conversations are kept for 90 days. OpenAI
+                  does not use data sent through its API to train its models.
                 </li>
                 <li>
                   <strong>Resend</strong> — delivery of transactional and notification emails.

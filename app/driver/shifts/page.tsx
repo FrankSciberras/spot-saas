@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { getFleetSettings } from '@/lib/settings/server';
 import { signStorageUrls } from '@/lib/storage/signed';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageHeader, { fleetPrimaryBtn } from '@/components/fleet/FleetPageHeader';
@@ -47,6 +48,7 @@ const ImageIcon = () => (
  */
 export default async function DriverShiftsPage() {
   const user = await requireRole(['driver']);
+  const fleetSettings = await getFleetSettings(user.organization_id);
   const supabase = await createClient();
 
   const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE || 'Europe/Malta';
@@ -168,12 +170,16 @@ export default async function DriverShiftsPage() {
                 )}
 
                 <div className={styles.shiftChecks}>
+                  {(fleetSettings['shifts.check_dashcam'] || shift.dashcam_checked) && (
                   <span className={`${styles.checkBadge} ${shift.dashcam_checked ? styles.success : styles.inactive}`}>
                     {shift.dashcam_checked ? '✓' : '✗'} Dashcam
                   </span>
+                  )}
+                  {(fleetSettings['shifts.check_interior'] || shift.car_internal_checked) && (
                   <span className={`${styles.checkBadge} ${shift.car_internal_checked ? styles.success : styles.inactive}`}>
                     {shift.car_internal_checked ? '✓' : '✗'} Interior
                   </span>
+                  )}
                 </div>
 
                 <div className={styles.shiftImages}>

@@ -14,7 +14,7 @@ import {
 export const metadata = marketingMetadata({
   title: 'Fleet Management Software Integrations — Rovora',
   description:
-    'What connects to Rovora today: your Bolt fleet account, Xero and QuickBooks by CSV export, a REST API, Google sign-in and email notifications.',
+    'What connects to Rovora today: GPS trackers (Wialon, Traccar, flespi, Teltonika, Navixy, Samsara, Geotab, Mapon), your Bolt fleet account, Xero and QuickBooks by CSV export, and a REST API.',
   path: '/integrations',
   keywords: [
     'fleet management software integrations',
@@ -42,7 +42,7 @@ export default async function IntegrationsPage() {
         eyebrow={`Integrations · ${INTEGRATION_COUNT} live`}
         title="What Rovora connects to,"
         accent="today."
-        sub="Your Bolt fleet account, your accountant’s software, your own tools through the API. Everything on this page works now. Nothing here is a promise."
+        sub="The GPS trackers already in your cars, your Bolt fleet account, your accountant’s software, your own tools through the API. Everything on this page works now. Nothing here is a promise."
         micro={[trial.freeLabel, 'No card required', 'Everything listed is live']}
         visual={
           <div className="integ-cloud" aria-hidden>
@@ -110,8 +110,8 @@ export default async function IntegrationsPage() {
       </section>
 
       <CtaBand
-        title="Connect Bolt in a few minutes."
-        body={`Get your ${trial.first} free, no card. Paste your Bolt Fleet API key and your rides, fares and drivers are in Rovora within the hour.`}
+        title="Connect what you already run."
+        body={`Get your ${trial.first} free, no card. Paste a key from your GPS platform or your Bolt fleet account and the data is in Rovora within the hour.`}
       />
 
       <p style={{ textAlign: 'center', margin: '8px 0 0' }}>

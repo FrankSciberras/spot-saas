@@ -27,6 +27,7 @@ import {
   removeReceiptAction,
   getReceiptUrlAction,
 } from '@/lib/actions/finance-transactions';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 export interface VehicleOption {
   id: string;
@@ -71,6 +72,8 @@ function yesterdayISO(): string {
 export default function TransactionModal({
   categories, vehicles, drivers, initialKind = 'expense', initialDate, transaction, onClose, onSaved, onManageCategories,
 }: TransactionModalProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const money = useMoney();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isEdit = !!transaction;
@@ -198,7 +201,7 @@ export default function TransactionModal({
       onSaved?.();
       if (andAnother) {
         const c = categoryById.get(categoryId);
-        setFlash(`Saved ${kind === 'income' ? '+' : '−'}€${input.amount.toFixed(2)}${c ? ` · ${c.name}` : ''}`);
+        setFlash(`Saved ${kind === 'income' ? '+' : '−'}${money(input.amount)}${c ? ` · ${c.name}` : ''}`);
         resetForAnother();
       } else {
         onClose();
@@ -275,7 +278,7 @@ export default function TransactionModal({
           {/* Amount */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0 2px' }}>
             <span style={{ fontSize: 30, color: accent, fontWeight: 500 }}>{isExpense ? '−' : '+'}</span>
-            <span style={{ fontSize: 30, color: 'var(--text-3)' }}>€</span>
+            <span style={{ fontSize: 30, color: 'var(--text-3)' }}>{money.symbol}</span>
             <input
               ref={amountRef}
               type="text"

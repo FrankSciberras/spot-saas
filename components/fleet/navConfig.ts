@@ -38,6 +38,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'rosters', name: 'Rosters', href: '/fleet/rosters', icon: 'roster' },
       { id: 'shifts', name: 'Shifts', href: '/fleet/shifts', icon: 'shift' },
       { id: 'tracking', name: 'Live Map', href: '/fleet/tracking', icon: 'map' },
+      // Shown once the fleet has connected a GPS platform (the 'gps' module).
+      { id: 'gps', name: 'GPS Trackers', href: '/fleet/gps', icon: 'pin', roles: ['admin'] },
       { id: 'trips', name: 'Trips', href: '/fleet/trips', icon: 'pin' },
       { id: 'safety', name: 'Safety', href: '/fleet/safety', icon: 'warning' },
       // Shown once the fleet has connected its Bolt account (the 'bolt' module).
@@ -160,4 +162,17 @@ export function canSeeNavItem(item: NavItem, opts: NavGateOptions): boolean {
   if (!opts.role) return false;
   if (opts.role === 'driver' && opts.alsoStaff && item.roles.includes('staff')) return true;
   return item.roles.includes(opts.role);
+}
+
+/**
+ * The sidebar name of the fleet page a path belongs to ("Live Map" for
+ * /fleet/tracking/…), for links like Settings' "Back to Live Map".
+ */
+export function fleetPageName(path: string): string | null {
+  let best: NavItem | null = null;
+  for (const item of NAV_GROUPS.flatMap((g) => g.items)) {
+    const hit = item.href === '/fleet' ? path === '/fleet' : path === item.href || path.startsWith(`${item.href}/`);
+    if (hit && (!best || item.href.length > best.href.length)) best = item;
+  }
+  return best?.name ?? null;
 }

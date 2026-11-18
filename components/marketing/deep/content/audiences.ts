@@ -15,7 +15,7 @@ export const FOR_BOLT_UBER: DeepContent = {
     'Weekly settlements per driver',
     'Bolt, Uber, eCabs and cash kept separate',
     'Bolt fleet account connects directly',
-    'Live map from the driver’s phone',
+    'Live map from phones or GPS trackers',
   ],
   mock: {
     path: 'settlements',
@@ -109,7 +109,7 @@ export const FOR_BOLT_UBER: DeepContent = {
     { icon: 'plusCircle', title: 'Adjustments', body: 'Bonuses, reimbursements, expenses and deductions, one-off or recurring, applied to the right week.' },
     { icon: 'bolt', title: 'Bolt connection', body: 'Rides, fares, tips and acceptance per driver from your Bolt fleet account, updated hourly.' },
     { icon: 'calendar', title: 'Rosters', body: 'The week on one grid, published to every driver’s phone.' },
-    { icon: 'pulse', title: 'Live map', body: 'Who is on shift and where, from the driver’s phone. Shared during shifts only.' },
+    { icon: 'pulse', title: 'Live map', body: 'Who is on shift and where, from the driver’s phone, plus your cars if you connect GPS trackers.' },
     { icon: 'car', title: 'Vehicles and documents', body: 'Insurance and road licence dates on every car, with a warning before they lapse.' },
     { icon: 'send', title: 'Messages', body: 'Chats, groups and announcements with your drivers, instead of the WhatsApp group.' },
     { icon: 'chart', title: 'Bookkeeping', body: 'What the fleet made and spent for any period, with an export for your accountant.' },
@@ -125,8 +125,8 @@ export const FOR_BOLT_UBER: DeepContent = {
       body: 'It works out what each driver is owed and records when you paid. The bank transfer or the cash handover is still yours. Paying out through Rovora is on the roadmap.',
     },
     {
-      title: 'The live map is the driver’s phone, not a fitted device',
-      body: 'Tracking runs in the Rovora Driver app during shifts. It is not a tracking device installed in the vehicle, so if your operator licence or a platform asks for one, you still need that device. Connecting hardware trackers to Rovora is on the roadmap.',
+      title: 'Rovora does not supply or certify tracking devices',
+      body: 'By default the live map runs on the driver’s phone, during shifts. If your operator licence or a platform asks for a tracking device fitted to the vehicle, that device is still yours to buy and fit. You can then connect its platform (Traccar, flespi, Wialon, Navixy, Samsara, Geotab or Mapon) and see those cars on the same map. Whether a particular device satisfies a rule is between you and the regulator.',
     },
     {
       title: 'It is not a dispatch system',
@@ -157,7 +157,7 @@ export const FOR_BOLT_UBER: DeepContent = {
     },
     {
       q: 'Do I need GPS trackers in the cars?',
-      a: 'Not for Rovora. The live map, trip history and safety scores all run from the driver’s phone through the free app. If your licence separately requires a tracking device fitted to the vehicle, Rovora does not replace it.',
+      a: 'Not for Rovora. The live map, trip history and safety scores run from the driver’s phone through the free app. If you already have trackers, or your licence requires one fitted to the vehicle, connect its platform (Traccar, flespi, Wialon, Navixy, Samsara, Geotab or Mapon) and the cars appear on the same map, matched by number plate.',
     },
     {
       q: 'How long does it take to move over?',

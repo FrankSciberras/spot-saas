@@ -1,4 +1,12 @@
-import { MIGRATION_HINT, isMissingMigration, jsonError, noStore, requireChatActor } from '@/lib/messages/server';
+import { MIGRATION_HINT, driverDmsAllowed, isMissingMigration, jsonError, noStore, requireChatActor } from '@/lib/messages/server';
+
+/** GET /api/messages/settings — the fleet's chat settings (Settings → Messages tab). */
+export async function GET() {
+  const ctx = await requireChatActor();
+  if ('response' in ctx) return ctx.response;
+  const { actor, admin } = ctx;
+  return noStore({ settings: { driverDms: await driverDmsAllowed(admin, actor.organizationId) } });
+}
 
 /** PATCH /api/messages/settings — fleet chat settings. Fleet admins only. */
 export async function PATCH(request: Request) {

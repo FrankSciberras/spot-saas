@@ -294,6 +294,8 @@ export async function GET(request: Request) {
     const rawCutoff = new Date(nowMs - RAW_RETENTION_DAYS * 86400_000).toISOString();
     const eventCutoff = new Date(nowMs - EVENT_RETENTION_DAYS * 86400_000).toISOString();
     await supabase.from('driver_locations').delete().lt('recorded_at', rawCutoff);
+    // GPS tracker trails follow the same 90-day rule (fails soft pre-migration).
+    await supabase.from('gps_device_locations').delete().lt('recorded_at', rawCutoff);
     await supabase.from('speeding_events').delete().lt('occurred_at', eventCutoff);
     await supabase.from('geofence_events').delete().lt('occurred_at', eventCutoff);
     await supabase.from('driver_tracking_events').delete().lt('occurred_at', eventCutoff);

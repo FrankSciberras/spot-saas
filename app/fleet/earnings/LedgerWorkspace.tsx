@@ -12,21 +12,10 @@
 // =============================================================================
 
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
+import { usePreference, useMoney } from '@/components/fleet/FleetSettingsProvider';
 import type { FinanceTransaction, VehicleRecurringCost } from '@/lib/types/database';
 import { categoriesOfKind, type CategoryKind, type FinanceCategory } from '@/lib/config/financeCategories';
-import {
-  RANGE_PRESETS,
-  type RangePreset,
-  type DateRange,
-  resolvePreset,
-  previousRange,
-  inRange,
-  todayISO,
-  formatDayHeading,
-  formatRange,
-  formatDateLong,
-  fmtEUR,
-} from '@/lib/utils/financeRanges';
+import { RANGE_PRESETS, type RangePreset, type DateRange, resolvePreset, previousRange, inRange, todayISO, formatDayHeading, formatRange, formatDateLong } from '@/lib/utils/financeRanges';
 import { nextDueDate } from '@/lib/bookkeeping/recurring';
 import { describeFrequency } from '@/lib/utils/bookkeepingPeriods';
 import FleetIcon from '@/components/fleet/FleetIcon';
@@ -76,6 +65,8 @@ function Stat({ label, value, color, icon, delta }: { label: string; value: stri
 
 /** Stacked share bar + legend. */
 function ShareBar({ parts, total }: { parts: { key: string; label: string; color: string; value: number }[]; total: number }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const filled = parts.filter((p) => p.value > 0).sort((a, b) => b.value - a.value);
   if (total <= 0 || filled.length === 0) return <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Nothing yet in this range.</div>;
   return (
@@ -117,9 +108,12 @@ function csvCell(v: string | number): string {
 export default function LedgerWorkspace({
   categories, transactions, vehicleCosts, vehicles, drivers, initialAdd = null,
 }: LedgerWorkspaceProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const today = todayISO();
 
-  const [preset, setPreset] = useState<RangePreset>('month');
+  // Starting period: your preference (Settings → Preferences → Lists).
+  const [preset, setPreset] = useState<RangePreset>(usePreference('lists.ledger_period'));
   const [customStart, setCustomStart] = useState(today.slice(0, 8) + '01');
   const [customEnd, setCustomEnd] = useState(today);
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
@@ -379,7 +373,7 @@ export default function LedgerWorkspace({
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-1)', marginBottom: 6 }}>Your books, one line at a time</div>
                 <div style={{ fontSize: 13, color: 'var(--text-3)', maxWidth: 420, margin: '0 auto 18px', lineHeight: 1.5 }}>
-                  Spent €20 on a car wash today? Add it now and it lands on today&apos;s date. Uber paid out on Monday? Add it as income. Totals for any week, month or pay cycle are worked out from the lines.
+                  Spent {fmtEUR(20, { trim: true })} on a car wash today? Add it now and it lands on today&apos;s date. Uber paid out on Monday? Add it as income. Totals for any week, month or pay cycle are worked out from the lines.
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button style={st.primaryBtn} className="fleetHover" onClick={() => setModal({ kind: 'expense' })}><FleetIcon name="plus" size={14} stroke={2.2} /> Add an expense</button>
@@ -497,7 +491,7 @@ export default function LedgerWorkspace({
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: c?.color ?? '#94a3b8', flexShrink: 0 }} />
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: 'block', fontSize: 12.5, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cost.label}</span>
-                      <span style={{ display: 'block', fontSize: 11, color: 'var(--text-3)' }}>{v ? `${v.registration_number} · ` : ''}{describeFrequency(Number(cost.amount), cost.frequency)}</span>
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--text-3)' }}>{v ? `${v.registration_number} · ` : ''}{describeFrequency(Number(cost.amount), cost.frequency, fmtEUR.format)}</span>
                     </span>
                     <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-2)', flexShrink: 0 }}>{formatDayHeading(due, today)}</span>
                   </div>

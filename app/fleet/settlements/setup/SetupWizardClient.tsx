@@ -37,9 +37,10 @@ import {
   type SettlementComponents,
   type SettlementScheme,
 } from '@/lib/config/settlements';
-import { calculateSettlement, formatCurrency, round2 } from '@/lib/utils/settlementCalculations';
+import { calculateSettlement, round2 } from '@/lib/utils/settlementCalculations';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import styles from './setup-wizard.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 // Pay-model icons — plain stroke SVGs (no emojis) matching the app's icon style.
 function ShareIcon() {
@@ -127,6 +128,8 @@ function todayLocal(): string {
 }
 
 export default function SetupWizardClient({ platforms, hasDefault, driverCount }: Props) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const router = useRouter();
 
   const [step, setStep] = useState<StepId>('welcome');
@@ -237,11 +240,11 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
   );
 
   const suggestedName = (): string => {
-    if (payModel === 'hourly') return `Hourly €${fmtNum(effectiveHourly)}/h`;
-    if (payModel === 'fixed') return `Fixed €${fmtNum(effectiveFixed)}/wk`;
-    if (payModel === 'wage_share') return `€${fmtNum(effectiveHourly)}/h + ${fmtNum(effectiveShare)}%`;
+    if (payModel === 'hourly') return `Hourly ${formatCurrency(effectiveHourly, { trim: true })}/h`;
+    if (payModel === 'fixed') return `Fixed ${formatCurrency(effectiveFixed, { trim: true })}/wk`;
+    if (payModel === 'wage_share') return `${formatCurrency(effectiveHourly, { trim: true })}/h + ${fmtNum(effectiveShare)}%`;
     const split = `${fmtNum(effectiveShare)}/${fmtNum(100 - effectiveShare)}`;
-    if (effectiveRent > 0) return effectiveShare >= 100 ? `Rent-a-car €${fmtNum(effectiveRent)}/wk` : `${split} + €${fmtNum(effectiveRent)} rent`;
+    if (effectiveRent > 0) return effectiveShare >= 100 ? `Rent-a-car ${formatCurrency(effectiveRent, { trim: true })}/wk` : `${split} + ${formatCurrency(effectiveRent, { trim: true })} rent`;
     return `Standard ${split}`;
   };
 
@@ -319,15 +322,15 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
         return;
       }
       if (usesHours && effectiveHourly <= 0) {
-        setError('Enter an hourly rate greater than €0.');
+        setError(`Enter an hourly rate greater than ${formatCurrency(0, { trim: true })}.`);
         return;
       }
       if (usesFixed && effectiveFixed <= 0) {
-        setError('Enter a weekly wage greater than €0.');
+        setError(`Enter a weekly wage greater than ${formatCurrency(0, { trim: true })}.`);
         return;
       }
       if (hasRent && shareBased && effectiveRent <= 0) {
-        setError('Enter the weekly rent amount (more than €0), or untick vehicle rent.');
+        setError(`Enter the weekly rent amount (more than ${formatCurrency(0, { trim: true })}), or untick vehicle rent.`);
         return;
       }
     }
@@ -391,7 +394,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
       return;
     }
     if (amount <= 0) {
-      setError('Enter an amount greater than €0.');
+      setError(`Enter an amount greater than ${formatCurrency(0, { trim: true })}.`);
       return;
     }
     setError('');
@@ -502,15 +505,15 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
     const lines: string[] = [];
 
     if (payModel === 'hourly') {
-      lines.push(`Drivers are paid €${fmtNum(effectiveHourly)} per hour worked (hours fill in automatically from their shifts)`);
+      lines.push(`Drivers are paid ${formatCurrency(effectiveHourly, { trim: true })} per hour worked (hours fill in automatically from their shifts)`);
     } else if (payModel === 'fixed') {
-      lines.push(`Drivers are paid a fixed €${fmtNum(effectiveFixed)} per week`);
+      lines.push(`Drivers are paid a fixed ${formatCurrency(effectiveFixed, { trim: true })} per week`);
     } else if (payModel === 'wage_share') {
-      lines.push(`Drivers earn €${fmtNum(effectiveHourly)} per hour PLUS ${fmtNum(effectiveShare)}% of their fares`);
+      lines.push(`Drivers earn ${formatCurrency(effectiveHourly, { trim: true })} per hour PLUS ${fmtNum(effectiveShare)}% of their fares`);
     } else if (effectiveRent > 0 && effectiveShare >= 100) {
-      lines.push(`Drivers keep 100% of fares and pay €${fmtNum(effectiveRent)} vehicle rent per week`);
+      lines.push(`Drivers keep 100% of fares and pay ${formatCurrency(effectiveRent, { trim: true })} vehicle rent per week`);
     } else if (effectiveRent > 0) {
-      lines.push(`Drivers keep ${fmtNum(effectiveShare)}% of fares, plus €${fmtNum(effectiveRent)} vehicle rent per week`);
+      lines.push(`Drivers keep ${fmtNum(effectiveShare)}% of fares, plus ${formatCurrency(effectiveRent, { trim: true })} vehicle rent per week`);
     } else {
       lines.push(`Drivers keep ${fmtNum(effectiveShare)}% of fares (fleet keeps ${fmtNum(100 - effectiveShare)}%)`);
     }
@@ -538,10 +541,10 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
 
     if (taxChoice === 'none') lines.push('No tax withheld from payouts');
     else if (taxChoice === 'percent') lines.push(`Tax withheld: ${taxValue || 0}% of the weekly balance`);
-    else lines.push(`Tax withheld: €${taxValue || 0} flat per week`);
+    else lines.push(`Tax withheld: ${formatCurrency(Number(taxValue) || 0, { trim: true })} flat per week`);
 
     for (const c of charges) {
-      lines.push(`${c.kind === 'bonus' ? 'Weekly bonus' : 'Weekly charge'}: ${c.description} — €${c.amount} (all drivers)`);
+      lines.push(`${c.kind === 'bonus' ? 'Weekly bonus' : 'Weekly charge'}: ${c.description} — ${formatCurrency(Number(c.amount) || 0, { trim: true })} (all drivers)`);
     }
 
     if (splitVaries) {
@@ -690,7 +693,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     onChange={(e) => setHourlyRate(e.target.value)}
                     aria-label="Hourly rate in euro"
                   />
-                  <span className={styles.suffix}>€ / hour — hours come from each driver&apos;s shifts</span>
+                  <span className={styles.suffix}>{formatCurrency.symbol} / hour — hours come from each driver&apos;s shifts</span>
                 </span>
               </div>
             )}
@@ -707,7 +710,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     onChange={(e) => setFixedWage(e.target.value)}
                     aria-label="Fixed weekly wage in euro"
                   />
-                  <span className={styles.suffix}>€ / week</span>
+                  <span className={styles.suffix}>{formatCurrency.symbol} / week</span>
                 </span>
               </div>
             )}
@@ -728,7 +731,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                       onChange={(e) => setRentWeekly(e.target.value)}
                       aria-label="Weekly rent in euro"
                     />
-                    <span className={styles.suffix}>€ / week — deducted from every settlement</span>
+                    <span className={styles.suffix}>{formatCurrency.symbol} / week — deducted from every settlement</span>
                   </span>
                 )}
               </div>
@@ -934,7 +937,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                 onClick={() => { setTaxChoice('flat'); setTaxValue('22'); setError(''); }}
               >
                 <div className={styles.optionTitle}>Flat weekly amount</div>
-                <div className={styles.optionDesc}>A fixed € per week — e.g. €22 FSS for full-time drivers.</div>
+                <div className={styles.optionDesc}>A fixed amount per week — e.g. {formatCurrency(22, { trim: true })} FSS for full-time drivers.</div>
               </button>
               <button
                 type="button"
@@ -968,7 +971,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                     onChange={(e) => setTaxValue(e.target.value)}
                     aria-label="Tax amount"
                   />
-                  <span className={styles.suffix}>{taxChoice === 'percent' ? '% of the weekly balance' : '€ / week'}</span>
+                  <span className={styles.suffix}>{taxChoice === 'percent' ? '% of the weekly balance' : `${formatCurrency.symbol} / week`}</span>
                 </span>
               </div>
             )}
@@ -990,7 +993,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                   <div key={idx} className={styles.chargeRow}>
                     <span className={styles.chargeDesc}>{c.description}</span>
                     <span className={`${styles.chargeAmount} ${c.kind === 'bonus' ? styles.chargeBonus : ''}`}>
-                      {c.kind === 'bonus' ? '+' : '−'} €{c.amount}/wk
+                      {c.kind === 'bonus' ? '+' : '−'} {formatCurrency(Number(c.amount) || 0, { trim: true })}/wk
                     </span>
                     <button
                       type="button"
@@ -1033,7 +1036,7 @@ export default function SetupWizardClient({ platforms, hasDefault, driverCount }
                   onChange={(e) => setChargeAmount(e.target.value)}
                   aria-label="Amount in euro"
                 />
-                <span className={styles.suffix}>€ / week</span>
+                <span className={styles.suffix}>{formatCurrency.symbol} / week</span>
               </span>
               <button type="button" className="btn btn-secondary btn-sm" onClick={addCharge}>
                 + Add

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { DriverAdjustment, AdjustmentType } from '@/lib/types/database';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import m from './adjustments.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 interface DriverBasic {
   id: string;
@@ -48,10 +49,6 @@ function colorFor(id: string): string {
   return PALETTE[h % PALETTE.length];
 }
 
-function fmtEUR(n: number, decimals = 2): string {
-  return `€${n.toLocaleString('en-IE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
-}
-
 function monthKey(date: string): string {
   return (date || '').slice(0, 7);
 }
@@ -68,6 +65,8 @@ function dateLabel(date: string): string {
 }
 
 export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: AdjustmentsWorkspaceProps) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const fmtEUR = useMoney();
   const router = useRouter();
 
   const [filterDriver, setFilterDriver] = useState('all');
@@ -431,7 +430,7 @@ export default function AdjustmentsWorkspace({ drivers, adjustments, isAdmin }: 
 
                 <Field label="Amount" required>
                   <div style={st.amountField}>
-                    <span style={{ color: 'var(--text-3)', fontSize: 14 }}>€</span>
+                    <span style={{ color: 'var(--text-3)', fontSize: 14 }}>{fmtEUR.symbol}</span>
                     <input type="number" inputMode="decimal" step="0.01" min="0" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="0.00" style={st.amountInput} autoFocus={!editing} />
                     {formSign !== 0 && (
                       <span className="mono" style={{ fontSize: 11.5, color: formSign > 0 ? 'var(--pos)' : 'var(--neg)' }}>{formSign > 0 ? '+' : '−'}</span>

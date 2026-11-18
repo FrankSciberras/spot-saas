@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { derivePeriodBounds, parseDate, toISODate } from '@/lib/utils/bookkeepingPeriods';
 import { createClient } from '@/lib/supabase/server';
+import { getFleetSettings } from '@/lib/settings/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import InviteBanner from '@/components/shared/InviteBanner';
 import FleetDashboard, {
@@ -80,11 +81,13 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
     };
   });
 
-  // Expiring / expired documents within 30 days
+  // Expiring / expired documents within the fleet's warning window
+  // (Settings → Documents; 30 days unless changed).
+  const warnDays = (await getFleetSettings(user.organization_id))['documents.expiry_warning_days'];
   const now = new Date();
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  const expiryDate = thirtyDaysFromNow.toISOString().split('T')[0];
+  const warnUntil = new Date();
+  warnUntil.setDate(warnUntil.getDate() + warnDays);
+  const expiryDate = warnUntil.toISOString().split('T')[0];
 
   const [{ data: expiringDriverRows }, { data: expiringVehicleRows }] = await Promise.all([
     supabase
@@ -111,7 +114,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
       ['Driving License', d.driving_license_expiry_date],
     ];
     for (const [doc, date] of items) {
-      if (date && new Date(date) <= thirtyDaysFromNow) {
+      if (date && new Date(date) <= warnUntil) {
         expiringDocs.push({ kind: 'driver', subject: d.full_name, doc, expires: date, daysLeft: daysUntil(date), href: `/fleet/drivers/${d.id}/edit` });
       }
     }
@@ -123,7 +126,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
       ['Road License', v.road_license_expiry_date],
     ];
     for (const [doc, date] of items) {
-      if (date && new Date(date) <= thirtyDaysFromNow) {
+      if (date && new Date(date) <= warnUntil) {
         expiringDocs.push({ kind: 'vehicle', subject, doc, expires: date, daysLeft: daysUntil(date), href: `/fleet/vehicles/${v.id}/edit` });
       }
     }

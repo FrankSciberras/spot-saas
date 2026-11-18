@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DriverAdjustment, DriverSettlement, SettlementPlatform } from '@/lib/types/database';
-import { formatCurrency } from '@/lib/utils/settlementCalculations';
 import { exportDriverMonthlySettlementPdf, toPdfSettlement } from '@/lib/utils/settlementPdfExport';
 import styles from './driver-settlements.module.css';
+import { useMoney } from '@/components/fleet/FleetSettingsProvider';
 
 interface SettlementWithPlatforms extends DriverSettlement {
   settlement_platforms: SettlementPlatform[];
@@ -49,6 +49,8 @@ export default function MonthlySettlementsClient({
   settlements: SettlementWithPlatforms[];
   driverName: string;
 }) {
+  // Amounts in the fleet's currency (Settings → General → Money).
+  const formatCurrency = useMoney();
   const monthNames = useMemo(
     () => [
       'January',
@@ -349,12 +351,13 @@ export default function MonthlySettlementsClient({
     if (selectedMonth === null || monthSettlements.length === 0) return;
 
     await exportDriverMonthlySettlementPdf({
+      money: formatCurrency.format,
       driverName,
       monthLabel,
       settlements: monthSettlements.map(s => toPdfSettlement(s, driverName)),
       driverAdjustments: monthAdjustments,
     });
-  }, [driverName, monthAdjustments, monthLabel, monthSettlements, selectedMonth]);
+  }, [driverName, formatCurrency.format, monthAdjustments, monthLabel, monthSettlements, selectedMonth]);
 
   if (allSettlements.length === 0) {
     return (

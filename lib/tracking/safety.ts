@@ -48,15 +48,28 @@ export function countBehaviorKinds(kinds: string[]): { harshBrakes: number; hars
   return c;
 }
 
-export function scoreColor(score: number): string {
-  if (score >= 90) return 'var(--pos, #2bbd7e)';
-  if (score >= 70) return 'var(--warn, #f5b54a)';
+/** Where Good / Fair start. Each fleet can change them (Settings → Live Map → Safety scores). */
+export interface ScoreBands {
+  good: number;
+  fair: number;
+}
+export const DEFAULT_SCORE_BANDS: ScoreBands = { good: 90, fair: 70 };
+
+/** Bands from fleet settings; Fair is kept below Good. */
+export function scoreBandsFrom(settings: { 'safety.good_score': number; 'safety.fair_score': number }): ScoreBands {
+  const good = settings['safety.good_score'];
+  return { good, fair: Math.min(settings['safety.fair_score'], good - 1) };
+}
+
+export function scoreColor(score: number, bands: ScoreBands = DEFAULT_SCORE_BANDS): string {
+  if (score >= bands.good) return 'var(--pos, #2bbd7e)';
+  if (score >= bands.fair) return 'var(--warn, #f5b54a)';
   return 'var(--neg, #f06464)';
 }
 
-export function scoreLabel(score: number): string {
-  if (score >= 90) return 'Good';
-  if (score >= 70) return 'Fair';
+export function scoreLabel(score: number, bands: ScoreBands = DEFAULT_SCORE_BANDS): string {
+  if (score >= bands.good) return 'Good';
+  if (score >= bands.fair) return 'Fair';
   return 'Needs attention';
 }
 

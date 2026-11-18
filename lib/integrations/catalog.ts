@@ -64,6 +64,87 @@ export function markFontSize(mark: string): number {
 
 export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
   {
+    key: 'gps',
+    title: 'GPS & telematics',
+    blurb:
+      'See every car on the Live Map from the GPS trackers you already run — next to, or instead of, your drivers’ phones. No rip-and-replace.',
+    items: [
+      {
+        name: 'Wialon',
+        mark: 'W',
+        bg: '#f26722',
+        fg: '#ffffff',
+        desc: 'Live positions, speed and mileage from your Wialon Hosting or Wialon Local units.',
+        status: 'live',
+        href: '/fleet/gps?provider=wialon',
+      },
+      {
+        name: 'Traccar',
+        mark: 'T',
+        bg: '#2f6fed',
+        fg: '#ffffff',
+        desc: 'Live vehicle locations, ignition and odometer from your Traccar server.',
+        status: 'live',
+        href: '/fleet/gps?provider=traccar',
+      },
+      {
+        name: 'flespi',
+        mark: 'f',
+        bg: '#12b886',
+        fg: '#ffffff',
+        desc: 'Telematics from almost any tracker, streamed through your flespi account.',
+        status: 'live',
+        href: '/fleet/gps?provider=flespi',
+      },
+      {
+        name: 'Teltonika Trackers',
+        mark: 'Tt',
+        bg: '#4c9c2e',
+        fg: '#ffffff',
+        desc: 'Teltonika FMB/FMC trackers — through flespi, Traccar or Wialon.',
+        status: 'live',
+        href: '/fleet/gps',
+        more: '/features/live-tracking',
+      },
+      {
+        name: 'Navixy',
+        mark: 'N',
+        bg: '#1e88e5',
+        fg: '#ffffff',
+        desc: 'Live trackers from Navixy and the GPS brands built on it.',
+        status: 'live',
+        href: '/fleet/gps?provider=navixy',
+      },
+      {
+        name: 'Samsara',
+        mark: 'S',
+        bg: '#0b2a4a',
+        fg: '#ffffff',
+        desc: 'Vehicle gateways: position, speed, engine state and odometer.',
+        status: 'live',
+        href: '/fleet/gps?provider=samsara',
+      },
+      {
+        name: 'Geotab',
+        mark: 'G',
+        bg: '#25477b',
+        fg: '#ffffff',
+        desc: 'MyGeotab GO devices on the Rovora Live Map.',
+        status: 'live',
+        href: '/fleet/gps?provider=geotab',
+      },
+      {
+        name: 'Mapon',
+        mark: 'M',
+        bg: '#e53935',
+        fg: '#ffffff',
+        desc: 'Live positions and ignition from your Mapon units.',
+        status: 'live',
+        href: '/fleet/gps?provider=mapon',
+      },
+    ],
+  },
+  {
     key: 'ride-hail',
     title: 'Ride-hailing platforms',
     blurb:
@@ -89,7 +170,7 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
       'Hand your accountant the fleet’s income and expenses in the layout their software imports.',
     items: [
       {
-        name: 'Xero',
+        name: 'Xero CSV export',
         mark: 'X',
         bg: '#13b5ea',
         fg: '#ffffff',
@@ -99,7 +180,7 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         more: '/features/bookkeeping',
       },
       {
-        name: 'QuickBooks',
+        name: 'QuickBooks CSV export',
         mark: 'qb',
         bg: '#2ca01c',
         fg: '#ffffff',

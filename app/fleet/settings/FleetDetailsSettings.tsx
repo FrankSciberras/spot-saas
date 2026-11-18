@@ -13,10 +13,9 @@ type Form = {
   contact_phone: string;
   address: string;
   website: string;
-  speed_limit_kmh: string;
 };
 
-const EMPTY: Form = { name: '', legal_name: '', vat_number: '', contact_email: '', contact_phone: '', address: '', website: '', speed_limit_kmh: '' };
+const EMPTY: Form = { name: '', legal_name: '', vat_number: '', contact_email: '', contact_phone: '', address: '', website: '' };
 
 function toForm(d: FleetDetails): Form {
   return {
@@ -27,13 +26,14 @@ function toForm(d: FleetDetails): Form {
     contact_phone: d.contact_phone ?? '',
     address: d.address ?? '',
     website: d.website ?? '',
-    speed_limit_kmh: d.speed_limit_kmh != null ? String(d.speed_limit_kmh) : '',
   };
 }
 
 /**
- * "Fleet details" card on /fleet/settings: the fleet's display name, business
- * identity (for settlement PDFs) and contact details drivers can see.
+ * "Fleet details" on the General tab of /fleet/settings: the fleet's display
+ * name, business identity (for settlement PDFs) and contact details drivers can
+ * see. The speed limit used to live here too; it's on the Live Map tab now
+ * (SpeedLimitSettings).
  */
 export default function FleetDetailsSettings() {
   const router = useRouter();
@@ -135,19 +135,6 @@ export default function FleetDetailsSettings() {
           <label className={`${styles.field} ${styles.fieldWide}`}>
             <span>Address</span>
             <textarea value={form.address} onChange={set('address')} maxLength={400} rows={2} placeholder="Street, town, postcode" />
-          </label>
-        </div>
-      </div>
-
-      <div className={styles.brandCard}>
-        <div className={styles.brandCardHead}>
-          <div className={styles.settingLabel}>Driving</div>
-          <div className={styles.settingDescription}>Speed above which a live-tracking alert fires and a speeding event counts against a driver’s safety score. Leave empty to turn speeding alerts off.</div>
-        </div>
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>Fleet speed limit (km/h)</span>
-            <input type="number" inputMode="numeric" min={20} max={200} step={1} value={form.speed_limit_kmh} onChange={set('speed_limit_kmh')} placeholder="e.g. 80" />
           </label>
         </div>
       </div>

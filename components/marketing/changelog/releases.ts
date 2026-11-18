@@ -35,13 +35,63 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-gps-settings',
+    date: '2026-11-18',
+    dateHuman: 'November 2026',
+    title: 'Your GPS trackers on the map, and settings that fit your fleet',
+    summary:
+      'Already have trackers in your cars? Connect them and see every car on the Live Map next to your drivers. And Settings has been rebuilt: one tab for each part of Rovora, with the rules your fleet actually runs by.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'GPS trackers',
+        text: 'Connect the GPS platform you already use — Traccar, flespi, Wialon, Navixy, Samsara, Geotab or Mapon — by pasting its key. Each tracker is matched to your car by number plate and its position updates every minute.',
+      },
+      {
+        tag: 'improved',
+        area: 'Live tracking',
+        text: 'The Live Map now has Drivers and Cars tickboxes. A driver on shift is drawn inside their car, and a new Cars tab shows which cars are moving and where each one has been today.',
+      },
+      {
+        tag: 'security',
+        area: 'Privacy',
+        text: 'A car with nobody on shift in it is hidden from the map and no route is kept for it. That is the default; fleet admins can change it.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Settings is now split into tabs — General, Branding, Documents, Maintenance, Live Map, Shifts, Messages, Notifications, Settlements and Preferences — and other pages link straight to their own tab.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Decide how early you are warned before a document expires, how many kilometres before a service counts as due soon, and how long expired documents keep alerting.',
+      },
+      {
+        tag: 'new',
+        area: 'Shifts',
+        text: 'Choose your own start- and end-of-shift rules: switch the dashcam or interior check off, make vehicle photos optional, required or hidden, and decide whether the closing odometer reading is required.',
+      },
+      {
+        tag: 'new',
+        area: 'Settings',
+        text: 'Set your fleet’s currency and number format once, and it is used everywhere your fleet sees money. Pick where the Live Map opens by clicking on a map.',
+      },
+      {
+        tag: 'improved',
+        area: 'Preferences',
+        text: 'Your theme is saved to your account, so it follows you to every device. Each person also chooses their start page and whether fleet alerts reach them by email, by push, or both.',
+      },
+    ],
+  },
+  {
     id: '2026-11-messages-bolt',
     date: '2026-11-17',
     dateHuman: 'November 2026',
     title: 'Retire the WhatsApp group — and connect Bolt',
     summary:
       'Talk to your drivers inside Rovora instead of a WhatsApp group that never quite matches who works for you, and see your Bolt rides, fares and drivers next to everything else. Plus a much shorter sign-up for new fleets.',
-    highlight: true,
     items: [
       {
         tag: 'new',

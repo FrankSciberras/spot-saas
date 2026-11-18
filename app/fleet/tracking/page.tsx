@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
@@ -12,6 +12,7 @@ import TrackingWorkspace, {
   type PositionItem,
   type ZoneItem,
 } from '@/components/fleet/tracking/TrackingWorkspace';
+import { loadVehicleGps } from '@/lib/gps/live-map';
 
 const PALETTE = ['#2bbd7e', '#3ecf8e', '#a78bfa', '#f5b54a', '#f472b6', '#f06464', '#38bdf8', '#facc15'];
 
@@ -39,7 +40,7 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [positionsRes, zonesRes, maxSpeedsRes, orgRes, distancesRes, openShiftsRes, liveTracking, activity] = await Promise.all([
+  const [positionsRes, zonesRes, maxSpeedsRes, orgRes, distancesRes, openShiftsRes, liveTracking, activity, gps] = await Promise.all([
     supabase
       .from('driver_positions')
       .select('driver_id, latitude, longitude, accuracy, heading, speed, is_tracking, recorded_at, battery_pct, battery_charging, gps_enabled, location_permission, drivers:driver_id (full_name)')
@@ -56,12 +57,14 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
     // Who's on shift right now — the map flags those not sharing their location.
     supabase
       .from('driver_shifts')
-      .select('driver_id, start_time, drivers:driver_id (full_name)')
+      .select('driver_id, start_time, vehicle_id, drivers:driver_id (full_name), vehicles:vehicle_id (registration_number)')
       .eq('organization_id', orgId)
       .is('end_time', null)
       .order('start_time', { ascending: true }),
     getLiveTrackingSettings(orgId),
     loadActivity(supabase, orgId),
+    // GPS trackers in the fleet's cars (empty when no GPS platform is connected).
+    loadVehicleGps(supabase, createAdminClient(), orgId),
   ]);
 
   const maxSpeedByDriver = new Map<string, number>(
@@ -106,11 +109,16 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
 
   const nameOf = (rel: any) => (Array.isArray(rel) ? rel[0] : rel)?.full_name || 'Unknown driver';
 
-  type OpenShiftRow = { driver_id: string; start_time: string; drivers: unknown };
+  type OpenShiftRow = { driver_id: string; start_time: string; vehicle_id: string | null; drivers: unknown; vehicles: unknown };
+  type PlateRel = { registration_number: string | null } | null;
+  const plateOf = (rel: unknown): string | null =>
+    ((Array.isArray(rel) ? rel[0] : rel) as PlateRel)?.registration_number ?? null;
   const onShift: OnShiftItem[] = ((openShiftsRes.data || []) as unknown as OpenShiftRow[]).map((s) => ({
     driverId: s.driver_id,
     name: nameOf(s.drivers),
     startTime: s.start_time,
+    vehicleId: s.vehicle_id ?? null,
+    vehiclePlate: plateOf(s.vehicles),
   }));
   // Why the on-shift drivers who aren't sharing aren't (the Live Map explains it).
   const sharingInfo = await loadSharingInfo(supabase, orgId, onShift);
@@ -126,6 +134,9 @@ async function TrackingContent({ orgId, canManage }: { orgId: string; canManage:
       initialZones={zones}
       initialActivity={activity}
       initialSpeedLimit={(orgRes.data as any)?.speed_limit_kmh ?? null}
+      gpsConnected={gps.connected}
+      initialVehicles={gps.vehicles}
+      gpsHideOffShift={gps.hideOffShift}
     />
   );
 }

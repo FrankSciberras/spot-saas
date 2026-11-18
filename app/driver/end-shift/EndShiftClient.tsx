@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useFleetSettings } from '@/components/fleet/FleetSettingsProvider';
 import styles from './end-shift.module.css';
 
 interface Props {
@@ -18,6 +19,10 @@ const MAX_PHOTOS = 6;
 
 export default function EndShiftClient({ startTime, startingMileage, vehicleLabel, timeZone }: Props) {
   const router = useRouter();
+  // Fleet rules for ending a shift (Settings → Shifts → Ending a shift).
+  const fleet = useFleetSettings();
+  const mileageRequired = fleet['shifts.end_mileage'] === 'required';
+  const photoRule = fleet['shifts.end_photos'];
   const [endingMileage, setEndingMileage] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
   const [error, setError] = useState('');
@@ -56,12 +61,17 @@ export default function EndShiftClient({ startTime, startingMileage, vehicleLabe
     if (submitting.current) return;
     setError('');
 
-    if (!Number.isFinite(enteredKm) || enteredKm < 0) {
+    const hasKm = endingMileage.trim() !== '';
+    if ((mileageRequired || hasKm) && (!Number.isFinite(enteredKm) || enteredKm < 0)) {
       setError('Enter the odometer reading shown on the dashboard.');
       return;
     }
-    if (enteredKm < startingMileage) {
+    if (hasKm && enteredKm < startingMileage) {
       setError(`The reading cannot be lower than the ${startingMileage.toLocaleString()} km you started with.`);
+      return;
+    }
+    if (photoRule === 'required' && photos.length === 0) {
+      setError('Your fleet needs at least one photo of the car before you end the shift.');
       return;
     }
 
@@ -77,7 +87,7 @@ export default function EndShiftClient({ startTime, startingMileage, vehicleLabe
       const res = await fetch('/api/shifts/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ending_mileage: enteredKm, end_image_urls: urls }),
+        body: JSON.stringify({ ending_mileage: hasKm ? enteredKm : null, end_image_urls: urls }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -131,7 +141,7 @@ export default function EndShiftClient({ startTime, startingMileage, vehicleLabe
       </dl>
 
       <label className={styles.field}>
-        <span>Odometer now (km)</span>
+        <span>Odometer now (km){mileageRequired ? '' : ' — optional'}</span>
         <input
           type="number"
           inputMode="numeric"
@@ -140,14 +150,15 @@ export default function EndShiftClient({ startTime, startingMileage, vehicleLabe
           value={endingMileage}
           onChange={(e) => setEndingMileage(e.target.value)}
           placeholder={`At least ${startingMileage.toLocaleString()}`}
-          required
+          required={mileageRequired}
           autoFocus
         />
         {distance !== null && <small className={styles.hint}>{distance.toLocaleString()} km this shift</small>}
       </label>
 
+      {photoRule !== 'off' && (
       <label className={styles.field}>
-        <span>Photos of the car (optional, up to {MAX_PHOTOS})</span>
+        <span>Photos of the car ({photoRule === 'required' ? 'at least 1' : 'optional'}, up to {MAX_PHOTOS})</span>
         <input
           type="file"
           accept="image/*"
@@ -156,12 +167,13 @@ export default function EndShiftClient({ startTime, startingMileage, vehicleLabe
         />
         {photos.length > 0 && <small className={styles.hint}>{photos.length} photo{photos.length === 1 ? '' : 's'} selected</small>}
       </label>
+      )}
 
       {error && <div className={styles.error} role="alert">{error}</div>}
 
       <div className={styles.actions}>
         <Link href="/driver" className={styles.secondaryLink}>Not yet</Link>
-        <button type="submit" className={styles.primaryBtn} disabled={busy || !endingMileage}>
+        <button type="submit" className={styles.primaryBtn} disabled={busy || (mileageRequired && !endingMileage) || (photoRule === 'required' && photos.length === 0)}>
           {busy ? 'Ending…' : 'End shift'}
         </button>
       </div>
