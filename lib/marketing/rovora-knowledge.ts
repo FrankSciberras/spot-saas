@@ -72,7 +72,7 @@ function renderPageContext(page?: string): string {
     '/pricing': 'the pricing page',
     '/contact': 'the contact page',
     '/security': 'the security & privacy page',
-    '/ai': 'the Rovora AI (coming soon) page',
+    '/ai': 'the Rovora AI page',
     '/integrations': 'the integrations page',
     '/changelog': 'the changelog page',
     '/roadmap': 'the product roadmap page',
@@ -240,8 +240,10 @@ The pitch: most small fleets run on a patchwork of spreadsheets, paper logs and 
 - Free driver app: drivers clock in, log shifts, complete pre-shift checks and see their earnings — no training needed. If they can use a ride-hail app, they can use Rovora.
 - Unlimited team members on every plan, full audit trail, export your data anytime.
 
-# ROVORA AI (IN DEVELOPMENT — NOT LIVE YET)
-Rovora AI is a set of AI features being built into Rovora, previewed at ${SITE_URL}/ai. NONE are available today — never present them as live. Visitors can join the early-access list by emailing ${SALES_EMAIL} with the subject "Rovora AI early access". Coming first: (1) receipt & invoice scanning — photo or PDF becomes a logged expense or service entry with VAT and line items split out; (2) Uber/Bolt statement import — the weekly statement is matched to each driver and lands in settlements; (3) a fleet assistant — plain-English questions answered from the fleet's own data; (4) a repair advisor — flags quotes above the fleet's usual price, duplicate work, and ranks open defects. Further out: damage photo checks, earnings forecasts, vehicle history summaries, anomaly alerts, driver insights. Early-access fleets help decide the order.
+# ROVORA AI
+Rovora AI is a set of AI features built into Rovora (${SITE_URL}/ai).
+LIVE TODAY, in every plan: the **fleet assistant** — click "Ask AI" in the dashboard's top bar (or ⌘K) and ask in plain English, e.g. "which car cost me the most last month?" or "who hasn't done a pre-shift check this week?". It answers from the fleet's own data (costs, drivers, vehicles, shifts, services, damages, documents, settlements, Bolt rides) and links to the records behind each answer. It is read-only, respects roles (money answers are for fleet admins), never sends ID/licence numbers, contact details, photos or locations to the AI, and each plan includes a monthly AI allowance. Fleet admins can switch it off in Integrations.
+IN DEVELOPMENT — NOT LIVE YET (never present these as available): (1) receipt & invoice scanning — photo or PDF becomes a logged expense or service entry with VAT and line items split out; (2) Uber/Bolt statement import — the weekly statement is matched to each driver and lands in settlements; (3) a repair advisor — flags quotes above the fleet's usual price, duplicate work, and ranks open defects. Further out: damage photo checks, earnings forecasts, vehicle history summaries, anomaly alerts, driver insights. Visitors can join the early-access list by emailing ${SALES_EMAIL} with the subject "Rovora AI early access"; early-access fleets help decide the order.
 
 # INTEGRATIONS
 LIVE TODAY — Bolt: a fleet owner connects their own Bolt fleet account (they paste an API key created in the Bolt Fleet Portal under Settings → Fleet API keys (v2)) and Rovora shows, per driver and for any period: finished rides, ride fares, tips, cash collected, acceptance rate, time spent on jobs, fares per hour and rider rating — plus who is online on Bolt right now and which drivers or vehicles Bolt has suspended and why. It refreshes every hour, is optional, read-only (Rovora cannot change anything in the Bolt account) and can be disconnected at any time. LIMIT — be honest about this: Bolt does not yet share commission or net payout figures through its API, so the Bolt connection does NOT fill in settlements automatically; fares shown are before Bolt's commission.

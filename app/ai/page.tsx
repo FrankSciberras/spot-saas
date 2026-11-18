@@ -6,9 +6,9 @@ import { START_TRIAL } from '@/components/marketing/links';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'AI Fleet Management, Coming Soon — Rovora',
+  title: 'AI Fleet Management — Rovora AI',
   description:
-    'Rovora AI is in development: receipts read for you, Uber and Bolt statements imported, repair quotes checked and plain-English answers. Join early access.',
+    'Ask your fleet anything with Rovora AI — plain-English answers from your own data, in every plan. Next: receipts read for you, Uber and Bolt statements imported and repair quotes checked.',
   path: '/ai',
   keywords: [
     'AI fleet management',
@@ -42,12 +42,12 @@ export default function RovoraAiPage() {
       {/* Hero — same markup as FeatureHero, but with an early-access CTA. */}
       <section className="hero" id="top">
         <div className="container reveal-stagger">
-          <span className="eyebrow"><span className="live" /> Rovora AI · In development</span>
+          <span className="eyebrow"><span className="live" /> Rovora AI · Fleet assistant now live</span>
           <h1 className="hero-title">AI fleet management that does the <span className="pos">paperwork</span>.</h1>
           <p className="hero-sub">
-            Rovora AI reads your receipts, imports your platform statements, gives a second
-            opinion on repair bills and answers questions about your fleet in plain English.
-            We&rsquo;re building it now — join the early-access list and be first in.
+            Ask Rovora AI anything about your fleet in plain English — it&rsquo;s live in every
+            plan today. Next, it reads your receipts, imports your platform statements and gives
+            a second opinion on repair bills. Join the early-access list to be first in.
           </p>
           <div className="hero-cta">
             <a className="btn btn-primary btn-lg" href={EARLY_ACCESS_MAILTO}>Get early access</a>
@@ -92,7 +92,7 @@ export default function RovoraAiPage() {
       <section className="sec-pad" id="coming">
         <div className="container">
           <SecHead
-            kicker="Coming soon · four features first"
+            kicker="One live today · three more coming"
             title="AI that does the admin — not a chatbot bolted on"
             desc="Each of these lands in early access first, built with real fleets on real data. Tell us which one you need and we'll move it up the queue."
           />
@@ -159,7 +159,7 @@ export default function RovoraAiPage() {
               <ShotFrame path="ai/assistant" tight>
                 <div className="mock-top">
                   <span className="mock-title">Fleet assistant</span>
-                  <span className="mock-pill">● Coming soon</span>
+                  <span className="mock-pill">● Live</span>
                 </div>
                 <div className="mock-rows">
                   <div className="mock-row"><span className="nm">You</span><span className="meta">· which car cost the most in June?</span></div>

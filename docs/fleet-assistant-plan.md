@@ -1,6 +1,6 @@
 # Rovora AI — fleet assistant (plan)
 
-Status: **steps 1–2 built (backend, spending limits, chat panel), not live** · Owner session: `claude/adoring-pasteur-ksjrzo` · 2026-11-17
+Status: **live for every fleet (18 Nov 2026)** — backend, spending limits, chat panel · Owner session: `claude/adoring-pasteur-ksjrzo` · 2026-11-17
 
 A chat assistant inside the fleet dashboard (`/fleet/*`) that a fleet manager can
 ask anything about their own fleet — "Which car cost me the most last month?",
@@ -39,7 +39,7 @@ FleetTopbar "Ask AI" ─► AssistantDrawer ─► POST /api/assistant (stream)
 | D1 | LLM provider | Reuse the **OpenAI** key the website chatbot already uses (`OPENAI_API_KEY`, billing exists). Behind a small adapter so it can be swapped. Own model var `FLEET_ASSISTANT_MODEL`, chosen by testing on the demo fleet (the website bot's small model may be too weak for multi-step tool use). |
 | D2 | Who can use it | **Admins and staff.** Staff get operations answers only (drivers, vehicles, shifts, rosters, services, damages, reminders, safety). **Money answers (bookkeeping, financials, Bolt, settlements) are admin-only**, matching the dashboard's page gates. A later fleet setting can let staff ask about money. |
 | D3 | Read-only v1 | Yes. No tool can change data. Actions (create reminder, message a driver) come in phase 3 with an explicit confirm button. |
-| D4 | Rollout | New module `assistant` in `lib/modules/catalog.ts`, **off by default** during beta; switched on for the demo fleet and pilot customers. |
+| D4 | Rollout | **Live for every fleet (18 Nov 2026):** module `assistant` in `lib/modules/catalog.ts`, on by default; fleet admins can switch it off in Integrations. Plan allowances + rate limits apply. |
 | D5 | Cost control | **Built — see §5a.** Monthly € allowance per fleet set per plan tier, per-person questions/min and /day, a per-question € ceiling and a platform-wide monthly € ceiling. All enforced atomically in Postgres before the model is called. |
 | D6 | Privacy | Update `app/privacy/page.tsx` before launch — it currently says OpenAI gets "no fleet, driver or location data ever". Tools never send ID/licence numbers, phone, address, email or photos. |
 

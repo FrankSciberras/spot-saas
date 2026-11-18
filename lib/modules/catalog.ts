@@ -188,6 +188,22 @@ export const FLEET_MODULES: FleetModule[] = [
     routePrefixes: [],
   },
   {
+    // The fleet assistant (lib/assistant, components/assistant). No pages of
+    // its own — it lives in the topbar "Ask AI" button and the ⌘K palette.
+    // Each plan's monthly AI allowance + rate limits still apply (plans.ai_*).
+    key: 'assistant',
+    name: 'Rovora AI',
+    tagline: 'Ask your fleet anything',
+    description:
+      'Ask questions in plain English — which car cost the most, who skipped a pre-shift check, what expires this month — and get answers from your own fleet data, linked to the records behind them. Read-only: it never changes anything.',
+    icon: 'sparkle',
+    category: 'Operations',
+    status: 'available',
+    defaultEnabled: true,
+    navIds: [],
+    routePrefixes: [],
+  },
+  {
     key: 'invoices',
     name: 'Invoices',
     tagline: 'Bill customers & partners',

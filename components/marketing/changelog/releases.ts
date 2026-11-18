@@ -35,13 +35,43 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-rovora-ai',
+    date: '2026-11-18',
+    dateHuman: 'November 2026',
+    title: 'Rovora AI: ask your fleet anything',
+    summary:
+      'Ask a question in plain English and get the answer from your own fleet’s data — costs, drivers, shifts, services, documents — with links to the records behind it. It’s in every plan today.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Rovora AI',
+        text: 'Click Ask AI in the top bar (or press ⌘K and type a question) to ask things like “which car cost me the most last month?” or “who skipped a pre-shift check this week?”.',
+      },
+      {
+        tag: 'new',
+        area: 'Rovora AI',
+        text: 'Every answer shows the dates it used and links to the drivers, cars and pages it came from, so you can check the numbers in one click.',
+      },
+      {
+        tag: 'security',
+        area: 'Rovora AI',
+        text: 'It only reads — it never changes anything. Staff only get answers about what their role can already see, and money questions stay with fleet admins. ID and licence numbers, contact details, photos and locations are never sent to the AI.',
+      },
+      {
+        tag: 'new',
+        area: 'Rovora AI',
+        text: 'Included in every plan with a monthly allowance. Fleet admins can switch it off under Integrations → Your modules.',
+      },
+    ],
+  },
+  {
     id: '2026-11-gps-settings',
     date: '2026-11-18',
     dateHuman: 'November 2026',
     title: 'Your GPS trackers on the map, and settings that fit your fleet',
     summary:
       'Already have trackers in your cars? Connect them and see every car on the Live Map next to your drivers. Settings has been rebuilt with the rules your fleet actually runs by, and every vehicle now has its whole story on one tabbed page.',
-    highlight: true,
     items: [
       {
         tag: 'new',

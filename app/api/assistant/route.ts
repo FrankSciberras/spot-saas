@@ -36,10 +36,10 @@ export const maxDuration = 120;
 //
 // GET /api/assistant?secret=<CRON_SECRET>   live self-test (or platform admin)
 //
-// Switching it on, during beta: set FLEET_ASSISTANT_BETA_ORGS to a comma-
-// separated list of organization ids ("*" = every fleet). Platform admins can
-// always use it in fleets they belong to. An `assistant` module in
-// lib/modules/catalog.ts will replace the env list at general availability.
+// Who gets it: every fleet, through the `assistant` module (on by default;
+// fleet admins can switch it off in Integrations). FLEET_ASSISTANT_BETA_ORGS
+// and platform-admin access still switch it on for a fleet that turned the
+// module off. Each plan's monthly allowance + rate limits always apply.
 // Needs OPENAI_API_KEY (shared with the website chatbot) and migration
 // supabase/migrations/20261118_fleet_assistant.sql.
 // =============================================================================

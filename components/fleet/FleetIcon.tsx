@@ -139,6 +139,8 @@ export default function FleetIcon({ name, size = 18, stroke = 1.6, className = '
       return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.8v.4" /></svg>;
     case 'minus':
       return <svg {...props}><path d="M5 12h14" /></svg>;
+    case 'sparkle':
+      return <svg {...props}><path d="M12 3.5l1.9 5.1a2 2 0 0 0 1.2 1.2l5.1 1.9-5.1 1.9a2 2 0 0 0-1.2 1.2L12 20l-1.9-5.2a2 2 0 0 0-1.2-1.2L3.8 11.7l5.1-1.9a2 2 0 0 0 1.2-1.2z" /><path d="M19 3v3M17.5 4.5h3" /></svg>;
     case 'chat':
       return <svg {...props}><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.1A8 8 0 1 1 20 12z" /><path d="M8.5 10.5h7M8.5 13.5h4.5" /></svg>;
     case 'send':

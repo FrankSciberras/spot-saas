@@ -43,15 +43,6 @@ export const ROADMAP_UPDATED = '2026-11-18';
 
 export const ROADMAP: RoadmapItem[] = [
   // ── In progress ──────────────────────────────────────────────────────────
-  {
-    id: 'ai-assistant',
-    status: 'in-progress',
-    area: 'Rovora AI',
-    title: 'Ask your fleet anything',
-    text: '“Which car cost me the most last month?” “Whose documents expire this month?” Ask in plain English from any page and get the answer from your own fleet’s data, linked to the records behind it. Read-only — it never changes anything.',
-    href: '/ai',
-    note: 'Private beta',
-  },
 
   {
     id: 'rovora-gps',

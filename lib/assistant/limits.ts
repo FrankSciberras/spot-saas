@@ -48,10 +48,11 @@ export function trialLimits() {
 }
 
 /**
- * Is Rovora AI switched on for this fleet at all? During beta that's the
- * FLEET_ASSISTANT_BETA_ORGS allow-list (comma-separated organization ids, "*" =
- * every fleet). The `assistant` module, once it exists in lib/modules/catalog,
- * also switches it on — that's the path to general availability.
+ * Is Rovora AI switched on for this fleet at all? Normally yes: the `assistant`
+ * module (lib/modules/catalog) is on by default for every fleet, and a fleet
+ * admin can switch it off in Integrations. FLEET_ASSISTANT_BETA_ORGS (comma-
+ * separated organization ids, "*" = every fleet) still forces it on, e.g. for a
+ * fleet that switched the module off but is helping test something.
  */
 export function assistantSwitchedOn(organizationId: string, modules: Set<string>): boolean {
   if (modules.has('assistant')) return true;
