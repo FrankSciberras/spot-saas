@@ -7,9 +7,8 @@ import {
   INTEGRATION_CATEGORIES,
   REQUEST_INTEGRATION_MAILTO,
   notifyMailto,
-  markFontSize,
 } from '@/lib/integrations/catalog';
-import BoltMark from '@/components/shared/BoltMark';
+import IntegrationMark, { integrationTileStyle } from '@/components/shared/IntegrationMark';
 import ModuleToggles from './ModuleToggles';
 import styles from './integrations.module.css';
 
@@ -101,10 +100,10 @@ export default async function FleetIntegrationsPage() {
                     <div className={styles.cardTop}>
                       <div
                         className={styles.logo}
-                        style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
+                        style={integrationTileStyle(it, 46)}
                         aria-hidden
                       >
-                        {it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}
+                        <IntegrationMark it={it} tile={46} />
                       </div>
                       {it.status === 'live' ? (
                         <span className={styles.live}>Live</span>

@@ -3,12 +3,11 @@ import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { FeatureHero, CtaBand } from '@/components/marketing/feature/Sections';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
-import BoltMark from '@/components/shared/BoltMark';
+import IntegrationMark, { integrationTileStyle } from '@/components/shared/IntegrationMark';
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATION_COUNT,
   REQUEST_INTEGRATION_MAILTO,
-  markFontSize,
 } from '@/lib/integrations/catalog';
 
 export const metadata = marketingMetadata({
@@ -50,9 +49,10 @@ export default async function IntegrationsPage() {
               <span
                 key={it.name}
                 className="integ-cloud-tile"
-                style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
+                style={integrationTileStyle(it, 60)}
+                title={it.name}
               >
-                {it.logo === 'bolt' ? <BoltMark size={30} /> : it.mark}
+                <IntegrationMark it={it} tile={60} />
               </span>
             ))}
           </div>
@@ -71,7 +71,7 @@ export default async function IntegrationsPage() {
           </div>
 
           {INTEGRATION_CATEGORIES.map((cat) => (
-            <div className="integ-cat reveal" key={cat.key}>
+            <div className="integ-cat reveal" key={cat.key} id={cat.key}>
               <div className="integ-cat-head">
                 <h3 className="integ-cat-title">{cat.title}</h3>
                 <p className="integ-cat-blurb">{cat.blurb}</p>
@@ -82,10 +82,10 @@ export default async function IntegrationsPage() {
                     <span className="integ-live">Live</span>
                     <div
                       className="integ-logo"
-                      style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }}
+                      style={integrationTileStyle(it)}
                       aria-hidden
                     >
-                      {it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}
+                      <IntegrationMark it={it} />
                     </div>
                     <div className="integ-name">{it.name}</div>
                     <p className="integ-desc">{it.desc}</p>

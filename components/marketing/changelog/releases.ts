@@ -83,6 +83,11 @@ export const RELEASES: Release[] = [
         area: 'Driver app',
         text: 'Drivers’ Notifications page no longer shows “Something went wrong” on phones, and the dashboard no longer scrolls sideways.',
       },
+      {
+        tag: 'improved',
+        area: 'Integrations',
+        text: 'Every integration now shows the partner’s real logo — on the Integrations page, in your dashboard and when you connect a GPS platform.',
+      },
     ],
   },
   {

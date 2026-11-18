@@ -1,9 +1,12 @@
 // Single source of truth for the integrations marketplace, shared by the public
 // marketing page (/integrations) and the fleet dashboard (/fleet/integrations).
 // Only connections that work today are listed here; what is planned lives on
-// the public roadmap (components/marketing/roadmap/roadmap.ts). We don't ship
-// the real third-party marks (trademarks), so each tile uses a short mark and
-// brand-ish colours instead.
+// the public roadmap (components/marketing/roadmap/roadmap.ts).
+//
+// Partner logos live in /public/integrations (taken from each partner's own
+// site; QuickBooks from Simple Icons, as Intuit's site can't be fetched). They
+// are shown only to say "Rovora connects to this" — never as an endorsement.
+// Our own entries (CSV, API, email) keep the short text `mark`.
 
 export type IntegrationStatus = 'live' | 'coming-soon';
 
@@ -29,6 +32,14 @@ export interface Integration {
    * (currently just 'bolt' → BoltMark), in the tile's `fg` colour.
    */
   logo?: 'bolt';
+  /** The partner's own square logo, drawn on a white tile (see IntegrationMark). */
+  logoSrc?: string;
+  /**
+   * Horizontal logo for the homepage carousel and the Integrations menu, drawn
+   * in one grey. `label` is set beside it when the logo is a symbol with no
+   * name in it; `height` (px) evens out the visual weight between logos.
+   */
+  wordmark?: { src: string; height: number; label?: string };
 }
 
 export interface IntegrationCategory {
@@ -75,6 +86,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#f26722',
         fg: '#ffffff',
         desc: 'Live positions, speed and mileage from your Wialon Hosting or Wialon Local units.',
+        logoSrc: '/integrations/wialon.svg',
+        wordmark: { src: '/integrations/wialon-wordmark.svg', height: 22 },
         status: 'live',
         href: '/fleet/gps?provider=wialon',
       },
@@ -84,6 +97,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#2f6fed',
         fg: '#ffffff',
         desc: 'Live vehicle locations, ignition and odometer from your Traccar server.',
+        logoSrc: '/integrations/traccar.svg',
+        wordmark: { src: '/integrations/traccar-mono.svg', height: 24, label: 'Traccar' },
         status: 'live',
         href: '/fleet/gps?provider=traccar',
       },
@@ -93,6 +108,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#12b886',
         fg: '#ffffff',
         desc: 'Telematics from almost any tracker, streamed through your flespi account.',
+        logoSrc: '/integrations/flespi.png',
+        wordmark: { src: '/integrations/flespi-wordmark.svg', height: 25 },
         status: 'live',
         href: '/fleet/gps?provider=flespi',
       },
@@ -102,6 +119,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#4c9c2e',
         fg: '#ffffff',
         desc: 'Teltonika FMB/FMC trackers — through flespi, Traccar or Wialon.',
+        logoSrc: '/integrations/teltonika.svg',
+        wordmark: { src: '/integrations/teltonika-wordmark.svg', height: 18 },
         status: 'live',
         href: '/fleet/gps',
         more: '/features/live-tracking',
@@ -112,6 +131,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#1e88e5',
         fg: '#ffffff',
         desc: 'Live trackers from Navixy and the GPS brands built on it.',
+        logoSrc: '/integrations/navixy.svg',
+        wordmark: { src: '/integrations/navixy-wordmark.svg', height: 23 },
         status: 'live',
         href: '/fleet/gps?provider=navixy',
       },
@@ -121,6 +142,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#0b2a4a',
         fg: '#ffffff',
         desc: 'Vehicle gateways: position, speed, engine state and odometer.',
+        logoSrc: '/integrations/samsara.svg',
+        wordmark: { src: '/integrations/samsara-wordmark.svg', height: 18 },
         status: 'live',
         href: '/fleet/gps?provider=samsara',
       },
@@ -130,6 +153,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#25477b',
         fg: '#ffffff',
         desc: 'MyGeotab GO devices on the Rovora Live Map.',
+        logoSrc: '/integrations/geotab.svg',
+        wordmark: { src: '/integrations/geotab-wordmark.svg', height: 17 },
         status: 'live',
         href: '/fleet/gps?provider=geotab',
       },
@@ -139,6 +164,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#e53935',
         fg: '#ffffff',
         desc: 'Live positions and ignition from your Mapon units.',
+        logoSrc: '/integrations/mapon.png',
+        wordmark: { src: '/integrations/mapon-wordmark.png', height: 25 },
         status: 'live',
         href: '/fleet/gps?provider=mapon',
       },
@@ -157,6 +184,7 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#34d186',
         fg: '#ffffff',
         desc: 'Connect your Bolt fleet account with a Fleet API key: rides, fares, tips and acceptance per driver and per car, refreshed every hour, plus who is online right now.',
+        wordmark: { src: '/platforms/bolt.svg', height: 26 },
         status: 'live',
         href: '/fleet/bolt',
         more: '/features/bolt',
@@ -175,6 +203,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#13b5ea',
         fg: '#ffffff',
         desc: 'Export your transactions as a Xero bank-statement CSV, one line per dated transaction. A file you import, not a live sync.',
+        logoSrc: '/integrations/xero.svg',
+        wordmark: { src: '/integrations/xero-mono.svg', height: 30 },
         status: 'live',
         href: '/fleet/financials',
         more: '/features/bookkeeping',
@@ -185,6 +215,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#2ca01c',
         fg: '#ffffff',
         desc: 'Export the same transactions as a QuickBooks bank CSV with credit and debit columns. A file you import, not a live sync.',
+        logoSrc: '/integrations/quickbooks.svg',
+        wordmark: { src: '/integrations/quickbooks-mono.svg', height: 26, label: 'QuickBooks' },
         status: 'live',
         href: '/fleet/financials',
         more: '/features/bookkeeping',
@@ -212,6 +244,7 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#0f172a',
         fg: '#ffffff',
         desc: 'A REST API for drivers, vehicles and bookkeeping transactions, with scoped keys and an OpenAPI spec. On plans that include API access.',
+        logoSrc: '/logo-mark.png',
         status: 'live',
         href: '/fleet/api',
         more: '/docs/api',
@@ -229,6 +262,8 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#4285f4',
         fg: '#ffffff',
         desc: 'Sign in and sign up with your Google account instead of another password.',
+        logoSrc: '/integrations/google.svg',
+        wordmark: { src: '/integrations/google-wordmark.svg', height: 24 },
         status: 'live',
       },
       {
@@ -248,4 +283,13 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
 export const INTEGRATION_COUNT = INTEGRATION_CATEGORIES.reduce(
   (n, c) => n + c.items.length,
   0,
+);
+
+/**
+ * Every partner with a logo, in catalog order — the homepage carousel and the
+ * Integrations menu both read this, so a new integration shows up in both.
+ */
+export type IntegrationWithWordmark = Integration & { wordmark: NonNullable<Integration['wordmark']> };
+export const INTEGRATION_LOGOS: IntegrationWithWordmark[] = INTEGRATION_CATEGORIES.flatMap((c) => c.items).filter(
+  (it): it is IntegrationWithWordmark => !!it.wordmark,
 );

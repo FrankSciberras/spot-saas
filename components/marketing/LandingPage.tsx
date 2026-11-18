@@ -26,8 +26,9 @@ import FeaturesAccordion from './FeaturesAccordion';
 import { SIGN_IN, START_TRIAL, AUDIENCES, featureHref, audienceHref } from './links';
 import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import { Icon, type IconName } from './feature/icons';
-import { INTEGRATION_CATEGORIES, markFontSize } from '@/lib/integrations/catalog';
-import BoltMark from '@/components/shared/BoltMark';
+import { INTEGRATION_CATEGORIES } from '@/lib/integrations/catalog';
+import IntegrationMark, { integrationTileStyle } from '@/components/shared/IntegrationMark';
+import IntegrationsMarquee from './IntegrationsMarquee';
 
 /** The headline live connections — full list at /integrations. */
 const INTEGRATIONS = INTEGRATION_CATEGORIES.flatMap((c) => c.items).filter((it) =>
@@ -365,11 +366,16 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
               <p className="sec-desc">Connect your Bolt fleet account, hand your accountant a Xero or QuickBooks file, or plug in your own tools through the API. Everything shown here works today.</p>
             </div>
 
+            {/* Every partner, sliding past in one grey — the tiles below pick out four. */}
+            <div className="reveal" style={{ margin: '-24px 0 44px' }}>
+              <IntegrationsMarquee />
+            </div>
+
             <div className="integ-grid reveal-stagger">
               {INTEGRATIONS.map((it) => (
                 <div className="integ" key={it.name}>
                   <span className="integ-live">Live</span>
-                  <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.logo === 'bolt' ? <BoltMark size={28} /> : it.mark}</div>
+                  <div className="integ-logo" style={integrationTileStyle(it)} aria-hidden><IntegrationMark it={it} /></div>
                   <div className="integ-name">{it.name}</div>
                   <p className="integ-desc">{it.desc}</p>
                 </div>

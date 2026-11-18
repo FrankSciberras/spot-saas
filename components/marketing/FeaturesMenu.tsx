@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import type { ComponentType } from 'react';
 import Link from 'next/link';
 import { FEATURES, AUDIENCES, featureHref, audienceHref } from './links';
 import { Icon } from './feature/icons';
 import { FEATURE_ICONS } from './feature-icons';
+import { useHoverMenu } from './useHoverMenu';
 
 export { FEATURE_ICONS };
 
@@ -80,52 +81,16 @@ const bySlug = (slug: string) => FEATURES.find((f) => f.slug === slug)!;
  * keyboard), closes on Escape, outside click, or selecting a link.
  */
 export default function FeaturesMenu({ sectionHref }: { sectionHref: string }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Close on outside click + Escape.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const cancelClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-  };
-  const scheduleClose = () => {
-    cancelClose();
-    closeTimer.current = setTimeout(() => setOpen(false), 120);
-  };
-  const close = () => setOpen(false);
+  const { open, wrapRef, close, toggle, wrapProps } = useHoverMenu();
 
   return (
-    <div
-      className="mm"
-      ref={wrapRef}
-      onMouseEnter={() => {
-        cancelClose();
-        setOpen(true);
-      }}
-      onMouseLeave={scheduleClose}
-    >
+    <div className="mm" ref={wrapRef} {...wrapProps}>
       <button
         type="button"
         className={`mm-trigger${open ? ' open' : ''}`}
         aria-expanded={open}
         aria-haspopup="true"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
       >
         Features
         <svg className="mm-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

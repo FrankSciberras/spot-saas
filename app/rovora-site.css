@@ -277,6 +277,40 @@
 .rovora-site .mm-foot svg { width: 15px; height: 15px; transition: transform .15s; }
 .rovora-site .mm-foot:hover svg { transform: translateX(3px); }
 
+/* ─── Integrations sheet (IntegrationsMenu): logos, not a list ─── */
+.rovora-site .im-grid {
+  display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 30px; align-items: start;
+}
+.rovora-site .im-col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.rovora-site .im-col + .im-col { padding-left: 30px; border-left: 1px solid var(--line-1); }
+.rovora-site .im-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.rovora-site .im-tiles-wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* `.mm-panel` prefix beats `.nav-links a`, which would otherwise size these. */
+.rovora-site .mm-panel .im-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0;
+  padding: 12px 6px 10px; border-radius: 12px; text-align: center;
+  font-size: 12.5px; font-weight: 500; color: var(--text-2) !important; letter-spacing: normal;
+  transition: background .14s, color .14s;
+}
+.rovora-site .mm-panel .im-card:hover { background: var(--bg-2); color: var(--text-1) !important; }
+.rovora-site .im-logo {
+  width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+  font-weight: 600; line-height: 1; transition: transform .16s cubic-bezier(.22,.61,.36,1), box-shadow .16s;
+}
+.rovora-site .im-card:hover .im-logo { transform: translateY(-2px); box-shadow: 0 8px 18px -8px rgba(15, 23, 42, 0.35); }
+.rovora-site .im-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rovora-site .im-live { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.rovora-site .im-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--pos, #2bbd7e); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rovora-site .mm-panel .im-request { font-size: 13px; font-weight: 500; color: var(--text-3) !important; }
+.rovora-site .mm-panel .im-request:hover { color: var(--text-1) !important; }
+@media (max-width: 1180px) {
+  .rovora-site .im-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rovora-site .im-col:first-child { grid-column: 1 / -1; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line-1); }
+  .rovora-site .im-col:nth-child(2) { padding-left: 0; border-left: none; }
+  .rovora-site .im-tiles-wide { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
 /* Narrow desktops: drop the rail under the columns and lose the app card. */
 @media (max-width: 1180px) {
   .rovora-site .mm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -289,6 +323,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rovora-site .mm-panel, .rovora-site .mm-inner, .rovora-site .mnav { animation: none; }
+  .rovora-site .im-logo { transition: none; }
 }
 
 /* ── Mobile menu ──
@@ -632,6 +667,40 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
   .rovora-site .platforms-row { gap: 24px; }
   .rovora-site .pmark { font-size: 21px; }
 }
+/* In dark mode the flattened marks were near-black on a near-black page. */
+.rovora-site[data-theme='dark'] .pmark-img { filter: brightness(0) invert(1); opacity: 0.5; }
+
+/* ─── Integrations logo carousel (IntegrationsMarquee) ───
+   Same one-grey treatment as the Uber / Bolt marks above. The track holds two
+   copies of the list and slides by exactly one copy, so the loop never jumps;
+   it travels left → right. The edges fade out instead of cutting logos off. */
+.rovora-site .mq {
+  position: relative;
+  overflow: hidden;
+  padding: 6px 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+.rovora-site .mq-track { display: flex; width: max-content; animation: mq-slide 55s linear infinite; }
+.rovora-site .mq:hover .mq-track { animation-play-state: paused; }
+.rovora-site .mq-set { display: flex; align-items: center; gap: 64px; padding: 0 32px; margin: 0; list-style: none; flex: none; }
+.rovora-site .mq-item { display: flex; align-items: center; gap: 8px; flex: none; opacity: 0.5; transition: opacity .15s; }
+.rovora-site .mq-item:hover { opacity: 0.85; }
+.rovora-site .mq-item img { display: block; width: auto; filter: brightness(0); }
+.rovora-site .mq-label { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; color: #000; }
+.rovora-site[data-theme='dark'] .mq-item img { filter: brightness(0) invert(1); }
+.rovora-site[data-theme='dark'] .mq-label { color: #fff; }
+@keyframes mq-slide { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+@media (max-width: 640px) {
+  .rovora-site .mq-set { gap: 40px; padding: 0 20px; }
+  .rovora-site .mq-track { animation-duration: 40s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rovora-site .mq { -webkit-mask-image: none; mask-image: none; }
+  .rovora-site .mq-track { animation: none; width: auto; justify-content: center; }
+  .rovora-site .mq-set { flex-wrap: wrap; justify-content: center; row-gap: 22px; flex: 1; }
+  .rovora-site .mq-set[aria-hidden] { display: none; }
+}
 
 /* ─── Testimonials carousel ─── */
 .rovora-site .tst { max-width: 760px; margin: 0 auto; }
@@ -891,7 +960,9 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .integ-cat-blurb { margin: 8px 0 0; max-width: 620px; font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
 
 /* Hero "logo cloud" — a scattered wall of integration tiles */
-.rovora-site .integ-cloud { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; padding: 8px 0; }
+/* Above the hero's bottom fade (.hero-shot-wrap::after), which is sized for a
+   tall screenshot — on this short row it washed every logo out. */
+.rovora-site .integ-cloud { position: relative; z-index: 3; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; padding: 8px 0; }
 .rovora-site .integ-cloud-tile { width: 60px; height: 60px; border-radius: 15px; display: grid; place-items: center; font-weight: 600; line-height: 1; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12); }
 
 /* ─── How it works ─── */

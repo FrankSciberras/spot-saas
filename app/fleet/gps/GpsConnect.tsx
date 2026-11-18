@@ -6,6 +6,7 @@ import { connectGpsAction } from '@/lib/actions/gps';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import type { GpsCredentialField } from '@/lib/gps/types';
 import styles from './gps.module.css';
+import IntegrationMark, { integrationTileStyle } from '@/components/shared/IntegrationMark';
 
 export interface ConnectableProvider {
   key: string;
@@ -161,10 +162,10 @@ export default function GpsConnect({
               >
                 <span
                   className={styles.providerLogo}
-                  style={{ background: p.bg, color: p.fg, fontSize: p.mark.length > 1 ? 14 : 18 }}
+                  style={integrationTileStyle(p, 36)}
                   aria-hidden
                 >
-                  {p.mark}
+                  <IntegrationMark it={p} tile={36} />
                 </span>
                 <span style={{ minWidth: 0 }}>
                   <span className={styles.providerName}>{p.name}</span>

@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import GpsConnect, { type ConnectableProvider } from './GpsConnect';
 import GpsAccountControls from './GpsAccountControls';
 import styles from './gps.module.css';
+import IntegrationMark, { integrationTileStyle } from '@/components/shared/IntegrationMark';
 
 export interface GpsAccountView {
   id: string;
   provider: string;
   providerName: string;
   mark: string;
+  logoSrc?: string;
   bg: string;
   fg: string;
   accountLabel: string | null;
@@ -52,8 +54,8 @@ export default function GpsAccounts({
       <div className={styles.connList}>
         {accounts.map((a) => (
           <div key={a.id} className={styles.connStrip} data-status={a.status}>
-            <span className={styles.providerLogo} style={{ background: a.bg, color: a.fg, fontSize: 18 }} aria-hidden>
-              {a.mark}
+            <span className={styles.providerLogo} style={integrationTileStyle(a, 36)} aria-hidden>
+              <IntegrationMark it={a} tile={36} />
             </span>
             <div className={styles.connInfo}>
               <div className={styles.connName}>

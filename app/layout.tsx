@@ -80,7 +80,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    // iOS Safari reads only the PREFIXED -webkit-text-size-adjust, and the CSS
+    // minifier strips that prefix from globals.css (its browser targets don't
+    // include iOS), so without this iPhones blew table text up to ~2× size.
+    // An inline style is never rewritten by the minifier.
+    <html lang="en" style={{ WebkitTextSizeAdjust: '100%' }}>
       {/*
         The inline <head> style block that used to live here is gone. It defined
         a `.splash-fallback` class no component ever applied, and its
