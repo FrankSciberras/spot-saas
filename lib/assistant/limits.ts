@@ -47,6 +47,21 @@ export function trialLimits() {
   };
 }
 
+/**
+ * Is Rovora AI switched on for this fleet at all? During beta that's the
+ * FLEET_ASSISTANT_BETA_ORGS allow-list (comma-separated organization ids, "*" =
+ * every fleet). The `assistant` module, once it exists in lib/modules/catalog,
+ * also switches it on — that's the path to general availability.
+ */
+export function assistantSwitchedOn(organizationId: string, modules: Set<string>): boolean {
+  if (modules.has('assistant')) return true;
+  const list = (process.env.FLEET_ASSISTANT_BETA_ORGS ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes('*') || list.includes(organizationId.toLowerCase());
+}
+
 export type EntitlementReason =
   | 'no_organization'
   | 'account_suspended'

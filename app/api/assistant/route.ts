@@ -4,6 +4,7 @@ import { isPlatformAdmin } from '@/lib/auth/platform';
 import { createAdminClient } from '@/lib/supabase/server';
 import { assistantRoleFor, buildAssistantContext, sanitizePage } from '@/lib/assistant/context';
 import {
+  assistantSwitchedOn,
   beginQuestion,
   deniedMessage,
   finishQuestion,
@@ -54,13 +55,6 @@ function refuse(status: number, reason: string, message: string) {
   );
 }
 
-/** Beta gate: the module once it exists, otherwise the env allow-list. */
-function switchedOn(organizationId: string, modules: Set<string>): boolean {
-  if (modules.has('assistant')) return true;
-  const list = (process.env.FLEET_ASSISTANT_BETA_ORGS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  return list.includes('*') || list.includes(organizationId.toLowerCase());
-}
-
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return refuse(401, 'unauthorized', 'Please sign in again.');
@@ -80,7 +74,7 @@ export async function POST(request: Request) {
     typeof body.conversation_id === 'string' && UUID.test(body.conversation_id) ? body.conversation_id.toLowerCase() : null;
 
   const ctx = await buildAssistantContext(session, role, sanitizePage(body.page));
-  if (!switchedOn(organizationId, ctx.modules)) {
+  if (!assistantSwitchedOn(organizationId, ctx.modules)) {
     return refuse(403, 'not_enabled', 'Rovora AI isn’t switched on for your fleet yet.');
   }
 

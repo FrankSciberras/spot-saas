@@ -1,6 +1,6 @@
 # Rovora AI — fleet assistant (plan)
 
-Status: **step 1 (backend + spending limits) built, not live** · Owner session: `claude/adoring-pasteur-ksjrzo` · 2026-11-17
+Status: **steps 1–2 built (backend, spending limits, chat panel), not live** · Owner session: `claude/adoring-pasteur-ksjrzo` · 2026-11-17
 
 A chat assistant inside the fleet dashboard (`/fleet/*`) that a fleet manager can
 ask anything about their own fleet — "Which car cost me the most last month?",
@@ -158,6 +158,26 @@ How the euro figures stay true:
   (that widget's CSS is scoped to `.rovora-site`, so it can't be reused as-is).
 - Money via `lib/money.ts` (`formatMoney` / `useMoney`, from the Settings
   session) — never `fmtEUR` or a hardcoded `€`.
+
+## 6a. What step 2 shipped
+
+- `components/assistant/AssistantPanel.tsx`: the side panel (full screen on phones),
+  mounted in `FleetShell` (not `app/fleet/layout.tsx`, which PR #15 rewrites). The
+  thread is kept in sessionStorage so it survives page changes. Streaming
+  answers, status lines, safe Markdown with tables, Sources chips, thumbs up/down,
+  starter questions that depend on role, page and modules, Stop, New chat, and the
+  allowance line at the bottom.
+- "Ask AI" button in `FleetTopbar` (after the bell, away from #15's gear edit) and an
+  "Ask Rovora AI: …" row in the ⌘K palette. Both hide unless
+  `/api/assistant/usage` says it's on.
+- `POST /api/assistant/feedback`; privacy page wording updated for Rovora AI.
+- Checked in a real browser (Playwright) against a mocked API: desktop dark and
+  light, iPhone width, a refusal message, discarded pre-tool text, the allowance
+  line updating, the thread surviving a reload, and Esc to close.
+
+**Follow-ups once PR #15 merges:** read the fleet's currency from `lib/money`
+in `lib/assistant/context.ts`; optionally move the panel into the fleet layout
+so a half-streamed answer survives navigation.
 
 ## 7. Phases
 
