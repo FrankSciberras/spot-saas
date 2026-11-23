@@ -69,7 +69,7 @@ export default function RoadmapPage() {
   const shippedChanges = RELEASES.reduce((n, r) => n + r.items.length, 0);
 
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Roadmap', path: '/roadmap' }]}>
       <header className={s.hero}>
         <div className="container">
           <span className={s.eyebrow}>Roadmap</span>

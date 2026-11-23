@@ -12,6 +12,8 @@ export interface LegalSection {
 }
 
 interface LegalLayoutProps {
+  /** Site path of the page, for its breadcrumb in search results. */
+  path?: string;
   eyebrow: string;
   title: string;
   lede: string;
@@ -25,9 +27,9 @@ interface LegalLayoutProps {
  * marketing nav/footer via FeatureShell, a hero, a sticky table of contents and
  * the prose column. Each page just supplies its sections.
  */
-export default function LegalLayout({ eyebrow, title, lede, lastUpdated, sections }: LegalLayoutProps) {
+export default function LegalLayout({ path, eyebrow, title, lede, lastUpdated, sections }: LegalLayoutProps) {
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={path ? [{ name: title, path }] : undefined}>
       <header className={styles.hero}>
         <div className="container">
           <span className={styles.eyebrow}>{eyebrow}</span>

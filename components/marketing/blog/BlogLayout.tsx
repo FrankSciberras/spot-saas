@@ -3,7 +3,8 @@ import Link from 'next/link';
 import FeatureShell from '../feature/FeatureShell';
 import { CtaBand } from '../feature/Sections';
 import { legalStyles as s } from '../legal/LegalLayout';
-import { SITE_URL, OG_IMAGE, ORGANIZATION_ID, breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo';
+import { SITE_URL, ORGANIZATION_ID, breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo';
+import { ogImageFor } from '@/lib/og/cards';
 import { BLOG_POSTS, blogHref, type BlogPost } from './posts';
 import styles from './blog.module.css';
 
@@ -26,7 +27,7 @@ function buildArticleJsonLd(post: BlogPost) {
         description: post.description,
         datePublished: post.datePublished,
         dateModified: post.dateModified ?? post.datePublished,
-        image: `${SITE_URL}${OG_IMAGE.url}`,
+        image: `${SITE_URL}${ogImageFor(blogHref(post.slug)).url}`,
         mainEntityOfPage: `${SITE_URL}${blogHref(post.slug)}`,
         author: { '@id': ORGANIZATION_ID },
         publisher: { '@id': ORGANIZATION_ID },

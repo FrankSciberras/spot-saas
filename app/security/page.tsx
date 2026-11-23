@@ -21,6 +21,7 @@ const LAST_UPDATED = '8 June 2026';
 export default function SecurityPage() {
   return (
     <LegalLayout
+      path="/security"
       eyebrow="Legal · Security"
       title="Your fleet's data: secured, GDPR-aligned, EU-hosted"
       lede="Fleets trust Rovora with their drivers’ documents and their weekly money. Here is how we protect it — the practices we follow and the architecture behind them."

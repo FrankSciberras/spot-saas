@@ -1,9 +1,31 @@
 import Link from 'next/link';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { legalStyles as s } from '@/components/marketing/legal/LegalLayout';
-import { marketingMetadata } from '@/lib/seo';
+import { marketingMetadata, organizationJsonLd, SITE_URL, ORGANIZATION_ID } from '@/lib/seo';
 import { BLOG_POSTS, blogHref } from '@/components/marketing/blog/posts';
 import styles from '@/components/marketing/blog/blog.module.css';
+
+/** The blog and its posts, for search engines. */
+function blogJsonLd() {
+  return {
+    '@type': 'Blog',
+    '@id': `${SITE_URL}/blog#blog`,
+    url: `${SITE_URL}/blog`,
+    name: 'Rovora blog',
+    description: 'Guides for running a taxi or rideshare fleet: maintenance, driver pay, tracking and growth.',
+    inLanguage: 'en',
+    publisher: { '@id': ORGANIZATION_ID },
+    blogPost: BLOG_POSTS.map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      url: `${SITE_URL}${blogHref(p.slug)}`,
+      datePublished: p.datePublished,
+      dateModified: p.dateModified ?? p.datePublished,
+      image: `${SITE_URL}/og${blogHref(p.slug)}.png`,
+      author: { '@id': ORGANIZATION_ID },
+    })),
+  };
+}
 
 export const metadata = marketingMetadata({
   title: 'Fleet Management Guides for Taxi Fleets — Rovora',
@@ -25,7 +47,7 @@ export const metadata = marketingMetadata({
 
 export default function BlogIndexPage() {
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Blog', path: '/blog' }]} jsonLd={[blogJsonLd(), organizationJsonLd()]}>
       <header className={s.hero}>
         <div className="container">
           <span className={s.eyebrow}>Blog</span>

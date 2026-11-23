@@ -21,6 +21,7 @@ const LAST_UPDATED = '24 November 2026';
 export default function PrivacyPage() {
   return (
     <LegalLayout
+      path="/privacy"
       eyebrow="Legal · Privacy"
       title="Privacy policy: how we handle fleet and driver data"
       lede="Rovora is fleet-management software for taxi and cab operators. This policy explains what personal data we handle, why, how long we keep it, and the rights you have over it."

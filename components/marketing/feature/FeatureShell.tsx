@@ -19,22 +19,28 @@ import MarketingFooter from '../MarketingFooter';
  * shipped with no structured data at all, so Google had to infer the hierarchy
  * from links and could not render a breadcrumb trail in the result. Pages that
  * emit their own JSON-LD (blog posts, /pricing) simply omit the prop.
+ *
+ * `jsonLd` adds more nodes to the same graph (an AboutPage, a Blog, …).
  */
 export default async function FeatureShell({
   children,
   breadcrumb,
+  jsonLd,
 }: {
   children: ReactNode;
   /** Crumbs after "Home", e.g. `[{ name: 'Features', path: '/#features' }, …]`. */
   breadcrumb?: { name: string; path: string }[];
+  /** Extra structured-data nodes for this page. */
+  jsonLd?: object[];
 }) {
+  const nodes = [...(breadcrumb ? [breadcrumbJsonLd(breadcrumb)] : []), ...(jsonLd ?? [])];
   const trialOffer = await getTrialOffer();
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
-      {breadcrumb && (
+      {nodes.length > 0 && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdGraph([breadcrumbJsonLd(breadcrumb)]) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdGraph(nodes) }}
         />
       )}
       <noscript>

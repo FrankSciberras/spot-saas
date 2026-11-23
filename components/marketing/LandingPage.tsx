@@ -78,9 +78,12 @@ const STEPS: { icon: IconName; title: string; body: string }[] = [
 function buildJsonLd(plans: PlanDef[], faq: FaqItem[]) {
   const webSite = {
     '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
     name: 'Rovora',
     alternateName: 'Rovora Fleet Management',
     url: SITE_URL,
+    inLanguage: 'en',
+    publisher: { '@id': ORGANIZATION_ID },
   };
 
   const faqPage = {

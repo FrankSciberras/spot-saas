@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { OG_IMAGE } from '@/lib/seo';
+import { OG_IMAGE, OG_LOCALE } from '@/lib/seo';
 import { getPublicPlans } from '@/lib/billing/plans-data';
 import { getTrialOffer } from '@/lib/billing/trial-offer-data';
 import LandingPage from '@/components/marketing/LandingPage';
@@ -31,6 +31,7 @@ export const metadata: Metadata = {
       'All-in-one fleet management software for taxi and rideshare fleets: vehicles, maintenance, drivers, rosters, driver pay and tracking with no GPS hardware.',
     url: '/',
     siteName: 'Rovora',
+    locale: OG_LOCALE,
     images: [OG_IMAGE],
   },
   twitter: {
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     title: 'Fleet Management Software for Taxi & Rideshare — Rovora',
     description:
       'All-in-one fleet management software for taxi and rideshare fleets: vehicles, maintenance, drivers, rosters, driver pay and tracking with no GPS hardware.',
-    images: [OG_IMAGE.url],
+    images: [{ url: OG_IMAGE.url, alt: OG_IMAGE.alt }],
   },
 };
 

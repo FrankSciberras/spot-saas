@@ -21,7 +21,7 @@ const CAREERS_EMAIL = 'mailto:careers@rovora.eu?subject=Working%20at%20Rovora';
 
 export default function CareersPage() {
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Careers', path: '/careers' }]}>
       {/* Hero */}
       <section className="hero" id="top">
         <div className="container reveal-stagger">

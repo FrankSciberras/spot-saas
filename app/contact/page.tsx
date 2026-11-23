@@ -1,7 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { Icon } from '@/components/marketing/feature/icons';
 import ContactForm from '@/components/marketing/contact/ContactForm';
-import { marketingMetadata } from '@/lib/seo';
+import { marketingMetadata, webPageJsonLd, organizationJsonLd } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
   title: 'Contact Us: Fleet Software Sales & Support — Rovora',
@@ -54,7 +54,7 @@ const METHODS: {
 
 export default function ContactPage() {
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Contact', path: '/contact' }]} jsonLd={[webPageJsonLd('ContactPage', '/contact', 'Contact Rovora'), organizationJsonLd()]}>
       {/* Hero */}
       <section className="hero" id="top">
         <div className="container reveal-stagger">

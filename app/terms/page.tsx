@@ -21,6 +21,7 @@ const LAST_UPDATED = '2 September 2026';
 export default function TermsPage() {
   return (
     <LegalLayout
+      path="/terms"
       eyebrow="Legal · Terms"
       title="Terms of service for the Rovora fleet platform"
       lede="These terms are the agreement between you and Rovora for use of our fleet-management platform. By creating an account or using the service, you agree to them."

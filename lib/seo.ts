@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import type { PlanDef } from '@/lib/billing/plans';
+import { ogImageFor } from '@/lib/og/cards';
 
 /** Canonical production origin — used for absolute URLs in metadata, sitemap and robots. */
 export const SITE_URL = 'https://rovora.eu';
 
-/** Shared social-share card (1200×630) served from /public. */
-export const OG_IMAGE = {
-  url: '/og-image.png',
-  width: 1200,
-  height: 630,
-  alt: 'Rovora — fleet management software for taxi & rideshare operators',
-};
+/**
+ * The home page's social-share card (1200×630). Every public page has its own
+ * card — see ogImageFor() in lib/og/cards.ts; this is the fallback.
+ */
+export const OG_IMAGE = ogImageFor('/');
+
+/** Language/region of the site, for Open Graph. */
+export const OG_LOCALE = 'en_GB';
 
 /**
  * BreadcrumbList JSON-LD for a nested marketing page.
@@ -85,7 +87,7 @@ export function softwareApplicationJsonLd(plans: PlanDef[]) {
     applicationCategory: 'BusinessApplication',
     // The dashboard runs in any browser; drivers also get the Android app.
     operatingSystem: 'Web, Android',
-    image: `${SITE_URL}/og-image.png`,
+    image: `${SITE_URL}${OG_IMAGE.url}`,
     brand: { '@type': 'Brand', name: 'Rovora' },
     publisher: { '@id': ORGANIZATION_ID },
     offers: plans
@@ -124,6 +126,21 @@ export function softwareApplicationJsonLd(plans: PlanDef[]) {
   };
 }
 
+/** A typed web page node (AboutPage, ContactPage, CollectionPage…) tied to the Organization. */
+export function webPageJsonLd(type: string, path: string, name: string, description?: string) {
+  return {
+    '@type': type,
+    '@id': `${SITE_URL}${path}#webpage`,
+    url: `${SITE_URL}${path}`,
+    name,
+    ...(description ? { description } : {}),
+    inLanguage: 'en',
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    about: { '@id': ORGANIZATION_ID },
+    publisher: { '@id': ORGANIZATION_ID },
+  };
+}
+
 /** Renders a `@graph` of JSON-LD nodes into the page. */
 export function jsonLdGraph(nodes: object[]) {
   return JSON.stringify({ '@context': 'https://schema.org', '@graph': nodes });
@@ -143,6 +160,8 @@ interface MarketingMeta {
  * Relative URLs resolve against metadataBase (set in app/layout.tsx).
  */
 export function marketingMetadata({ title, description, path, keywords }: MarketingMeta): Metadata {
+  // This page's own share card (its headline over a product screenshot).
+  const image = ogImageFor(path, title);
   return {
     // `absolute` opts out of the root layout's "%s — Rovora" template: these
     // titles already carry the brand and are hand-tuned to fit Google's ~60-char
@@ -157,13 +176,14 @@ export function marketingMetadata({ title, description, path, keywords }: Market
       title,
       description,
       url: path,
-      images: [OG_IMAGE],
+      locale: OG_LOCALE,
+      images: [image],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [OG_IMAGE.url],
+      images: [{ url: image.url, alt: image.alt }],
     },
   };
 }

@@ -38,7 +38,7 @@ const LEGEND: { tag: ChangeTag; cls: string }[] = [
 
 export default function ChangelogPage() {
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Changelog', path: '/changelog' }]}>
       <header className={s.hero}>
         <div className="container">
           <span className={s.eyebrow}>Changelog</span>

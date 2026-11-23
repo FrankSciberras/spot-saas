@@ -3,7 +3,7 @@ import { FOR_GROWING } from '@/components/marketing/deep/content/audiences';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'Fleet Management Software for Growing Fleets (10–75 Cars) — Rovora',
+  title: 'Fleet Management for Growing Fleets (10–75 Cars) — Rovora',
   description:
     'For fleets with office staff: per-person permissions, an audit log, settlements for dozens of drivers, safety scores, a Bolt connection and an API.',
   path: FOR_GROWING.path,

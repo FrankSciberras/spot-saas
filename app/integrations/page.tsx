@@ -2,7 +2,7 @@ import Link from 'next/link';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { FeatureHero, CtaBand } from '@/components/marketing/feature/Sections';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
-import { marketingMetadata } from '@/lib/seo';
+import { marketingMetadata, webPageJsonLd } from '@/lib/seo';
 import IntegrationMark, { integrationTileStyle } from '@/components/shared/IntegrationMark';
 import {
   INTEGRATION_CATEGORIES,
@@ -13,7 +13,7 @@ import {
 export const metadata = marketingMetadata({
   title: 'Fleet Management Software Integrations — Rovora',
   description:
-    'What connects to Rovora today: GPS trackers (Wialon, Traccar, flespi, Teltonika, Navixy, Samsara, Geotab, Mapon), your Bolt fleet account, Xero and QuickBooks by CSV export, and a REST API.',
+    'Connect Rovora to GPS trackers (Teltonika, Wialon, Traccar, Samsara, Geotab and more), your Bolt fleet account, Xero and QuickBooks exports, and a REST API.',
   path: '/integrations',
   keywords: [
     'fleet management software integrations',
@@ -36,7 +36,7 @@ export const revalidate = 3600;
 export default async function IntegrationsPage() {
   const trial = await getTrialCopy();
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Integrations', path: '/integrations' }]} jsonLd={[webPageJsonLd('CollectionPage', '/integrations', 'Rovora integrations')]}>
       <FeatureHero
         eyebrow={`Integrations · ${INTEGRATION_COUNT} live`}
         title="What Rovora connects to,"

@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import SiteAnalytics from '@/components/analytics/SiteAnalytics';
 import SitePopups from '@/components/marketing/popups/SitePopups';
 import { figtree } from '@/lib/rovoraFonts';
+import { OG_IMAGE, OG_LOCALE } from '@/lib/seo';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://rovora.eu'),
@@ -38,11 +39,12 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'Rovora',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Rovora — fleet management software' }],
+    locale: OG_LOCALE,
+    images: [OG_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
-    images: ['/og-image.png'],
+    images: [{ url: OG_IMAGE.url, alt: OG_IMAGE.alt }],
   },
   appleWebApp: {
     capable: true,

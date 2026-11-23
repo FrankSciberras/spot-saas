@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { marketingMetadata } from '@/lib/seo';
+import { marketingMetadata, webPageJsonLd, organizationJsonLd } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
 import { START_TRIAL } from '@/components/marketing/links';
@@ -27,7 +27,7 @@ export const revalidate = 3600;
 export default async function AboutPage() {
   const trial = await getTrialCopy();
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'About', path: '/about' }]} jsonLd={[webPageJsonLd('AboutPage', '/about', 'About Rovora'), organizationJsonLd()]}>
       {/* Hero */}
       <section className="hero" id="top">
         <div className="container reveal-stagger">

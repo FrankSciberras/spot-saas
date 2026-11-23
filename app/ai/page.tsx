@@ -6,9 +6,9 @@ import { START_TRIAL } from '@/components/marketing/links';
 import { marketingMetadata } from '@/lib/seo';
 
 export const metadata = marketingMetadata({
-  title: 'AI Fleet Management — Rovora AI',
+  title: 'AI Fleet Management Software for Taxi Fleets — Rovora AI',
   description:
-    'Ask your fleet anything with Rovora AI — plain-English answers from your own data, in every plan. Next: receipts read for you, Uber and Bolt statements imported and repair quotes checked.',
+    'Ask your fleet anything with Rovora AI: plain-English answers from your own fleet data, in every plan. Coming next: receipts and statements read for you.',
   path: '/ai',
   keywords: [
     'AI fleet management',
@@ -38,7 +38,7 @@ Thanks!`,
 
 export default function RovoraAiPage() {
   return (
-    <FeatureShell>
+    <FeatureShell breadcrumb={[{ name: 'Rovora AI', path: '/ai' }]}>
       {/* Hero — same markup as FeatureHero, but with an early-access CTA. */}
       <section className="hero" id="top">
         <div className="container reveal-stagger">
