@@ -285,6 +285,36 @@ const featureLaunch: StarterTemplate = {
   }),
 };
 
+// Sent to fleets that signed up but never added anyone (admin console →
+// audience "Not set up yet"), once the Bolt fleet import shipped.
+const boltImport: StarterTemplate = {
+  id: 'starter-bolt-import',
+  name: 'Bolt fleet import',
+  description: 'For fleets that never added their drivers & cars: bring the whole Bolt fleet in with one click.',
+  subject: 'Your Bolt fleet, in Rovora in one click',
+  preheader: 'No more typing drivers and cars in one by one — connect Bolt and import everyone at once.',
+  marketing: true,
+  html: shell({
+    title: 'Bring your Bolt fleet into Rovora',
+    unsubscribe: true,
+    body: `
+              <span style="display:inline-block;margin:0 0 14px;padding:5px 12px;border-radius:100px;background:${C.accentSoft};border:1px solid ${C.accentLine};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${C.accent};">New</span>
+              ${h1('Bring your whole Bolt fleet into Rovora in one click')}
+              ${p('Hi {{first_name|there}},', `color:${C.text1};font-weight:600;`)}
+              ${p('You set up {{fleet_name|your fleet}} on {{app_name}}, but your drivers and cars aren’t in yet. We know typing everyone in one by one is the slow part, so if you work with Bolt you no longer have to.')}
+              ${eyebrow('How it works')}
+              ${rows(
+                numberRow(1, 'Create a key in the Bolt Fleet Portal', 'In Bolt, open Settings → Fleet API keys (v2) and press Create API key. It takes a few seconds.') +
+                  numberRow(2, 'Paste it into Rovora', 'Open Bolt in your Rovora dashboard and paste the Client ID and secret.') +
+                  numberRow(3, 'Press Import everything', 'Every driver and car on your Bolt account is added, each driver with the car they drive. Or tick exactly who to add.'),
+              )}
+              ${button('Import my Bolt fleet', '{{app_url}}/fleet/bolt')}
+              ${callout('Safe to try', 'Rovora only reads from Bolt and can’t change anything in your Bolt account. Changed your mind? Undo the import for 24 hours. When someone new joins your Bolt fleet later, we’ll ask before adding them.')}
+              ${p(`Want a hand? <a href="{{app_url}}/contact?topic=onboarding#form" target="_blank" rel="noopener" style="color:${C.accent};font-weight:600;text-decoration:none;">Book a 15-minute walkthrough</a> and we’ll set it up with you. Not on Bolt? You can add drivers and cars from your dashboard.`)}
+              ${p('— The {{app_name}} team', `margin:0;color:${C.text1};`)}`,
+  }),
+};
+
 const serviceNotice: StarterTemplate = {
   id: 'starter-service-notice',
   name: 'Service notice',
@@ -331,4 +361,4 @@ const blank: StarterTemplate = {
   }),
 };
 
-export const STARTER_TEMPLATES: StarterTemplate[] = [productUpdate, newsletter, featureLaunch, serviceNotice, blank];
+export const STARTER_TEMPLATES: StarterTemplate[] = [productUpdate, newsletter, featureLaunch, boltImport, serviceNotice, blank];

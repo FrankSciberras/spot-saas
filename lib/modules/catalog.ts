@@ -163,7 +163,7 @@ export const FLEET_MODULES: FleetModule[] = [
     name: 'Bolt',
     tagline: 'Rides & earnings from Bolt',
     description:
-      'Connect your Bolt fleet account to see rides, fares, tips, acceptance rates and who is online — per driver, updated every hour.',
+      'Connect your Bolt fleet account to bring every Bolt driver and car into Rovora in one click, then see rides, fares, tips, acceptance rates and who is online — per driver, updated every hour.',
     icon: 'bolt',
     category: 'Integrations',
     status: 'available',

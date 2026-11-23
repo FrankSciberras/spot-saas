@@ -61,8 +61,8 @@ export const BOLT: DeepContent = {
       body: 'Open Bolt in Rovora and paste the key. It is encrypted before it is stored. A “Bolt” item appears in your sidebar.',
     },
     {
-      title: 'Rovora imports your Bolt fleet',
-      body: 'Your Bolt drivers, vehicles and ride history come in, and from then on Rovora checks for new rides every hour.',
+      title: 'Add your whole Bolt fleet in one click',
+      body: 'Rovora lists every driver and car on your Bolt account. Import everything, or tick who to add — no typing. Your ride history comes in too, and from then on Rovora checks for new rides every hour.',
     },
     {
       title: 'Drivers are matched for you',
@@ -74,7 +74,7 @@ export const BOLT: DeepContent = {
     },
     {
       title: 'Change your mind any time',
-      body: 'Disconnect and the Bolt item leaves the sidebar, together with everything that was imported. Nothing in your Bolt account is touched.',
+      body: 'Disconnect and the Bolt item leaves the sidebar, together with the Bolt rides and figures. Drivers and cars you added to Rovora stay yours. Nothing in your Bolt account is touched.',
     },
   ],
 

@@ -115,7 +115,7 @@ interface Draft {
 
 interface AudState {
   kind: 'everyone' | 'operators' | 'drivers' | 'custom';
-  opScope: 'all' | 'plan' | 'operators';
+  opScope: 'all' | 'plan' | 'operators' | 'not_set_up';
   drvScope: 'all' | 'operators';
   planKeys: string[];
   operatorIds: string[];
@@ -672,7 +672,15 @@ export default function EmailCampaigns() {
                   <button style={seg(aud.opScope === 'all')} onClick={() => setAud((a) => ({ ...a, opScope: 'all' }))}>All operators</button>
                   <button style={seg(aud.opScope === 'plan')} onClick={() => setAud((a) => ({ ...a, opScope: 'plan' }))}>By plan</button>
                   <button style={seg(aud.opScope === 'operators')} onClick={() => setAud((a) => ({ ...a, opScope: 'operators' }))}>Specific fleets</button>
+                  <button style={seg(aud.opScope === 'not_set_up')} onClick={() => setAud((a) => ({ ...a, opScope: 'not_set_up' }))}>Not set up yet</button>
                 </div>
+                {aud.opScope === 'not_set_up' && (
+                  <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-3)' }}>
+                    Admins of fleets that still have no drivers and no vehicles. Leaves out fleets whose free period has
+                    ended or that are suspended, and fleets that said at sign-up they don&rsquo;t use Bolt. Pairs with the
+                    &ldquo;Bolt fleet import&rdquo; template.
+                  </p>
+                )}
                 {aud.opScope === 'plan' && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {(setup?.plans ?? []).map((p) => (

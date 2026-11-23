@@ -35,13 +35,53 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-bolt-fleet-import',
+    date: '2026-11-23',
+    dateHuman: 'November 2026',
+    title: 'Bring your whole Bolt fleet across in one click',
+    summary:
+      'Connect your Bolt account and every driver and car on it can be added to Rovora in one go, instead of typing them in one by one. New fleets that work with Bolt now start right there.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Bolt',
+        text: 'Once Bolt is connected, Rovora lists every driver and car on your Bolt account. Press Import everything, or tick exactly who to add.',
+      },
+      {
+        tag: 'new',
+        area: 'Bolt',
+        text: 'Imported drivers come with the car they drive on Bolt, and anyone already in Rovora is linked rather than added twice.',
+      },
+      {
+        tag: 'new',
+        area: 'Bolt',
+        text: 'Changed your mind? Undo an import for 24 hours. Anyone you have edited or given a shift since stays put.',
+      },
+      {
+        tag: 'new',
+        area: 'Bolt',
+        text: 'When someone new joins your Bolt fleet, Rovora tells you and you add them with one tap, or choose to have them added automatically.',
+      },
+      {
+        tag: 'improved',
+        area: 'Bolt',
+        text: 'Connecting Bolt now takes seconds: your drivers and cars show up straight away and the last two months of rides load in the background.',
+      },
+      {
+        tag: 'improved',
+        area: 'Onboarding',
+        text: 'Setting up a new fleet now asks which apps your drivers work on. Pick Bolt and you go straight to bringing your Bolt fleet in, not an empty dashboard.',
+      },
+    ],
+  },
+  {
     id: '2026-11-phone-tablet',
     date: '2026-11-18',
     dateHuman: 'November 2026',
     title: 'Built for your phone and tablet',
     summary:
       'We went through every page of the fleet dashboard and the driver app on phones and tablets, upright and sideways. Nothing runs off the edge any more, buttons are big enough to tap, and text is the same size wherever you are.',
-    highlight: true,
     items: [
       {
         tag: 'fixed',

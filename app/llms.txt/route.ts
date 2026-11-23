@@ -50,7 +50,7 @@ ${planLines.join('\n')}
 
 ## Features
 ${FEATURES.map((f) => `- [${f.label}](${SITE_URL}${featureHref(f.slug)}): ${f.blurb}`).join('\n')}
-- [Integrations](${SITE_URL}/integrations): live today — Bolt fleet account (Fleet API key), Xero and QuickBooks by CSV export, REST API, Google sign-in, email notifications.
+- [Integrations](${SITE_URL}/integrations): live today — Bolt fleet account (Fleet API key; imports every Bolt driver and car in one click), Xero and QuickBooks by CSV export, REST API, Google sign-in, email notifications.
 ${AUDIENCES.map((a) => `- [For ${a.label}](${SITE_URL}${audienceHref(a.slug)}): ${a.blurb}`).join('\n')}
 - [Rovora AI](${SITE_URL}/ai): fleet assistant live in every plan (plain-English questions answered from the fleet's own data, with links to the records); in development (early access) — receipt reading, Uber/Bolt statement import, repair-quote checks.
 - [Developer API](${SITE_URL}/docs/api): REST API with scoped keys and an OpenAPI spec.

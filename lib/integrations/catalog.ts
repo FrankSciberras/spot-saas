@@ -183,7 +183,7 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         logo: 'bolt',
         bg: '#34d186',
         fg: '#ffffff',
-        desc: 'Connect your Bolt fleet account with a Fleet API key: rides, fares, tips and acceptance per driver and per car, refreshed every hour, plus who is online right now.',
+        desc: 'Connect your Bolt fleet account with a Fleet API key and add every Bolt driver and car to Rovora in one click. Then rides, fares, tips and acceptance per driver and per car, refreshed every hour, plus who is online right now.',
         wordmark: { src: '/platforms/bolt.svg', height: 26 },
         status: 'live',
         href: '/fleet/bolt',

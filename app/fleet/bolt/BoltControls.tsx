@@ -57,8 +57,8 @@ export default function BoltControls() {
       {confirming && (
         <div className={styles.confirm}>
           <p>
-            Disconnect Bolt? This removes the saved key <strong>and all rides, drivers and vehicles imported
-            from Bolt</strong>. Your own Rovora drivers, vehicles and settlements are not touched.
+            Disconnect Bolt? This removes the saved key <strong>and all Bolt rides and figures</strong>. Your
+            Rovora drivers, vehicles and settlements stay — including any you added from Bolt.
           </p>
           <div className={styles.controlRow}>
             <button className={styles.dangerBtn} type="button" onClick={disconnect} disabled={busy !== null}>

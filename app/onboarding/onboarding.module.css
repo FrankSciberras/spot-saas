@@ -147,6 +147,41 @@
   color: #98a2b3;
 }
 
+/* "Which apps do your drivers work on?" — toggle chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #d4dbe8;
+  background: #fff;
+  color: #344054;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.chip:hover {
+  border-color: #1a8f5a;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: #1a8f5a;
+  background: rgba(26, 143, 90, 0.1);
+  color: #146c45;
+}
+
+.chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26, 143, 90, 0.2);
+}
+
 /* ── Buttons ── */
 .btn {
   padding: 12px 16px;
