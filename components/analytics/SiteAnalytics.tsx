@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { installLifecycle, installVitals, noteRouteChange, observeSeen, trackEvent, trackPageview } from '@/lib/analytics/client';
 import { CONSENT_CHANGE_EVENT } from '@/lib/analytics/constants';
 import { syncGoogleTag } from '@/lib/analytics/gtm';
+import { flushClicks, installClickCapture } from '@/lib/analytics/heatmap-capture';
 import CookieBanner from './CookieBanner';
 
 /**
@@ -28,6 +29,9 @@ import CookieBanner from './CookieBanner';
  * speed (Core Web Vitals), which sections and screenshots scroll into view,
  * and visits to missing pages (reported by app/not-found.tsx).
  *
+ * And every click / tap, with its position and element, for the admin
+ * heatmaps (lib/analytics/heatmap-capture.ts) — never anything typed.
+ *
  * Nothing runs inside the signed-in app, in development, for bots, or in the
  * Rovora Driver app's WebView. Google Tag Manager rides along under the same
  * rules, but only once the visitor clicks "Allow" (see lib/analytics/gtm.ts).
@@ -37,12 +41,15 @@ export default function SiteAnalytics() {
 
   useEffect(() => {
     installVitals();
-    return installLifecycle();
+    const stopClicks = installClickCapture();
+    const stopLifecycle = installLifecycle();
+    return () => { stopClicks(); stopLifecycle(); };
   }, []);
 
   useEffect(() => {
     if (!pathname) return;
     noteRouteChange();
+    flushClicks();
     trackPageview(pathname);
     syncGoogleTag(pathname);
     // Sections / screenshots seen — once the page has laid out.

@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '17 November 2026';
+const LAST_UPDATED = '24 November 2026';
 
 export default function PrivacyPage() {
   return (
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
                     </tr>
                     <tr>
                       <td>Website analytics</td>
-                      <td>On our public website only: the pages you view, how you arrived (the referring site, or the campaign tag on the link you followed), your approximate country (from your device&rsquo;s time zone, or from our network provider when it supplies one), device type, browser and language, time spent on each page and how far you scrolled, clicks on key links such as &ldquo;Start free trial&rdquo;, and which steps of the sign-up form you complete or get an error on (never what you type). If you sign up or send us a message, the channel that brought you (for example &ldquo;Google search&rdquo;) is recorded against that signup or enquiry. See <a href="#cookies">Cookies and website analytics</a></td>
+                      <td>On our public website only: the pages you view, how you arrived (the referring site, or the campaign tag on the link you followed), your approximate country (from your device&rsquo;s time zone, or from our network provider when it supplies one), device type, browser and language, time spent on each page and how far you scrolled, where on a page you click or tap (to build heatmaps of the page &mdash; the position and the button or link, never anything you type), clicks on key links such as &ldquo;Start free trial&rdquo;, and which steps of the sign-up form you complete or get an error on (never what you type). If you sign up or send us a message, the channel that brought you (for example &ldquo;Google search&rdquo;) is recorded against that signup or enquiry. See <a href="#cookies">Cookies and website analytics</a></td>
                       <td>To understand how people find and use our website, and which of our marketing works</td>
                     </tr>
                     <tr>
@@ -344,7 +344,7 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Website analytics</strong> — visit records are deleted automatically after 25
-                  months. The anonymous daily identifier described under{' '}
+                  months, and click positions used for heatmaps after 13 months. The anonymous daily identifier described under{' '}
                   <a href="#cookies">Cookies and website analytics</a> cannot be linked from one day to
                   the next.
                 </li>

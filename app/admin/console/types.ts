@@ -158,4 +158,6 @@ export interface AdminData {
   assignablePlans: string[];
   /** Free-trial length for new sign-ups + optional campaign (Trials page). */
   trialOffer: TrialOffer;
+  /** When the server built this data (ISO) — "now" for date filters. */
+  generatedAt: string;
 }

@@ -28,9 +28,10 @@ import {
   languageName, ratio, td, th, whenShort, type Column, type FunnelRow,
 } from './analytics-ui';
 import {
-  CampaignPerformance, ContentInteractions, ConversionFunnel, DeviceEngagement, EnquiriesSection, FrictionSection, HeatmapsCard, NewVsReturning,
+  CampaignPerformance, ContentInteractions, ConversionFunnel, DeviceEngagement, EnquiriesSection, FrictionSection, NewVsReturning,
   OverviewKpis, PagesBeforeSignup, RevenueSection, ScrollDepth, TrafficPlatforms, TrialsSection, csvSections, downloadCsv, toCsv,
 } from './AnalyticsInsights';
+import HeatmapTab from './heatmap/HeatmapTab';
 
 const Icon = FleetIcon;
 
@@ -1035,12 +1036,13 @@ function CampaignLinkBuilder() {
 }
 
 // ── The page ──────────────────────────────────────────────────────────────────
-type TabId = 'overview' | 'traffic' | 'audience' | 'pages' | 'enquiries' | 'registrations' | 'trials' | 'revenue' | 'friction';
+type TabId = 'overview' | 'traffic' | 'audience' | 'pages' | 'heatmaps' | 'enquiries' | 'registrations' | 'trials' | 'revenue' | 'friction';
 const TABS: [TabId, string][] = [
   ['overview', 'Overview'],
   ['traffic', 'Traffic sources'],
   ['audience', 'Audience'],
   ['pages', 'Pages & engagement'],
+  ['heatmaps', 'Heatmaps'],
   ['enquiries', 'Enquiries'],
   ['registrations', 'Registrations'],
   ['trials', 'Trials'],
@@ -1375,7 +1377,11 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {data && cur && prev && (
+      {tab === 'heatmaps' && (
+        <HeatmapTab from={range.from} to={range.to} filters={filters} tick={tick} rangeLabel={describeRange(range)} />
+      )}
+
+      {data && cur && prev && tab !== 'heatmaps' && (
         <div style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 0.2s' }} aria-busy={loading}>
           {tab === 'overview' && (
             <>
@@ -1567,7 +1573,14 @@ export default function AnalyticsPage() {
                   columns={[{ label: 'Clicks', width: 52, render: (r) => fmtNum(r.count) }, { label: 'Visitors', width: 58, render: (r) => fmtNum(r.visitors) }]}
                   empty="Clicks on “Get started free”, sign-in, contact, email and outbound links, chat opens and video plays show up here." />
               </Card>
-              <HeatmapsCard />
+              <Card style={{ marginBottom: 16 }}>
+                <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 220, fontSize: 13, color: 'var(--text-2)' }}>
+                    <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>Heatmaps</span> — see exactly where people click and tap on each page, on phones and desktop, live or for any dates.
+                  </div>
+                  <button type="button" onClick={() => setTab('heatmaps')} style={{ ...chip, ...chipActive }}>Open heatmaps →</button>
+                </div>
+              </Card>
             </>
           )}
 

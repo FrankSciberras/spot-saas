@@ -37,11 +37,16 @@ export const dynamic = 'force-dynamic';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const EVENT_NAME_RE = /^[\p{L}\p{N} .:&'()/_-]{1,60}$/u;
 const MAX_BODY = 4096;
+/** A batch of heatmap clicks is bigger than any other beacon. */
+const MAX_CLICKS_BODY = 24_000;
+const MAX_CLICKS = 40;
+const SELECTOR_RE = /^[A-Za-z0-9#>:()_ -]{1,300}$/;
+const TAG_RE = /^[a-z][a-z0-9-]{0,19}$/;
 const NOTE_NAMES: ReadonlySet<string> = new Set(Object.values(NOTE_EVENTS));
 
 /** What the tracker sends. Short keys keep each beacon tiny. */
 interface Beacon {
-  t: 'pageview' | 'event' | 'engagement' | 'note';
+  t: 'pageview' | 'event' | 'engagement' | 'note' | 'clicks';
   /** Path, no query string. */
   p: string;
   /** Page-view id (pageview / engagement). */
@@ -62,6 +67,8 @@ interface Beacon {
   tp?: number;
   tz?: string;
   l?: string;
+  /** Heatmap clicks (type clicks) — see lib/analytics/heatmap-capture.ts. */
+  c?: unknown[];
 }
 
 // ── A small per-IP rate limit. The app runs as one long-lived Node process
@@ -97,6 +104,40 @@ function cleanProps(raw: unknown): Record<string, string | number | boolean> {
     else if (typeof v === 'boolean') out[k] = v;
   }
   return out;
+}
+
+const int = (v: unknown, min: number, max: number): number | null =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : null;
+
+/** Emails and long numbers never get stored, even if a browser sent them. */
+const maskText = (v: string) => v.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '•••').replace(/\+?\d[\d\s().-]{4,}\d/g, '•••');
+
+/** One heatmap click, every field checked and bounded — or null. */
+function cleanClick(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const c = raw as Record<string, unknown>;
+  const x = int(c.x, 0, 20000);
+  const y = int(c.y, 0, 200000);
+  const vw = int(c.vw, 1, 20000);
+  const dw = int(c.dw, 1, 20000);
+  const dh = int(c.dh, 1, 200000);
+  if (x == null || y == null || vw == null || dw == null || dh == null) return null;
+  const sel = typeof c.sel === 'string' && SELECTOR_RE.test(c.sel) ? c.sel : null;
+  const tag = typeof c.tag === 'string' && TAG_RE.test(c.tag) ? c.tag : null;
+  const label = str(c.label, 80);
+  const href = str(c.href, 200);
+  return {
+    x, y, vw, dw, dh, sel,
+    rx: sel ? int(c.rx, 0, 1000) : null,
+    ry: sel ? int(c.ry, 0, 1000) : null,
+    tag,
+    label: label ? maskText(label) : null,
+    href: href ? maskText(href) : null,
+    ms: int(c.ms, 0, 86_400_000),
+    ago: int(c.ago, 0, 900_000) ?? 0,
+    rage: c.rage === true,
+    dead: c.dead === true,
+  };
 }
 
 function cleanPath(raw: unknown): string | null {
@@ -147,12 +188,13 @@ export async function POST(request: NextRequest) {
   let body: Beacon;
   try {
     const text = await request.text();
-    if (!text || text.length > MAX_BODY) return noContent();
+    if (!text || text.length > MAX_CLICKS_BODY) return noContent();
     body = JSON.parse(text);
+    if (text.length > MAX_BODY && body?.t !== 'clicks') return noContent();
   } catch {
     return noContent();
   }
-  if (!body || typeof body !== 'object' || !['pageview', 'event', 'engagement', 'note'].includes(body.t)) {
+  if (!body || typeof body !== 'object' || !['pageview', 'event', 'engagement', 'note', 'clicks'].includes(body.t)) {
     return noContent();
   }
 
@@ -236,7 +278,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (body.t === 'note') {
+    if (body.t === 'clicks') {
+      // Heatmap clicks join the page view they happened on. Until migration
+      // 20261124_heatmaps.sql is applied the function doesn't exist and they
+      // are simply dropped.
+      const clicks = (Array.isArray(body.c) ? body.c : []).slice(0, MAX_CLICKS).map(cleanClick).filter(Boolean);
+      if (clicks.length) {
+        const { error } = await createAdminClient().rpc('analytics_clicks_add', { p: { ...payload, clicks } });
+        if (error && error.code !== 'PGRST202') logOnce(error.message, error.message);
+      }
+    } else if (body.t === 'note') {
       // A note joins the visit already open; it never starts one or counts as an
       // interaction. Until migration 20261123_analytics_insights.sql is applied
       // the function doesn't exist and notes are simply dropped.
