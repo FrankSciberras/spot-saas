@@ -1,0 +1,268 @@
+/* Website pop-ups. Rendered from the root layout, outside the page's
+   .rovora-site wrapper, so — like the cookie banner — they carry their own
+   copy of the marketing palette and follow the site's light/dark toggle via
+   data-theme. Stacking: under the cookie banner (9998) and the chat launcher
+   (9999), so a pop-up never hides the consent choice or the chat. */
+
+.root {
+  --pu-bg: #ffffff;
+  --pu-line: rgba(15, 18, 26, 0.10);
+  --pu-text-1: #0e1116;
+  --pu-text-2: #4a5260;
+  --pu-soft: #f1f3f7;
+  --pu-accent: #1a8f5a;
+  --pu-accent-ink: #ffffff;
+  --pu-scrim: rgba(10, 14, 22, 0.52);
+  --pu-shadow: 0 30px 80px -28px rgba(20, 30, 60, 0.45), 0 0 0 1px rgba(15, 18, 26, 0.06);
+
+  font-family: 'Neue Haas Grotesk Display Pro', 'neue-haas-grotesk-display', var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.2px;
+  -webkit-font-smoothing: antialiased;
+  color: var(--pu-text-1);
+}
+
+.root[data-theme='dark'] {
+  --pu-bg: #11141b;
+  --pu-line: rgba(255, 255, 255, 0.09);
+  --pu-text-1: #f1f3f8;
+  --pu-text-2: #9aa3b6;
+  --pu-soft: #1c2230;
+  --pu-accent: #2bbd7e;
+  --pu-accent-ink: #06130c;
+  --pu-scrim: rgba(0, 0, 0, 0.62);
+  --pu-shadow: 0 30px 80px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ── Centred, over a dimmed page ─────────────────────────────────────────── */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--pu-scrim);
+  overscroll-behavior: contain;
+  animation: fade 0.24s ease both;
+}
+
+.modal .card {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  animation: pop 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* ── Small card in the corner, above the chat launcher ───────────────────── */
+.slide {
+  position: fixed;
+  right: 22px;
+  bottom: 94px;
+  z-index: 9990;
+  width: min(360px, calc(100vw - 32px));
+}
+.slide .card {
+  animation: rise 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (max-width: 600px) {
+  .slide {
+    right: 12px;
+    left: 12px;
+    bottom: 88px;
+    width: auto;
+  }
+}
+
+/* ── The card itself (also used inline by the admin preview) ─────────────── */
+.card {
+  background: var(--pu-bg);
+  border: 1px solid var(--pu-line);
+  border-radius: 18px;
+  box-shadow: var(--pu-shadow);
+  overflow: hidden;
+  outline: none;
+}
+
+.inline {
+  position: relative;
+  width: 100%;
+}
+.inline .card {
+  animation: none;
+}
+
+/* .compact = corner-card sizing, used by the live corner card and its admin
+   preview (the preview sets its own width). */
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: cover;
+  background: var(--pu-soft);
+}
+.compact .image {
+  max-height: 150px;
+}
+
+.content {
+  padding: 22px 22px 20px;
+}
+.compact .content {
+  padding: 16px 16px 15px;
+}
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--pu-bg) 82%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--pu-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--pu-soft);
+  color: var(--pu-text-1);
+}
+.close:focus-visible,
+.cta:focus-visible,
+.dismiss:focus-visible {
+  outline: 2px solid var(--pu-accent);
+  outline-offset: 2px;
+}
+.close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pu-accent);
+  background: color-mix(in srgb, var(--pu-accent) 12%, transparent);
+}
+
+.title {
+  margin: 0;
+  padding-right: 30px;
+  font-size: 22px;
+  line-height: 1.22;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--pu-text-1);
+}
+.hasImage .title {
+  padding-right: 0;
+}
+.compact .title {
+  font-size: 17px;
+}
+
+.text {
+  margin: 10px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--pu-text-2);
+  white-space: pre-line;
+}
+.compact .text {
+  font-size: 13.5px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.compact .actions {
+  margin-top: 14px;
+}
+
+.cta {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border-radius: 11px;
+  background: var(--pu-accent);
+  color: var(--pu-accent-ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: filter 0.15s, transform 0.15s;
+}
+.cta:hover {
+  filter: brightness(1.06);
+}
+.cta:active {
+  transform: scale(0.98);
+}
+.cta svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dismiss {
+  flex: 0 1 auto;
+  min-height: 44px;
+  padding: 11px 14px;
+  border: 1px solid var(--pu-line);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--pu-text-2);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.dismiss:hover {
+  background: var(--pu-soft);
+  color: var(--pu-text-1);
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .modal .card,
+  .slide .card {
+    animation: none;
+  }
+}

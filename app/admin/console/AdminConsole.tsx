@@ -47,6 +47,7 @@ import OperatorDetailModal from './OperatorDetailModal';
 import BroadcastCenter from './BroadcastCenter';
 import EmailCampaigns from './EmailCampaigns';
 import AnalyticsPage from './AnalyticsPage';
+import PopupsManager from './PopupsManager';
 import TrialOfferCard from './TrialOfferCard';
 import { currentTrialDays } from '@/lib/billing/trial-offer';
 import {
@@ -297,7 +298,7 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 );
 
 // ── nav ──
-type PageId = 'overview' | 'analytics' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'inquiries' | 'broadcasts' | 'emails' | 'support' | 'settings' | 'vehicle-models';
+type PageId = 'overview' | 'analytics' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'popups' | 'inquiries' | 'broadcasts' | 'emails' | 'support' | 'settings' | 'vehicle-models';
 /** Pages the topbar search filters (focusing it elsewhere jumps to Operators). */
 const SEARCHABLE = new Set<PageId>(['operators', 'billing', 'trials', 'inquiries', 'subscriptions']);
 
@@ -316,6 +317,7 @@ function buildNav(data: AdminData) {
       { id: 'analytics' as PageId, name: 'Analytics', icon: 'eye', badge: undefined, dot: false },
       { id: 'trials' as PageId, name: 'Trials', icon: 'shift', badge: String(data.metrics.trials), dot: false },
       { id: 'churn' as PageId, name: 'Churn', icon: 'chart', badge: undefined, dot: false },
+      { id: 'popups' as PageId, name: 'Popups', icon: 'megaphone', badge: undefined, dot: false },
     ]},
     { label: 'Catalog', items: [
       { id: 'vehicle-models' as PageId, name: 'Vehicle Models', icon: 'vehicle', badge: undefined, dot: false },
@@ -1765,6 +1767,7 @@ const PAGE_META: Record<PageId, { title: string; subtitle: string }> = {
   billing: { title: 'Billing', subtitle: 'Subscription status & invoices' },
   trials: { title: 'Trials', subtitle: 'Operators evaluating Rovora' },
   churn: { title: 'Churn', subtitle: 'Retention & recovery' },
+  popups: { title: 'Popups', subtitle: 'Pop-ups on the public website' },
   inquiries: { title: 'Inquiries', subtitle: 'Contact form inbox' },
   broadcasts: { title: 'Broadcasts', subtitle: 'Message operators & drivers' },
   emails: { title: 'Email campaigns', subtitle: 'Newsletters & product updates' },
@@ -1814,6 +1817,15 @@ export default function AdminConsole({ data }: { data: AdminData }) {
         {active === 'billing' && <BillingPage data={data} query={query} />}
         {active === 'trials' && <TrialsPage data={data} query={query} />}
         {active === 'churn' && <ChurnPage data={data} />}
+        {active === 'popups' && (
+          <div style={ap.scroll} className="pad-mobile">
+            <div style={{ padding: '24px 0 16px', maxWidth: 640 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Website pop-ups</div>
+              <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Show offers &amp; news to rovora.eu visitors.</div>
+            </div>
+            <PopupsManager />
+          </div>
+        )}
         {active === 'inquiries' && <InquiriesPage data={data} query={query} />}
         {active === 'broadcasts' && (
           <div style={ap.scroll} className="pad-mobile">

@@ -36,10 +36,17 @@ const isPublicApiRoute = (pathname: string) =>
  */
 const isAnalyticsBeacon = (pathname: string) => pathname === COLLECT_PATH;
 
+/**
+ * Website pop-ups: every public page asks for the live list once, and sends a
+ * beacon when one is shown, pressed or closed. Neither needs a fresh session
+ * (the admin-only preview reads the cookie it already has).
+ */
+const isPopupRoute = (pathname: string) => pathname === '/api/site-popups' || pathname === '/api/site-popups/hit';
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPublicApiRoute(pathname) || isAnalyticsBeacon(pathname)) {
+  if (isPublicApiRoute(pathname) || isAnalyticsBeacon(pathname) || isPopupRoute(pathname)) {
     return NextResponse.next();
   }
 
