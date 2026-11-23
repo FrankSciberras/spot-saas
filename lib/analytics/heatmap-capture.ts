@@ -46,6 +46,17 @@ interface PendingClick {
   ms: number;
   rage: boolean;
   dead: boolean;
+  /** The website pop-up it landed on (components/marketing/popups), or null. */
+  pop: string | null;
+}
+
+const POPUP_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** A click on an open website pop-up: which one. Its parts have fixed ids
+ *  (#rv-popup-cta, …), so the selector alone can't tell two pop-ups apart. */
+function popupOf(el: Element): string | null {
+  const id = el.closest('[data-rv-popup]')?.getAttribute('data-rv-popup') ?? '';
+  return POPUP_ID_RE.test(id) ? id : null;
 }
 
 /** What counts as "meant to be clicked". Clicks elsewhere can be dead clicks. */
@@ -197,6 +208,7 @@ export function flushClicks() {
         c: part.map((c) => ({
           x: c.x, y: c.y, vw: c.vw, dw: c.dw, dh: c.dh, sel: c.sel, rx: c.rx, ry: c.ry,
           tag: c.tag, label: c.label, href: c.href, ms: c.ms, ago: now - c.at, rage: c.rage, dead: c.dead,
+          ...(c.pop ? { pop: c.pop } : {}),
         })),
       });
     }
@@ -236,6 +248,7 @@ function onClick(e: MouseEvent) {
     ms: Math.max(0, at - page.openedAt),
     rage: false,
     dead: false,
+    pop: popupOf(el),
   };
 
   // Rage clicks: this is the third (or later) click on one spot in a moment.

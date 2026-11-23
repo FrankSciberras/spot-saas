@@ -60,7 +60,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message, setup }, { status: setup ? 404 : 500 });
   }
   return NextResponse.json(
-    { ...(data as Record<string, unknown>), generatedAt: new Date().toISOString() },
+    { ...(data as Record<string, unknown>), popups: await popupNames(data), generatedAt: new Date().toISOString() },
     { headers: { 'Cache-Control': 'no-store' } },
   );
+}
+
+/**
+ * Names of the website pop-ups clicked on this page (elements carry `p`, the
+ * pop-up's id — see components/marketing/popups). Empty if none, or before
+ * supabase/migrations/20261123_site_popups.sql has run.
+ */
+async function popupNames(data: unknown): Promise<{ id: string; name: string }[]> {
+  const elements = (data as { elements?: { p?: string | null }[] } | null)?.elements;
+  const ids = [...new Set((elements ?? []).map((e) => e.p).filter((p): p is string => typeof p === 'string'))];
+  if (!ids.length) return [];
+  const { data: rows, error } = await createAdminClient().from('site_popups').select('id, name').in('id', ids.slice(0, 100));
+  const names = new Map((error ? [] : rows ?? []).map((r) => [String(r.id), String(r.name)]));
+  return ids.map((id) => ({ id, name: names.get(id) ?? 'Deleted pop-up' }));
 }

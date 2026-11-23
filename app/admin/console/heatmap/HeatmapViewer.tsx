@@ -77,6 +77,8 @@ export default function HeatmapViewer({ path, pages, from, to, filters, rangeLab
   const [playing, setPlaying] = useState(false);
   const [panel, setPanel] = useState<Panel>(startLive ? 'live' : 'overview');
   const [picked, setPicked] = useState<number | null>(null);
+  /** null = clicks on the page; a pop-up id = clicks on that website pop-up, opened in the frame. */
+  const [popup, setPopup] = useState<string | null>(null);
   const [replay, setReplay] = useState<{ visit: number; step: number; done: boolean } | null>(null);
   const [zoom, setZoom] = useState<'fit' | 'full'>('fit');
   const [stage, setStage] = useState({ w: 900, h: 640 });
@@ -124,8 +126,25 @@ export default function HeatmapViewer({ path, pages, from, to, filters, rangeLab
     return () => clearInterval(t);
   }, [live]);
 
-  const clicks = useMemo(() => (data ? decodeClicks(data.clicks) : []), [data]);
   const elements = useMemo(() => data?.elements ?? [], [data]);
+  const allClicks = useMemo(() => (data ? decodeClicks(data.clicks) : []), [data]);
+  // Clicks on a website pop-up only make sense drawn on that pop-up, so the
+  // page and each pop-up are separate layers: everything below (numbers,
+  // lists, replay) follows the one being viewed.
+  const popupLayers = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of allClicks) {
+      const p = elements[c.el]?.p;
+      if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
+    }
+    const names = new Map((data?.popups ?? []).map((x) => [x.id, x.name]));
+    return [...counts.entries()].map(([id, n]) => ({ id, n, name: names.get(id) ?? 'Pop-up' })).sort((a, b) => b.n - a.n);
+  }, [allClicks, elements, data]);
+  const clicks = useMemo(
+    () => allClicks.filter((c) => (elements[c.el]?.p ?? null) === popup),
+    [allClicks, elements, popup],
+  );
+  const popupName = popup ? popupLayers.find((x) => x.id === popup)?.name ?? (data?.popups ?? []).find((x) => x.id === popup)?.name ?? 'Pop-up' : null;
   const visits = useMemo(() => data?.visits ?? [], [data]);
   const genAt = data ? Date.parse(data.generatedAt) : to.getTime();
   const periodStart = live ? genAt - LIVE_WINDOW_MS : from.getTime();
@@ -244,6 +263,36 @@ export default function HeatmapViewer({ path, pages, from, to, filters, rangeLab
     frameRef.current?.select(picked);
   }, [picked, frameReady]);
 
+  // Open the chosen pop-up inside the page (or close it) — see the hooks in
+  // components/marketing/popups/SitePopups.tsx. The page may still be
+  // hydrating right after load, so wait for its hook to appear.
+  useEffect(() => {
+    const win = iframeRef.current?.contentWindow as (Window & { __rvPopup?: Window['__rvPopup'] }) | null | undefined;
+    if (!win) return;
+    let cancelled = false;
+    let tries = 0;
+    const apply = () => {
+      if (cancelled) return;
+      let api: Window['__rvPopup'];
+      try {
+        api = win.__rvPopup;
+      } catch {
+        return;
+      }
+      if (!api) {
+        if (tries++ < 50) setTimeout(apply, 150);
+        return;
+      }
+      if (popup) {
+        if (api.current() !== popup) void api.show(popup);
+      } else if (api.current()) {
+        api.hide();
+      }
+    };
+    apply();
+    return () => { cancelled = true; };
+  }, [popup, frameReady]);
+
   // Replay: run when a visit is chosen (or "Again"); stop when it changes or
   // closes. The clicks come through a ref so a live refresh doesn't restart it.
   const replayClicksRef = useRef<Click[]>([]);
@@ -357,6 +406,16 @@ export default function HeatmapViewer({ path, pages, from, to, filters, rangeLab
           <span>{show === 'all' ? 'All clicks' : show === 'rage' ? 'Rage only' : 'Dead only'}</span>
           <Icon name="chevron-down" size={12} />
         </label>
+        {(popupLayers.length > 0 || popup) && (
+          <label className="hm-select" title="Clicks on the page, or on a website pop-up">
+            <select value={popup ?? ''} onChange={(e) => { setPicked(null); setReplay(null); setPopup(e.target.value || null); }} aria-label="Page or pop-up">
+              <option value="">Page</option>
+              {popupLayers.map((x) => <option key={x.id} value={x.id}>Pop-up: {x.name} · {fmtNum(x.n)} clicks</option>)}
+            </select>
+            <span>{popup ? `Pop-up: ${popupName}` : `Page · ${popupLayers.length} pop-up${popupLayers.length === 1 ? '' : 's'}`}</span>
+            <Icon name="chevron-down" size={12} />
+          </label>
+        )}
         <button type="button" className={`hm-btn ${live ? 'hm-live' : ''}`} onClick={toggleLive} aria-pressed={live} title="Show the last 30 minutes, updating every 10 seconds">
           <span className="hm-dot" />{live ? 'Live' : 'Go live'}
         </button>
@@ -372,6 +431,7 @@ export default function HeatmapViewer({ path, pages, from, to, filters, rangeLab
             {live ? <>Live · last 30 minutes · updates every 10 s{loading ? ' · updating…' : ''}</> : <>{rangeLabel}{windowed ? ` · ${stamp(tA, withTime)} – ${win[1] >= 1 ? 'end' : stamp(tB, withTime)}` : ''}{loading ? ' · loading…' : ''}</>}
             {' · '}{LAYOUTS.find((l) => l.id === layout)?.label} at {deviceW}px
             {capped ? ` · newest ${fmtNum(data!.clicks.length)} of ${fmtNum(data!.total)} clicks` : ''}
+            {popup ? ` · clicks on the pop-up “${popupName}”, shown on it` : ''}
             {layoutInfo && layoutInfo.missing > 0 && mode !== 'scroll' ? ` · ${layoutInfo.missing} clicked ${layoutInfo.missing === 1 ? 'item isn’t' : 'items aren’t'} on screen now (menus, pop-ups) — shown where they were` : ''}
           </div>
           <div className="hm-stage" ref={stageRef}>

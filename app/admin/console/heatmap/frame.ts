@@ -159,6 +159,9 @@ export class HeatFrame {
     doc.addEventListener('mouseleave', onLeave);
     win.addEventListener('scroll', onScroll, { passive: true });
     win.addEventListener('resize', onResize);
+    // A website pop-up opening / closing (components/marketing/popups) adds or
+    // removes clickable parts without resizing anything.
+    win.addEventListener('rovora:popup', onResize);
     this.cleanup.push(() => {
       doc.removeEventListener('click', onClick, true);
       doc.removeEventListener('submit', block, true);
@@ -167,6 +170,7 @@ export class HeatFrame {
       doc.removeEventListener('mouseleave', onLeave);
       win.removeEventListener('scroll', onScroll);
       win.removeEventListener('resize', onResize);
+      win.removeEventListener('rovora:popup', onResize);
     });
 
     // Images, fonts and late content change the layout — follow it.
@@ -191,13 +195,14 @@ export class HeatFrame {
   // ── Inputs ────────────────────────────────────────────────────────────────
 
   setData(elements: HeatElement[], clicks: Click[]) {
+    const changed = elements !== this.elements || clicks !== this.clicks;
+    this.clicks = clicks;
     if (elements !== this.elements) {
       this.elements = elements;
       this.placed.clear();
       this.indexOf = new WeakMap();
-      if (this.doc) this.resolveAll();
     }
-    this.clicks = clicks;
+    if (changed && this.doc) this.resolveAll();
     this.draw();
   }
 
@@ -250,8 +255,13 @@ export class HeatFrame {
   private resolveAll() {
     let placed = 0;
     let missing = 0;
+    // Count only elements whose clicks are being drawn (a closed pop-up's
+    // buttons aren't "missing" while the page layer is shown).
+    const drawn = new Set(this.clicks.map((c) => c.el));
     for (let i = 0; i < this.elements.length; i += 1) {
-      if (this.place(i)) placed += 1;
+      const found = this.place(i);
+      if (!drawn.has(i)) continue;
+      if (found) placed += 1;
       else missing += 1;
     }
     this.cb.onLayout?.({ placed, missing, height: this.docSize().h });
