@@ -2,7 +2,7 @@ import { marketingMetadata, breadcrumbJsonLd, organizationJsonLd, softwareApplic
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import { SecHead, CtaBand } from '@/components/marketing/feature/Sections';
 import PricingPlans from '@/components/marketing/PricingPlans';
-import { LANDING_FAQ } from '@/components/marketing/LandingPage';
+import { PRICING_FAQ } from '@/components/marketing/faq';
 import { getPublicPlans } from '@/lib/billing/plans-data';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import TrialPromoBadge from '@/components/marketing/TrialPromoBadge';
@@ -48,7 +48,7 @@ export default async function PricingPage() {
       softwareApplicationJsonLd(plans),
       {
         '@type': 'FAQPage',
-        mainEntity: LANDING_FAQ.map((item) => ({
+        mainEntity: PRICING_FAQ.map((item) => ({
           '@type': 'Question',
           name: item.q,
           acceptedAnswer: { '@type': 'Answer', text: item.a },
@@ -103,7 +103,7 @@ export default async function PricingPage() {
             desc="The things fleet operators ask us before they sign up."
           />
           <div className="faq-grid reveal-stagger">
-            {LANDING_FAQ.map((item, i) => (
+            {PRICING_FAQ.map((item, i) => (
               <details className="faq" key={item.q} open={i === 0}>
                 <summary>{item.q}</summary>
                 <p>{item.a}</p>
