@@ -393,24 +393,6 @@ export function ContentInteractions({ data, extras }: { data: Dashboard; extras:
   );
 }
 
-export function HeatmapsCard() {
-  return (
-    <Card style={{ marginBottom: 16 }}>
-      <CardHeader title="Heatmaps & session recordings (optional)" subtitle="See where visitors click, scroll and get stuck" />
-      <div style={{ padding: '0 18px 16px', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.65 }}>
-        These come from a dedicated tool rather than Rovora’s own analytics. The simplest is <strong style={{ color: 'var(--text-1)', fontWeight: 500 }}>Microsoft Clarity</strong> (free).
-        It plugs into the Google Tag Manager container the site already has, so it loads only for visitors who click <em>Allow</em> on the cookie banner — no code change needed:
-        <ol style={{ margin: '8px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <li>Create a free project at <a className="an-link" href="https://clarity.microsoft.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>clarity.microsoft.com</a> for rovora.eu.</li>
-          <li>In Clarity → <em>Settings → Masking</em>, choose <strong style={{ color: 'var(--text-1)', fontWeight: 500 }}>Strict</strong> so every bit of text and every form field is hidden in recordings.</li>
-          <li>In Google Tag Manager (GTM-MP2LKF59), add the <em>Microsoft Clarity</em> tag from the template gallery with your project ID, firing on all pages, then Publish.</li>
-          <li>Add a line about Microsoft Clarity to the privacy policy’s list of providers.</li>
-        </ol>
-      </div>
-    </Card>
-  );
-}
-
 // ── Enquiries ─────────────────────────────────────────────────────────────────
 const CLICK_HINT: Record<string, string> = {
   'WhatsApp click': 'Tapped a WhatsApp link',

@@ -528,7 +528,7 @@ export default function RovoraSupportChat({ trialOffer = DEFAULT_TRIAL_OFFER }: 
   return (
     <div className="rovora-chat" data-open={open}>
       {open && (
-        <div className="chat-panel" role="dialog" aria-label="Rovora assistant">
+        <div className="chat-panel" role="dialog" aria-label="Rovora assistant" data-rv-mask="">
           <div className="chat-head">
             <div className="chat-head-id">
               <span className="chat-ava" aria-hidden>

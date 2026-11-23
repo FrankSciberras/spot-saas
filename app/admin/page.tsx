@@ -366,6 +366,7 @@ export default async function PlatformOverviewPage() {
     planMeta,
     assignablePlans,
     trialOffer,
+    generatedAt: new Date().toISOString(),
   };
 
   return <AdminConsole data={data} />;

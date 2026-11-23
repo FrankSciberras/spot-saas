@@ -16,6 +16,31 @@ import {
   deleteVehicleModelAction,
 } from '@/lib/actions/vehicle-models';
 import { setInquiryStatusAction, deleteInquiryAction } from '@/lib/actions/contact';
+import {
+  bulkSetFleetPlanAction,
+  bulkExtendTrialAction,
+  bulkSetFleetStatusAction,
+  bulkSetInquiryStatusAction,
+  bulkDeleteInquiriesAction,
+} from '@/lib/actions/platform-bulk';
+import {
+  BulkBar,
+  BulkMenu,
+  Check,
+  FilterRow,
+  FilterSelect,
+  SINCE_OPTIONS,
+  bulkBtn,
+  bulkBtnDanger,
+  copyText,
+  inSince,
+  plural,
+  useBulkRun,
+  useSelection,
+  type FilterOption,
+  type Selection,
+} from './bulk';
+import { downloadCsv, toCsv } from './AnalyticsInsights';
 import PackagesManager from './PackagesManager';
 import AddOperatorModal from './AddOperatorModal';
 import OperatorDetailModal from './OperatorDetailModal';
@@ -274,6 +299,8 @@ const MiniMetric = ({ label, value, sub }: { label: string; value: string; sub: 
 
 // ── nav ──
 type PageId = 'overview' | 'analytics' | 'operators' | 'packages' | 'subscriptions' | 'billing' | 'trials' | 'churn' | 'popups' | 'inquiries' | 'broadcasts' | 'emails' | 'support' | 'settings' | 'vehicle-models';
+/** Pages the topbar search filters (focusing it elsewhere jumps to Operators). */
+const SEARCHABLE = new Set<PageId>(['operators', 'billing', 'trials', 'inquiries', 'subscriptions']);
 
 function buildNav(data: AdminData) {
   const pastDue = data.billing.filter((b) => b.status === 'past_due').length;
@@ -381,7 +408,7 @@ const AdminTopbar = ({ title, subtitle, onMenuClick, right, query, onQuery, onSe
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={ap.searchBox} className="hide-mobile">
         <Icon name="search" size={15} />
-        <input placeholder="Search operators…" style={ap.searchInput} value={query}
+        <input placeholder="Search operators, emails…" style={ap.searchInput} value={query}
           onChange={(e) => onQuery(e.target.value)} onFocus={onSearchFocus}
           onKeyDown={(e) => { if (e.key === 'Escape') onQuery(''); }} />
         {query
@@ -600,8 +627,103 @@ const OperatorRowManage = ({ op }: { op: Operator }) => {
   );
 };
 
+// ── Operator lists: shared filters + bulk actions ──────────────────────────
+
+const SIZE_OPTIONS: FilterOption[] = [
+  { value: '0', label: 'No vehicles yet' },
+  { value: '1-5', label: '1–5 vehicles' },
+  { value: '6-20', label: '6–20 vehicles' },
+  { value: '21+', label: '21+ vehicles' },
+];
+function inSize(n: number, size: string): boolean {
+  if (!size) return true;
+  if (size === '0') return n === 0;
+  if (size === '21+') return n >= 21;
+  const [a, b] = size.split('-').map(Number);
+  return n >= a && n <= b;
+}
+
+type OpSort = 'mrr' | 'newest' | 'name' | 'vehicles' | 'trial';
+const OP_SORTS: FilterOption[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'name', label: 'Name A–Z' },
+  { value: 'vehicles', label: 'Most vehicles' },
+  { value: 'trial', label: 'Trial ending soonest' },
+];
+function sortOperators(rows: Operator[], sort: OpSort): Operator[] {
+  const out = [...rows];
+  switch (sort) {
+    case 'newest': return out.sort((a, b) => Date.parse(b.since) - Date.parse(a.since));
+    case 'name': return out.sort((a, b) => a.name.localeCompare(b.name));
+    case 'vehicles': return out.sort((a, b) => b.vehicles - a.vehicles);
+    case 'trial': return out.sort((a, b) => (a.status === 'trial' ? a.trialDaysLeft : 1e9) - (b.status === 'trial' ? b.trialDaysLeft : 1e9));
+    default: return out.sort((a, b) => b.mrr - a.mrr);
+  }
+}
+
+function operatorsCsv(rows: Operator[], meta: Record<string, PlanMeta>): string {
+  return toCsv([{
+    title: 'Rovora operators',
+    head: ['Operator', 'Slug', 'Owner email', 'Plan', 'Status', 'Vehicles', 'Drivers', 'Members', 'MRR (EUR)', 'Signed up', 'Renews / trial ends', 'Trial days left'],
+    rows: rows.map((o) => [
+      o.name, o.slug, o.ownerEmail ?? '', (meta[o.plan] ?? FALLBACK_META).label, o.status, o.vehicles, o.drivers, o.members,
+      o.mrr, o.since?.slice(0, 10) ?? '', o.renews?.slice(0, 10) ?? '', o.status === 'trial' ? o.trialDaysLeft : '',
+    ]),
+  }]);
+}
+
+/** The bulk bar for any list of operators (Operators page, Trials page). */
+const OperatorBulkBar = ({ sel, rows, trialsOnly }: { sel: Selection; rows: Operator[]; trialsOnly?: boolean }) => {
+  const { meta, assignable } = usePlanMeta();
+  const bulk = useBulkRun();
+  const picked = rows.filter((o) => sel.has(o.id));
+  const label = (p: string) => (meta[p] ?? FALLBACK_META).label;
+  const n = sel.count;
+  const who = plural(n, 'operator', 'operators');
+
+  const changePlan = (plan: string) => {
+    const restart = plan === 'trial' ? ' This restarts a fresh free trial for each of them.' : '';
+    if (!window.confirm(`Put ${who} on ${label(plan)}?${restart}`)) return;
+    bulk.run(() => bulkSetFleetPlanAction(sel.ids, plan), (u) => `Moved ${plural(u, 'operator', 'operators')} to ${label(plan)}.`, sel.clear);
+  };
+  const extend = (days: string) => {
+    const d = Number(days);
+    bulk.run(() => bulkExtendTrialAction(sel.ids, d), (u) => `Added ${d} days to ${plural(u, 'trial', 'trials')}.`, sel.clear);
+  };
+  const setStatus = (status: 'active' | 'suspended') => {
+    if (status === 'suspended' && !window.confirm(`Suspend ${who}? Their teams are locked out of the dashboard until you reactivate them.`)) return;
+    bulk.run(() => bulkSetFleetStatusAction(sel.ids, status), (u) => `${status === 'active' ? 'Reactivated' : 'Suspended'} ${plural(u, 'operator', 'operators')}.`, sel.clear);
+  };
+  const copyEmails = async () => {
+    const emails = [...new Set(picked.map((o) => o.ownerEmail).filter((e): e is string => !!e))];
+    if (!emails.length) return bulk.say('None of the selected operators has an owner email.');
+    const ok = await copyText(emails.join(', '));
+    bulk.say(ok ? `Copied ${plural(emails.length, 'email', 'emails')} — paste them into Bcc.` : 'Could not copy — your browser blocked the clipboard.');
+  };
+  const exportCsv = () => downloadCsv(`rovora-operators-${new Date().toISOString().slice(0, 10)}.csv`, operatorsCsv(picked, meta));
+
+  return (
+    <BulkBar count={n} noun={['operator', 'operators']} onClear={sel.clear} busy={bulk.busy} message={bulk.message} error={bulk.error}>
+      {!trialsOnly && <BulkMenu label="Change plan" disabled={bulk.busy} options={assignable.map((p) => ({ value: p, label: label(p) }))} onPick={changePlan} />}
+      <BulkMenu label="Extend trial" disabled={bulk.busy} options={[{ value: '7', label: '+7 days' }, { value: '14', label: '+14 days' }, { value: '30', label: '+30 days' }]} onPick={extend} />
+      {trialsOnly && <BulkMenu label="Convert to plan" disabled={bulk.busy} options={assignable.filter((p) => p !== 'trial').map((p) => ({ value: p, label: label(p) }))} onPick={changePlan} />}
+      <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={copyEmails}><Icon name="mail" size={13} />Copy emails</button>
+      <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={exportCsv}><Icon name="doc" size={13} />Export CSV</button>
+      <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={() => setStatus('active')}>Reactivate</button>
+      <button type="button" style={bulkBtnDanger} disabled={bulk.busy} onClick={() => setStatus('suspended')}>Suspend</button>
+    </BulkBar>
+  );
+};
+
 const OperatorsPage = ({ data, query }: { data: AdminData; query: string }) => {
+  const { meta } = usePlanMeta();
   const [filter, setFilter] = useState<'all' | OpStatus>('all');
+  const [plan, setPlan] = useState('');
+  const [since, setSince] = useState('');
+  const [size, setSize] = useState('');
+  const [sort, setSort] = useState<OpSort>('mrr');
+  const now = Date.parse(data.generatedAt);
+
   const counts = {
     all: data.operators.length,
     active: data.operators.filter((o) => o.status === 'active').length,
@@ -610,14 +732,27 @@ const OperatorsPage = ({ data, query }: { data: AdminData; query: string }) => {
     churned: data.operators.filter((o) => o.status === 'churned').length,
   };
   const q = query.trim().toLowerCase();
-  const rows = [...data.operators]
-    .filter((o) => (filter === 'all' ? true : o.status === filter))
-    .filter((o) => !q || o.name.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q) || (o.ownerEmail ?? '').toLowerCase().includes(q))
-    .sort((a, b) => b.mrr - a.mrr);
+  const rows = useMemo(() => sortOperators(
+    data.operators
+      .filter((o) => (filter === 'all' ? true : o.status === filter))
+      .filter((o) => !plan || o.plan === plan)
+      .filter((o) => inSince(o.since, since, now))
+      .filter((o) => inSize(o.vehicles, size))
+      .filter((o) => !q || o.name.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q) || (o.ownerEmail ?? '').toLowerCase().includes(q)),
+    sort,
+  ), [data.operators, filter, plan, since, size, q, sort, now]);
+  const visibleIds = useMemo(() => rows.map((o) => o.id), [rows]);
+  const sel = useSelection(visibleIds);
+
+  const planOptions = [...new Set(data.operators.map((o) => o.plan))].map((p) => ({
+    value: p, label: (meta[p] ?? FALLBACK_META).label, count: data.operators.filter((o) => o.plan === p).length,
+  }));
+  const anyFilter = !!(plan || since || size);
+  const clearFilters = () => { setPlan(''); setSince(''); setSize(''); };
   const tabs: [keyof typeof counts, string][] = [['all', 'All'], ['active', 'Active'], ['trial', 'Trials'], ['past_due', 'Past due'], ['churned', 'Churned']];
   return (
     <div style={ap.scroll} className="pad-mobile">
-      <div style={{ padding: '20px 0 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ padding: '20px 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div className="chips-scroll" style={{ display: 'flex', gap: 6 }}>
           {tabs.map(([id, label]) => (
             <button key={id} onClick={() => setFilter(id as 'all' | OpStatus)} style={{ ...ap.filterTab, ...(filter === id ? ap.filterTabActive : {}) }}>
@@ -626,19 +761,35 @@ const OperatorsPage = ({ data, query }: { data: AdminData; query: string }) => {
           ))}
         </div>
       </div>
+      <FilterRow
+        active={anyFilter}
+        onClear={clearFilters}
+        right={<FilterSelect label="Sort" anyLabel="Highest MRR" value={sort === 'mrr' ? '' : sort} options={OP_SORTS} onChange={(v) => setSort((v || 'mrr') as OpSort)} />}
+      >
+        <FilterSelect label="Plan" value={plan} options={planOptions} onChange={setPlan} />
+        <FilterSelect label="Signed up" value={since} options={SINCE_OPTIONS} onChange={setSince} anyLabel="Any time" />
+        <FilterSelect label="Size" value={size} options={SIZE_OPTIONS} onChange={setSize} />
+      </FilterRow>
       <ACard>
         <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
             <thead>
               <tr>
+                <th style={{ ...ap.th, width: 18, paddingRight: 0 }}>
+                  <Check checked={sel.all} indeterminate={sel.some} onChange={sel.toggleAll} label={sel.all ? 'Deselect all' : `Select all ${rows.length}`} />
+                </th>
                 {['Operator', 'Plan', 'Vehicles', 'Drivers', 'MRR', 'Status', 'Renews', ''].map((h, i) => (
                   <th key={i} style={{ ...ap.th, textAlign: (i >= 2 && i <= 4) ? 'right' : 'left' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={9} style={{ ...ap.td, color: 'var(--text-3)', fontSize: 13 }}>No operators match these filters.</td></tr>
+              )}
               {rows.map((o, i) => (
-                <tr key={o.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
+                <tr key={o.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--line-1)' : 'none', background: sel.has(o.id) ? 'var(--accent-soft)' : undefined }} className="op-row">
+                  <td style={{ ...ap.td, paddingRight: 0 }}><Check checked={sel.has(o.id)} onChange={() => sel.toggle(o.id)} label={`Select ${o.name}`} /></td>
                   <td style={ap.td}>
                     <OpLink id={o.id}>
                       <OpAvatar initials={o.initials} color={o.color} />
@@ -661,8 +812,9 @@ const OperatorsPage = ({ data, query }: { data: AdminData; query: string }) => {
           </table>
         </div>
       </ACard>
+      <OperatorBulkBar sel={sel} rows={rows} />
       <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }} className="mono">
-        {rows.length} operators · {fmtEUR(rows.reduce((s, o) => s + o.mrr, 0), { decimals: 0 })} combined MRR
+        {rows.length} of {data.operators.length} operators · {fmtEUR(rows.reduce((s, o) => s + o.mrr, 0), { decimals: 0 })} combined MRR
       </div>
     </div>
   );
@@ -742,8 +894,25 @@ const PackagesPage = ({ data }: { data: AdminData }) => {
   );
 };
 
-const SubscriptionsPage = ({ data }: { data: AdminData }) => {
-  const subs = data.operators.filter((o) => o.mrr > 0).sort((a, b) => b.mrr - a.mrr);
+const SubscriptionsPage = ({ data, query }: { data: AdminData; query: string }) => {
+  const { meta } = usePlanMeta();
+  const [plan, setPlan] = useState('');
+  const [status, setStatus] = useState('');
+  const paying = data.operators.filter((o) => o.mrr > 0);
+  const q = query.trim().toLowerCase();
+  const subs = paying
+    .filter((o) => !plan || o.plan === plan)
+    .filter((o) => !status || o.status === status)
+    .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.ownerEmail ?? '').toLowerCase().includes(q))
+    .sort((a, b) => b.mrr - a.mrr);
+  const planOptions = [...new Set(paying.map((o) => o.plan))].map((p) => ({
+    value: p, label: (meta[p] ?? FALLBACK_META).label, count: paying.filter((o) => o.plan === p).length,
+  }));
+  const statusOptions: FilterOption[] = [
+    { value: 'active', label: 'Active', count: paying.filter((o) => o.status === 'active').length },
+    { value: 'past_due', label: 'Past due', count: paying.filter((o) => o.status === 'past_due').length },
+  ];
+  const filtered = !!(plan || status);
   return (
     <div style={ap.scroll} className="pad-mobile">
       <div style={{ padding: '20px 0 14px' }}>
@@ -754,9 +923,22 @@ const SubscriptionsPage = ({ data }: { data: AdminData }) => {
           <MiniMetric label="Past due" value={String(data.metrics.pastDue)} sub={`${fmtEUR(data.metrics.pastDueMrr, { decimals: 0 })} at risk`} />
         </div>
       </div>
+      <FilterRow
+        active={filtered}
+        onClear={() => { setPlan(''); setStatus(''); }}
+        right={<button type="button" style={bulkBtn} onClick={() => downloadCsv(`rovora-subscriptions-${data.generatedAt.slice(0, 10)}.csv`, operatorsCsv(subs, meta))}><Icon name="doc" size={13} />Export CSV</button>}
+      >
+        <FilterSelect label="Plan" value={plan} options={planOptions} onChange={setPlan} />
+        <FilterSelect label="Status" value={status} options={statusOptions} onChange={setStatus} />
+      </FilterRow>
       <ACard>
-        <ACardHeader title="Subscriptions" subtitle="Every paying operator and their plan" />
-        <OperatorsTable rows={subs} />
+        <ACardHeader
+          title="Subscriptions"
+          subtitle={filtered || q ? `${subs.length} of ${paying.length} · ${fmtEUR(subs.reduce((s, o) => s + o.mrr, 0), { decimals: 0 })} MRR` : 'Every paying operator and their plan'}
+        />
+        {subs.length === 0
+          ? <div style={{ padding: '22px 18px', fontSize: 12.5, color: 'var(--text-3)', borderTop: '1px solid var(--line-1)' }}>No subscriptions match.</div>
+          : <OperatorsTable rows={subs} />}
       </ACard>
     </div>
   );
@@ -769,9 +951,33 @@ const BILL_STATUS: Record<BillingRow['status'], { label: string; color: string; 
   canceled: { label: 'Canceled', color: 'var(--text-3)', bg: 'var(--bg-3)' },
 };
 
+const BILL_STRIPE: FilterOption[] = [
+  { value: 'yes', label: 'On Stripe' },
+  { value: 'no', label: 'Not on Stripe' },
+];
+
 const BillingPage = ({ data, query }: { data: AdminData; query: string }) => {
+  const { meta } = usePlanMeta();
+  const [status, setStatus] = useState('');
+  const [plan, setPlan] = useState('');
+  const [stripe, setStripe] = useState('');
   const q = query.trim().toLowerCase();
-  const rows = q ? data.billing.filter((b) => b.operator.toLowerCase().includes(q)) : data.billing;
+  const rows = data.billing
+    .filter((b) => !q || b.operator.toLowerCase().includes(q))
+    .filter((b) => !status || b.status === status)
+    .filter((b) => !plan || b.plan === plan)
+    .filter((b) => !stripe || (stripe === 'yes') === !!b.stripeUrl);
+  const statusOptions: FilterOption[] = (Object.keys(BILL_STATUS) as BillingRow['status'][])
+    .map((s) => ({ value: s, label: BILL_STATUS[s].label, count: data.billing.filter((b) => b.status === s).length }))
+    .filter((o) => o.count > 0 || o.value === status);
+  const planOptions = [...new Set(data.billing.map((b) => b.plan))].map((p) => ({
+    value: p, label: (meta[p] ?? FALLBACK_META).label, count: data.billing.filter((b) => b.plan === p).length,
+  }));
+  const exportCsv = () => downloadCsv(`rovora-billing-${data.generatedAt.slice(0, 10)}.csv`, toCsv([{
+    title: 'Rovora billing',
+    head: ['Operator', 'Plan', 'Amount / month (EUR)', 'Status', 'Stripe status', 'Renews', 'Stripe link'],
+    rows: rows.map((b) => [b.operator, (meta[b.plan] ?? FALLBACK_META).label, b.amount, BILL_STATUS[b.status].label, b.subscriptionStatus ?? '', b.renewsAt?.slice(0, 10) ?? '', b.stripeUrl ?? '']),
+  }]));
   const committed = rows.reduce((s, b) => s + b.amount, 0);
   const pastDue = rows.filter((b) => b.status === 'past_due');
   const noStripe = rows.filter((b) => !b.stripeUrl).length;
@@ -785,6 +991,15 @@ const BillingPage = ({ data, query }: { data: AdminData; query: string }) => {
           <MiniMetric label="Not on Stripe" value={String(noStripe)} sub="manual / no checkout" />
         </div>
       </div>
+      <FilterRow
+        active={!!(status || plan || stripe)}
+        onClear={() => { setStatus(''); setPlan(''); setStripe(''); }}
+        right={<button type="button" style={bulkBtn} onClick={exportCsv}><Icon name="doc" size={13} />Export CSV</button>}
+      >
+        <FilterSelect label="Status" value={status} options={statusOptions} onChange={setStatus} />
+        <FilterSelect label="Plan" value={plan} options={planOptions} onChange={setPlan} />
+        <FilterSelect label="Stripe" value={stripe} options={BILL_STRIPE} onChange={setStripe} />
+      </FilterRow>
       <ACard>
         <ACardHeader title="Billing" subtitle="Live subscription status per operator — invoices open in Stripe" />
         <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
@@ -793,7 +1008,7 @@ const BillingPage = ({ data, query }: { data: AdminData; query: string }) => {
               <th key={i} style={{ ...ap.th, textAlign: i === 2 ? 'right' : 'left' }}>{h}</th>
             ))}</tr></thead>
             <tbody>
-              {rows.length === 0 && <tr><td style={{ ...ap.td, color: 'var(--text-3)' }} colSpan={6}>No paying subscriptions{q ? ' match your search' : ' yet'}.</td></tr>}
+              {rows.length === 0 && <tr><td style={{ ...ap.td, color: 'var(--text-3)' }} colSpan={6}>No paying subscriptions{q || status || plan || stripe ? ' match these filters' : ' yet'}.</td></tr>}
               {rows.map((b, i) => {
                 const sc = BILL_STATUS[b.status];
                 return (
@@ -824,32 +1039,68 @@ const BillingPage = ({ data, query }: { data: AdminData; query: string }) => {
   );
 };
 
-const TrialsPage = ({ data }: { data: AdminData }) => {
-  const trials = data.operators.filter((o) => o.status === 'trial').sort((a, b) => a.trialDaysLeft - b.trialDaysLeft);
+const TRIAL_ENDING: FilterOption[] = [
+  { value: '3', label: 'In 3 days or less' },
+  { value: '7', label: 'In 7 days or less' },
+  { value: 'later', label: 'In more than 7 days' },
+];
+const TRIAL_SETUP: FilterOption[] = [
+  { value: 'none', label: 'No vehicles yet' },
+  { value: 'some', label: 'Has vehicles' },
+  { value: 'drivers', label: 'Has drivers' },
+];
+
+const TrialsPage = ({ data, query }: { data: AdminData; query: string }) => {
+  const [ending, setEnding] = useState('');
+  const [setup, setSetup] = useState('');
+  const [since, setSince] = useState('');
+  const now = Date.parse(data.generatedAt);
+  const allTrials = data.operators.filter((o) => o.status === 'trial');
+  const q = query.trim().toLowerCase();
+  const trials = useMemo(() => data.operators
+    .filter((o) => o.status === 'trial')
+    .filter((o) => !ending || (ending === 'later' ? o.trialDaysLeft > 7 : o.trialDaysLeft <= Number(ending)))
+    .filter((o) => !setup || (setup === 'none' ? o.vehicles === 0 : setup === 'some' ? o.vehicles > 0 : o.drivers > 0))
+    .filter((o) => inSince(o.since, since, now))
+    .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.ownerEmail ?? '').toLowerCase().includes(q))
+    .sort((a, b) => a.trialDaysLeft - b.trialDaysLeft), [data.operators, ending, setup, since, now, q]);
+  const visibleIds = useMemo(() => trials.map((o) => o.id), [trials]);
+  const sel = useSelection(visibleIds);
   return (
     <div style={ap.scroll} className="pad-mobile">
       <div style={{ padding: '20px 0 14px' }}>
         <div style={ap.kpiGrid} className="grid-4">
-          <MiniMetric label="Active trials" value={String(trials.length)} sub="evaluating now" />
-          <MiniMetric label="Expiring ≤7d" value={String(trials.filter((o) => o.trialDaysLeft <= 7).length)} sub="needs a nudge" />
+          <MiniMetric label="Active trials" value={String(allTrials.length)} sub="evaluating now" />
+          <MiniMetric label="Expiring ≤7d" value={String(allTrials.filter((o) => o.trialDaysLeft <= 7).length)} sub="needs a nudge" />
           <MiniMetric label="Paid share" value={`${data.totals.operators ? Math.round((data.metrics.payingCount / data.totals.operators) * 100) : 0}%`} sub="of all operators" />
-          <MiniMetric label="Trial vehicles" value={String(trials.reduce((s, o) => s + o.vehicles, 0))} sub="potential billable" />
+          <MiniMetric label="Trial vehicles" value={String(allTrials.reduce((s, o) => s + o.vehicles, 0))} sub="potential billable" />
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
         <TrialOfferCard offer={data.trialOffer} />
       </div>
+      <FilterRow active={!!(ending || setup || since)} onClear={() => { setEnding(''); setSetup(''); setSince(''); }}>
+        <FilterSelect label="Ends" value={ending} options={TRIAL_ENDING} onChange={setEnding} anyLabel="Any time" />
+        <FilterSelect label="Set up" value={setup} options={TRIAL_SETUP} onChange={setSetup} anyLabel="Anything" />
+        <FilterSelect label="Signed up" value={since} options={SINCE_OPTIONS} onChange={setSince} anyLabel="Any time" />
+      </FilterRow>
       <ACard>
-        <ACardHeader title="Trials" subtitle="Operators evaluating Rovora" />
+        <ACardHeader title="Trials" subtitle={trials.length === allTrials.length ? 'Operators evaluating Rovora' : `${trials.length} of ${allTrials.length} trials match the filters`} />
         <div style={{ borderTop: '1px solid var(--line-1)', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
-            <thead><tr>{['Operator', 'Vehicles', 'Drivers', 'Started', 'Trial ends', ''].map((h, i) => (
-              <th key={i} style={{ ...ap.th, textAlign: (i === 1 || i === 2) ? 'right' : 'left' }}>{h}</th>
-            ))}</tr></thead>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <thead><tr>
+              <th style={{ ...ap.th, width: 18, paddingRight: 0 }}>
+                <Check checked={sel.all} indeterminate={sel.some} onChange={sel.toggleAll} label={sel.all ? 'Deselect all' : `Select all ${trials.length}`} />
+              </th>
+              {['Operator', 'Vehicles', 'Drivers', 'Started', 'Trial ends', ''].map((h, i) => (
+                <th key={i} style={{ ...ap.th, textAlign: (i === 1 || i === 2) ? 'right' : 'left' }}>{h}</th>
+              ))}
+            </tr></thead>
             <tbody>
-              {trials.length === 0 && <tr><td style={{ ...ap.td, color: 'var(--text-3)' }} colSpan={6}>No active trials.</td></tr>}
+              {trials.length === 0 && <tr><td style={{ ...ap.td, color: 'var(--text-3)' }} colSpan={7}>{allTrials.length ? 'No trials match these filters.' : 'No active trials.'}</td></tr>}
               {trials.map((o, i) => (
-                <tr key={o.id} style={{ borderBottom: i < trials.length - 1 ? '1px solid var(--line-1)' : 'none' }} className="op-row">
+                <tr key={o.id} style={{ borderBottom: i < trials.length - 1 ? '1px solid var(--line-1)' : 'none', background: sel.has(o.id) ? 'var(--accent-soft)' : undefined }} className="op-row">
+                  <td style={{ ...ap.td, paddingRight: 0 }}><Check checked={sel.has(o.id)} onChange={() => sel.toggle(o.id)} label={`Select ${o.name}`} /></td>
                   <td style={ap.td}>
                     <OpLink id={o.id}>
                       <OpAvatar initials={o.initials} color={o.color} />
@@ -867,6 +1118,7 @@ const TrialsPage = ({ data }: { data: AdminData }) => {
           </table>
         </div>
       </ACard>
+      <OperatorBulkBar sel={sel} rows={trials} trialsOnly />
     </div>
   );
 };
@@ -962,7 +1214,7 @@ const DetailField = ({ label, children }: { label: string; children: ReactNode }
   </div>
 );
 
-const InquiryRowCard = ({ inq, open, onToggle }: { inq: Inquiry; open: boolean; onToggle: () => void }) => {
+const InquiryRowCard = ({ inq, open, onToggle, selected, onSelect }: { inq: Inquiry; open: boolean; onToggle: () => void; selected: boolean; onSelect: () => void }) => {
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState('');
   const markedRef = useRef(false);
@@ -992,7 +1244,7 @@ const InquiryRowCard = ({ inq, open, onToggle }: { inq: Inquiry; open: boolean; 
   const snippet = inq.message.length > 96 ? `${inq.message.slice(0, 96)}…` : inq.message;
 
   return (
-    <ACard style={{ opacity: isPending ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+    <ACard style={{ opacity: isPending ? 0.6 : 1, transition: 'opacity 0.15s', ...(selected ? { borderColor: 'var(--accent-line)', boxShadow: '0 0 0 1px var(--accent-line)' } : {}) }}>
       {/* Header — click to expand */}
       <div
         role="button"
@@ -1001,6 +1253,7 @@ const InquiryRowCard = ({ inq, open, onToggle }: { inq: Inquiry; open: boolean; 
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer' }}
       >
+        <Check checked={selected} onChange={onSelect} label={`Select the message from ${inq.name}`} />
         <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: 'var(--bg-3)', color: 'var(--text-2)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {initial}
         </div>
@@ -1052,9 +1305,37 @@ const InquiryRowCard = ({ inq, open, onToggle }: { inq: Inquiry; open: boolean; 
   );
 };
 
-const InquiriesPage = ({ data }: { data: AdminData }) => {
+const INQ_SOURCE: FilterOption[] = [
+  { value: 'form', label: 'Contact form' },
+  { value: 'chat', label: 'Website chat' },
+];
+const INQ_RECEIVED: FilterOption[] = [
+  { value: '1', label: 'Last 24 hours' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '30', label: 'Last 30 days' },
+  { value: '90', label: 'Last 90 days' },
+  { value: 'older', label: 'Over 90 days ago' },
+];
+
+function inquiriesCsv(rows: Inquiry[]): string {
+  return toCsv([{
+    title: 'Rovora inquiries',
+    head: ['Received', 'Name', 'Email', 'Phone', 'Company', 'Fleet size', 'Topic', 'Came from', 'Status', 'Message'],
+    rows: rows.map((i) => [
+      i.createdAt.slice(0, 16).replace('T', ' '), i.name, i.email, i.phone ?? '', i.company ?? '', i.fleetSize ?? '',
+      TOPIC_LABEL[i.topic] ?? i.topic, i.source === 'chat' ? 'Website chat' : 'Contact form', INQ_STATUS[i.status].label, i.message,
+    ]),
+  }]);
+}
+
+const InquiriesPage = ({ data, query }: { data: AdminData; query: string }) => {
   const [filter, setFilter] = useState<'all' | InquiryStatus>('all');
+  const [topic, setTopic] = useState('');
+  const [source, setSource] = useState('');
+  const [received, setReceived] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const now = Date.parse(data.generatedAt);
+  const bulk = useBulkRun();
 
   const counts = {
     all: data.inquiries.length,
@@ -1063,10 +1344,38 @@ const InquiriesPage = ({ data }: { data: AdminData }) => {
     replied: data.inquiries.filter((i) => i.status === 'replied').length,
     archived: data.inquiries.filter((i) => i.status === 'archived').length,
   };
-  const rows = data.inquiries.filter((i) => (filter === 'all' ? true : i.status === filter));
+  const q = query.trim().toLowerCase();
+  const rows = useMemo(() => data.inquiries
+    .filter((i) => (filter === 'all' ? true : i.status === filter))
+    .filter((i) => !topic || i.topic === topic)
+    .filter((i) => !source || (source === 'chat' ? i.source === 'chat' : i.source !== 'chat'))
+    .filter((i) => inSince(i.createdAt, received, now))
+    .filter((i) => !q || [i.name, i.email, i.company ?? '', i.message].some((v) => v.toLowerCase().includes(q))),
+  [data.inquiries, filter, topic, source, received, now, q]);
+  const visibleIds = useMemo(() => rows.map((i) => i.id), [rows]);
+  const sel = useSelection(visibleIds);
+  const picked = rows.filter((i) => sel.has(i.id));
+
+  const topicOptions: FilterOption[] = [...new Set(data.inquiries.map((i) => i.topic))].map((t) => ({
+    value: t, label: TOPIC_LABEL[t] ?? t, count: data.inquiries.filter((i) => i.topic === t).length,
+  }));
+  const anyFilter = !!(topic || source || received);
   const tabs: [keyof typeof counts, string][] = [
     ['all', 'All'], ['new', 'New'], ['read', 'Read'], ['replied', 'Replied'], ['archived', 'Archived'],
   ];
+
+  const n = sel.count;
+  const setStatus = (status: InquiryStatus, verb: string) =>
+    bulk.run(() => bulkSetInquiryStatusAction(sel.ids, status), (u) => `${verb} ${plural(u, 'inquiry', 'inquiries')}.`, sel.clear);
+  const remove = () => {
+    if (!window.confirm(`Delete ${plural(n, 'inquiry', 'inquiries')}? This can’t be undone.`)) return;
+    bulk.run(() => bulkDeleteInquiriesAction(sel.ids), (u) => `Deleted ${plural(u, 'inquiry', 'inquiries')}.`, sel.clear);
+  };
+  const copyEmails = async () => {
+    const emails = [...new Set(picked.map((i) => i.email))];
+    const ok = await copyText(emails.join(', '));
+    bulk.say(ok ? `Copied ${plural(emails.length, 'email', 'emails')} — paste them into Bcc.` : 'Could not copy — your browser blocked the clipboard.');
+  };
 
   return (
     <div style={ap.scroll} className="pad-mobile">
@@ -1075,7 +1384,7 @@ const InquiriesPage = ({ data }: { data: AdminData }) => {
         <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Messages people sent from the website.</div>
       </div>
 
-      <div className="chips-scroll" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div className="chips-scroll" style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         {tabs.map(([id, label]) => (
           <button key={id} onClick={() => setFilter(id as 'all' | InquiryStatus)} style={{ ...ap.filterTab, ...(filter === id ? ap.filterTabActive : {}) }}>
             {label} <span className="mono" style={{ fontSize: 11, opacity: 0.7, marginLeft: 3 }}>{counts[id]}</span>
@@ -1083,21 +1392,56 @@ const InquiriesPage = ({ data }: { data: AdminData }) => {
         ))}
       </div>
 
+      <FilterRow
+        active={anyFilter}
+        onClear={() => { setTopic(''); setSource(''); setReceived(''); }}
+        right={rows.length > 0 ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--text-3)' }}>
+            <Check checked={sel.all} indeterminate={sel.some} onChange={sel.toggleAll} label={sel.all ? 'Deselect all' : `Select all ${rows.length}`} />
+            Select all
+          </span>
+        ) : undefined}
+      >
+        <FilterSelect label="Topic" value={topic} options={topicOptions} onChange={setTopic} />
+        <FilterSelect label="From" value={source} options={INQ_SOURCE} onChange={setSource} anyLabel="Anywhere" />
+        <FilterSelect label="Received" value={received} options={INQ_RECEIVED} onChange={setReceived} anyLabel="Any time" />
+      </FilterRow>
+
       {rows.length === 0 ? (
         <ACard>
           <div style={{ padding: '48px 18px', textAlign: 'center' }}>
             <div style={{ color: 'var(--text-4)', marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Icon name="audit" size={26} /></div>
-            <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 500 }}>{filter === 'all' ? 'No inquiries yet.' : `No ${filter} inquiries.`}</div>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 500 }}>
+              {anyFilter || q ? 'No inquiries match these filters.' : filter === 'all' ? 'No inquiries yet.' : `No ${filter} inquiries.`}
+            </div>
             <div style={{ fontSize: 12.5, color: 'var(--text-4)', marginTop: 4 }}>Messages from the website contact form land here.</div>
           </div>
         </ACard>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rows.map((inq) => (
-            <InquiryRowCard key={inq.id} inq={inq} open={openId === inq.id} onToggle={() => setOpenId((cur) => (cur === inq.id ? null : inq.id))} />
+            <InquiryRowCard
+              key={inq.id}
+              inq={inq}
+              open={openId === inq.id}
+              onToggle={() => setOpenId((cur) => (cur === inq.id ? null : inq.id))}
+              selected={sel.has(inq.id)}
+              onSelect={() => sel.toggle(inq.id)}
+            />
           ))}
         </div>
       )}
+
+      <BulkBar count={n} noun={['inquiry', 'inquiries']} onClear={sel.clear} busy={bulk.busy} message={bulk.message} error={bulk.error}>
+        <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={() => setStatus('read', 'Marked as read:')}>Mark read</button>
+        <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={() => setStatus('replied', 'Marked as replied:')}><Icon name="check" size={13} />Mark replied</button>
+        {picked.some((i) => i.status === 'archived')
+          ? <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={() => setStatus('read', 'Moved back to the inbox:')}>Unarchive</button>
+          : <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={() => setStatus('archived', 'Archived')}>Archive</button>}
+        <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={copyEmails}><Icon name="mail" size={13} />Copy emails</button>
+        <button type="button" style={bulkBtn} disabled={bulk.busy} onClick={() => downloadCsv(`rovora-inquiries-${data.generatedAt.slice(0, 10)}.csv`, inquiriesCsv(picked))}><Icon name="doc" size={13} />Export CSV</button>
+        <button type="button" style={bulkBtnDanger} disabled={bulk.busy} onClick={remove}>Delete</button>
+      </BulkBar>
 
       <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }} className="mono">
         {rows.length} {rows.length === 1 ? 'inquiry' : 'inquiries'}{counts.new > 0 ? ` · ${counts.new} new` : ''}
@@ -1463,15 +1807,15 @@ export default function AdminConsole({ data }: { data: AdminData }) {
       <AdminSidebar data={data} active={active} onSelect={setActive} isMobile={isMobile} open={menuOpen} onClose={() => setMenuOpen(false)} />
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
         <AdminTopbar title={meta.title} subtitle={subtitle} onMenuClick={() => setMenuOpen((o) => !o)}
-          query={query} onQuery={setQuery} onSearchFocus={() => { if (active !== 'operators' && active !== 'billing') setActive('operators'); }}
+          query={query} onQuery={setQuery} onSearchFocus={() => { if (!SEARCHABLE.has(active)) setActive('operators'); }}
           right={<button style={ap.primaryBtn} className="hide-mobile" onClick={() => setAddOpen(true)}><Icon name="plus" size={14} stroke={2} />Add operator</button>} />
         {active === 'overview' && <OverviewPage data={data} onNavigate={setActive} />}
         {active === 'analytics' && <AnalyticsPage />}
         {active === 'operators' && <OperatorsPage data={data} query={query} />}
         {active === 'packages' && <PackagesPage data={data} />}
-        {active === 'subscriptions' && <SubscriptionsPage data={data} />}
+        {active === 'subscriptions' && <SubscriptionsPage data={data} query={query} />}
         {active === 'billing' && <BillingPage data={data} query={query} />}
-        {active === 'trials' && <TrialsPage data={data} />}
+        {active === 'trials' && <TrialsPage data={data} query={query} />}
         {active === 'churn' && <ChurnPage data={data} />}
         {active === 'popups' && (
           <div style={ap.scroll} className="pad-mobile">
@@ -1482,7 +1826,7 @@ export default function AdminConsole({ data }: { data: AdminData }) {
             <PopupsManager />
           </div>
         )}
-        {active === 'inquiries' && <InquiriesPage data={data} />}
+        {active === 'inquiries' && <InquiriesPage data={data} query={query} />}
         {active === 'broadcasts' && (
           <div style={ap.scroll} className="pad-mobile">
             <div style={{ padding: '24px 0 16px', maxWidth: 560 }}>

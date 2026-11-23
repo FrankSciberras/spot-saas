@@ -29,6 +29,8 @@ interface Page {
   pendingMs: number;
   maxScroll: number;
   reportedScroll: number;
+  /** When the page view started (ms) — heatmap clicks report time since. */
+  openedAt: number;
 }
 
 let current: Page | null = null;
@@ -62,6 +64,12 @@ export function trackingEnabled({ honourOptOut = true }: { honourOptOut?: boolea
   if (navigator.webdriver) return false;
   if ((window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView) return false;
   if (honourOptOut && readCookie(IGNORE_COOKIE) === '1') return false;
+  // Pages shown inside a frame — e.g. the admin heatmap viewer — never count.
+  try {
+    if (window.self !== window.top) return false;
+  } catch {
+    return false;
+  }
   return true;
 }
 
@@ -97,6 +105,16 @@ function send(payload: Record<string, unknown>, opts: { reliable?: boolean } = {
     () => undefined,
     () => undefined,
   );
+}
+
+/** Send a raw beacon (used by heatmap-capture.ts). */
+export function sendBeacon(payload: Record<string, unknown>): void {
+  void send(payload);
+}
+
+/** The page view in progress, if this page is tracked. */
+export function currentPageView(): { id: string; path: string; openedAt: number } | null {
+  return current ? { id: current.id, path: current.path, openedAt: current.openedAt } : null;
 }
 
 function scrollDepth(): number {
@@ -143,6 +161,7 @@ export function trackPageview(path: string) {
     pendingMs: 0,
     maxScroll: 0,
     reportedScroll: 0,
+    openedAt: Date.now(),
   };
   // Content may not be laid out yet; measure the first screen a beat later.
   setTimeout(() => {
