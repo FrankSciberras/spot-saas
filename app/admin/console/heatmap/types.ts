@@ -51,8 +51,9 @@ export interface HeatPagesData {
   generatedAt: string;
 }
 
-/** One clicked element: CSS path, tag, label, link target. */
-export interface HeatElement { s: string; t: string | null; l: string | null; h: string | null }
+/** One clicked element: CSS path, tag, label, link target — and, for a
+ *  click on a website pop-up, that pop-up's id (its parts share fixed ids). */
+export interface HeatElement { s: string; t: string | null; l: string | null; h: string | null; p?: string | null }
 /** One visit that clicked: device, country, source, channel, start, browser. */
 export interface HeatVisit { d: string; c: string | null; src: string; ch: string | null; at: string; b: string | null }
 
@@ -66,6 +67,8 @@ export interface HeatPageData {
   elements: HeatElement[];
   visits: HeatVisit[];
   clicks: RawClick[];
+  /** Website pop-ups clicked on this page (ids from elements[].p), with names. */
+  popups?: { id: string; name: string }[];
   page: {
     views: number;
     visits: number;
@@ -102,9 +105,20 @@ export function decodeClicks(raw: RawClick[]): Click[] {
   }));
 }
 
+/** Parts of a website pop-up without a label of their own. */
+const POPUP_PARTS: Record<string, string> = {
+  '#rv-popup-backdrop': 'Outside the pop-up (closes it)',
+  '#rv-popup-close': 'Close (×)',
+  '#rv-popup-card': 'Pop-up background',
+  '#rv-popup-image': 'Pop-up image',
+  '#rv-popup-title': 'Pop-up title',
+  '#rv-popup-text': 'Pop-up text',
+};
+
 /** A readable name for an element: its label, else link target, else tag. */
 export function elementName(e: HeatElement | undefined): string {
   if (!e) return 'Unknown';
+  if (e.p && POPUP_PARTS[e.s] && !e.l) return POPUP_PARTS[e.s];
   if (e.l) return e.l;
   if (e.h) return e.h;
   const tag = e.t ?? 'element';
@@ -118,7 +132,7 @@ export function elementWhere(e: HeatElement | undefined): string | null {
   const parts = e.s.split('>');
   if (parts.some((p) => p.startsWith('header') || p.startsWith('nav'))) return 'top menu';
   if (parts.some((p) => p.startsWith('footer'))) return 'footer';
-  if (parts.some((p) => p.startsWith('dialog'))) return 'pop-up';
+  if (e.p || parts.some((p) => p.startsWith('dialog'))) return 'pop-up';
   if (parts[0]?.startsWith('#')) return `${parts[0].slice(1).replace(/[-_]/g, ' ')} section`;
   return null;
 }

@@ -53,6 +53,11 @@ CREATE TABLE IF NOT EXISTS analytics_clicks (
   dead         boolean     NOT NULL DEFAULT false
 );
 
+-- A click on a website pop-up (site_popups.id, see 20261123_site_popups.sql):
+-- the viewer draws it on that pop-up, opened in its frame, not on the page
+-- behind. No foreign key — clicks outlive a deleted pop-up.
+ALTER TABLE analytics_clicks ADD COLUMN IF NOT EXISTS popup_id uuid;
+
 CREATE INDEX IF NOT EXISTS idx_analytics_clicks_path_created ON analytics_clicks(path, created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_clicks_created      ON analytics_clicks(created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_clicks_session      ON analytics_clicks(session_id);
@@ -67,7 +72,7 @@ COMMENT ON TABLE analytics_clicks IS 'Marketing-site clicks/taps for heatmaps. S
 
 -- -----------------------------------------------------------------------------
 -- Ingest. p: { ip, ua, host, vid, pv, path, clicks: [{ x, y, vw, dw, dh, sel,
--- rx, ry, tag, label, href, ms, ago, rage, dead }, …] } — already cleaned and
+-- rx, ry, tag, label, href, ms, ago, rage, dead, pop }, …] } — already cleaned and
 -- type-checked by /api/rv. `ago` is how many ms before sending the click
 -- happened (clicks are batched), so created_at is the moment of the click.
 -- -----------------------------------------------------------------------------
@@ -123,7 +128,7 @@ BEGIN
   END IF;
 
   INSERT INTO analytics_clicks
-    (session_id, pageview_id, created_at, path, vw, dw, dh, x, y, sel, rx, ry, tag, label, href, ms, rage, dead)
+    (session_id, pageview_id, created_at, path, vw, dw, dh, x, y, sel, rx, ry, tag, label, href, ms, rage, dead, popup_id)
   SELECT v_session, v_pv,
          now() - make_interval(secs => LEAST(GREATEST(coalesce(c.ago, 0), 0), 900000) / 1000.0),
          left(p->>'path', 300),
@@ -133,11 +138,12 @@ BEGIN
          LEAST(GREATEST(c.rx, 0), 1000)::smallint, LEAST(GREATEST(c.ry, 0), 1000)::smallint,
          left(c.tag, 20), left(c.label, 80), left(c.href, 200),
          LEAST(GREATEST(c.ms, 0), 86400000),
-         coalesce(c.rage, false), coalesce(c.dead, false)
+         coalesce(c.rage, false), coalesce(c.dead, false),
+         CASE WHEN c.pop ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN c.pop::uuid END
     FROM jsonb_to_recordset(p->'clicks') AS c(
            x integer, y integer, vw integer, dw integer, dh integer,
            sel text, rx integer, ry integer, tag text, label text, href text,
-           ms integer, ago integer, rage boolean, dead boolean)
+           ms integer, ago integer, rage boolean, dead boolean, pop text)
    WHERE c.x IS NOT NULL AND c.y IS NOT NULL AND c.vw IS NOT NULL AND c.dw IS NOT NULL AND c.dh IS NOT NULL
    LIMIT LEAST(40, 600 - v_have);
   GET DIAGNOSTICS v_added = ROW_COUNT;
@@ -186,7 +192,7 @@ BEGIN
 
   CREATE TEMP TABLE _hc ON COMMIT DROP AS
   SELECT c.id, c.session_id, c.created_at, c.path, c.vw, c.dw, c.dh, c.x, c.y,
-         coalesce(c.sel, '') AS sel, c.rx, c.ry, c.tag, c.label, c.href, c.ms, c.rage, c.dead,
+         coalesce(c.sel, '') AS sel, c.rx, c.ry, c.tag, c.label, c.href, c.ms, c.rage, c.dead, c.popup_id,
          CASE WHEN c.vw < 601 THEN 'phone' WHEN c.vw < 1024 THEN 'tablet' ELSE 'desktop' END AS layout
     FROM analytics_clicks c
     JOIN analytics_sessions s ON s.id = c.session_id
@@ -276,13 +282,15 @@ BEGIN
     DELETE FROM _hc WHERE id < (SELECT id FROM _hc ORDER BY id DESC OFFSET 19999 LIMIT 1);
   END IF;
 
+  -- An element is a CSS path on the page — or on one website pop-up (p), so
+  -- two pop-ups' buttons (same fixed ids) stay apart.
   WITH els AS (
-    SELECT sel,
-           (row_number() OVER (ORDER BY count(*) DESC, sel) - 1)::integer AS ix,
+    SELECT sel, popup_id,
+           (row_number() OVER (ORDER BY count(*) DESC, sel, popup_id) - 1)::integer AS ix,
            max(tag) AS tag,
            mode() WITHIN GROUP (ORDER BY label) AS label,
            mode() WITHIN GROUP (ORDER BY href)  AS href
-      FROM _hc GROUP BY sel
+      FROM _hc GROUP BY sel, popup_id
   ), ses AS (
     SELECT h.session_id,
            (row_number() OVER (ORDER BY min(h.created_at)) - 1)::integer AS ix
@@ -290,7 +298,7 @@ BEGIN
   )
   SELECT v_out || jsonb_build_object(
     'total', v_total,
-    'elements', coalesce((SELECT jsonb_agg(jsonb_build_object('s', sel, 't', tag, 'l', label, 'h', href) ORDER BY ix) FROM els), '[]'::jsonb),
+    'elements', coalesce((SELECT jsonb_agg(jsonb_build_object('s', sel, 't', tag, 'l', label, 'h', href, 'p', popup_id) ORDER BY ix) FROM els), '[]'::jsonb),
     'visits', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
                'd', coalesce(s.device, 'Unknown'), 'c', s.country, 'src', coalesce(s.source, 'Direct'),
@@ -304,7 +312,7 @@ BEGIN
                (CASE WHEN h.rage THEN 1 ELSE 0 END) + (CASE WHEN h.dead THEN 2 ELSE 0 END),
                coalesce(h.ms, -1), ses.ix) ORDER BY h.created_at)
         FROM _hc h
-        JOIN els ON els.sel = h.sel
+        JOIN els ON els.sel = h.sel AND els.popup_id IS NOT DISTINCT FROM h.popup_id
         JOIN ses ON ses.session_id = h.session_id), '[]'::jsonb)
   ) INTO v_out;
 

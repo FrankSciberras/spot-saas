@@ -137,6 +137,8 @@ function cleanClick(raw: unknown): Record<string, unknown> | null {
     ago: int(c.ago, 0, 900_000) ?? 0,
     rage: c.rage === true,
     dead: c.dead === true,
+    // Landed on a website pop-up (its id) — drawn on the pop-up, not the page.
+    pop: typeof c.pop === 'string' && UUID_RE.test(c.pop) ? c.pop : null,
   };
 }
 
