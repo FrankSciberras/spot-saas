@@ -6,6 +6,7 @@ import ErrorRecovery from '@/components/shared/ErrorRecovery';
 import SplashScreen from '@/components/shared/SplashScreen';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import SiteAnalytics from '@/components/analytics/SiteAnalytics';
+import SitePopups from '@/components/marketing/popups/SitePopups';
 import { figtree } from '@/lib/rovoraFonts';
 
 export const metadata: Metadata = {
@@ -112,6 +113,8 @@ export default function RootLayout({
               plus Google Tag Manager once a visitor clicks "Allow". Inert
               inside the signed-in app (see lib/analytics/client.ts + gtm.ts). */}
           <SiteAnalytics />
+          {/* Pop-ups set in Admin Console → Popups. Public pages only. */}
+          <SitePopups />
         </ThemeProvider>
       </body>
     </html>

@@ -16,7 +16,7 @@ export const metadata = marketingMetadata({
   ],
 });
 
-const LAST_UPDATED = '17 November 2026';
+const LAST_UPDATED = '23 November 2026';
 
 export default function PrivacyPage() {
   return (
@@ -477,6 +477,11 @@ export default function PrivacyPage() {
                       <td><code>rovora-theme</code>, chat history (browser storage)</td>
                       <td>Your light/dark choice, and the website chat conversation so it survives a page reload</td>
                       <td>Until you clear them</td>
+                    </tr>
+                    <tr>
+                      <td><code>rv_popups</code>, <code>rv_popups_visit</code> (browser storage)</td>
+                      <td>Which website pop-ups you&rsquo;ve already seen, so the same one doesn&rsquo;t keep coming back. Never sent to us</td>
+                      <td>Until you clear it</td>
                     </tr>
                   </tbody>
                 </table>
