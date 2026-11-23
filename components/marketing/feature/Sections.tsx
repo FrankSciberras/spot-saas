@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { START_TRIAL } from '../links';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
-import TrialPromoBadge from '../TrialPromoBadge';
 import { Icon, type IconName } from './icons';
 
 const accents = ['green', 'violet', 'amber', 'teal'] as const;
@@ -10,7 +9,8 @@ type Accent = (typeof accents)[number];
 
 /**
  * Page hero: eyebrow pill, big title with accent, sub, CTAs and a visual. Shows
- * the current free-trial length, plus the campaign badge while one is running.
+ * the current free-trial length (a running campaign shows in the PromoBanner
+ * above the nav instead).
  */
 export async function FeatureHero({
   eyebrow,
@@ -35,7 +35,6 @@ export async function FeatureHero({
         <span className="eyebrow"><span className="live" /> {eyebrow}</span>
         <h1 className="hero-title">{title} <span className="pos">{accent}</span></h1>
         <p className="hero-sub">{sub}</p>
-        <TrialPromoBadge trial={trial} />
         <div className="hero-cta">
           <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
           <a className="btn btn-ghost btn-lg" href="/#pricing">See pricing</a>

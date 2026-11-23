@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { installLifecycle, trackEvent, trackPageview } from '@/lib/analytics/client';
+import { installLifecycle, installVitals, noteRouteChange, observeSeen, trackEvent, trackPageview } from '@/lib/analytics/client';
 import { CONSENT_CHANGE_EVENT } from '@/lib/analytics/constants';
 import { syncGoogleTag } from '@/lib/analytics/gtm';
 import CookieBanner from './CookieBanner';
@@ -18,9 +18,15 @@ import CookieBanner from './CookieBanner';
  *   "Sign in" links               → Sign in click
  *   /contact links                → Contact click / Book demo click
  *   mailto: / tel: links          → Email click / Phone click
+ *   WhatsApp links (wa.me, …)     → WhatsApp click
+ *   a product screenshot (.shot)  → Screenshot click
  *   Play Store / App Store links  → App store click
  *   any other external link       → Outbound link       (label: destination)
  *   anything with data-track="…"  → that name (label: data-track-label)
+ *
+ * It also measures, without counting them as interactions: the landing page's
+ * speed (Core Web Vitals), which sections and screenshots scroll into view,
+ * and visits to missing pages (reported by app/not-found.tsx).
  *
  * Nothing runs inside the signed-in app, in development, for bots, or in the
  * Rovora Driver app's WebView. Google Tag Manager rides along under the same
@@ -29,12 +35,20 @@ import CookieBanner from './CookieBanner';
 export default function SiteAnalytics() {
   const pathname = usePathname();
 
-  useEffect(() => installLifecycle(), []);
+  useEffect(() => {
+    installVitals();
+    return installLifecycle();
+  }, []);
 
   useEffect(() => {
     if (!pathname) return;
+    noteRouteChange();
     trackPageview(pathname);
     syncGoogleTag(pathname);
+    // Sections / screenshots seen — once the page has laid out.
+    let stop: () => void = () => {};
+    const t = setTimeout(() => { stop = observeSeen(); }, 800);
+    return () => { clearTimeout(t); stop(); };
   }, [pathname]);
 
   // Google Tag Manager loads the moment "Allow" is clicked, and steps back on "Decline".
@@ -46,8 +60,16 @@ export default function SiteAnalytics() {
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      const el = (e.target as Element | null)?.closest?.('a[href], [data-track]');
-      if (!el) return;
+      const target = e.target as Element | null;
+      const el = target?.closest?.('a[href], [data-track]');
+      if (!el) {
+        const shot = target?.closest?.('.shot');
+        if (shot) {
+          const what = shot.querySelector('.shot-url b')?.textContent?.trim() || shot.closest('section[id]')?.id || 'screenshot';
+          trackEvent('Screenshot click', { label: `${window.location.pathname} · ${what}`.slice(0, 120) });
+        }
+        return;
+      }
 
       const section = el.closest('section[id]')?.id;
       const where = el.closest('[class*="mnav"]')
@@ -79,6 +101,10 @@ export default function SiteAnalytics() {
       try {
         url = new URL(a.href);
       } catch {
+        return;
+      }
+      if (url.protocol === 'whatsapp:' || /(^|\.)(wa\.me|whatsapp\.com)$/.test(url.host)) {
+        trackEvent('WhatsApp click', { label: where });
         return;
       }
       if (url.host === window.location.host) {

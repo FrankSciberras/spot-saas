@@ -5,7 +5,6 @@ import PricingPlans from '@/components/marketing/PricingPlans';
 import { LANDING_FAQ } from '@/components/marketing/LandingPage';
 import { getPublicPlans } from '@/lib/billing/plans-data';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
-import TrialPromoBadge from '@/components/marketing/TrialPromoBadge';
 
 // Prices and the free-trial offer are DB-backed and admin-editable, so
 // revalidate hourly rather than baking them in at build time.
@@ -75,7 +74,6 @@ export default async function PricingPage() {
             switched off. Every plan includes the driver app, unlimited team members and your
             {' '}{trial.first} free.
           </p>
-          <TrialPromoBadge trial={trial} />
           <div className="hero-micro">
             <span><span className="ck">✓</span> {trial.freeLabel}</span>
             <span><span className="ck">✓</span> No card required</span>

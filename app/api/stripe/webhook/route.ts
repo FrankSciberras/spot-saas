@@ -5,6 +5,14 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { sendEmail, renderBrandedEmail, isEmailConfigured } from '@/lib/email';
 import { isExtraVehicleItem, syncExtraVehicleBillingSafe } from '@/lib/billing/vehicle-billing';
 import { isGpsTrackerItem, syncGpsTrackerBillingSafe } from '@/lib/billing/gps-billing';
+import {
+  recordCancelled,
+  recordCheckoutAbandoned,
+  recordInvoiceFailed,
+  recordInvoicePaid,
+  recordSubscribed,
+  recordSubscriptionUpdate,
+} from '@/lib/billing/billing-events';
 
 // Stripe needs the Node runtime (crypto) and the raw, unbuffered request body.
 export const runtime = 'nodejs';
@@ -22,6 +30,13 @@ export const dynamic = 'force-dynamic';
  *   checkout.session.completed     → activate the chosen plan
  *   customer.subscription.updated  → mirror status / plan / period end
  *   customer.subscription.deleted  → mark the fleet cancelled (locks dashboard)
+ *   invoice.paid                   → history only: a renewal (or a recovered payment)
+ *   invoice.payment_failed         → history only: a declined charge
+ *   checkout.session.expired       → history only: payment page left unpaid
+ *
+ * Each one is also written to the billing_events history (lib/billing/
+ * billing-events.ts) for Admin Console → Analytics. In the Stripe dashboard the
+ * webhook endpoint must be subscribed to all six event types above.
  */
 export async function POST(request: Request) {
   if (!isStripeEnabled()) {
@@ -58,10 +73,30 @@ export async function POST(request: Request) {
       }
       case 'customer.subscription.updated': {
         await handleSubscriptionChange(event.data.object as Stripe.Subscription, false);
+        await ledger('plan change / cancellation request', () => recordSubscriptionUpdate(event));
         break;
       }
       case 'customer.subscription.deleted': {
-        await handleSubscriptionChange(event.data.object as Stripe.Subscription, true);
+        const sub = event.data.object as Stripe.Subscription;
+        await handleSubscriptionChange(sub, true);
+        await ledger('cancellation', () => recordCancelled(sub));
+        break;
+      }
+      // History only (Admin Console → Analytics → Revenue): nothing about the
+      // fleet's access changes here — subscription.updated mirrors the status.
+      case 'invoice.paid': {
+        const inv = event.data.object as Stripe.Invoice;
+        await ledger('renewal', () => recordInvoicePaid(inv));
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const inv = event.data.object as Stripe.Invoice;
+        await ledger('failed payment', () => recordInvoiceFailed(inv, stripe));
+        break;
+      }
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === 'subscription') await ledger('abandoned checkout', () => recordCheckoutAbandoned(session));
         break;
       }
       default:
@@ -114,6 +149,15 @@ function planKeyForSubscription(sub: Stripe.Subscription): Promise<string | null
   return planKeyForPrice(base?.price);
 }
 
+/** The history ledger must never fail a webhook: Stripe would retry and re-apply the event. */
+async function ledger(what: string, run: () => Promise<void>): Promise<void> {
+  try {
+    await run();
+  } catch (err) {
+    console.error(`stripe webhook: billing history (${what}) not recorded:`, err);
+  }
+}
+
 function periodEndIso(sub: Stripe.Subscription): string | null {
   // Since Stripe API 2025-03-31 the billing period lives on each subscription
   // ITEM, not the subscription itself (which is why the old top-level read
@@ -150,9 +194,10 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
   let planKey: string | null = null;
   let subStatus: string | null = null;
   let periodEnd: string | null = null;
+  let sub: Stripe.Subscription | null = null;
 
   if (subId) {
-    const sub = await stripe.subscriptions.retrieve(subId);
+    sub = await stripe.subscriptions.retrieve(subId);
     subStatus = sub.status;
     periodEnd = periodEndIso(sub);
     planKey = await planKeyForSubscription(sub);
@@ -189,6 +234,12 @@ async function handleCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.
   // Cars / GPS trackers added while they were on the payment page.
   await syncExtraVehicleBillingSafe(orgId);
   await syncGpsTrackerBillingSafe(orgId);
+
+  // History: a new paying fleet, and the device the payment page was opened on.
+  if (sub) {
+    const paid = sub;
+    await ledger('new subscription', () => recordSubscribed(paid, { orgId, device: session.metadata?.device ?? null }));
+  }
 
   // Best-effort confirmation email — never let a mail failure fail the webhook
   // (that would make Stripe retry and re-activate).

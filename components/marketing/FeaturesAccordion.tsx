@@ -267,6 +267,8 @@ export default function FeaturesAccordion() {
                 className="facc-head"
                 aria-expanded={open}
                 aria-controls={`facc-panel-${f.key}`}
+                data-track="Feature opened"
+                data-track-label={f.title}
                 onClick={() => setActive(i)}
               >
                 <span className="facc-title">{f.title}</span>

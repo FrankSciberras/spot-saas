@@ -42,10 +42,14 @@ export default function ContactForm({ defaultTopic = 'sales' }: { defaultTopic?:
   // Read on the client so the page itself stays static (no searchParams).
   useEffect(() => {
     const form = formRef.current;
-    const wanted = LINK_TOPICS[new URLSearchParams(window.location.search).get('topic') ?? ''];
+    const linkTopic = new URLSearchParams(window.location.search).get('topic') ?? '';
+    const wanted = LINK_TOPICS[linkTopic];
     if (!form || !wanted) return;
     const topic = form.elements.namedItem('topic') as HTMLSelectElement | null;
     const message = form.elements.namedItem('message') as HTMLTextAreaElement | null;
+    // Which link brought them here — "Book a demo" counts as a demo request.
+    const intent = form.elements.namedItem('intent') as HTMLInputElement | null;
+    if (intent) intent.value = linkTopic;
     if (topic) topic.value = wanted.topic;
     if (message && wanted.message && !message.value) message.value = wanted.message;
   }, []);
@@ -148,6 +152,7 @@ export default function ContactForm({ defaultTopic = 'sales' }: { defaultTopic?:
           <label htmlFor="cf-company-url">Company website</label>
           <input id="cf-company-url" name="company_url" type="text" tabIndex={-1} autoComplete="off" />
         </div>
+        <input type="hidden" name="intent" defaultValue="" />
 
         {error && (
           <div className={styles.error} role="alert">

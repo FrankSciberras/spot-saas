@@ -85,7 +85,11 @@ export async function submitInquiryAction(formData: FormData): Promise<Result> {
 
   await notifyTeam({ name, email, phone, company, fleetSize, topic, message });
   // Website analytics: a lead, credited to the visit that brought them here.
-  await recordConversion('Lead', { form: 'contact', topic, fleet_size: fleetSize || null }, '/contact');
+  // A demo request is one that came from a "Book a demo / walkthrough" link, or
+  // a sales message asking for one.
+  const intent = String(formData.get('intent') || '').trim();
+  const demo = intent === 'demo' || intent === 'onboarding' || (topic === 'sales' && /\b(demo|walk-?through)\b/i.test(message));
+  await recordConversion('Lead', { form: 'contact', topic, fleet_size: fleetSize || null, demo }, '/contact');
 
   return { ok: true };
 }
@@ -226,7 +230,7 @@ export async function submitChatLeadAction(input: ChatLeadInput): Promise<Result
     heading: 'New lead from the website chat',
     subjectPrefix: 'Chat lead',
   });
-  await recordConversion('Lead', { form: 'chat', topic, fleet_size: fleetSize || null }, page ?? '/');
+  await recordConversion('Lead', { form: 'chat', topic, fleet_size: fleetSize || null, demo: topic === 'sales' }, page ?? '/');
 
   return { ok: true };
 }

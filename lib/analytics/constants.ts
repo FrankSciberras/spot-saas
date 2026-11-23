@@ -32,6 +32,24 @@ export const GTM_ID = 'GTM-MP2LKF59';
  *  browser may not send these names (or forge a page view by name). */
 export const SERVER_ONLY_EVENTS = new Set(['pageview', 'Signup', 'Lead']);
 
+/**
+ * "Notes": things the browser measures on its own, not something the visitor
+ * did — page speed, a section or screenshot scrolling into view, landing on a
+ * missing page. They are stored like events but never count as an interaction,
+ * so they can't turn a bounce into an engaged visit (see analytics_note() in
+ * supabase/migrations/20261123_analytics_insights.sql).
+ */
+export const NOTE_EVENTS = {
+  speed: 'Page speed',
+  section: 'Section viewed',
+  screenshot: 'Screenshot viewed',
+  notFound: 'Page not found',
+} as const;
+export const PASSIVE_EVENT_NAMES: ReadonlySet<string> = new Set([...Object.values(NOTE_EVENTS), 'Consent']);
+
+/** Enquiry clicks the Enquiries report counts separately from form submissions. */
+export const CONTACT_CLICK_EVENTS = ['WhatsApp click', 'Email click', 'Phone click', 'Book demo click', 'Contact click'] as const;
+
 /** Query parameters worth keeping from a landing URL. Everything else in a
  *  query string is dropped before it leaves the browser. */
 export const CAMPAIGN_PARAMS = [

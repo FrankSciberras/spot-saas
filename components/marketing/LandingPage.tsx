@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import type { PlanDef } from '@/lib/billing/plans';
 import { trialCopy, type TrialOffer } from '@/lib/billing/trial-offer';
-import TrialPromoBadge from './TrialPromoBadge';
+import PromoBanner from './PromoBanner';
 import RovoraReveal from './RovoraReveal';
 import RovoraSmoothScroll from './RovoraSmoothScroll';
 import RovoraSupportChat from './RovoraSupportChat';
@@ -144,6 +144,7 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
       <RovoraReveal />
       <RovoraSmoothScroll />
       <div className="wrap">
+        <PromoBanner trial={trial} />
         <MarketingNav onHome />
 
         {/* HERO */}
@@ -154,7 +155,6 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
                 pushed the video further down — and the page spends the next
                 three sections listing features anyway. */}
             <p className="hero-sub">Fleet management software for taxi and rideshare fleets.</p>
-            <TrialPromoBadge trial={trial} />
             <div className="hero-cta">
               <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
               <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>

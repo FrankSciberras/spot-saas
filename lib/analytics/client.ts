@@ -8,12 +8,14 @@
 //   engagement  visible time + deepest scroll, flushed when the page is hidden
 //               or left, so "time on page" is real reading time, not tab time
 //   event       interactions (trial CTA clicks, outbound links, chat opened…)
+//   note        measurements, not actions: page speed, sections / screenshots
+//               seen, a missing page — never counted as an interaction
 //
 // Signups and leads are NOT sent from here — the server records them itself.
 // =============================================================================
 
 import { isAppRoute } from '@/lib/routes';
-import { CAMPAIGN_PARAMS, COLLECT_PATH, CONSENT_CHANGE_EVENT, CONSENT_COOKIE, CONSENT_MAX_AGE, IGNORE_COOKIE } from './constants';
+import { CAMPAIGN_PARAMS, COLLECT_PATH, CONSENT_CHANGE_EVENT, CONSENT_COOKIE, CONSENT_MAX_AGE, IGNORE_COOKIE, NOTE_EVENTS } from './constants';
 import { SIGNUP_ERROR_EVENT, SIGNUP_STEP_EVENT, signupErrorKind, type SignupStepId } from './signup-funnel';
 
 type Props = Record<string, string | number | boolean>;
@@ -182,6 +184,149 @@ export function trackEvent(name: string, props: Props = {}, opts: { path?: strin
   const path = opts.path ?? current?.path ?? window.location.pathname;
   if (!trackablePath(path)) return;
   send({ t: 'event', n: name, p: path, pr: props });
+}
+
+/**
+ * Record something measured rather than done (see NOTE_EVENTS): page speed, a
+ * section or screenshot coming into view, a missing page. Never counts as an
+ * interaction, so it can't change the bounce rate.
+ */
+export function trackNote(name: string, props: Props = {}, opts: { path?: string } = {}) {
+  if (!trackingEnabled()) return;
+  const path = opts.path ?? current?.path ?? window.location.pathname;
+  if (!trackablePath(path)) return;
+  send({ t: 'note', n: name, p: path, pr: props });
+}
+
+/**
+ * Report that this URL doesn't exist, and what led here: the page that linked
+ * to it (inside the site), the other site, or nothing (typed / bookmarked).
+ * Called by the 404 page as it mounts — before the page view of the missing URL
+ * replaces `current` — and sent a moment later, once that page view has opened
+ * the visit it belongs to.
+ */
+export function trackNotFound(path: string): void {
+  if (!trackingEnabled()) return;
+  let from = current && current.path !== path ? current.path : '';
+  if (!from && document.referrer) {
+    try {
+      const r = new URL(document.referrer);
+      from = r.host === window.location.host ? r.pathname : r.host.replace(/^www\./, '');
+    } catch {
+      /* unparseable referrer */
+    }
+  }
+  setTimeout(() => trackNote(NOTE_EVENTS.notFound, { label: path.slice(0, 200), from: from.slice(0, 200) || '(direct)' }, { path }), 1200);
+}
+
+// ── Page speed (Core Web Vitals) for the page a visit LANDED on ──
+// Only a full page load has meaningful load timings, so this measures the first
+// page of each load and reports once, when that page is hidden or left. Values
+// are rounded milliseconds (CLS is a unitless score ×1000, so it stays an int).
+let vitalsInstalled = false;
+let vitalsReport: (() => void) | null = null;
+export function installVitals(): void {
+  if (vitalsInstalled || typeof window === 'undefined' || typeof PerformanceObserver === 'undefined') return;
+  vitalsInstalled = true;
+
+  const landingPath = window.location.pathname;
+  let lcp = 0;
+  let cls = 0;
+  let inp = 0;
+  let sent = false;
+  const observers: PerformanceObserver[] = [];
+  const watch = (type: string, cb: (entries: PerformanceEntry[]) => void, extra: Record<string, unknown> = {}) => {
+    try {
+      const po = new PerformanceObserver((list) => cb(list.getEntries()));
+      po.observe({ type, buffered: true, ...extra } as PerformanceObserverInit);
+      observers.push(po);
+    } catch {
+      /* this browser doesn't support that entry type */
+    }
+  };
+
+  watch('largest-contentful-paint', (es) => {
+    const last = es[es.length - 1];
+    if (last) lcp = last.startTime;
+  });
+  watch('layout-shift', (es) => {
+    for (const e of es as (PerformanceEntry & { value?: number; hadRecentInput?: boolean })[]) {
+      if (!e.hadRecentInput && typeof e.value === 'number') cls += e.value;
+    }
+  });
+  // Slowest response to a tap/click/key — with only a few interactions per
+  // visit, that's what INP comes down to.
+  watch('event', (es) => {
+    for (const e of es as (PerformanceEntry & { interactionId?: number })[]) {
+      if (e.interactionId && e.duration > inp) inp = e.duration;
+    }
+  }, { durationThreshold: 40 });
+
+  const report = () => {
+    if (sent) return;
+    sent = true;
+    for (const o of observers) o.disconnect();
+    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const fcp = performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? 0;
+    const ttfb = nav ? Math.max(0, nav.responseStart - nav.startTime) : 0;
+    const load = nav && nav.loadEventEnd > 0 ? nav.loadEventEnd - nav.startTime : 0;
+    if (!ttfb && !lcp && !fcp) return; // nothing measured (e.g. a restored back/forward page)
+    const props: Props = { label: landingPath };
+    if (ttfb) props.ttfb = Math.round(ttfb);
+    if (fcp) props.fcp = Math.round(fcp);
+    if (lcp) props.lcp = Math.round(lcp);
+    if (load) props.load = Math.round(load);
+    props.cls = Math.round(cls * 1000);
+    if (inp) props.inp = Math.round(inp);
+    trackNote(NOTE_EVENTS.speed, props, { path: landingPath });
+  };
+  // Report when the landing page is hidden/left, or when the visitor moves on
+  // inside the site (the next page isn't a fresh load, so it isn't measured).
+  const onHide = () => { if (document.visibilityState === 'hidden') report(); };
+  document.addEventListener('visibilitychange', onHide);
+  window.addEventListener('pagehide', report);
+  vitalsReport = () => {
+    if (window.location.pathname !== landingPath) report();
+  };
+}
+
+/** Called on every route change: leaving the landing page reports its speed. */
+export function noteRouteChange(): void {
+  vitalsReport?.();
+}
+
+// ── Sections and screenshots seen ──
+// A homepage section (section[id]) or a product screenshot (.shot) counts as
+// seen once per page view, when at least a third of it is on screen.
+let seenObserver: IntersectionObserver | null = null;
+export function observeSeen(): () => void {
+  if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || !trackingEnabled()) return () => {};
+  seenObserver?.disconnect();
+  const seen = new Set<Element>();
+  const path = window.location.pathname;
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting || seen.has(entry.target)) continue;
+        seen.add(entry.target);
+        io.unobserve(entry.target);
+        const el = entry.target as HTMLElement;
+        if (el.matches('.shot')) {
+          const where = el.querySelector('.shot-url b')?.textContent?.trim() || el.closest('section[id]')?.id || 'screenshot';
+          trackNote(NOTE_EVENTS.screenshot, { label: `${path} · ${where}`.slice(0, 120) }, { path });
+        } else if (el.id) {
+          trackNote(NOTE_EVENTS.section, { label: `${path}#${el.id}`.slice(0, 120) }, { path });
+        }
+      }
+    },
+    { threshold: 0.33 },
+  );
+  seenObserver = io;
+  // Skip copies hidden for this screen size (e.g. the accordion's inline mock).
+  document.querySelectorAll('section[id], .shot').forEach((el) => {
+    if ((el as HTMLElement).offsetParent !== null || (el as HTMLElement).getClientRects().length > 0) io.observe(el);
+  });
+  return () => io.disconnect();
 }
 
 /**

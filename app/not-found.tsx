@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
+import { trackNotFound } from '@/lib/analytics/client';
 
 /**
  * 404 page, styled with the Rovora design system (.rovora-site tokens + button
@@ -13,6 +14,8 @@ export default function NotFound() {
 
   useEffect(() => {
     setTheme(window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    // Admin Console → Analytics → Friction lists missing pages and what linked to them.
+    trackNotFound(window.location.pathname);
   }, []);
 
   return (

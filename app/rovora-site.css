@@ -416,13 +416,23 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
 .rovora-site .hero-micro span { display: inline-flex; align-items: center; gap: 7px; }
 .rovora-site .hero-micro .ck { color: var(--pos); }
 
-/* Free-trial campaign announcement (only rendered while one runs — see
-   components/marketing/TrialPromoBadge). Sits between the sub and the CTAs. */
-.rovora-site .trial-promo-row { margin-top: 22px; }
-.rovora-site .trial-promo { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 6px 10px; max-width: 100%; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--text-1); background: var(--pos-soft); border: 1px solid var(--pos-soft); padding: 7px 15px 7px 7px; border-radius: 100px; }
-.rovora-site .trial-promo-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: var(--pos); padding: 3px 9px; border-radius: 100px; }
-.rovora-site[data-theme='dark'] .trial-promo-tag { color: #06281a; }
-@media (max-width: 520px) { .rovora-site .trial-promo { border-radius: 14px; padding: 8px 12px; } }
+/* Campaign announcement bar across the top of every marketing page, above the
+   nav (components/marketing/PromoBanner) — only rendered while an admin-set
+   offer runs. It scrolls away with the page; the nav below stays sticky. */
+.rovora-site .promo-bar { position: relative; z-index: 51; background: #08733f; color: #fff; }
+.rovora-site[data-theme='dark'] .promo-bar { background: var(--pos); color: #06281a; }
+.rovora-site .promo-bar-inner { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 12px; min-height: 40px; padding: 8px 20px; font-size: 14px; font-weight: 500; line-height: 1.35; text-align: center; color: inherit; text-decoration: none; }
+.rovora-site .promo-bar-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; border-radius: 100px; background: rgba(255, 255, 255, 0.2); }
+.rovora-site[data-theme='dark'] .promo-bar-tag { background: rgba(6, 40, 26, 0.14); }
+.rovora-site .promo-bar-cta { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.rovora-site .promo-bar-cta svg { width: 14px; height: 14px; transition: transform .15s; }
+.rovora-site .promo-bar-inner:hover .promo-bar-cta svg { transform: translateX(2px); }
+.rovora-site .promo-bar-inner:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
+@media (max-width: 520px) {
+  .rovora-site .promo-bar-inner { font-size: 13px; padding: 7px 14px; gap: 3px 8px; }
+  .rovora-site .promo-bar-cta { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .rovora-site .promo-bar-cta svg { transition: none; } }
 
 /* Trust row under the CTAs: five gold stars + a short caption. Sits on the same
    rhythm as .hero-micro so the two read as one quiet block, not two lines. */

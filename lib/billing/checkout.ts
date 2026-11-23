@@ -22,6 +22,7 @@ import {
   syncExtraVehicleBilling,
 } from './vehicle-billing';
 import { countHostedTrackers, ensureGpsTrackerPrice, isGpsTrackerItem } from './gps-billing';
+import { recordBillingEvent, requestDevice } from './billing-events';
 
 interface CheckoutOk {
   url: string;
@@ -237,23 +238,40 @@ export async function createPlanCheckoutSession(opts: {
   plan: PlanDef;
 }): Promise<CheckoutOk | CheckoutErr> {
   const { orgId, orgName = null, email = null, plan } = opts;
+  // Desktop / Mobile / Tablet — kept on the Stripe session so a payment page
+  // left unpaid can be broken down by device (Analytics → Friction).
+  const device = await requestDevice();
 
   // Any Stripe refusal (bad key, missing object, network) comes back as a
   // message on the billing page — an exception here used to take the whole
   // page down to the error screen.
+  let result: CheckoutOk | CheckoutErr;
   try {
-    return await startCheckout(orgId, orgName, email, plan);
+    result = await startCheckout(orgId, orgName, email, plan, device);
   } catch (e) {
     console.error(`checkout failed for org ${orgId}, plan ${plan.id}:`, describe(e));
-    return { error: CHECKOUT_FAILED };
+    result = { error: CHECKOUT_FAILED };
   }
+  if ('error' in result) {
+    await recordBillingEvent({
+      key: `fail:${crypto.randomUUID()}`,
+      kind: 'checkout_failed',
+      at: new Date(),
+      organizationId: orgId,
+      planTo: plan.id,
+      reason: result.error,
+      device,
+    });
+  }
+  return result;
 }
 
 async function startCheckout(
   orgId: string,
   orgName: string | null,
   email: string | null,
-  plan: PlanDef
+  plan: PlanDef,
+  device: string | null
 ): Promise<CheckoutOk | CheckoutErr> {
   const stripe = getStripe();
 
@@ -304,7 +322,7 @@ async function startCheckout(
     // Both the session and the resulting subscription carry the org + plan so
     // the webhook can map the payment back to the right fleet/tier.
     client_reference_id: orgId,
-    metadata: { organization_id: orgId, plan: plan.id },
+    metadata: { organization_id: orgId, plan: plan.id, ...(device ? { device } : {}) },
     subscription_data: {
       metadata: { organization_id: orgId, plan: plan.id },
     },

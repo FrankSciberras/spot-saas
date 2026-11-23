@@ -25,6 +25,7 @@ import {
   CONSENT_COOKIE,
   CONSENT_MAX_AGE,
   IGNORE_COOKIE,
+  NOTE_EVENTS,
   SERVER_ONLY_EVENTS,
   VISITOR_COOKIE,
   VISITOR_MAX_AGE,
@@ -36,10 +37,11 @@ export const dynamic = 'force-dynamic';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const EVENT_NAME_RE = /^[\p{L}\p{N} .:&'()/_-]{1,60}$/u;
 const MAX_BODY = 4096;
+const NOTE_NAMES: ReadonlySet<string> = new Set(Object.values(NOTE_EVENTS));
 
 /** What the tracker sends. Short keys keep each beacon tiny. */
 interface Beacon {
-  t: 'pageview' | 'event' | 'engagement';
+  t: 'pageview' | 'event' | 'engagement' | 'note';
   /** Path, no query string. */
   p: string;
   /** Page-view id (pageview / engagement). */
@@ -150,7 +152,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return noContent();
   }
-  if (!body || typeof body !== 'object' || !['pageview', 'event', 'engagement'].includes(body.t)) {
+  if (!body || typeof body !== 'object' || !['pageview', 'event', 'engagement', 'note'].includes(body.t)) {
     return noContent();
   }
 
@@ -164,9 +166,12 @@ export async function POST(request: NextRequest) {
   // ── The cookie-banner answer: record it, and set/clear the visitor cookie ──
   let consentChoice: 'granted' | 'denied' | null = null;
   let name: string | null = null;
-  if (body.t === 'event') {
+  if (body.t === 'event' || body.t === 'note') {
     name = str(body.n, 60);
     if (!name || !EVENT_NAME_RE.test(name) || SERVER_ONLY_EVENTS.has(name)) return noContent();
+    // Notes are measurements (page speed, sections seen…) from a fixed list,
+    // and those names can't be sent as interactions.
+    if ((body.t === 'note') !== NOTE_NAMES.has(name)) return noContent();
     if (name === 'Consent') {
       if (props.choice !== 'granted' && props.choice !== 'denied') return noContent();
       consentChoice = props.choice;
@@ -193,7 +198,7 @@ export async function POST(request: NextRequest) {
   };
 
   // Session attributes — only used if this hit starts a new visit.
-  if (body.t !== 'engagement') {
+  if (body.t === 'pageview' || body.t === 'event') {
     const params: Record<string, string> = {};
     if (body.q && typeof body.q === 'object') {
       for (const k of CAMPAIGN_PARAMS) {
@@ -231,8 +236,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { error } = await createAdminClient().rpc('analytics_track', { p: payload });
-    if (error) logOnce(error.code === 'PGRST202' ? 'missing' : error.message, error.message);
+    if (body.t === 'note') {
+      // A note joins the visit already open; it never starts one or counts as an
+      // interaction. Until migration 20261123_analytics_insights.sql is applied
+      // the function doesn't exist and notes are simply dropped.
+      const { error } = await createAdminClient().rpc('analytics_note', { p: payload });
+      if (error && error.code !== 'PGRST202') logOnce(error.message, error.message);
+    } else {
+      const { error } = await createAdminClient().rpc('analytics_track', { p: payload });
+      if (error) logOnce(error.code === 'PGRST202' ? 'missing' : error.message, error.message);
+    }
   } catch (err) {
     console.error('analytics: beacon failed:', err);
   }

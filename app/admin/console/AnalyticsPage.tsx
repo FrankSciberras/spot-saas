@@ -1,165 +1,39 @@
 'use client';
 
 // =============================================================================
-// Admin Console → Analytics: who visits rovora.eu, where they come from, and
-// which visits turn into signups. Data: /api/admin/analytics (platform admin
-// only), backed by analytics_dashboard() — see
-// supabase/migrations/20261007_web_analytics.sql for how everything is counted.
+// Admin Console → Analytics: who visits rovora.eu, where they come from, which
+// visits turn into sign-ups, trials and paying fleets — and what gets in the way.
+//
+// Data (platform admin only):
+//   /api/admin/analytics           website visits — analytics_dashboard(), see
+//                                  supabase/migrations/20261007_web_analytics.sql
+//   /api/admin/analytics/extras    scroll, speed, missing pages, sections seen…
+//                                  — analytics_extras() in 20261123_analytics_insights.sql
+//   /api/admin/analytics/signups   the sign-up form and accounts, step by step
+//   /api/admin/analytics/business  trials, subscriptions, revenue, retention
+//
+// One date range + filter row scopes everything; the page is split into tabs.
 // =============================================================================
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
-import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
+import { HEARD_ABOUT_OPTIONS, PASSIVE_EVENT_NAMES } from '@/lib/analytics/constants';
 import { ONBOARDING_STEPS, SIGNUP_ERRORS, SIGNUP_STEPS } from '@/lib/analytics/signup-funnel';
+import type { BusinessData, ExtrasData } from '@/lib/analytics/business-types';
+import type { Bucket, Conversion, Dashboard, Filters, Live, Metric, Row, SeriesPoint } from './analytics-types';
+import { MAX_CUSTOM_DAYS, RANGES, describeRange, parseYmd, rangeFor, validCustom, ymd, type Range, type RangeSel } from './analytics-range';
+import {
+  BarList, Card, CardHeader, Delta, Empty, Kpi, Stat, StepBars, Tabs, agoShort, chip, chipActive, countryName, flag, fmtDur, fmtNum, fmtPct,
+  languageName, ratio, td, th, whenShort, type Column, type FunnelRow,
+} from './analytics-ui';
+import {
+  CampaignPerformance, ContentInteractions, ConversionFunnel, DeviceEngagement, EnquiriesSection, FrictionSection, HeatmapsCard, NewVsReturning,
+  OverviewKpis, PagesBeforeSignup, RevenueSection, ScrollDepth, TrafficPlatforms, TrialsSection, csvSections, downloadCsv, toCsv,
+} from './AnalyticsInsights';
 
 const Icon = FleetIcon;
 
-// ── Data shapes (mirror analytics_dashboard / analytics_realtime) ─────────────
-interface Row {
-  name: string;
-  extra?: string;
-  visitors: number;
-  visits: number;
-  bounces?: number;
-  engaged_ms?: number;
-  signups?: number;
-  leads?: number;
-}
-interface PageRow { name: string; visitors: number; pageviews: number; avg_engaged_ms: number; avg_scroll: number }
-interface EventRow { name: string; label: string | null; visitors: number; count: number }
-interface Totals { visitors: number; visits: number; pageviews: number; bounces: number; engaged_ms: number; signups: number; leads: number }
-type SeriesValues = Pick<Totals, 'visitors' | 'visits' | 'pageviews' | 'signups' | 'leads'>;
-interface SeriesPoint extends SeriesValues { t: string; prev: (SeriesValues & { t: string }) | null }
-interface Conversion {
-  at: string;
-  type: 'Signup' | 'Lead';
-  props: { org_id?: string; plan?: string; heard?: string | null; form?: string; topic?: string; fleet_size?: string | null };
-  consented: boolean;
-  tracked: boolean;
-  channel: string | null;
-  source: string | null;
-  referrer: string | null;
-  campaign: string | null;
-  entry: string | null;
-  country: string | null;
-  city: string | null;
-  device: string | null;
-  browser: string | null;
-  first_at: string | null;
-  first_channel: string | null;
-  first_source: string | null;
-  first_campaign: string | null;
-  first_entry: string | null;
-  visits_before: number;
-  pageviews_before: number;
-}
-interface Dashboard {
-  kpis: { current: Totals; previous: Totals };
-  series: SeriesPoint[];
-  channel_series?: { t: string; name: string; visitors: number }[];
-  channels: Row[];
-  sources: Row[];
-  referrers: Row[];
-  campaigns: Row[];
-  pages: PageRow[];
-  entry_pages: Row[];
-  exit_pages: Row[];
-  countries: Row[];
-  regions: Row[];
-  cities: Row[];
-  devices: Row[];
-  browsers: Row[];
-  os: Row[];
-  languages: Row[];
-  events: EventRow[];
-  funnel: { key: 'visited' | 'pricing' | 'started' | 'signed_up'; visitors: number }[];
-  heatmap: { dow: number; hour: number; visitors: number }[];
-  loyalty: { consented_visitors: number; returning: number };
-  consent: { granted: number; denied: number };
-  conversions: Conversion[];
-  has_data: boolean;
-  bucket: Bucket;
-  orgs: Record<string, { name: string; plan: string | null; status: string | null }>;
-  ignored: boolean;
-}
-interface Live { visitors: number; pages: { name: string; visitors: number }[]; sources: { name: string; visitors: number }[]; countries: { name: string; visitors: number }[]; minutes: number[] }
-
-type Bucket = 'hour' | 'day' | 'week' | 'month';
-type RangeId = 'today' | '7d' | '30d' | '90d' | '12m';
-type Metric = 'visitors' | 'visits' | 'pageviews' | 'signups' | 'leads';
-type Filters = Record<string, string>;
-
-// ── Date ranges (in the admin's own time zone) ────────────────────────────────
-const RANGES: { id: RangeId; label: string }[] = [
-  { id: 'today', label: 'Today' },
-  { id: '7d', label: '7D' },
-  { id: '30d', label: '30D' },
-  { id: '90d', label: '90D' },
-  { id: '12m', label: '12M' },
-];
-
-function rangeFor(id: RangeId) {
-  const now = new Date();
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const daysBack = (n: number) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate() - n);
-  switch (id) {
-    case 'today':
-      return { from: midnight, to: now, prevFrom: daysBack(1), bucket: 'hour' as Bucket, compare: 'yesterday to this time' };
-    case '7d':
-      return { from: daysBack(6), to: now, prevFrom: daysBack(13), bucket: 'day' as Bucket, compare: 'the 7 days before' };
-    case '30d':
-      return { from: daysBack(29), to: now, prevFrom: daysBack(59), bucket: 'day' as Bucket, compare: 'the 30 days before' };
-    case '90d':
-      return { from: daysBack(89), to: now, prevFrom: daysBack(179), bucket: 'week' as Bucket, compare: 'the 90 days before' };
-    case '12m': {
-      const from = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-      return { from, to: now, prevFrom: new Date(from.getFullYear() - 1, from.getMonth(), 1), bucket: 'month' as Bucket, compare: 'the 12 months before' };
-    }
-  }
-}
-
-// ── Formatting ────────────────────────────────────────────────────────────────
-const fmtNum = (n: number) => {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, '') + 'M';
-  if (n >= 10_000) return (n / 1000).toFixed(0) + 'k';
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-  return Math.round(n).toLocaleString('en-GB');
-};
-const fmtPct = (x: number) => {
-  if (!Number.isFinite(x)) return '—';
-  const p = x * 100;
-  return (p > 0 && p < 10 ? p.toFixed(1) : Math.round(p).toString()) + '%';
-};
-const fmtDur = (ms: number) => {
-  const s = Math.round(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-};
-const ratio = (a: number, b: number) => (b > 0 ? a / b : 0);
-
-const regionNames = typeof Intl !== 'undefined' && 'DisplayNames' in Intl ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
-const languageNames = typeof Intl !== 'undefined' && 'DisplayNames' in Intl ? new Intl.DisplayNames(['en'], { type: 'language' }) : null;
-const countryName = (code: string | null | undefined) => {
-  if (!code) return 'Unknown';
-  try {
-    return regionNames?.of(code) ?? code;
-  } catch {
-    return code;
-  }
-};
-const flag = (code: string | null | undefined) =>
-  code && /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0))) : '🌐';
-const languageName = (code: string) => {
-  if (code === 'unknown') return 'Unknown';
-  try {
-    return languageNames?.of(code) ?? code;
-  } catch {
-    return code;
-  }
-};
 const HEARD_LABEL: Record<string, string> = Object.fromEntries(HEARD_ABOUT_OPTIONS.map((o) => [o.id, o.label]));
 
 /** Parse the SQL bucket label ("YYYY-MM-DDTHH:MM:SS", already local time). */
@@ -207,141 +81,6 @@ const FILTER_LABEL: Record<string, string> = {
 };
 const filterValueLabel = (k: string, v: string) => (k === 'country' ? countryName(v) : k === 'language' ? languageName(v) : v);
 
-// ── Primitives (same look as the rest of the console) ─────────────────────────
-const Card = ({ children, style }: { children: ReactNode; style?: CSSProperties }) => (
-  <div style={{ background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', minWidth: 0, ...style }}>{children}</div>
-);
-const CardHeader = ({ title, subtitle, right }: { title: string; subtitle?: ReactNode; right?: ReactNode }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', gap: 12, flexWrap: 'wrap' }}>
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)' }}>{title}</div>
-      {subtitle && <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>{subtitle}</div>}
-    </div>
-    {right}
-  </div>
-);
-function Tabs<T extends string>({ tabs, value, onChange }: { tabs: [T, string][]; value: T; onChange: (v: T) => void }) {
-  return (
-    <div role="tablist" style={{ display: 'inline-flex', gap: 2, padding: 2, background: 'var(--bg-2)', border: '1px solid var(--line-1)', borderRadius: 8, maxWidth: '100%', overflowX: 'auto' }}>
-      {tabs.map(([id, label]) => (
-        <button key={id} role="tab" aria-selected={value === id} onClick={() => onChange(id)}
-          style={{ padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
-            background: value === id ? 'var(--bg-3)' : 'transparent', color: value === id ? 'var(--text-1)' : 'var(--text-3)' }}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-const Empty = ({ children }: { children: ReactNode }) => (
-  <div style={{ padding: '26px 18px', fontSize: 12.5, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.55 }}>{children}</div>
-);
-
-interface Column<R> { label: string; width: number; render: (r: R) => ReactNode; title?: string }
-
-/** Ranked list with a soft bar behind each row; click a row to filter by it. */
-function BarList<R>({ rows, label, name, value, columns, onSelect, empty, keyOf }: {
-  rows: R[];
-  label: string;
-  name: (r: R) => ReactNode;
-  value: (r: R) => number;
-  columns: Column<R>[];
-  onSelect?: (r: R) => void;
-  empty: ReactNode;
-  keyOf: (r: R) => string;
-}) {
-  const [all, setAll] = useState(false);
-  if (rows.length === 0) return <Empty>{empty}</Empty>;
-  const max = Math.max(...rows.map(value), 1);
-  const shown = all ? rows : rows.slice(0, 8);
-  return (
-    <div style={{ padding: '0 10px 10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 6px', fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)' }}>
-        <span style={{ flex: 1 }}>{label}</span>
-        {columns.map((c) => <span key={c.label} title={c.title} style={{ width: c.width, textAlign: 'right', flexShrink: 0 }}>{c.label}</span>)}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: all ? 420 : undefined, overflowY: all ? 'auto' : undefined }}>
-        {shown.map((r) => {
-          const w = (value(r) / max) * 100;
-          const inner = (
-            <>
-              <span aria-hidden style={{ position: 'absolute', inset: 0, width: `${Math.max(w, 1.5)}%`, background: 'var(--accent-soft)', borderRadius: 6 }} />
-              <span style={{ position: 'relative', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-1)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{name(r)}</span>
-              {columns.map((c) => (
-                <span key={c.label} className="mono tnum" style={{ position: 'relative', width: c.width, flexShrink: 0, textAlign: 'right', fontSize: 12.5, color: 'var(--text-2)' }}>{c.render(r)}</span>
-              ))}
-            </>
-          );
-          const rowStyle: CSSProperties = { position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, minHeight: 32, width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontFamily: 'inherit' };
-          return onSelect ? (
-            <button key={keyOf(r)} className="an-row" style={{ ...rowStyle, cursor: 'pointer' }} onClick={() => onSelect(r)} title="Filter the whole page by this">{inner}</button>
-          ) : (
-            <div key={keyOf(r)} style={rowStyle}>{inner}</div>
-          );
-        })}
-      </div>
-      {rows.length > 8 && (
-        <button onClick={() => setAll((v) => !v)} style={{ marginTop: 6, marginLeft: 8, background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-          {all ? 'Show fewer' : `Show all ${rows.length}`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── KPI tiles ─────────────────────────────────────────────────────────────────
-function Delta({ cur, prev, upIsGood = true, asPoints = false }: { cur: number; prev: number; upIsGood?: boolean; asPoints?: boolean }) {
-  let text: string;
-  let dir: 0 | 1 | -1;
-  if (asPoints) {
-    const d = (cur - prev) * 100;
-    dir = Math.abs(d) < 0.05 ? 0 : d > 0 ? 1 : -1;
-    text = `${d > 0 ? '+' : ''}${d.toFixed(1)} pts`;
-  } else if (prev === 0) {
-    dir = cur > 0 ? 1 : 0;
-    text = cur > 0 ? 'new' : '—';
-  } else {
-    const d = ((cur - prev) / prev) * 100;
-    dir = Math.abs(d) < 0.5 ? 0 : d > 0 ? 1 : -1;
-    text = `${d > 0 ? '+' : ''}${Math.abs(d) >= 100 ? Math.round(d) : d.toFixed(1)}%`;
-  }
-  const good = dir === 0 ? null : (dir === 1) === upIsGood;
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, padding: '2px 6px', borderRadius: 4, fontFamily: 'Geist Mono, monospace',
-      whiteSpace: 'nowrap', flexShrink: 0,
-      background: good === null ? 'var(--bg-3)' : good ? 'var(--pos-soft)' : 'var(--neg-soft)',
-      color: good === null ? 'var(--text-2)' : good ? 'var(--pos)' : 'var(--neg)',
-    }}>
-      {dir === 1 && <Icon name="arrow-up" size={10} stroke={2.4} />}
-      {dir === -1 && <Icon name="arrow-down" size={10} stroke={2.4} />}
-      {text}
-    </span>
-  );
-}
-
-function Kpi({ label, value, delta, sub, active, onClick, hint }: { label: string; value: string; delta: ReactNode; sub?: string; active?: boolean; onClick?: () => void; hint: string }) {
-  const style: CSSProperties = {
-    position: 'relative', padding: '14px 16px 13px', background: 'var(--bg-1)', borderRadius: 'var(--radius)', textAlign: 'left', fontFamily: 'inherit', minWidth: 0,
-    border: `1px solid ${active ? 'var(--accent-line)' : 'var(--line-1)'}`, cursor: onClick ? 'pointer' : 'default',
-  };
-  const body = (
-    <>
-      {active && <span style={{ position: 'absolute', top: 0, left: 0, width: 28, height: 2, background: 'var(--accent)', borderRadius: '0 0 2px 0' }} />}
-      <div style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
-      <div style={{ marginTop: 9, fontSize: 25, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)', lineHeight: 1.1 }}>{value}</div>
-      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-        {delta}
-        {sub && <span style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
-      </div>
-    </>
-  );
-  return onClick ? (
-    <button style={style} onClick={onClick} aria-pressed={active} title={hint}>{body}</button>
-  ) : (
-    <div style={style} title={hint}>{body}</div>
-  );
-}
 
 // ── Trend chart (one measure; the comparison period as a quiet grey line) ────
 function niceTicks(max: number): number[] {
@@ -732,93 +471,19 @@ interface SignupDetail {
     unfinished: { email: string | null; created_at: string; verified: boolean; provider: string; last_sign_in_at: string | null; step: number | null; step_at: string | null }[];
   } | null;
 }
-interface FunnelRow { key: string; title: string; hint?: string; value: number }
-
-/** Bars for an ordered funnel; the step that loses the most people is flagged. `unit` is singular. */
-function StepBars({ rows, unit }: { rows: FunnelRow[]; unit: string }) {
-  const base = rows[0]?.value ?? 0;
-  let worst = -1;
-  let worstLoss = 0;
-  rows.forEach((r, i) => {
-    const loss = i > 0 ? rows[i - 1].value - r.value : 0;
-    if (loss > worstLoss) { worstLoss = loss; worst = i; }
-  });
-  return (
-    <div style={{ padding: '2px 18px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {rows.map((r, i) => {
-        const prev = i > 0 ? rows[i - 1].value : 0;
-        const lost = prev - r.value;
-        return (
-          <div key={r.key} title={r.hint}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
-              <span style={{ fontSize: 12.5, color: 'var(--text-1)', display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                {r.title}
-                {i === worst && worstLoss > 0 && (
-                  <span style={{ fontSize: 10.5, padding: '1px 7px', borderRadius: 99, background: 'var(--warn-soft)', color: 'var(--warn)', whiteSpace: 'nowrap' }}>biggest drop</span>
-                )}
-              </span>
-              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'baseline' }}>
-                <span className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{r.value.toLocaleString('en-GB')}</span>
-                <span className="mono tnum" style={{ fontSize: 11, color: 'var(--text-3)', width: 44, textAlign: 'right' }}>{i === 0 ? '100%' : fmtPct(ratio(r.value, base))}</span>
-              </span>
-            </div>
-            <div style={{ height: 8, background: 'var(--bg-2)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${base ? Math.min(100, Math.max((r.value / base) * 100, r.value ? 1.5 : 0)) : 0}%`, height: '100%', background: i === worst && worstLoss > 0 ? 'var(--warn)' : 'var(--accent)', borderRadius: 4 }} />
-            </div>
-            {i > 0 && prev > 0 && (
-              <div style={{ fontSize: 10.5, color: 'var(--text-4)', marginTop: 4 }}>
-                {fmtPct(ratio(r.value, prev))} of the step before{lost > 0 ? ` · ${lost.toLocaleString('en-GB')} ${unit}${lost === 1 ? '' : 's'} stopped here` : ''}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 const SIGNUP_STEP_TITLE: Record<string, { title: string; hint: string }> = Object.fromEntries(SIGNUP_STEPS.map((s) => [s.id, { title: s.title, hint: s.hint }]));
-const Stat = ({ value, label }: { value: string; label: ReactNode }) => (
-  <div>
-    <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-1)' }}>{value}</div>
-    <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.45 }}>{label}</div>
-  </div>
-);
-const whenShort = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const agoShort = (iso: string | null) => {
-  if (!iso) return 'never';
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
-};
 
-function SignupFunnelSection({ rangeId }: { rangeId: RangeId }) {
-  const [detail, setDetail] = useState<SignupDetail | null>(null);
-  const [loadedFor, setLoadedFor] = useState<RangeId | null>(null);
-  const [failed, setFailed] = useState(false);
+function SignupFunnelSection({ detail, failed, loading, rangeStart }: { detail: SignupDetail | null; failed: boolean; loading: boolean; rangeStart: number }) {
   const [device, setDevice] = useState<'visitors' | 'desktop' | 'mobile'>('visitors');
   const [limit, setLimit] = useState(10);
 
-  useEffect(() => {
-    let stop = false;
-    const r = rangeFor(rangeId);
-    fetch(`/api/admin/analytics/signups?${new URLSearchParams({ from: r.from.toISOString(), to: r.to.toISOString() })}`, { cache: 'no-store' })
-      .then(async (res) => {
-        if (stop) return;
-        if (res.ok) { setDetail((await res.json()) as SignupDetail); setFailed(false); } else setFailed(true);
-        setLoadedFor(rangeId);
-      })
-      .catch(() => { if (!stop) { setFailed(true); setLoadedFor(rangeId); } });
-    return () => { stop = true; };
-  }, [rangeId]);
-
   if (failed && !detail) {
-    return <Card style={{ marginBottom: 16 }}><Empty>Couldn’t load the sign-up funnel. Reload the page to try again.</Empty></Card>;
+    return <Card style={{ marginBottom: 16 }}><Empty>Couldn’t load the sign-up funnel. Press Refresh to try again.</Empty></Card>;
   }
-  if (!detail) return null;
+  if (!detail) return <Card style={{ marginBottom: 16 }}><Empty>Loading the sign-up funnel…</Empty></Card>;
 
   const { form, accounts } = detail;
-  const loading = loadedFor !== rangeId;
-  const rangeStart = rangeFor(rangeId).from.getTime();
 
   // The form: every step uses the same metric (all visitors, or one device).
   const formRows: FunnelRow[] = form
@@ -1370,80 +1035,129 @@ function CampaignLinkBuilder() {
 }
 
 // ── The page ──────────────────────────────────────────────────────────────────
+type TabId = 'overview' | 'traffic' | 'audience' | 'pages' | 'enquiries' | 'registrations' | 'trials' | 'revenue' | 'friction';
+const TABS: [TabId, string][] = [
+  ['overview', 'Overview'],
+  ['traffic', 'Traffic sources'],
+  ['audience', 'Audience'],
+  ['pages', 'Pages & engagement'],
+  ['enquiries', 'Enquiries'],
+  ['registrations', 'Registrations'],
+  ['trials', 'Trials'],
+  ['revenue', 'Revenue & retention'],
+  ['friction', 'Friction'],
+];
+/** Tabs built from the accounts rather than website visits — the filters don't narrow them. */
+const ACCOUNT_TABS = new Set<TabId>(['registrations', 'trials', 'revenue']);
+
+interface Loaded<T> { data: T | null; error: string | null; setup: boolean; loadedUrl: string; at: number | null }
+
+/** GET a JSON endpoint whenever `url` changes; the last good answer stays on screen while the next one loads. */
+function useJson<T>(url: string): Loaded<T> {
+  const [state, setState] = useState<Loaded<T>>({ data: null, error: null, setup: false, loadedUrl: '', at: null });
+  useEffect(() => {
+    let stop = false;
+    fetch(url, { cache: 'no-store' })
+      .then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (stop) return;
+        setState((s) =>
+          res.ok
+            ? { data: body as T, error: null, setup: false, loadedUrl: url, at: Date.now() }
+            : { ...s, error: (body as { error?: string }).error || `Request failed (${res.status})`, setup: !!(body as { setup?: boolean }).setup, loadedUrl: url },
+        );
+      })
+      .catch(() => {
+        if (!stop) setState((s) => ({ ...s, error: 'Could not reach the server.', loadedUrl: url }));
+      });
+    return () => { stop = true; };
+  }, [url]);
+  return state;
+}
+
+const DAY_MS = 86_400_000;
+const selectStyle = { ...chip, paddingRight: 8, maxWidth: 190 } as const;
+
+/** One of the Campaign / Country / Device menus in the filter row. */
+function FilterMenu({ label, value, options, onChange }: { label: string; value: string | undefined; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
+  return (
+    <select aria-label={`${label} filter`} value={value ?? ''} onChange={(e) => onChange(e.target.value)}
+      style={{ ...selectStyle, ...(value ? chipActive : {}) }}>
+      <option value="">{label}: all</option>
+      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+const dateInput = { ...chip, padding: '4px 8px', colorScheme: 'light dark' } as const;
+
 export default function AnalyticsPage() {
-  const [rangeId, setRangeId] = useState<RangeId>('30d');
+  const [sel, setSel] = useState<RangeSel>({ id: '30d' });
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState(() => ymd(new Date(Date.now() - 29 * DAY_MS)));
+  const [customTo, setCustomTo] = useState(() => ymd(new Date()));
+  const [tick, setTick] = useState(0);
+  const [tab, setTab] = useState<TabId>('overview');
   const [filters, setFilters] = useState<Filters>({});
   const [metric, setMetric] = useState<Metric>('visitors');
-  const [data, setData] = useState<Dashboard | null>(null);
-  const [loadedKey, setLoadedKey] = useState('');
-  const [error, setError] = useState<{ message: string; setup?: boolean } | null>(null);
   const [live, setLive] = useState<Live | null>(null);
-  const [ignored, setIgnored] = useState<boolean | null>(null);
+  const [ignoredOverride, setIgnoredOverride] = useState<boolean | null>(null);
   const [savingIgnore, setSavingIgnore] = useState(false);
   const [trendView, setTrendView] = useState<'chart' | 'table'>('chart');
   const [srcTab, setSrcTab] = useState<'channels' | 'sources' | 'referrers' | 'campaigns'>('channels');
   const [pageTab, setPageTab] = useState<'pages' | 'entry' | 'exit'>('pages');
   const [geoTab, setGeoTab] = useState<'countries' | 'cities' | 'regions'>('countries');
   const [techTab, setTechTab] = useState<'devices' | 'browsers' | 'os' | 'languages'>('devices');
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
-  const range = useMemo(() => rangeFor(rangeId), [rangeId]);
-  const key = `${rangeId}|${JSON.stringify(filters)}`;
-  const loading = key !== loadedKey;
-  const latest = useRef(key);
+  // `tick` (Refresh) re-reads "now", so ranges ending today move forward.
+  const range: Range = useMemo(() => {
+    void tick;
+    return rangeFor(sel);
+  }, [sel, tick]);
+  const tz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : 'UTC';
+  const filterJson = JSON.stringify(filters);
+  const urls = useMemo(() => {
+    // `n` changes on Refresh, so even a range that ended in the past (yesterday,
+    // last week) is fetched again. The routes ignore it.
+    const base = { from: range.from.toISOString(), to: range.to.toISOString(), n: String(tick) };
+    return {
+      dash: `/api/admin/analytics?${new URLSearchParams({ ...base, prevFrom: range.prevFrom.toISOString(), bucket: range.bucket, tz, filters: filterJson })}`,
+      extras: `/api/admin/analytics/extras?${new URLSearchParams({ ...base, filters: filterJson })}`,
+      business: `/api/admin/analytics/business?${new URLSearchParams({ ...base, prevFrom: range.prevFrom.toISOString(), tz })}`,
+      signups: `/api/admin/analytics/signups?${new URLSearchParams(base)}`,
+    };
+  }, [range, tz, filterJson, tick]);
 
-  // Dashboard for the chosen range + filters. The previous render stays on
-  // screen (dimmed) while the next one loads.
-  useEffect(() => {
-    latest.current = key;
-    const r = rangeFor(rangeId);
-    const qs = new URLSearchParams({
-      from: r.from.toISOString(),
-      to: r.to.toISOString(),
-      prevFrom: r.prevFrom.toISOString(),
-      bucket: r.bucket,
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-      filters: JSON.stringify(filters),
-    });
-    fetch(`/api/admin/analytics?${qs}`, { cache: 'no-store' })
-      .then(async (res) => {
-        const body = await res.json().catch(() => ({}));
-        if (latest.current !== key) return;
-        if (!res.ok) {
-          setError({ message: body.error || `Request failed (${res.status})`, setup: body.setup });
-        } else {
-          setError(null);
-          setData(body as Dashboard);
-          setIgnored((body as Dashboard).ignored);
-        }
-        setLoadedKey(key);
-      })
-      .catch(() => {
-        if (latest.current !== key) return;
-        setError({ message: 'Could not reach the server.' });
-        setLoadedKey(key);
-      });
-  }, [key, rangeId, filters]);
+  const dash = useJson<Dashboard>(urls.dash);
+  const extras = useJson<ExtrasData>(urls.extras);
+  const business = useJson<BusinessData>(urls.business);
+  const signups = useJson<SignupDetail>(urls.signups);
+  const data = dash.data;
+  const error = dash.error ? { message: dash.error, setup: dash.setup } : null;
+  const loading = dash.loadedUrl !== urls.dash;
+  const ignored = ignoredOverride ?? data?.ignored ?? null;
 
   // Live visitors, refreshed every 20 s while this tab is visible.
   useEffect(() => {
     let stop = false;
-    const tick = () => {
+    const poll = () => {
       if (document.visibilityState !== 'visible') return;
       fetch('/api/admin/analytics?live=1', { cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (!stop && d) setLive(d as Live); })
         .catch(() => {});
     };
-    tick();
-    const id = setInterval(tick, 20_000);
-    document.addEventListener('visibilitychange', tick);
-    return () => { stop = true; clearInterval(id); document.removeEventListener('visibilitychange', tick); };
+    poll();
+    const id = setInterval(poll, 20_000);
+    document.addEventListener('visibilitychange', poll);
+    return () => { stop = true; clearInterval(id); document.removeEventListener('visibilitychange', poll); };
   }, []);
 
-  const addFilter = (k: string, v: string | null | undefined) => {
+  const addFilter = useCallback((k: string, v: string | null | undefined) => {
     if (v == null || v === '') return;
     setFilters((f) => ({ ...f, [k]: v }));
-  };
+  }, []);
   const removeFilter = (k: string) => setFilters((f) => {
     const next = { ...f };
     delete next[k];
@@ -1455,15 +1169,64 @@ export default function AnalyticsPage() {
     setSavingIgnore(true);
     try {
       const res = await fetch('/api/admin/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exclude: !ignored }) });
-      if (res.ok) setIgnored(((await res.json()) as { ignored: boolean }).ignored);
+      if (res.ok) setIgnoredOverride(((await res.json()) as { ignored: boolean }).ignored);
     } finally {
       setSavingIgnore(false);
     }
   };
 
-  const k = data?.kpis;
-  const cur = k?.current;
-  const prev = k?.previous;
+  const customError = validCustom(customFrom, customTo);
+  const applyCustom = () => {
+    if (customError) return;
+    setSel({ id: 'custom', from: customFrom, to: customTo });
+    setCustomOpen(false);
+  };
+  const pickRange = (id: RangeSel['id']) => {
+    if (id === 'custom') {
+      setCustomOpen((o) => !o);
+      return;
+    }
+    setCustomOpen(false);
+    setSel({ id });
+  };
+
+  const runImport = async () => {
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch('/api/admin/analytics/business', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import' }) });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; subscriptions?: number; invoices?: number; planChanges?: number };
+      if (res.ok) {
+        setImportMsg(`Done — checked ${fmtNum(body.subscriptions ?? 0)} subscriptions, ${fmtNum(body.invoices ?? 0)} invoices and ${fmtNum(body.planChanges ?? 0)} recent plan changes.`);
+        setTick((t) => t + 1);
+      } else {
+        setImportMsg(body.error || 'The import failed.');
+      }
+    } catch {
+      setImportMsg('Could not reach the server.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const sections = csvSections({ periodLabel: describeRange(range), compare: range.compare, filters, data, extras: extras.data, business: business.data });
+    const s = signups.data;
+    if (s?.form) {
+      sections.push({ title: 'Sign-up form, step by step', head: ['Step', 'Visitors', 'Desktop', 'Mobile'], rows: s.form.steps.map((x) => [SIGNUP_STEP_TITLE[x.id]?.title ?? x.id, x.visitors, x.desktop, x.mobile]) });
+      sections.push({ title: 'Why sign-ups fail', head: ['Error', 'Times', 'People'], rows: s.form.errors.map((e) => [e.kind, e.count, e.visitors]) });
+    }
+    if (s?.accounts) {
+      const c = s.accounts.counts;
+      sections.push({ title: 'Accounts, created to paying', head: ['Step', 'Accounts'], rows: [['Created an account', c.created], ['Verified their email', c.verified], ['Created a fleet', c.fleet], ['Added a vehicle', c.vehicle], ['Added a driver', c.driver], ['On a paid plan', c.paying]] });
+      sections.push({ title: 'Unfinished sign-ups', head: ['Started', 'Email', 'Verified', 'Signed up with', 'Last seen'], rows: s.accounts.unfinished.map((u) => [u.created_at, u.email ?? '', u.verified ? 'yes' : 'no', u.provider, u.last_sign_in_at ?? '']) });
+    }
+    const last = new Date(range.to.getTime() - 1);
+    downloadCsv(`rovora-analytics_${ymd(range.from)}_to_${ymd(last)}.csv`, toCsv(sections));
+  };
+
+  const cur = data?.kpis.current;
+  const prev = data?.kpis.previous;
   const pages = useMemo(() => data?.pages ?? [], [data]);
   const pvByPath = useMemo(() => new Map(pages.map((p) => [p.name, p.pageviews])), [pages]);
   const heard = useMemo(() => {
@@ -1471,8 +1234,16 @@ export default function AnalyticsPage() {
     for (const c of data?.conversions ?? []) if (c.type === 'Signup' && c.props.heard) m.set(c.props.heard, (m.get(c.props.heard) ?? 0) + 1);
     return [...m.entries()].map(([name, n]) => ({ name, visitors: n, visits: n })).sort((a, b) => b.visitors - a.visitors);
   }, [data]);
-  const interactions = (data?.events ?? []).filter((e) => e.name !== 'Signup' && e.name !== 'Lead');
+  const interactions = (data?.events ?? []).filter((e) => e.name !== 'Signup' && e.name !== 'Lead' && !PASSIVE_EVENT_NAMES.has(e.name));
   const consentAnswers = (data?.consent.granted ?? 0) + (data?.consent.denied ?? 0);
+
+  // Options for the campaign / country / device filter menus.
+  const withCurrent = (k: string, list: { value: string; label: string }[]) =>
+    filters[k] && !list.some((o) => o.value === filters[k]) ? [{ value: filters[k], label: filterValueLabel(k, filters[k]) }, ...list] : list;
+  const campaignOptions = withCurrent('campaign', (data?.campaigns ?? []).filter((c) => c.name !== '(not set)').map((c) => ({ value: c.name, label: c.name })).filter((o, i, a) => a.findIndex((x) => x.value === o.value) === i));
+  const countryOptions = withCurrent('country', (data?.countries ?? []).filter((c) => c.name).map((c) => ({ value: c.name, label: `${flag(c.name)} ${countryName(c.name)}` })));
+  const deviceOptions = withCurrent('device', (data?.devices ?? []).map((d) => ({ value: d.name, label: d.name })));
+  const setFilter = (k: string, v: string) => (v ? addFilter(k, v) : removeFilter(k));
 
   // Common BarList columns.
   const visitorsCol: Column<Row> = { label: 'Visitors', width: 64, render: (r) => fmtNum(r.visitors) };
@@ -1480,6 +1251,10 @@ export default function AnalyticsPage() {
   const convCol: Column<Row> = { label: 'Conv.', width: 50, title: 'Signups per visitor', render: (r) => (r.signups ? fmtPct(ratio(r.signups, r.visitors)) : <span style={{ color: 'var(--text-4)' }}>—</span>) };
   const bounceCol: Column<Row> = { label: 'Bounce', width: 54, title: 'Visits that saw one page and did nothing else', render: (r) => fmtPct(ratio(r.bounces ?? 0, r.visits)) };
   const shareCol = (total: number): Column<Row> => ({ label: 'Share', width: 50, render: (r) => fmtPct(ratio(r.visitors, total)) });
+
+  const filtered = Object.keys(filters).length > 0;
+  const updatedAt = dash.at ? new Date(dash.at) : null;
+  const bucketLabel = range.bucket === 'hour' ? 'Per hour' : range.bucket === 'week' ? 'Per week' : range.bucket === 'month' ? 'Per month' : 'Per day';
 
   return (
     <div style={{ padding: '0 24px 40px' }} className="pad-mobile">
@@ -1490,25 +1265,68 @@ export default function AnalyticsPage() {
         .an-pulse { width: 7px; height: 7px; border-radius: 99px; background: var(--pos); box-shadow: 0 0 0 0 var(--pos-soft); animation: anPulse 1.8s ease-out infinite; }
         @keyframes anPulse { 0% { box-shadow: 0 0 0 0 rgba(62,207,142,0.45); } 100% { box-shadow: 0 0 0 9px rgba(62,207,142,0); } }
         @media (prefers-reduced-motion: reduce) { .an-pulse { animation: none; } }
-        @media (max-width: 720px) { .an-kpis { grid-template-columns: 1fr 1fr !important; } }
+        .an-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line-1); margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; }
+        .an-tabs::-webkit-scrollbar { display: none; }
+        .an-tab { padding: 9px 12px; border: none; background: none; font: inherit; font-size: 13px; color: var(--text-3); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+        .an-tab:hover { color: var(--text-1); }
+        .an-tab[aria-selected='true'] { color: var(--text-1); border-bottom-color: var(--accent); }
+        .an-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+        @media (max-width: 1100px) { .an-kpis-5, .an-kpis-6, .an-funnel { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+        @media (max-width: 720px) { .an-kpis, .an-funnel { grid-template-columns: 1fr 1fr !important; } }
       `}</style>
 
-      {/* ── One filter row, scoping everything below ── */}
-      <div style={{ padding: '20px 0 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div className="chips-scroll" style={{ display: 'flex', gap: 6 }} role="group" aria-label="Date range">
+      {/* ── Date range, filters and actions — scoping every tab ── */}
+      <div style={{ padding: '20px 0 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="chips-scroll" style={{ display: 'flex', gap: 6, minWidth: 0, maxWidth: '100%', flexWrap: 'wrap' }} role="group" aria-label="Date range">
           {RANGES.map((r) => (
-            <button key={r.id} onClick={() => setRangeId(r.id)} aria-pressed={rangeId === r.id}
-              style={{ ...chip, ...(rangeId === r.id ? chipActive : {}) }}>{r.label}</button>
+            <button key={r.id} onClick={() => pickRange(r.id)} aria-pressed={sel.id === r.id} aria-expanded={r.id === 'custom' ? customOpen : undefined}
+              style={{ ...chip, ...(sel.id === r.id ? chipActive : {}) }}>
+              {r.id === 'custom' && sel.id === 'custom' && sel.from && sel.to ? `${whenShort(parseYmd(sel.from)!.toISOString())} – ${whenShort(parseYmd(sel.to)!.toISOString())}` : r.label}
+            </button>
           ))}
         </div>
-        {Object.entries(filters).map(([fk, fv]) => (
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }} title="When this data was fetched">
+          {updatedAt ? <>Updated {updatedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</> : 'Loading…'}
+        </span>
+        <button onClick={() => setTick((t) => t + 1)} style={{ ...chip, display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Fetch everything again">
+          <Icon name="refresh" size={12} /> Refresh
+        </button>
+        <button onClick={exportCsv} disabled={!data} style={{ ...chip, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: data ? 1 : 0.5 }} title="Download everything on this page for this period as a CSV file (opens in Excel / Google Sheets)">
+          <Icon name="download" size={12} /> Export CSV
+        </button>
+      </div>
+
+      {customOpen && (
+        <Card style={{ marginBottom: 10 }}>
+          <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 12.5, color: 'var(--text-2)' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>From
+              <input type="date" value={customFrom} max={ymd(new Date())} onChange={(e) => setCustomFrom(e.target.value)} style={dateInput} />
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>to
+              <input type="date" value={customTo} max={ymd(new Date())} onChange={(e) => setCustomTo(e.target.value)} style={dateInput} />
+            </label>
+            <button onClick={applyCustom} disabled={!!customError} style={{ ...chip, ...chipActive, opacity: customError ? 0.5 : 1 }}>Apply</button>
+            <span style={{ fontSize: 11.5, color: customError ? 'var(--warn)' : 'var(--text-4)' }}>{customError ?? `Both days included · up to ${Math.round(MAX_CUSTOM_DAYS / 365)} years`}</span>
+          </div>
+        </Card>
+      )}
+
+      <div style={{ padding: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--text-2)', marginRight: 4 }}>
+          <strong style={{ color: 'var(--text-1)', fontWeight: 500 }}>{describeRange(range)}</strong> <span style={{ color: 'var(--text-3)' }}>· compared with {range.compare}</span>
+        </span>
+        <FilterMenu label="Campaign" value={filters.campaign} options={campaignOptions} onChange={(v) => setFilter('campaign', v)} />
+        <FilterMenu label="Country" value={filters.country} options={countryOptions} onChange={(v) => setFilter('country', v)} />
+        <FilterMenu label="Device" value={filters.device} options={deviceOptions} onChange={(v) => setFilter('device', v)} />
+        {Object.entries(filters).filter(([fk]) => !['campaign', 'country', 'device'].includes(fk)).map(([fk, fv]) => (
           <span key={fk} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 6px 4px 10px', borderRadius: 7, background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', fontSize: 12, color: 'var(--text-1)', maxWidth: 320 }}>
             <span style={{ color: 'var(--text-3)' }}>{FILTER_LABEL[fk] ?? fk}</span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filterValueLabel(fk, fv)}</span>
             <button onClick={() => removeFilter(fk)} aria-label={`Remove ${FILTER_LABEL[fk] ?? fk} filter`} style={{ display: 'flex', background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', padding: 2 }}><Icon name="close" size={12} /></button>
           </span>
         ))}
-        {Object.keys(filters).length > 1 && <button onClick={() => setFilters({})} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Clear all</button>}
+        {filtered && <button onClick={() => setFilters({})} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Clear filters</button>}
         <div style={{ flex: 1 }} />
         {ignored !== null && (
           <button onClick={toggleIgnore} disabled={savingIgnore} title="Applies to this browser only"
@@ -1517,6 +1335,12 @@ export default function AnalyticsPage() {
             {ignored ? 'Your visits aren’t counted' : 'Your visits are counted — exclude this browser'}
           </button>
         )}
+      </div>
+
+      <div className="an-tabs" role="tablist" aria-label="Analytics sections">
+        {TABS.map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className="an-tab" onClick={() => setTab(id)}>{label}</button>
+        ))}
       </div>
 
       {error?.setup && (
@@ -1533,223 +1357,255 @@ export default function AnalyticsPage() {
           <div style={{ padding: '14px 18px', fontSize: 13, color: 'var(--neg)' }}>Couldn’t load analytics: {error.message}</div>
         </Card>
       )}
-      {data && !data.has_data && (
+      {data && !data.has_data && tab === 'overview' && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ padding: '20px 18px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--accent-soft)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="live" size={17} /></span>
             <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-              <div style={{ fontSize: 14.5, color: 'var(--text-1)', fontWeight: 500, marginBottom: 4 }}>Waiting for the first visit</div>
-              Everything is set up. Visits to the public website appear here within seconds — open rovora.eu in a private window to see one arrive.
+              <div style={{ fontSize: 14.5, color: 'var(--text-1)', fontWeight: 500, marginBottom: 4 }}>No website visits in this period</div>
+              Visits to the public website appear here within seconds — open rovora.eu in a private window to see one arrive.
               Your own browser {ignored ? 'is excluded, so that visit won’t count from here.' : 'is counted until you exclude it above.'}
             </div>
           </div>
         </Card>
       )}
+      {filtered && ACCOUNT_TABS.has(tab) && (
+        <div style={{ fontSize: 12, color: 'var(--text-3)', margin: '-6px 0 14px' }}>
+          These numbers come from the accounts themselves, so the website filters above don’t narrow them — only the date range does.
+        </div>
+      )}
 
       {data && cur && prev && (
         <div style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 0.2s' }} aria-busy={loading}>
-          {/* ── Headline numbers ── */}
-          <div className="an-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 16 }}>
-            <Kpi label="Visitors" value={fmtNum(cur.visitors)} delta={<Delta cur={cur.visitors} prev={prev.visitors} />} sub={`vs ${fmtNum(prev.visitors)}`} active={metric === 'visitors'} onClick={() => setMetric('visitors')}
-              hint="Unique visitors. Without cookies a person counts once per day; visitors who allowed cookies count once." />
-            <Kpi label="Visits" value={fmtNum(cur.visits)} delta={<Delta cur={cur.visits} prev={prev.visits} />} sub={`${ratio(cur.visits, cur.visitors).toFixed(1)} per visitor`} active={metric === 'visits'} onClick={() => setMetric('visits')}
-              hint="Sessions — a run of activity with no gap over 30 minutes." />
-            <Kpi label="Pageviews" value={fmtNum(cur.pageviews)} delta={<Delta cur={cur.pageviews} prev={prev.pageviews} />} sub={`${ratio(cur.pageviews, cur.visits).toFixed(1)} per visit`} active={metric === 'pageviews'} onClick={() => setMetric('pageviews')}
-              hint="Pages viewed." />
-            <Kpi label="Avg. visit time" value={fmtDur(ratio(cur.engaged_ms, cur.visits))} delta={<Delta cur={ratio(cur.engaged_ms, cur.visits)} prev={ratio(prev.engaged_ms, prev.visits)} />} sub="actually on screen"
-              hint="Time the page was visible, averaged over all visits (background tabs don't count)." />
-            <Kpi label="Bounce rate" value={fmtPct(ratio(cur.bounces, cur.visits))} delta={<Delta cur={ratio(cur.bounces, cur.visits)} prev={ratio(prev.bounces, prev.visits)} upIsGood={false} asPoints />} sub="one page, no action"
-              hint="Visits that viewed a single page and clicked nothing tracked." />
-            <Kpi label="Signups" value={fmtNum(cur.signups)} delta={<Delta cur={cur.signups} prev={prev.signups} />} sub="new fleets" active={metric === 'signups'} onClick={() => setMetric('signups')}
-              hint="Fleets created through onboarding." />
-            <Kpi label="Leads" value={fmtNum(cur.leads)} delta={<Delta cur={cur.leads} prev={prev.leads} />} sub="contact form + chat" active={metric === 'leads'} onClick={() => setMetric('leads')}
-              hint="Contact-form messages and leads left in the website chat." />
-            <Kpi label="Visitor → signup" value={fmtPct(ratio(cur.signups, cur.visitors))} delta={<Delta cur={ratio(cur.signups, cur.visitors)} prev={ratio(prev.signups, prev.visitors)} asPoints />} sub="conversion rate"
-              hint="Signups divided by visitors." />
-          </div>
-
-          <InsightsPanel data={data} compare={range.compare} filtered={Object.keys(filters).length > 0} onFilter={addFilter} />
-
-          {/* ── Trend + live ── */}
-          <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
-            <Card>
-              <CardHeader title={{ visitors: 'Visitors', visits: 'Visits', pageviews: 'Pageviews', signups: 'Signups', leads: 'Leads' }[metric]}
-                subtitle={`${range.bucket === 'hour' ? 'Per hour' : range.bucket === 'week' ? 'Per week' : range.bucket === 'month' ? 'Per month' : 'Per day'} · pick a number above to chart it`}
-                right={<Tabs tabs={[['chart', 'Chart'], ['table', 'Table']]} value={trendView} onChange={setTrendView} />} />
-              <div style={{ padding: '4px 18px 14px' }}>
-                {trendView === 'chart'
-                  ? <TrendChart series={data.series} metric={metric} bucket={data.bucket} compareLabel={range.compare} />
-                  : <SeriesTable series={data.series} bucket={data.bucket} />}
+          {tab === 'overview' && (
+            <>
+              <OverviewKpis data={data} business={business.data} metric={metric} onMetric={setMetric} />
+              <ConversionFunnel visitors={cur.visitors} business={business.data} />
+              <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
+                <Card>
+                  <CardHeader title={{ visitors: 'Visitors', visits: 'Visits', pageviews: 'Pageviews', signups: 'Trials started (fleets created)', leads: 'Enquiries' }[metric]}
+                    subtitle={`${bucketLabel} · pick a number above to chart it`}
+                    right={<Tabs tabs={[['chart', 'Chart'], ['table', 'Table']]} value={trendView} onChange={setTrendView} />} />
+                  <div style={{ padding: '4px 18px 14px' }}>
+                    {trendView === 'chart'
+                      ? <TrendChart series={data.series} metric={metric} bucket={data.bucket} compareLabel={range.compare} />
+                      : <SeriesTable series={data.series} bucket={data.bucket} />}
+                  </div>
+                </Card>
+                <LiveCard live={live} />
               </div>
-            </Card>
-            <LiveCard live={live} />
-          </div>
+              <div className="an-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 16 }}>
+                <Kpi label="Visits" value={fmtNum(cur.visits)} delta={<Delta cur={cur.visits} prev={prev.visits} />} sub={`${ratio(cur.visits, cur.visitors).toFixed(1)} per visitor`} active={metric === 'visits'} onClick={() => setMetric('visits')}
+                  hint="Sessions — a run of activity with no gap over 30 minutes." />
+                <Kpi label="Pageviews" value={fmtNum(cur.pageviews)} delta={<Delta cur={cur.pageviews} prev={prev.pageviews} />} sub={`${ratio(cur.pageviews, cur.visits).toFixed(1)} per visit`} active={metric === 'pageviews'} onClick={() => setMetric('pageviews')}
+                  hint="Pages viewed." />
+                <Kpi label="Avg. visit time" value={fmtDur(ratio(cur.engaged_ms, cur.visits))} delta={<Delta cur={ratio(cur.engaged_ms, cur.visits)} prev={ratio(prev.engaged_ms, prev.visits)} />} sub="actually on screen"
+                  hint="Time the page was visible, averaged over all visits (background tabs don't count)." />
+                <Kpi label="Bounce rate" value={fmtPct(ratio(cur.bounces, cur.visits))} delta={<Delta cur={ratio(cur.bounces, cur.visits)} prev={ratio(prev.bounces, prev.visits)} upIsGood={false} asPoints />} sub="one page, no action"
+                  hint="Visits that viewed a single page and clicked nothing tracked." />
+              </div>
+              <InsightsPanel data={data} compare={range.compare} filtered={filtered} onFilter={addFilter} />
+            </>
+          )}
 
-          {/* ── Acquisition + path to signup ── */}
-          <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
-            <Card>
-              <CardHeader title="Where visitors come from" subtitle={srcTab === 'channels' ? 'Hover a channel for what it includes · click any row to filter' : 'Click any row to filter the whole page'}
-                right={<Tabs tabs={[['channels', 'Channels'], ['sources', 'Sources'], ['referrers', 'Referrers'], ['campaigns', 'Campaigns']]} value={srcTab} onChange={setSrcTab} />} />
-              {srcTab === 'channels' && (
-                <BarList rows={data.channels} label="Channel" keyOf={(r) => r.name} value={(r) => r.visitors}
-                  name={(r) => <span title={CHANNEL_HINT[r.name]}>{r.name}</span>}
-                  columns={[visitorsCol, bounceCol, signupsCol, convCol]} onSelect={(r) => addFilter('channel', r.name)}
-                  empty="No visits in this period." />
-              )}
-              {srcTab === 'sources' && (
-                <BarList rows={data.sources} label="Source" keyOf={(r) => r.name} value={(r) => r.visitors}
-                  name={(r) => <>{r.name}<span style={{ fontSize: 11, color: 'var(--text-4)' }}>{r.extra}</span></>}
-                  columns={[visitorsCol, bounceCol, signupsCol, convCol]} onSelect={(r) => addFilter('source', r.name)}
-                  empty="No visits in this period." />
-              )}
-              {srcTab === 'referrers' && (
-                <BarList rows={data.referrers} label="Referring page" keyOf={(r) => r.name} value={(r) => r.visitors}
-                  name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
-                  columns={[visitorsCol, signupsCol]} onSelect={(r) => addFilter('referrer', r.name)}
-                  empty="No other website has sent visitors in this period. When one does, the exact page that linked to you shows here." />
-              )}
-              {srcTab === 'campaigns' && (
-                <BarList rows={data.campaigns} label="Campaign · source / medium" keyOf={(r) => `${r.name}|${r.extra}`} value={(r) => r.visitors}
-                  name={(r) => <>{r.name}<span style={{ fontSize: 11, color: 'var(--text-4)' }}>{r.extra}</span></>}
-                  columns={[visitorsCol, signupsCol, { label: 'Leads', width: 50, render: (r) => fmtNum(r.leads ?? 0) }]}
-                  onSelect={(r) => (r.name === '(not set)' ? undefined : addFilter('campaign', r.name))}
-                  empty={<>No tagged links yet. Add <span className="mono">?utm_source=…&amp;utm_medium=…&amp;utm_campaign=…</span> to links in ads, posts and emails to see each campaign here.</>} />
-              )}
-            </Card>
-            <Card>
-              <CardHeader title="Path to signup" subtitle="From first visit to a new fleet" />
-              <Funnel steps={data.funnel} />
-            </Card>
-          </div>
-
-          {/* ── Sign-up funnel in detail (date range only — not narrowed by the filters) ── */}
-          <SignupFunnelSection rangeId={rangeId} />
-
-          {/* ── Channels in depth ── */}
-          <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16, marginBottom: 16 }}>
-            <Card>
-              <CardHeader title="Each channel over time" subtitle={`Visitors ${range.bucket === 'hour' ? 'per hour' : `per ${range.bucket}`} · each mini chart has its own scale`} />
-              <ChannelTrends data={data} />
-            </Card>
-            <Card>
-              <CardHeader title="What brings signups" subtitle="Orange longer than blue = more than its share of new fleets" />
-              <SignupShare data={data} />
-            </Card>
-          </div>
-
-          {/* ── Content + location ── */}
-          <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
-            <Card>
-              <CardHeader title="Pages" subtitle={pageTab === 'pages' ? 'Most visited · time = reading time on screen' : pageTab === 'entry' ? 'Where visits start' : 'Where visits end'}
-                right={<Tabs tabs={[['pages', 'Top pages'], ['entry', 'Entry'], ['exit', 'Exit']]} value={pageTab} onChange={setPageTab} />} />
-              {pageTab === 'pages' && (
-                <BarList rows={pages} label="Page" keyOf={(r) => r.name} value={(r) => r.visitors}
-                  name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
-                  columns={[
-                    { label: 'Visitors', width: 58, render: (r) => fmtNum(r.visitors) },
-                    { label: 'Time', width: 56, title: 'Average time on screen', render: (r) => (r.avg_engaged_ms ? fmtDur(r.avg_engaged_ms) : '—') },
-                    { label: 'Scroll', width: 46, title: 'Average deepest scroll', render: (r) => (r.avg_scroll ? `${r.avg_scroll}%` : '—') },
-                  ]}
-                  onSelect={(r) => addFilter('page', r.name)} empty="No page views in this period." />
-              )}
-              {pageTab === 'entry' && (
-                <BarList rows={data.entry_pages} label="Landing page" keyOf={(r) => r.name} value={(r) => r.visits}
-                  name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
-                  columns={[{ label: 'Entries', width: 56, render: (r) => fmtNum(r.visits) }, bounceCol, signupsCol]}
-                  onSelect={(r) => addFilter('entry', r.name)} empty="No visits in this period." />
-              )}
-              {pageTab === 'exit' && (
-                <BarList rows={data.exit_pages} label="Last page" keyOf={(r) => r.name} value={(r) => r.visits}
-                  name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
-                  columns={[
-                    { label: 'Exits', width: 52, render: (r) => fmtNum(r.visits) },
-                    { label: 'Exit rate', width: 62, title: 'Exits ÷ views of that page', render: (r) => (pvByPath.get(r.name) ? fmtPct(Math.min(1, ratio(r.visits, pvByPath.get(r.name)!))) : '—') },
-                  ]}
-                  onSelect={(r) => addFilter('exit', r.name)} empty="No visits in this period." />
-              )}
-            </Card>
-            <Card>
-              <CardHeader title="Where visitors are" subtitle={geoTab === 'countries' ? 'From each device’s time zone, or your CDN when it supplies location' : 'Needs location headers from a CDN'}
-                right={<Tabs tabs={[['countries', 'Countries'], ['cities', 'Cities'], ['regions', 'Regions']]} value={geoTab} onChange={setGeoTab} />} />
-              {geoTab === 'countries' && (
-                <BarList rows={data.countries} label="Country" keyOf={(r) => r.name || '-'} value={(r) => r.visitors}
-                  name={(r) => <><span aria-hidden>{flag(r.name)}</span>{countryName(r.name)}</>}
-                  columns={[visitorsCol, shareCol(cur.visitors), signupsCol]}
-                  onSelect={(r) => addFilter('country', r.name)} empty="No visits in this period." />
-              )}
-              {(geoTab === 'cities' || geoTab === 'regions') && (
-                <BarList rows={geoTab === 'cities' ? data.cities : data.regions} label={geoTab === 'cities' ? 'City' : 'Region'} keyOf={(r) => `${r.name}|${r.extra}`} value={(r) => r.visitors}
-                  name={(r) => <><span aria-hidden>{flag(r.extra)}</span>{r.name}</>}
-                  columns={[visitorsCol]} onSelect={(r) => addFilter(geoTab === 'cities' ? 'city' : 'region', r.name)}
-                  empty={<>City and region come from your CDN. Put the site behind Cloudflare and turn on <em>Rules → Managed Transforms → Add visitor location headers</em>, and they fill in automatically. Countries already work without it.</>} />
-              )}
-            </Card>
-          </div>
-
-          {/* ── Technology + timing ── */}
-          <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
-            <Card>
-              <CardHeader title="Devices & browsers" subtitle="Design for what people actually use"
-                right={<Tabs tabs={[['devices', 'Device'], ['browsers', 'Browser'], ['os', 'OS'], ['languages', 'Language']]} value={techTab} onChange={setTechTab} />} />
-              <BarList rows={data[techTab]} label={{ devices: 'Device', browsers: 'Browser', os: 'Operating system', languages: 'Language' }[techTab]}
-                keyOf={(r) => r.name} value={(r) => r.visitors}
-                name={(r) => (techTab === 'languages' ? languageName(r.name) : r.name)}
-                columns={techTab === 'devices' ? [visitorsCol, shareCol(cur.visitors), bounceCol] : [visitorsCol, shareCol(cur.visitors)]}
-                onSelect={(r) => addFilter({ devices: 'device', browsers: 'browser', os: 'os', languages: 'language' }[techTab], r.name)}
-                empty="No visits in this period." />
-            </Card>
-            <Card>
-              <CardHeader title="When people visit" subtitle={`Visitors by weekday and hour · your time (${Intl.DateTimeFormat().resolvedOptions().timeZone})`} />
-              <Heatmap cells={data.heatmap} />
-            </Card>
-          </div>
-
-          {/* ── Behaviour ── */}
-          <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
-            <Card>
-              <CardHeader title="What visitors click" subtitle="Trial and contact buttons, outbound links, chat, video" />
-              <BarList rows={interactions} label="Action · where" keyOf={(r) => `${r.name}|${r.label}`} value={(r) => r.count}
-                name={(r) => <>{r.name}{r.label && <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>}</>}
-                columns={[{ label: 'Clicks', width: 52, render: (r) => fmtNum(r.count) }, { label: 'Visitors', width: 58, render: (r) => fmtNum(r.visitors) }]}
-                empty="Clicks on “Get started free”, sign-in, contact, email and outbound links, chat opens and video plays show up here." />
-            </Card>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-              <Card>
+          {tab === 'traffic' && (
+            <>
+              <TrafficPlatforms data={data} business={business.data} />
+              <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, marginBottom: 16 }}>
+                <Card>
+                  <CardHeader title="Where visitors come from" subtitle={srcTab === 'channels' ? 'Hover a channel for what it includes · click any row to filter' : 'Click any row to filter the whole page'}
+                    right={<Tabs tabs={[['channels', 'Channels'], ['sources', 'Sources'], ['referrers', 'Referrers'], ['campaigns', 'Campaigns']]} value={srcTab} onChange={setSrcTab} />} />
+                  {srcTab === 'channels' && (
+                    <BarList rows={data.channels} label="Channel" keyOf={(r) => r.name} value={(r) => r.visitors}
+                      name={(r) => <span title={CHANNEL_HINT[r.name]}>{r.name}</span>}
+                      columns={[visitorsCol, bounceCol, signupsCol, convCol]} onSelect={(r) => addFilter('channel', r.name)}
+                      empty="No visits in this period." />
+                  )}
+                  {srcTab === 'sources' && (
+                    <BarList rows={data.sources} label="Source" keyOf={(r) => r.name} value={(r) => r.visitors}
+                      name={(r) => <>{r.name}<span style={{ fontSize: 11, color: 'var(--text-4)' }}>{r.extra}</span></>}
+                      columns={[visitorsCol, bounceCol, signupsCol, convCol]} onSelect={(r) => addFilter('source', r.name)}
+                      empty="No visits in this period." />
+                  )}
+                  {srcTab === 'referrers' && (
+                    <BarList rows={data.referrers} label="Referring page" keyOf={(r) => r.name} value={(r) => r.visitors}
+                      name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
+                      columns={[visitorsCol, signupsCol]} onSelect={(r) => addFilter('referrer', r.name)}
+                      empty="No other website has sent visitors in this period. When one does, the exact page that linked to you shows here." />
+                  )}
+                  {srcTab === 'campaigns' && (
+                    <BarList rows={data.campaigns} label="Campaign · source / medium" keyOf={(r) => `${r.name}|${r.extra}`} value={(r) => r.visitors}
+                      name={(r) => <>{r.name}<span style={{ fontSize: 11, color: 'var(--text-4)' }}>{r.extra}</span></>}
+                      columns={[visitorsCol, signupsCol, { label: 'Leads', width: 50, render: (r) => fmtNum(r.leads ?? 0) }]}
+                      onSelect={(r) => (r.name === '(not set)' ? undefined : addFilter('campaign', r.name))}
+                      empty={<>No tagged links yet. Add <span className="mono">?utm_source=…&amp;utm_medium=…&amp;utm_campaign=…</span> to links in ads, posts and emails to see each campaign here.</>} />
+                  )}
+                </Card>
+                <Card>
+                  <CardHeader title="Path to signup" subtitle="From first visit to a new fleet" />
+                  <Funnel steps={data.funnel} />
+                </Card>
+              </div>
+              <CampaignPerformance data={data} business={business.data} onFilter={addFilter} />
+              <div className="split-main-side" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16, marginBottom: 16 }}>
+                <Card>
+                  <CardHeader title="Each channel over time" subtitle={`Visitors ${range.bucket === 'hour' ? 'per hour' : `per ${range.bucket}`} · each mini chart has its own scale`} />
+                  <ChannelTrends data={data} />
+                </Card>
+                <Card>
+                  <CardHeader title="What brings signups" subtitle="Orange longer than blue = more than its share of new fleets" />
+                  <SignupShare data={data} />
+                </Card>
+              </div>
+              <Card style={{ marginBottom: 16 }}>
                 <CardHeader title="What signups told us" subtitle="“How did you hear about Rovora?” in onboarding" />
                 <BarList rows={heard} label="Answer" keyOf={(r) => r.name} value={(r) => r.visitors}
                   name={(r) => HEARD_LABEL[r.name] ?? r.name}
                   columns={[{ label: 'Signups', width: 58, render: (r) => fmtNum(r.visitors) }]}
                   empty="No answers yet in this period. It’s optional, so it also catches word of mouth that no tracker can see." />
               </Card>
-              <Card>
-                <CardHeader title="Audience" subtitle="From visitors who allowed the analytics cookie" />
-                <div style={{ padding: '0 18px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-1)' }}>{data.loyalty.consented_visitors ? fmtPct(ratio(data.loyalty.returning, data.loyalty.consented_visitors)) : '—'}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.45 }}>returning visitors{data.loyalty.consented_visitors ? ` (${data.loyalty.returning} of ${data.loyalty.consented_visitors})` : ''}</div>
+              <CampaignLinkBuilder />
+            </>
+          )}
+
+          {tab === 'audience' && (
+            <>
+              {extras.setup && <MigrationNote />}
+              {extras.error && !extras.setup && !extras.data && <LoadError what="engagement by device" message={extras.error} />}
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
+                <Card>
+                  <CardHeader title="Where visitors are" subtitle={geoTab === 'countries' ? 'From each device’s time zone, or your CDN when it supplies location' : 'Needs location headers from a CDN'}
+                    right={<Tabs tabs={[['countries', 'Countries'], ['cities', 'Cities'], ['regions', 'Regions']]} value={geoTab} onChange={setGeoTab} />} />
+                  {geoTab === 'countries' && (
+                    <BarList rows={data.countries} label="Country" keyOf={(r) => r.name || '-'} value={(r) => r.visitors}
+                      name={(r) => <><span aria-hidden>{flag(r.name)}</span>{countryName(r.name)}</>}
+                      columns={[visitorsCol, shareCol(cur.visitors), signupsCol]}
+                      onSelect={(r) => addFilter('country', r.name)} empty="No visits in this period." />
+                  )}
+                  {(geoTab === 'cities' || geoTab === 'regions') && (
+                    <BarList rows={geoTab === 'cities' ? data.cities : data.regions} label={geoTab === 'cities' ? 'City' : 'Region'} keyOf={(r) => `${r.name}|${r.extra}`} value={(r) => r.visitors}
+                      name={(r) => <><span aria-hidden>{flag(r.extra)}</span>{r.name}</>}
+                      columns={[visitorsCol]} onSelect={(r) => addFilter(geoTab === 'cities' ? 'city' : 'region', r.name)}
+                      empty={<>City and region come from your CDN. Put the site behind Cloudflare and turn on <em>Rules → Managed Transforms → Add visitor location headers</em>, and they fill in automatically. Countries already work without it.</>} />
+                  )}
+                </Card>
+                <Card>
+                  <CardHeader title="Devices & browsers" subtitle="Which devices people view the website from — design for what they actually use"
+                    right={<Tabs tabs={[['devices', 'Device'], ['browsers', 'Browser'], ['os', 'OS'], ['languages', 'Language']]} value={techTab} onChange={setTechTab} />} />
+                  <BarList rows={data[techTab]} label={{ devices: 'Device', browsers: 'Browser', os: 'Operating system', languages: 'Language' }[techTab]}
+                    keyOf={(r) => r.name} value={(r) => r.visitors}
+                    name={(r) => (techTab === 'languages' ? languageName(r.name) : r.name)}
+                    columns={techTab === 'devices' ? [visitorsCol, shareCol(cur.visitors), bounceCol, signupsCol] : [visitorsCol, shareCol(cur.visitors)]}
+                    onSelect={(r) => addFilter({ devices: 'device', browsers: 'browser', os: 'os', languages: 'language' }[techTab], r.name)}
+                    empty="No visits in this period." />
+                </Card>
+              </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
+                <NewVsReturning data={data} />
+                <DeviceEngagement extras={extras.data} />
+              </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
+                <Card>
+                  <CardHeader title="When people visit" subtitle={`Visitors by weekday and hour · your time (${tz})`} />
+                  <Heatmap cells={data.heatmap} />
+                </Card>
+                <Card>
+                  <CardHeader title="Cookie answers" subtitle="How many visitors allow the analytics cookie" />
+                  <div style={{ padding: '0 18px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <Stat value={consentAnswers ? fmtPct(ratio(data.consent.granted, consentAnswers)) : '—'} label={<>click Allow on the cookie banner{consentAnswers ? ` (${data.consent.granted} of ${consentAnswers})` : ''}</>} />
+                    <Stat value={data.loyalty.consented_visitors ? fmtPct(ratio(data.loyalty.returning, data.loyalty.consented_visitors)) : '—'} label="of those are returning visitors" />
                   </div>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-1)' }}>{consentAnswers ? fmtPct(ratio(data.consent.granted, consentAnswers)) : '—'}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.45 }}>click Allow on the cookie banner{consentAnswers ? ` (${data.consent.granted} of ${consentAnswers})` : ''}</div>
-                  </div>
-                </div>
+                </Card>
+              </div>
+            </>
+          )}
+
+          {tab === 'pages' && (
+            <>
+              {extras.setup && <MigrationNote />}
+              {extras.error && !extras.setup && !extras.data && <LoadError what="scroll and engagement data" message={extras.error} />}
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
+                <Card>
+                  <CardHeader title="Pages" subtitle={pageTab === 'pages' ? 'Most visited · time = reading time on screen' : pageTab === 'entry' ? 'Landing pages — where visits start' : 'Exit pages — where visits end'}
+                    right={<Tabs tabs={[['pages', 'Most visited'], ['entry', 'Landing'], ['exit', 'Exit']]} value={pageTab} onChange={setPageTab} />} />
+                  {pageTab === 'pages' && (
+                    <BarList rows={pages} label="Page" keyOf={(r) => r.name} value={(r) => r.visitors}
+                      name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
+                      columns={[
+                        { label: 'Visitors', width: 58, render: (r) => fmtNum(r.visitors) },
+                        { label: 'Time', width: 56, title: 'Average time on screen', render: (r) => (r.avg_engaged_ms ? fmtDur(r.avg_engaged_ms) : '—') },
+                        { label: 'Scroll', width: 46, title: 'Average deepest scroll', render: (r) => (r.avg_scroll ? `${r.avg_scroll}%` : '—') },
+                      ]}
+                      onSelect={(r) => addFilter('page', r.name)} empty="No page views in this period." />
+                  )}
+                  {pageTab === 'entry' && (
+                    <BarList rows={data.entry_pages} label="Landing page" keyOf={(r) => r.name} value={(r) => r.visits}
+                      name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
+                      columns={[{ label: 'Entries', width: 56, render: (r) => fmtNum(r.visits) }, bounceCol, signupsCol]}
+                      onSelect={(r) => addFilter('entry', r.name)} empty="No visits in this period." />
+                  )}
+                  {pageTab === 'exit' && (
+                    <BarList rows={data.exit_pages} label="Last page" keyOf={(r) => r.name} value={(r) => r.visits}
+                      name={(r) => <span className="mono" style={{ fontSize: 12 }}>{r.name}</span>}
+                      columns={[
+                        { label: 'Exits', width: 52, render: (r) => fmtNum(r.visits) },
+                        { label: 'Exit rate', width: 62, title: 'Exits ÷ views of that page', render: (r) => (pvByPath.get(r.name) ? fmtPct(Math.min(1, ratio(r.visits, pvByPath.get(r.name)!))) : '—') },
+                      ]}
+                      onSelect={(r) => addFilter('exit', r.name)} empty="No visits in this period." />
+                  )}
+                </Card>
+                <PagesBeforeSignup extras={extras.data} onFilter={addFilter} />
+              </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 16 }}>
+                <ScrollDepth data={data} extras={extras.data} />
+                <ContentInteractions data={data} extras={extras.data} />
+              </div>
+              <Card style={{ marginBottom: 16 }}>
+                <CardHeader title="What visitors click" subtitle="Get-started and contact buttons, outbound links, chat, video, screenshots" />
+                <BarList rows={interactions} label="Action · where" keyOf={(r) => `${r.name}|${r.label}`} value={(r) => r.count}
+                  name={(r) => <>{r.name}{r.label && <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>}</>}
+                  columns={[{ label: 'Clicks', width: 52, render: (r) => fmtNum(r.count) }, { label: 'Visitors', width: 58, render: (r) => fmtNum(r.visitors) }]}
+                  empty="Clicks on “Get started free”, sign-in, contact, email and outbound links, chat opens and video plays show up here." />
               </Card>
-            </div>
-          </div>
+              <HeatmapsCard />
+            </>
+          )}
 
-          <ConversionsTable rows={data.conversions} orgs={data.orgs} />
+          {tab === 'enquiries' && (
+            <>
+              <EnquiriesSection data={data} extras={extras.data} onFilter={addFilter} />
+              <ConversionsTable rows={data.conversions} orgs={data.orgs} />
+            </>
+          )}
 
-          <CampaignLinkBuilder />
+          {tab === 'registrations' && (
+            <SignupFunnelSection detail={signups.data} failed={!!signups.error} loading={signups.loadedUrl !== urls.signups} rangeStart={range.from.getTime()} />
+          )}
 
-          <details style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
+          {tab === 'trials' && (business.error && !business.data ? <LoadError what="trials" message={business.error} /> : <TrialsSection business={business.data} />)}
+
+          {tab === 'revenue' && (business.error && !business.data
+            ? <LoadError what="revenue" message={business.error} />
+            : <RevenueSection business={business.data} compare={range.compare} importing={importing} importMsg={importMsg} onImport={runImport} />)}
+
+          {tab === 'friction' && (
+            <>
+              {extras.error && !extras.setup && !extras.data && <LoadError what="page speed and broken links" message={extras.error} />}
+              <FrictionSection extras={extras.data} business={business.data} extrasMissing={extras.setup} />
+            </>
+          )}
+
+          <details style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.6, marginTop: 8 }}>
             <summary style={{ cursor: 'pointer', color: 'var(--text-2)' }}>How these numbers are measured</summary>
             <ul style={{ margin: '10px 0 0', paddingLeft: 18, maxWidth: 780, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <li><strong style={{ color: 'var(--text-2)' }}>First-party and cookieless by default.</strong> A visitor is an anonymous hash of IP + browser + a random daily salt that is deleted the next day — so without the cookie, the same person on two different days counts twice, and nothing can be traced back to them.</li>
               <li><strong style={{ color: 'var(--text-2)' }}>Visitors who click Allow</strong> get one first-party cookie, which is what makes “returning visitors” and “first visit” (attribution across days) possible.</li>
               <li><strong style={{ color: 'var(--text-2)' }}>Sources:</strong> UTM tags win, then ad click ids (gclid, msclkid…), then the referring site. No referrer = Direct. Many apps (WhatsApp, Slack, email clients) hide the referrer, so tag links you share.</li>
               <li><strong style={{ color: 'var(--text-2)' }}>Countries</strong> come from the device’s time zone unless a CDN supplies location. Bots, crawlers, the signed-in app and the driver app are never counted.</li>
-              <li><strong style={{ color: 'var(--text-2)' }}>Signups and leads</strong> are recorded by the server when they happen, so ad blockers can’t hide them — they just show as “Not tracked” for where they came from.</li>
-              <li>Raw data is kept for 25 months, then deleted automatically.</li>
+              <li><strong style={{ color: 'var(--text-2)' }}>Sign-ups and enquiries</strong> are recorded by the server when they happen, so ad blockers can’t hide them — they just show as “Not tracked” for where they came from.</li>
+              <li><strong style={{ color: 'var(--text-2)' }}>Registrations, trials, revenue and retention</strong> are counted from the accounts and from Stripe, not from website visits — exact, and the website filters don’t apply to them.</li>
+              <li><strong style={{ color: 'var(--text-2)' }}>Page speed</strong> is measured in real visitors’ browsers on the page they landed on (Core Web Vitals, 75th percentile). Sections and screenshots count as “seen” once a third of them is on screen.</li>
+              <li>Raw website data is kept for 25 months, then deleted automatically.</li>
             </ul>
           </details>
         </div>
@@ -1762,7 +1618,18 @@ export default function AnalyticsPage() {
   );
 }
 
-const chip: CSSProperties = { padding: '5px 12px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 7, color: 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' };
-const chipActive: CSSProperties = { background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', color: 'var(--accent)' };
-const th: CSSProperties = { fontSize: 10.5, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)', padding: '10px 18px', textAlign: 'left', whiteSpace: 'nowrap' };
-const td: CSSProperties = { padding: '10px 18px', verticalAlign: 'top', fontSize: 12.5, color: 'var(--text-2)' };
+const MigrationNote = () => (
+  <Card style={{ marginBottom: 16, borderColor: 'var(--warn-soft)' }}>
+    <div style={{ padding: '14px 18px', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
+      <div style={{ fontSize: 13.5, color: 'var(--text-1)', fontWeight: 500, marginBottom: 2 }}>One step left: turn on scroll, speed and section tracking</div>
+      Run <span className="mono" style={{ color: 'var(--text-1)' }}>supabase/migrations/20261123_analytics_insights.sql</span> in the Supabase SQL editor — the website already sends the data.
+    </div>
+  </Card>
+);
+
+const LoadError = ({ what, message }: { what: string; message: string }) => (
+  <Card style={{ marginBottom: 16, borderColor: 'var(--neg-soft)' }}>
+    <div style={{ padding: '14px 18px', fontSize: 13, color: 'var(--neg)' }}>Couldn’t load {what}: {message}. Press Refresh to try again.</div>
+  </Card>
+);
+

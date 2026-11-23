@@ -2,10 +2,12 @@ import type { ReactNode } from 'react';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import { breadcrumbJsonLd, jsonLdGraph } from '@/lib/seo';
 import { getTrialOffer } from '@/lib/billing/trial-offer-data';
+import { trialCopy } from '@/lib/billing/trial-offer';
 import RovoraReveal from '../RovoraReveal';
 import RovoraSmoothScroll from '../RovoraSmoothScroll';
 import RovoraSupportChat from '../RovoraSupportChat';
 import MarketingNav from '../MarketingNav';
+import PromoBanner from '../PromoBanner';
 import MarketingFooter from '../MarketingFooter';
 
 /**
@@ -41,6 +43,7 @@ export default async function FeatureShell({
       <RovoraReveal />
       <RovoraSmoothScroll />
       <div className="wrap">
+        <PromoBanner trial={trialCopy(trialOffer)} />
         <MarketingNav />
         {children}
         <MarketingFooter />
