@@ -4,7 +4,10 @@ import { createAdminClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import BoltMark from '@/components/shared/BoltMark';
-import { loadBoltConnection, type BoltConnection } from '@/lib/bolt/sync';
+import { boltImportReady, loadBoltConnection, type BoltConnection } from '@/lib/bolt/sync';
+import { loadImportRows, loadLastImport } from '@/lib/bolt/import';
+import { boltDriverName, classifyDriver, classifyVehicle, sortDriversForImport, sortVehiclesForImport } from '@/lib/bolt/import-plan';
+import { planRoom } from '@/lib/api/capacity';
 import type { StoredSuspension } from '@/lib/bolt/mapping';
 import { fleetClock, type FleetClock } from '@/lib/bolt/timezone';
 import {
@@ -19,6 +22,7 @@ import {
   type RideTotals,
 } from '@/lib/bolt/stats';
 import BoltConnect from './BoltConnect';
+import BoltImport, { type ImportItem, type ImportPanelData } from './BoltImport';
 import BoltControls from './BoltControls';
 import BoltOnlineNow from './BoltOnlineNow';
 import BoltDriversTable, { type BoltDriverStat } from './BoltDriversTable';
@@ -26,11 +30,15 @@ import BoltTripFilters from './BoltTripFilters';
 import styles from './bolt.module.css';
 
 export const dynamic = 'force-dynamic';
+// Connecting fetches the ride history after the response (lib/actions/bolt.ts),
+// which can take a minute or two for a busy fleet.
+export const maxDuration = 300;
 
 /**
  * Operations → Bolt. A fleet's own Bolt account, inside Rovora.
  *
- * Not connected → the connect card. Connected → five tabs that all share one
+ * Not connected → the connect card. Connected → first, bringing the Bolt
+ * drivers & cars into Rovora (BoltImport), then five tabs that all share one
  * date range:
  *   Overview  headline numbers, who is online now, fares by day
  *   Drivers   per-driver rides, acceptance, fares, tips (+ link to Rovora driver)
@@ -238,6 +246,62 @@ async function loadRides(admin: Admin, orgId: string, from: string, to: string):
   return rows;
 }
 
+// --- bringing the fleet into Rovora -------------------------------------------------
+
+/** Everything the import panel shows. Null when the import isn't switched on yet. */
+async function loadImportPanel(admin: Admin, orgId: string, conn: BoltConnection): Promise<ImportPanelData | null> {
+  if (!boltImportReady(conn)) return null;
+  try {
+    const [{ drivers, vehicles }, lastImport, room] = await Promise.all([
+      loadImportRows(admin, orgId),
+      loadLastImport(admin, orgId),
+      planRoom(orgId),
+    ]);
+
+    const items: ImportItem[] = [];
+    const linked = { drivers: 0, vehicles: 0 };
+    for (const d of sortDriversForImport(drivers)) {
+      const group = classifyDriver(d);
+      if (group === 'linked') linked.drivers += 1;
+      if (group === 'linked' || group === 'excluded') continue;
+      items.push({
+        id: d.bolt_uuid,
+        kind: 'driver',
+        name: boltDriverName(d),
+        detail: d.phone,
+        car: d.selected_vehicle_reg,
+        group,
+      });
+    }
+    for (const v of sortVehiclesForImport(vehicles)) {
+      const group = classifyVehicle(v);
+      if (group === 'linked') linked.vehicles += 1;
+      if (group === 'linked' || group === 'excluded') continue;
+      items.push({
+        id: v.bolt_uuid,
+        kind: 'vehicle',
+        name: v.registration_number || 'No plate',
+        detail: [v.make, v.model, v.year].filter(Boolean).join(' ') || null,
+        car: null,
+        group,
+      });
+    }
+
+    return {
+      stage: conn.first_import_at ? 'ongoing' : 'first',
+      items,
+      linked,
+      room,
+      lastImport,
+      mode: conn.new_member_mode ?? 'review',
+    };
+  } catch (error) {
+    // The Bolt numbers below still matter; the import can wait for a reload.
+    console.error('Bolt page: loading the import panel failed:', error);
+    return null;
+  }
+}
+
 // --- page ------------------------------------------------------------------------
 
 export default async function FleetBoltPage({ searchParams }: { searchParams: Promise<Query> }) {
@@ -282,7 +346,8 @@ async function Connected({ conn, orgId, sp }: { conn: BoltConnection; orgId: str
 
   // The Trips tab lists individual rides and needs none of the roll-ups, so it
   // skips loading the whole period's rows.
-  const [rides, boltDriversRes, boltVehiclesRes, rovoraDriversRes] = await Promise.all([
+  const [importPanel, rides, boltDriversRes, boltVehiclesRes, rovoraDriversRes] = await Promise.all([
+    loadImportPanel(admin, orgId, conn),
     tab === 'trips' ? Promise.resolve([] as RideStatRow[]) : loadRides(admin, orgId, range.from, range.to),
     admin
       .from('bolt_drivers')
@@ -384,6 +449,15 @@ async function Connected({ conn, orgId, sp }: { conn: BoltConnection; orgId: str
           </div>
           <BoltConnect reconnect />
         </>
+      )}
+
+      {importPanel && <BoltImport data={importPanel} />}
+
+      {!conn.rides_synced_through && conn.status === 'connected' && (
+        <p className={styles.historyNote}>
+          <FleetIcon name="refresh" size={13} stroke={1.8} /> Fetching your last two months of Bolt rides — this takes a
+          minute or two. Refresh the page to see them.
+        </p>
       )}
 
       {/* ── Tabs ── */}

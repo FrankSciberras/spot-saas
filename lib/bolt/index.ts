@@ -7,5 +7,5 @@ export type {
   BoltOrder,
   BoltVehicle,
 } from './client';
-export { loadBoltConnection, boltClientFor, syncBoltFleet, INITIAL_BACKFILL_DAYS } from './sync';
+export { loadBoltConnection, boltClientFor, boltImportReady, syncBoltFleet, INITIAL_BACKFILL_DAYS } from './sync';
 export type { BoltConnection, BoltSyncResult } from './sync';

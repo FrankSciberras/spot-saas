@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { completeOnboardingAction } from '@/lib/actions/org';
 import { promoHeadline, type TrialCopy } from '@/lib/billing/trial-offer';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
-import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
+import { HEARD_ABOUT_OPTIONS, RIDE_PLATFORM_OPTIONS, type RidePlatform } from '@/lib/analytics/constants';
 import { ONBOARDING_PROGRESS_PATH } from '@/lib/analytics/signup-funnel';
 import styles from './onboarding.module.css';
 
@@ -36,13 +36,25 @@ function reportOpened() {
  * screen was another place to give up, and the last one showed price cards
  * straight after promising "no card".
  *
- * What to do next lives in the dashboard's getting-started checklist.
+ * What to do next lives in the dashboard's getting-started checklist. The one
+ * extra tap — which ride apps the drivers work on — is optional and costs no
+ * screen: a Bolt fleet is sent to the Bolt page, where connecting brings every
+ * driver and car in at once, instead of an empty dashboard.
  */
 export default function OnboardingForm({ trial }: { trial: TrialCopy }) {
   const promo = promoHeadline(trial);
   const [name, setName] = useState('');
   // Optional "How did you hear about Rovora?" — feeds Admin → Analytics.
   const [heardAbout, setHeardAbout] = useState('');
+  // Optional "Which apps do your drivers work on?" — Bolt fleets go straight to the import.
+  const [platforms, setPlatforms] = useState<RidePlatform[]>([]);
+  const togglePlatform = (id: RidePlatform) =>
+    setPlatforms((prev) => {
+      if (prev.includes(id)) return prev.filter((p) => p !== id);
+      // "Other or none" and a named app don't go together.
+      if (id === 'other') return ['other'];
+      return [...prev.filter((p) => p !== 'other'), id];
+    });
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -59,7 +71,7 @@ export default function OnboardingForm({ trial }: { trial: TrialCopy }) {
     setError('');
     startTransition(async () => {
       // On success the action redirects into the app; only an error comes back.
-      const result = await completeOnboardingAction(name, 'trial', [], heardAbout || null);
+      const result = await completeOnboardingAction(name, 'trial', [], heardAbout || null, platforms);
       if (result && 'error' in result && result.error) setError(result.error);
     });
   };
@@ -99,6 +111,28 @@ export default function OnboardingForm({ trial }: { trial: TrialCopy }) {
             autoFocus
           />
           <p className={styles.fieldHint}>You can change it later in Settings.</p>
+
+          <div className={styles.fieldLabel} id="platforms-label" style={{ marginTop: 18 }}>
+            Which apps do your drivers work on? <span className={styles.optional}>(optional)</span>
+          </div>
+          <div className={styles.chips} role="group" aria-labelledby="platforms-label">
+            {RIDE_PLATFORM_OPTIONS.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                className={styles.chip}
+                aria-pressed={platforms.includes(o.id)}
+                onClick={() => togglePlatform(o.id)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          {platforms.includes('bolt') && (
+            <p className={styles.fieldHint}>
+              Great — next you&rsquo;ll connect Bolt and bring all your drivers and cars across in one go.
+            </p>
+          )}
 
           <label htmlFor="heard-about" className={styles.fieldLabel} style={{ marginTop: 18 }}>
             How did you hear about Rovora? <span className={styles.optional}>(optional)</span>

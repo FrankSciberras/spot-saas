@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import BoltMark from '@/components/shared/BoltMark';
 import styles from './GettingStartedCard.module.css';
 import { useEnabledModules } from './FleetModulesProvider';
 
@@ -12,12 +13,20 @@ export interface OnboardingState {
   hasPay: boolean;
   /** Fleet has created at least one settlement. */
   hasSettlement: boolean;
+  /**
+   * An empty fleet that works with Bolt (or hasn't said): 'offer' = not
+   * connected yet, 'finish' = connected but the drivers & cars aren't in yet.
+   * Shown above the steps — one import instead of typing everyone in.
+   */
+  boltImport?: 'offer' | 'finish' | null;
 }
+
+type StepKey = 'hasDrivers' | 'hasVehicles' | 'hasPay' | 'hasSettlement';
 
 const DISMISS_KEY = 'rovora-getting-started-dismissed';
 
 interface Step {
-  key: keyof OnboardingState;
+  key: StepKey;
   label: string;
   hint: string;
   href: string;
@@ -68,8 +77,9 @@ export default function GettingStartedCard({ state }: { state: OnboardingState }
     setDismissed(true);
   };
 
-  // The first not-yet-done step is the "next" one — highlighted.
-  const nextKey = steps.find((s) => !state[s.key])?.key;
+  // The first not-yet-done step is the "next" one — highlighted (unless the
+  // Bolt import above is the better next move).
+  const nextKey = state.boltImport ? undefined : steps.find((s) => !state[s.key])?.key;
 
   return (
     <div className={styles.card}>
@@ -86,6 +96,25 @@ export default function GettingStartedCard({ state }: { state: OnboardingState }
       <div className={styles.progressTrack}>
         <div className={styles.progressFill} style={{ width: `${(done / steps.length) * 100}%` }} />
       </div>
+
+      {state.boltImport && (
+        <div className={styles.boltOffer}>
+          <span className={styles.boltMark} aria-hidden><BoltMark size={20} /></span>
+          <span className={styles.stepText}>
+            <span className={styles.stepLabel}>
+              {state.boltImport === 'finish' ? 'Finish bringing your Bolt fleet in' : 'Work with Bolt? Bring your whole fleet across in one go'}
+            </span>
+            <span className={styles.stepHint}>
+              {state.boltImport === 'finish'
+                ? 'Your Bolt account is connected — add every driver and car with one click.'
+                : 'Connect your Bolt account and every driver and car is added for you. Or add them by hand below.'}
+            </span>
+          </span>
+          <Link href={state.boltImport === 'finish' ? '/fleet/bolt#bolt-import' : '/fleet/bolt'} className="btn btn-sm btn-primary">
+            {state.boltImport === 'finish' ? 'Add my fleet' : 'Import from Bolt'}
+          </Link>
+        </div>
+      )}
 
       <div className={styles.steps}>
         {steps.map((s) => {

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth/session';
 import { derivePeriodBounds, parseDate, toISODate } from '@/lib/utils/bookkeepingPeriods';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { getFleetSettings } from '@/lib/settings/server';
 import FleetShell from '@/components/fleet/FleetShell';
 import InviteBanner from '@/components/shared/InviteBanner';
@@ -34,6 +34,25 @@ export default async function FleetDashboardPage() {
       </Suspense>
     </FleetShell>
   );
+}
+
+/**
+ * For an EMPTY fleet: should the getting-started card lead with "import from
+ * Bolt"? Yes unless the fleet said at sign-up that it doesn't use Bolt.
+ * 'finish' once Bolt is connected but the drivers & cars aren't in yet.
+ * Service-role reads: bolt_connections has no browser access at all.
+ */
+async function boltImportOffer(organizationId: string): Promise<'offer' | 'finish' | null> {
+  const admin = createAdminClient();
+  const [orgRes, connRes] = await Promise.all([
+    admin.from('organizations').select('ride_platforms').eq('id', organizationId).maybeSingle(),
+    admin.from('bolt_connections').select('organization_id').eq('organization_id', organizationId).maybeSingle(),
+  ]);
+  if (connRes.data) return 'finish';
+  // Before the migration adds the column the read errors — treat as "not answered".
+  const platforms = orgRes.error ? null : ((orgRes.data as { ride_platforms: string[] | null } | null)?.ride_platforms ?? null);
+  if (platforms && platforms.length > 0 && !platforms.includes('bolt')) return null;
+  return 'offer';
 }
 
 /** Server component that performs every dashboard query, then renders. */
@@ -217,6 +236,7 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
         hasVehicles: totalVehicles > 0,
         hasPay: (presetProbe.count ?? 0) > 0,
         hasSettlement: (settlementProbe.count ?? 0) > 0,
+        boltImport: totalDrivers === 0 && totalVehicles === 0 ? await boltImportOffer(user.organization_id) : null,
       }
     : undefined;
 

@@ -51,7 +51,7 @@ export default function BoltConnect({ reconnect = false }: { reconnect?: boolean
             <p className={styles.connectLead}>
               {reconnect
                 ? 'Paste a working API key and Rovora carries on where it left off — nothing already imported is lost.'
-                : 'Paste an API key from your Bolt Fleet Portal and Rovora imports your drivers, vehicles and rides, then keeps them up to date every hour.'}
+                : 'Paste an API key from your Bolt Fleet Portal. Rovora finds every driver and car on your Bolt account so you can add them all in one click, then keeps rides and earnings up to date every hour.'}
             </p>
           </div>
         </div>
@@ -109,9 +109,9 @@ export default function BoltConnect({ reconnect = false }: { reconnect?: boolean
 
         <div className={styles.formActions}>
           <button className={styles.primary} type="submit" disabled={pending || !clientId.trim() || !clientSecret.trim()}>
-            {pending ? 'Connecting — importing your rides…' : reconnect ? 'Reconnect Bolt' : 'Connect Bolt'}
+            {pending ? 'Connecting — finding your drivers and cars…' : reconnect ? 'Reconnect Bolt' : 'Connect Bolt'}
           </button>
-          {pending && <span className={styles.pendingNote}>This can take up to a minute the first time.</span>}
+          {pending && <span className={styles.pendingNote}>This only takes a few seconds.</span>}
         </div>
       </form>
 
@@ -133,6 +133,7 @@ export default function BoltConnect({ reconnect = false }: { reconnect?: boolean
 
         <h3 className={styles.stepsTitle}>What you get</h3>
         <ul className={styles.benefits}>
+          <li>Every driver and car added to Rovora in one click — or pick who</li>
           <li>Rides, fares and tips per driver for any period</li>
           <li>Acceptance rate and earnings per hour on the job</li>
           <li>Who is online on Bolt right now</li>

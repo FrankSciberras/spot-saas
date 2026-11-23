@@ -62,3 +62,45 @@ export async function checkApiCapacity(
     message: `Your ${planDef.name} plan includes up to ${cap} ${noun}${cap === 1 ? '' : 's'} and you already have ${current}. Upgrade to ${requiredName} to add more.`,
   };
 }
+
+export interface PlanRoom {
+  /** How many more drivers the plan allows (null = no limit). */
+  drivers: number | null;
+  /** How many more vehicles the plan allows (null = no limit). */
+  vehicles: number | null;
+  /** The plan's display name, for "your Pro plan includes up to…" messages. */
+  planName: string;
+}
+
+/**
+ * How many drivers and vehicles a fleet may still add under its plan — the
+ * bulk version of checkApiCapacity, for adding many records at once (the Bolt
+ * fleet import). Same rules: trials and unknown plans are not count-capped.
+ * Service-role reads, so it also works from the hourly sync, which has no
+ * signed-in user.
+ */
+export async function planRoom(organizationId: string): Promise<PlanRoom> {
+  const admin = createAdminClient();
+
+  const [plans, orgRes, driverCount, vehicleCount] = await Promise.all([
+    getPlans(),
+    admin.from('organizations').select('plan').eq('id', organizationId).maybeSingle(),
+    admin.from('drivers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
+    admin.from('vehicles').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
+  ]);
+
+  const planKey = ((orgRes.data as { plan: string | null } | null)?.plan) ?? TRIAL_PLAN;
+  if (planKey === TRIAL_PLAN) return { drivers: null, vehicles: null, planName: 'trial' };
+
+  const planDef = getPlanDef(plans, planKey);
+  if (!planDef) return { drivers: null, vehicles: null, planName: planKey };
+
+  const left = (cap: number | null, current: number | null) =>
+    cap === null ? null : Math.max(0, cap - (current ?? 0));
+
+  return {
+    drivers: left(planDef.maxDrivers, driverCount.count),
+    vehicles: left(planDef.maxVehicles, vehicleCount.count),
+    planName: planDef.name,
+  };
+}
