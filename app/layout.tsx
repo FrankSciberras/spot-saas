@@ -55,6 +55,13 @@ export const metadata: Metadata = {
     icon: '/favicon.ico',
     apple: '/icons/apple-touch-icon.png',
   },
+  // Domain ownership checks. Rendered as <meta> tags in the server HTML <head>
+  // of every page (Meta Business Manager reads the home page).
+  verification: {
+    other: {
+      'facebook-domain-verification': 'ew3jf3he9969hrjkeltpuvasa3457l',
+    },
+  },
 };
 
 export const viewport: Viewport = {
