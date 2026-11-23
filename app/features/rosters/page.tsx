@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -63,7 +64,7 @@ export default async function RostersFeaturePage() {
           { num: '1', label: 'week planned in one view' },
           { num: '1', label: 'click to publish to everyone' },
           { num: '2', label: 'channels: push + email' },
-          { num: '0', label: 'double-booked cars' },
+          { num: '0', label: 'screenshots in the group chat' },
         ]}
       />
 
@@ -124,18 +125,18 @@ export default async function RostersFeaturePage() {
           <SplitRow
             icon="repeat"
             title="Change with confidence"
-            body="Plans move. Republish an updated roster and Rovora tracks what changed and re-notifies the affected drivers — while flagging any vehicle that’s been double-booked before it goes out."
+            body="Plans move. Edit the roster and publish it again, and every driver on it is told it has changed — so nobody is working from last week’s screenshot."
             bullets={[
-              'Republish with the changes tracked',
-              'Only affected drivers get re-notified',
-              'Vehicle clashes flagged before publishing',
+              'Republish whenever the plan changes',
+              'Every rostered driver is notified again',
+              'Drivers always see the latest version in the app',
             ]}
             visual={
               <ShotFrame path="rosters" tight>
                 <div className="mock-rows">
-                  <div className="mock-row"><span className="nm">Roster republished</span><span className="meta">· 3 shifts changed</span><span className="st">v2</span></div>
-                  <div className="mock-row"><span className="nm">Drivers notified</span><span className="meta">· 3 affected</span><span className="st">Sent</span></div>
-                  <div className="mock-row"><span className="nm">Clash check</span><span className="meta">· 21-C-9920</span><span className="st pos">Clear</span></div>
+                  <div className="mock-row"><span className="nm">Roster republished</span><span className="meta">· week 22</span><span className="st">Updated</span></div>
+                  <div className="mock-row"><span className="nm">Drivers notified</span><span className="meta">· push + email</span><span className="st">Sent</span></div>
+                  <div className="mock-row"><span className="nm">Driver app</span><span className="meta">· latest version showing</span><span className="st pos">Live</span></div>
                 </div>
               </ShotFrame>
             }
@@ -148,7 +149,7 @@ export default async function RostersFeaturePage() {
           <SecHead kicker="Scheduling that sticks" title="Everything the weekly plan needs" />
           <IconGrid
             items={[
-              { icon: 'calendar', title: 'Weekly rosters', body: 'Plan a whole week at a time with draft, published and archived states.' },
+              { icon: 'calendar', title: 'Weekly rosters', body: 'Plan a whole week at a time with draft and published states.' },
               { icon: 'users', title: 'Batch entry', body: 'Assign many drivers and cars at once instead of one by one.' },
               { icon: 'car', title: 'Vehicle assignment', body: 'Tie each shift to a specific car and catch clashes early.' },
               { icon: 'send', title: 'Publish & notify', body: 'Push and email the roster to every assigned driver in a click.' },
@@ -158,6 +159,8 @@ export default async function RostersFeaturePage() {
           />
         </div>
       </section>
+
+      <FeatureExtras slug="rosters" />
 
       <CtaBand
         title="Plan the week once — everyone’s in the loop."

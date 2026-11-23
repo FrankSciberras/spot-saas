@@ -48,10 +48,12 @@ export default async function EditVehiclePage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title={`Edit: ${vehicle.registration_number}`}>
-      <FleetBackLink href={`/fleet/vehicles/${id}`} label="Back to vehicle" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
-          <h2>Edit Vehicle</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href={`/fleet/vehicles/${id}`} label="Back to vehicle" />
+            <h2>Edit Vehicle</h2>
+          </div>
           <span className={styles.subtitle}>
             Updating: {vehicle.registration_number} - {vehicle.make} {vehicle.model}
           </span>

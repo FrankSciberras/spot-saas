@@ -23,7 +23,8 @@ interface FleetShellProps {
 export default function FleetShell({ user, title, children, variant = 'fleet' }: FleetShellProps) {
   const [vw, setVw] = useState(1280);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  // null = this browser has never chosen, so the width decides (see below).
+  const [collapsedPref, setCollapsedPref] = useState<boolean | null>(null);
 
   useEffect(() => {
     const onResize = () => setVw(window.innerWidth);
@@ -34,15 +35,22 @@ export default function FleetShell({ user, title, children, variant = 'fleet' }:
 
   // Sidebar collapse persists per browser. Read after mount so SSR markup matches.
   useEffect(() => {
-    setCollapsed(localStorage.getItem('rovora-sidebar-collapsed') === '1');
+    const saved = localStorage.getItem('rovora-sidebar-collapsed');
+    setCollapsedPref(saved === '1' ? true : saved === '0' ? false : null);
   }, []);
 
+  // Matches the 720px breakpoint in fleet-theme.css (`max-width: 720px`).
+  const isMobile = vw <= 720;
+  // On a tablet the full 232px sidebar leaves the page barely 500px wide, so
+  // it starts as the icon rail there until the person expands it themselves.
+  const isTablet = !isMobile && vw < 1100;
+  const collapsed = collapsedPref ?? isTablet;
+
   const toggleCollapsed = useCallback(() => {
-    setCollapsed((c) => {
-      localStorage.setItem('rovora-sidebar-collapsed', c ? '0' : '1');
-      return !c;
-    });
-  }, []);
+    const next = !collapsed;
+    localStorage.setItem('rovora-sidebar-collapsed', next ? '1' : '0');
+    setCollapsedPref(next);
+  }, [collapsed]);
 
   // "[" toggles the sidebar, unless the user is typing.
   useEffect(() => {
@@ -57,7 +65,14 @@ export default function FleetShell({ user, title, children, variant = 'fleet' }:
     return () => document.removeEventListener('keydown', onKey);
   }, [toggleCollapsed]);
 
-  const isMobile = vw < 720;
+  // While the drawer is open the page behind it must not scroll — otherwise a
+  // swipe inside the menu drags the page instead of the menu.
+  useEffect(() => {
+    if (!(isMobile && menuOpen)) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [isMobile, menuOpen]);
 
   return (
     <div className="fleetCanvas">
@@ -73,7 +88,12 @@ export default function FleetShell({ user, title, children, variant = 'fleet' }:
       />
       {/* The bottom nav pads itself past the iPhone home indicator, so the
           content above it has to clear the nav AND that same inset. */}
-      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, paddingBottom: isMobile ? 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))' : 0 }}>
+      {/* No z-index here on purpose. A z-index made <main> its own stacking
+          layer, which trapped every dialog, sheet and floating button inside
+          it UNDER the phone's bottom tab bar — the Save button of "Add
+          expense" sat hidden behind the tabs. Without it, their own z-indexes
+          (200–1000) apply against the whole page, as they were written to. */}
+      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', paddingBottom: isMobile ? 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))' : 0 }}>
         {variant === 'fleet' && <FleetTrialBanner />}
         <FleetTopbar
           title={title}

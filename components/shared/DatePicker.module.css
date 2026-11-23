@@ -325,3 +325,41 @@
     height: 40px;
   }
 }
+
+/* Host forms style every input/select they contain (`.formGroup input { … }`),
+   which drew a second bordered box inside the picker and stretched it past the
+   card on a phone. These selectors outrank that so the picker looks the same
+   wherever it is dropped. */
+.container .inputWrapper .textInput {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.container .inputWrapper {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.container .monthYearSelectors .monthSelect,
+.container .monthYearSelectors .yearSelect {
+  width: auto;
+  min-height: 0;
+  padding: 6px 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: var(--font-sm);
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .container .inputWrapper .textInput { font-size: 16px; padding: 11px 0; }
+  .chevron { min-width: 36px; min-height: 36px; }
+}

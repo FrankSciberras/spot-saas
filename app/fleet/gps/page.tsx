@@ -107,6 +107,7 @@ export default async function GpsPage({ searchParams }: { searchParams: Promise<
       provider: c.provider,
       providerName: info?.name ?? c.provider,
       mark: info?.mark ?? '?',
+      logoSrc: info?.logoSrc,
       bg: info?.bg ?? '#64748b',
       fg: info?.fg ?? '#ffffff',
       accountLabel: c.account_label,

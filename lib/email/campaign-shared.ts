@@ -14,8 +14,12 @@
 export type CampaignAudience =
   /** Every account on the platform (operators, staff and drivers). */
   | { kind: 'everyone' }
-  /** Fleet admins & staff, optionally narrowed to plans or specific fleets. */
-  | { kind: 'operators'; scope: 'all' | 'plan' | 'operators'; planKeys?: string[]; operatorIds?: string[] }
+  /**
+   * Fleet admins & staff, optionally narrowed to plans or specific fleets.
+   * 'not_set_up' = the ADMINS of fleets that still have no drivers and no
+   * vehicles (signed up, never got going) and can still open their dashboard.
+   */
+  | { kind: 'operators'; scope: 'all' | 'plan' | 'operators' | 'not_set_up'; planKeys?: string[]; operatorIds?: string[] }
   /** Drivers, optionally narrowed to specific fleets and to active drivers. */
   | { kind: 'drivers'; scope: 'all' | 'operators'; operatorIds?: string[]; activeOnly?: boolean }
   /** A pasted list of addresses (need not be Rovora users). */

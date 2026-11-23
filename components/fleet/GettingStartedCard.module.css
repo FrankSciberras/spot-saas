@@ -65,6 +65,40 @@
   transition: width 0.3s ease;
 }
 
+.boltOffer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+}
+
+.boltMark {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  /* Bolt green tile, white logomark (components/shared/BoltMark). */
+  background: #34d186;
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 520px) {
+  .boltOffer {
+    flex-wrap: wrap;
+  }
+
+  .boltOffer :global(.btn) {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .steps {
   display: flex;
   flex-direction: column;

@@ -25,7 +25,7 @@ import { isStripeEnabled } from '@/lib/billing/stripe';
 import { createPlanCheckoutSession } from '@/lib/billing/checkout';
 import { sendWelcomeEmail } from '@/lib/email/welcome';
 import { recordConversion } from '@/lib/analytics/server';
-import { HEARD_ABOUT_OPTIONS } from '@/lib/analytics/constants';
+import { HEARD_ABOUT_OPTIONS, RIDE_PLATFORM_OPTIONS } from '@/lib/analytics/constants';
 
 /**
  * Switch the active organization. Validates the caller is actually a member of
@@ -77,7 +77,9 @@ export async function completeOnboardingAction(
   plan: Plan = 'trial',
   disabledModules: string[] = [],
   /** Optional "How did you hear about Rovora?" answer (HEARD_ABOUT_OPTIONS id). */
-  heardAbout: string | null = null
+  heardAbout: string | null = null,
+  /** Optional "Which apps do your drivers work on?" answers (RIDE_PLATFORM_OPTIONS ids). */
+  ridePlatforms: string[] = []
 ): Promise<{ error: string } | { url: string } | void> {
   const trimmed = name?.trim();
   if (!trimmed) return { error: 'Fleet name is required' };
@@ -112,10 +114,29 @@ export async function completeOnboardingAction(
     console.error('completeOnboardingAction (trial length) failed:', trialErr);
   }
 
+  // Which ride-hailing apps they work with. Kept on the fleet so the app can
+  // lead with the right import (a Bolt fleet goes straight to the Bolt page).
+  const platforms = RIDE_PLATFORM_OPTIONS.map((o) => o.id).filter((id) =>
+    Array.isArray(ridePlatforms) ? ridePlatforms.includes(id) : false
+  );
+  if (platforms.length > 0) {
+    const { error: platformErr } = await createAdminClient()
+      .from('organizations')
+      .update({ ride_platforms: platforms })
+      .eq('id', orgId as string);
+    if (platformErr) {
+      console.error('completeOnboardingAction (ride platforms) failed:', platformErr);
+    }
+  }
+
   // Website analytics: the signup, credited to the visit that brought them in,
   // plus what they told us themselves.
   const heard = HEARD_ABOUT_OPTIONS.some((o) => o.id === heardAbout) ? heardAbout : null;
-  await recordConversion('Signup', { org_id: orgId as string, plan, heard }, '/onboarding');
+  await recordConversion(
+    'Signup',
+    { org_id: orgId as string, plan, heard, platforms: platforms.join(',') || null },
+    '/onboarding'
+  );
 
   // Persist the fleet's initial module choices from onboarding ("Choose your
   // tools"). We only store OFF overrides — anything left on inherits the catalog
@@ -195,6 +216,7 @@ export async function completeOnboardingAction(
   }
 
   revalidatePath('/', 'layout');
-  // Public stop first so Google Tag Manager can count the signup; it forwards to /fleet.
-  redirect('/thank-you/welcome');
+  // Public stop first so Google Tag Manager can count the signup; it forwards
+  // to /fleet — or, for a Bolt fleet, to the Bolt page to bring the fleet in.
+  redirect(platforms.includes('bolt') ? '/thank-you/welcome?next=bolt' : '/thank-you/welcome');
 }

@@ -160,6 +160,18 @@
 }
 
 /* ─── Sidebar nav items ─── */
+.fleetCanvas .fleetNavGroupBtn {
+  color: var(--text-4);
+  transition: color var(--dur-ui) var(--ease-ui);
+}
+.fleetCanvas .fleetNavGroupBtn:hover {
+  color: var(--text-2);
+}
+.fleetCanvas .fleetNavGroupBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .fleetCanvas .fleetNavItem {
   position: relative;
   overflow: hidden;
@@ -259,6 +271,131 @@
 .fleetCanvas .fleetSearchBtn svg { transition: color var(--dur-ui) var(--ease-ui); }
 .fleetCanvas .fleetSearchBtn:hover { background: var(--bg-hover); border-color: var(--line-3); }
 .fleetCanvas .fleetSearchBtn:hover svg { color: var(--accent); }
+
+/* ─── Quick buttons (FleetQuickButtons): personal shortcuts beside the page title ─── */
+.fleetCanvas .fleetQuick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-2);
+}
+.fleetCanvas .fleetQuickBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-ui) var(--ease-ui), border-color var(--dur-ui) var(--ease-ui),
+              color var(--dur-ui) var(--ease-ui), transform var(--dur-ui) var(--ease-ui);
+}
+.fleetCanvas .fleetQuickBtn svg { color: var(--text-3); transition: color var(--dur-ui) var(--ease-ui); }
+.fleetCanvas .fleetQuickBtn:hover { background: var(--bg-hover); border-color: var(--accent-line); }
+.fleetCanvas .fleetQuickBtn:hover svg { color: var(--accent); }
+.fleetCanvas .fleetQuickBtn:active { transform: translateY(0.5px); }
+.fleetCanvas .fleetQuickBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Title, date and quick buttons keep their size; the search box is what shrinks. */
+@media (min-width: 721px) {
+  .fleetCanvas .fleetTopLeft { flex-shrink: 0; }
+}
+
+/* The empty slot: dashed and greyed, so it reads as "something can go here". */
+.fleetCanvas .fleetQuickAdd {
+  border-style: dashed;
+  border-color: var(--line-3);
+  background: transparent;
+  color: var(--text-3);
+  font-weight: 400;
+}
+.fleetCanvas .fleetQuickAdd:hover { color: var(--text-1); background: var(--bg-hover); border-color: var(--accent); }
+/* Once a button is pinned it is just a dashed "+" (or a pencil when full). */
+.fleetCanvas .fleetQuick:not([data-empty]) .fleetQuickAdd { width: 30px; padding: 0; justify-content: center; }
+
+/* Tighter screens: icons only (the title is in the tooltip), then nothing. */
+@media (max-width: 1560px) {
+  .fleetCanvas .fleetQuick:not([data-empty]) .fleetQuickBtn { width: 30px; padding: 0; justify-content: center; }
+  .fleetCanvas .fleetQuick:not([data-empty]) .fleetQuickLbl { display: none; }
+}
+@media (max-width: 1180px) {
+  .fleetCanvas .fleetQuick { display: none; }
+}
+
+.fleetCanvas .fleetQuickMenu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 14px;
+  width: 316px;
+  padding: 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 40;
+}
+.fleetCanvas .fleetQuickMenuHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 10px 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.fleetCanvas .fleetQuickMenuHead .mono { font-size: 11.5px; font-weight: 500; color: var(--text-3); }
+.fleetCanvas .fleetQuickMenuHead .mono[data-full] { color: var(--accent); }
+.fleetCanvas .fleetQuickMenuSub { margin: 3px 0 4px; padding: 0 10px; font-size: 12px; line-height: 1.45; color: var(--text-3); }
+.fleetCanvas .fleetQuickMenuList { max-height: min(60vh, 440px); overflow-y: auto; }
+.fleetCanvas .fleetQuickMenuLabel {
+  padding: 10px 10px 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.fleetCanvas .fleetQuickItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--text-1);
+}
+.fleetCanvas .fleetQuickItem:hover:not(:disabled) { background: var(--bg-hover); }
+.fleetCanvas .fleetQuickItem:disabled { opacity: 0.45; cursor: not-allowed; }
+.fleetCanvas .fleetQuickItemIco { flex-shrink: 0; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; }
+.fleetCanvas .fleetQuickItem[data-on] .fleetQuickItemIco { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.fleetCanvas .fleetQuickItemText { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fleetCanvas .fleetQuickItemTitle { font-size: 13px; font-weight: 500; }
+.fleetCanvas .fleetQuickItemHint { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fleetCanvas .fleetQuickItemCheck {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px dashed var(--line-3);
+  color: var(--text-3);
+}
+.fleetCanvas .fleetQuickItem[data-on] .fleetQuickItemCheck { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.fleetCanvas .fleetQuickMenuError { margin: 6px 10px 6px; font-size: 12px; color: var(--neg); }
 
 /* ─── "New" quick-create rows ─── */
 .fleetCanvas .fleetNewItem { background: transparent; }
@@ -532,6 +669,27 @@
   .fleetCanvas .fleet-skel::after { animation: none; }
 }
 
+/* ─── Sidebar / mobile drawer height ───
+   100vh on a phone is the screen WITHOUT the browser's address bar taken off,
+   so a 100vh drawer ran past the visible area and its last links (Settings…)
+   could never be scrolled into view. dvh tracks what is actually visible. */
+.fleetCanvas .fleetSidebar { height: 100vh; height: 100dvh; }
+.fleetCanvas .fleetDrawer { height: 100%; max-height: 100vh; max-height: 100dvh; overflow: hidden; }
+@media (max-width: 720px) {
+  /* One scale for the drawer: 14px links, 11px section labels, 14px fleet
+     name — a 15px link under a 10px label looked lopsided. */
+  .fleetCanvas .fleetDrawer .fleetNavItem { min-height: 44px; font-size: 14px !important; }
+  .fleetCanvas .fleetDrawer .fleetNavGroupBtn { font-size: 11px !important; padding-top: 10px !important; }
+  /* Before the page hydrates the shell still thinks it is on a desktop; don't
+     let the full sidebar flash across a phone for that moment. */
+  .fleetCanvas .fleetSidebar { display: none; }
+}
+
+/* ─── Page title with an inline back arrow (<FleetBackLink>) ─── */
+.fleetCanvas .fleetTitleRow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fleetCanvas .fleetTitleRow > h1,
+.fleetCanvas .fleetTitleRow > h2 { min-width: 0; overflow-wrap: anywhere; }
+
 /* ─── Responsive overrides ─── */
 @media (max-width: 720px) {
   .fleetCanvas { font-size: 13.5px; }
@@ -547,7 +705,6 @@
   .fleetCanvas .pad-mobile { padding: 18px 14px 100px !important; }
   .fleetCanvas .hero-h1-mobile { font-size: 19px !important; }
   .fleetCanvas .topbar-mobile { padding: 0 14px !important; height: 54px !important; }
-  .fleetCanvas .topbar-mobile h1 { font-size: 16px !important; }
   .fleetCanvas .header-mobile-row { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
   .fleetCanvas .stats-row-mobile { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
   .fleetCanvas .chips-scroll { overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
@@ -555,6 +712,128 @@
 }
 @media (min-width: 721px) {
   .fleetCanvas .show-mobile-only { display: none !important; }
+}
+
+/* ─── Tablets (sidebar present, but nowhere near desktop width) ───
+   The desktop grids assume ~1100px of content. On an iPad they left 150px
+   stat tiles and 200px cards with every label wrapped or cut, so in this band
+   the wide grids step down instead of jumping straight from 4-up to 1-up. */
+@media (min-width: 721px) and (max-width: 1099px) {
+  .fleetCanvas .split-main-side { grid-template-columns: minmax(0, 1fr) !important; }
+  .fleetCanvas .split-detail { grid-template-columns: minmax(0, 1fr) !important; }
+  .fleetCanvas .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .fleetCanvas .grid-3 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  /* Filter bars (tabs + search + view switch) don't fit on one line here:
+     let them wrap instead of pushing the page sideways. */
+  .fleetCanvas .header-mobile-row { flex-wrap: wrap !important; row-gap: 10px !important; }
+  .fleetCanvas .header-mobile-row > * { min-width: 0; max-width: 100%; }
+
+  /* Wide desktop tables swap to their card list on a tablet as well. */
+  .fleetCanvas .hide-tablet { display: none !important; }
+  .fleetCanvas .show-tablet { display: flex !important; }
+  .fleetCanvas .fleetCardGrid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px !important; }
+}
+@media (min-width: 721px) and (max-width: 899px) {
+  .fleetCanvas .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .fleetCanvas .grid-2 { grid-template-columns: minmax(0, 1fr) !important; }
+  .fleetCanvas .stats-row-mobile { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+/* Touch tablets have no hover and a fat pointer: give the small controls room. */
+@media (min-width: 721px) and (pointer: coarse) {
+  .fleetCanvas .fleetNavItem { min-height: 40px; }
+}
+
+/* ─── Workspace rows & filter bars on a phone ───
+   The workspaces lay their rows out with inline grid styles sized for a
+   desktop. Hiding a cell with .hide-mobile leaves the other cells squeezed
+   into the same narrow tracks, so each row gets a hook here to re-flow. */
+@media (max-width: 720px) {
+  /* ── Touch targets ──
+     Controls were sized for a cursor (27–32px). On a phone anything you tap
+     gets at least ~36px, without changing how it looks on a desktop. */
+  .fleetCanvas .topbar-mobile .fleetIconBtn,
+  .fleetCanvas .topbar-mobile .fleetAvatarBtn { width: 38px !important; height: 38px !important; }
+  .fleetCanvas .topbar-mobile { gap: 8px; }
+  .fleetCanvas button.fleetHover,
+  .fleetCanvas a.fleetHover { min-height: 36px; }
+  .fleetCanvas .chips-scroll > button { min-height: 36px; flex-shrink: 0; }
+  .fleetCanvas .fleetGhostBtn { min-height: 36px; }
+
+  /* Segmented tabs and select pills: finger-sized, and they share the row. */
+  .fleetCanvas .fleetFilterGroup { width: 100%; }
+  .fleetCanvas .fleetSegTabs { display: flex !important; width: 100%; }
+  .fleetCanvas .fleetSegTabs > button { flex: 1; min-height: 38px; white-space: nowrap; }
+  .fleetCanvas .fleetSelectWrap { flex: 1 1 140px; min-width: 0; min-height: 40px; }
+  .fleetCanvas .fleetSelectWrap select { flex: 1; min-width: 0; width: 100%; font-size: 14px !important; min-height: 28px; }
+
+  /* Dashboard earnings strip: 2×2 instead of four 70px columns. */
+  .fleetCanvas .fleetMiniStats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .fleetCanvas .fleetMiniStats > div { padding: 12px 14px !important; }
+  .fleetCanvas .fleetMiniStats > div:nth-child(even) { border-right: none !important; }
+  .fleetCanvas .fleetMiniStats > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line-1); }
+
+  /* Standalone filter <select>s and search boxes take a full row. */
+  .fleetCanvas .fleetFilterSelect { flex: 1 1 100%; width: 100% !important; min-height: 40px; font-size: 14px !important; }
+  .fleetCanvas .fleetFilterSearch { flex: 1 1 100% !important; min-height: 40px; }
+  .fleetCanvas .fleetFilterSearch input { font-size: 16px !important; }
+
+  /* Bookkeeping header: three secondary actions on one line, the two that
+     add money on the next — instead of five buttons wrapping wherever. */
+  .fleetCanvas .fleetLedgerActions { display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr)); width: 100%; }
+  .fleetCanvas .fleetLedgerActions > button { justify-content: center; min-height: 40px; padding-left: 6px !important; padding-right: 6px !important; white-space: nowrap; }
+  .fleetCanvas .fleetLedgerActions > button:nth-child(1) { grid-column: span 5; }
+  .fleetCanvas .fleetLedgerActions > button:nth-child(2) { grid-column: span 4; }
+  .fleetCanvas .fleetLedgerActions > button:nth-child(3) { grid-column: span 3; }
+  .fleetCanvas .fleetLedgerActions > button:nth-last-child(-n + 2) { grid-column: span 6; }
+
+  /* Generic "label left, figures + buttons right" row: stack it. The label
+     gets the full width, the figures and buttons share the line below. */
+  .fleetCanvas .fleetRowStack { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; padding: 13px 14px !important; }
+  .fleetCanvas .fleetRowStackEnd { justify-content: space-between !important; gap: 10px !important; padding-left: 42px; }
+  .fleetCanvas .fleetRowStackMeta { text-align: left !important; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .fleetCanvas .fleetRowStackMeta > div { margin-top: 0 !important; }
+  .fleetCanvas .fleetRowBtns > button { min-height: 36px; min-width: 40px; padding-left: 12px !important; padding-right: 12px !important; }
+
+  /* Reminders: Edit / Delete drop under the text instead of squeezing it
+     into a 60px column. The tick box grows to a finger-sized target. */
+  .fleetCanvas .fleetTodoRow { flex-wrap: wrap; padding: 14px !important; }
+  .fleetCanvas .fleetTodoRow > .fleetCheckBtn { width: 30px !important; height: 30px !important; border-radius: 9px !important; }
+  .fleetCanvas .fleetTodoRow > div:not(.fleetTodoActions) { flex: 1 1 0; min-width: 0; }
+  .fleetCanvas .fleetTodoActions { flex: 1 1 100%; padding-left: 43px; }
+  .fleetCanvas .fleetTodoActions > button { min-height: 36px; padding-left: 12px !important; padding-right: 12px !important; }
+
+  /* Damages: plate over model, pills kept on one line. */
+  .fleetCanvas .fleetPlateLine { flex-direction: column; align-items: flex-start !important; gap: 1px !important; }
+  .fleetCanvas .fleetPlateLine > span { max-width: 100%; }
+  .fleetCanvas .fleetDamagePills { gap: 6px !important; }
+
+  /* Shifts: who + status on top, times and mileage underneath. */
+  .fleetCanvas .fleetShiftRow {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px 12px !important;
+    padding: 12px 14px !important;
+  }
+  .fleetCanvas .fleetShiftWho { grid-column: 1; grid-row: 1; }
+  .fleetCanvas .fleetShiftMeta { display: contents !important; }
+  .fleetCanvas .fleetShiftMeta > span { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+  .fleetCanvas .fleetShiftTime {
+    grid-column: 1; grid-row: 2;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+    text-align: left !important;
+  }
+  .fleetCanvas .fleetShiftTime > div { margin-top: 0 !important; }
+  .fleetCanvas .fleetShiftKm {
+    grid-column: 2; grid-row: 2;
+    display: flex; align-items: baseline; gap: 6px; justify-content: flex-end;
+  }
+  .fleetCanvas .fleetShiftKm > div { margin-top: 0 !important; }
+  .fleetCanvas .fleetShiftKm > div:last-child { display: none; }
+}
+@media (max-width: 400px) {
+  .fleetCanvas .fleetLedgerActions > button:nth-child(-n + 3) svg { display: none; }
+  /* Narrowest phones: figures and buttons line up under the icon, and wrap. */
+  .fleetCanvas .fleetRowStackEnd { padding-left: 0; flex-wrap: wrap; }
 }
 @media (max-width: 480px) {
   .fleetCanvas .grid-4 { grid-template-columns: 1fr !important; }

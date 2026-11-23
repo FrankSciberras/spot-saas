@@ -2,6 +2,7 @@ import { marketingMetadata } from '@/lib/seo';
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 
 export const metadata = marketingMetadata({
@@ -152,6 +153,8 @@ export default async function VehiclesFeaturePage() {
           />
         </div>
       </section>
+
+      <FeatureExtras slug="vehicles" />
 
       <CtaBand
         title="Know every vehicle, inside out."

@@ -1,8 +1,11 @@
 // =============================================================================
 // BOLT SYNC — pulls a connected fleet's Bolt data into Rovora
 // =============================================================================
-// Called when a fleet first connects (with a history backfill), from the
-// "Sync now" button, and hourly by /api/cron/bolt-sync.
+// Called when a fleet first connects (drivers & cars straight away, then the
+// ride-history backfill in the background), from the "Sync now" button, and
+// hourly by /api/cron/bolt-sync. After the drivers & cars are saved, anyone new
+// on Bolt is handed to the fleet import (lib/bolt/import.ts) — held for the
+// admin, added, or left alone, as the fleet chose.
 //
 // Everything here runs with the SERVICE-ROLE client and is always scoped to one
 // organization_id — callers are responsible for having checked who is asking.
@@ -13,15 +16,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { openSecret } from '@/lib/crypto/secret-box';
 import { BoltApiError, BoltClient, MAX_RIDE_WINDOW_DAYS, describeBoltError } from './client';
-import {
-  driverRow,
-  matchDriver,
-  matchVehicle,
-  rideRow,
-  vehicleRow,
-  type RovoraDriverRef,
-  type RovoraVehicleRef,
-} from './mapping';
+import { driverRow, matchDriver, matchVehicle, rideRow, vehicleRow } from './mapping';
+import { loadRovoraDrivers, loadRovoraVehicles } from './rovora';
+import { handleNewBoltMembers, type NewMemberMode } from './import';
 
 /** How much ride history to import when a fleet first connects (two pay cycles + slack). */
 export const INITIAL_BACKFILL_DAYS = 62;
@@ -47,6 +44,10 @@ export interface BoltConnection {
   last_synced_at: string | null;
   rides_synced_from: string | null;
   rides_synced_through: string | null;
+  /** What happens when someone new joins the Bolt fleet (lib/bolt/import.ts). */
+  new_member_mode: NewMemberMode;
+  /** When the admin went through the first "bring your fleet in" screen. */
+  first_import_at: string | null;
   created_at: string;
 }
 
@@ -69,6 +70,16 @@ export async function loadBoltConnection(
     .eq('organization_id', organizationId)
     .maybeSingle();
   return (data as BoltConnection | null) ?? null;
+}
+
+/**
+ * Has the fleet-import migration (20261123_bolt_fleet_import.sql) been run?
+ * Migrations are applied by hand, so code can go live first; until then the
+ * sync must not write the new columns, and the import screen stays hidden.
+ * The connection row is read with select('*'), so the column is simply there.
+ */
+export function boltImportReady(conn: BoltConnection | null): boolean {
+  return Boolean(conn && 'first_import_at' in conn);
 }
 
 /** Builds an API client for a stored connection (decrypts the key secret). */
@@ -104,33 +115,6 @@ function offsetMinutes(stamp: string): number | null {
   return (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3]));
 }
 
-/** The fleet's own drivers, with their login email, for matching to Bolt's. */
-async function loadRovoraDrivers(admin: SupabaseClient, organizationId: string): Promise<RovoraDriverRef[]> {
-  const { data: drivers } = await admin
-    .from('drivers')
-    .select('id, full_name, phone, user_id')
-    .eq('organization_id', organizationId)
-    .range(0, 4999);
-
-  const rows = (drivers ?? []) as { id: string; full_name: string | null; phone: string | null; user_id: string | null }[];
-  const userIds = rows.map((d) => d.user_id).filter((id): id is string => Boolean(id));
-
-  const emailById = new Map<string, string>();
-  for (let i = 0; i < userIds.length; i += 200) {
-    const { data: users } = await admin.from('users').select('id, email').in('id', userIds.slice(i, i + 200));
-    for (const u of (users ?? []) as { id: string; email: string | null }[]) {
-      if (u.email) emailById.set(u.id, u.email);
-    }
-  }
-
-  return rows.map((d) => ({
-    id: d.id,
-    full_name: d.full_name,
-    phone: d.phone,
-    email: d.user_id ? emailById.get(d.user_id) ?? null : null,
-  }));
-}
-
 /**
  * Runs one full sync for a fleet: drivers, vehicles, then ride history from
  * where the last sync left off. Never throws — failures are recorded on the
@@ -139,7 +123,14 @@ async function loadRovoraDrivers(admin: SupabaseClient, organizationId: string):
 export async function syncBoltFleet(
   admin: SupabaseClient,
   conn: BoltConnection,
-  opts: { backfillDays?: number } = {},
+  opts: {
+    backfillDays?: number;
+    /**
+     * 'roster' = drivers & cars only (seconds — used on connect so the import
+     * screen can show at once); 'rides' = ride history only; default both.
+     */
+    only?: 'roster' | 'rides';
+  } = {},
 ): Promise<BoltSyncResult> {
   const orgId = conn.organization_id;
   const startedAt = new Date();
@@ -151,51 +142,104 @@ export async function syncBoltFleet(
 
   try {
     const client = boltClientFor(conn);
+    const fresh = { drivers: [] as string[], vehicles: [] as string[] };
+    const importReady = boltImportReady(conn);
 
-    // ---- drivers ---------------------------------------------------------------
-    const [boltDrivers, rovoraDrivers, existingLinks] = await Promise.all([
-      client.getDrivers(conn.company_id),
-      loadRovoraDrivers(admin, orgId),
-      admin
-        .from('bolt_drivers')
-        .select('bolt_uuid, driver_id, link_source')
-        .eq('organization_id', orgId)
-        .range(0, 9999),
-    ]);
+    if (opts.only !== 'rides') {
+      // ---- drivers ---------------------------------------------------------------
+      const [boltDrivers, rovoraDrivers, existingLinks] = await Promise.all([
+        client.getDrivers(conn.company_id),
+        loadRovoraDrivers(admin, orgId),
+        admin
+          .from('bolt_drivers')
+          .select('bolt_uuid, driver_id, link_source')
+          .eq('organization_id', orgId)
+          .range(0, 9999),
+      ]);
 
-    // A link the operator set by hand wins over anything we would guess — and
-    // so does a hand-made "not linked", which is stored as manual + null.
-    const manual = new Map<string, string | null>();
-    for (const row of (existingLinks.data ?? []) as { bolt_uuid: string; driver_id: string | null; link_source: string | null }[]) {
-      if (row.link_source === 'manual') manual.set(row.bolt_uuid, row.driver_id);
-    }
-    const liveDriverIds = new Set(rovoraDrivers.map((d) => d.id));
-
-    const driverRows = boltDrivers
-      .filter((d) => d.uuid)
-      .map((d) => {
-        const uuid = d.uuid as string;
-        const base = driverRow(orgId, d, syncedAt);
-        if (manual.has(uuid)) {
-          const linked = manual.get(uuid) ?? null;
-          return { ...base, driver_id: linked && liveDriverIds.has(linked) ? linked : null, link_source: 'manual' };
+      // A link the operator set by hand wins over anything we would guess — and
+      // so does a hand-made "not linked", which is stored as manual + null. A
+      // record CREATED by the fleet import keeps its link the same way, so
+      // renaming the driver in Rovora never breaks it.
+      const kept = new Map<string, { driverId: string | null; source: 'manual' | 'import' }>();
+      const knownDrivers = new Set<string>();
+      for (const row of (existingLinks.data ?? []) as { bolt_uuid: string; driver_id: string | null; link_source: string | null }[]) {
+        knownDrivers.add(row.bolt_uuid);
+        if (row.link_source === 'manual' || row.link_source === 'import') {
+          kept.set(row.bolt_uuid, { driverId: row.driver_id, source: row.link_source });
         }
-        const matched = matchDriver(d, rovoraDrivers);
-        return { ...base, driver_id: matched, link_source: matched ? 'auto' : null };
-      });
-    result.drivers = await upsertChunks(admin, 'bolt_drivers', driverRows, 'organization_id,bolt_uuid');
+      }
+      const liveDriverIds = new Set(rovoraDrivers.map((d) => d.id));
 
-    // ---- vehicles --------------------------------------------------------------
-    const [boltVehicles, rovoraVehiclesRes] = await Promise.all([
-      client.getVehicles(conn.company_id),
-      admin.from('vehicles').select('id, registration_number').eq('organization_id', orgId).range(0, 4999),
-    ]);
-    const rovoraVehicles = (rovoraVehiclesRes.data ?? []) as RovoraVehicleRef[];
+      const driverRows = boltDrivers
+        .filter((d) => d.uuid)
+        .map((d) => {
+          const uuid = d.uuid as string;
+          const base = driverRow(orgId, d, syncedAt);
+          const keep = kept.get(uuid);
+          if (keep) {
+            const linked = keep.driverId && liveDriverIds.has(keep.driverId) ? keep.driverId : null;
+            return { ...base, driver_id: linked, link_source: keep.source };
+          }
+          const matched = matchDriver(d, rovoraDrivers);
+          return { ...base, driver_id: matched, link_source: matched ? 'auto' : null };
+        });
+      result.drivers = await upsertChunks(admin, 'bolt_drivers', driverRows, 'organization_id,bolt_uuid');
+      fresh.drivers = driverRows.map((r) => r.bolt_uuid).filter((uuid) => !knownDrivers.has(uuid));
 
-    const vehicleRows = boltVehicles
-      .filter((v) => v.uuid)
-      .map((v) => vehicleRow(orgId, v, matchVehicle(v, rovoraVehicles), syncedAt));
-    result.vehicles = await upsertChunks(admin, 'bolt_vehicles', vehicleRows, 'organization_id,bolt_uuid');
+      // ---- vehicles --------------------------------------------------------------
+      const [boltVehicles, rovoraVehicles, existingVehicleLinks] = await Promise.all([
+        client.getVehicles(conn.company_id),
+        loadRovoraVehicles(admin, orgId),
+        admin
+          .from('bolt_vehicles')
+          .select(importReady ? 'bolt_uuid, vehicle_id, link_source' : 'bolt_uuid, vehicle_id')
+          .eq('organization_id', orgId)
+          .range(0, 9999),
+      ]);
+
+      // Plates are re-matched every time, except for cars the import created:
+      // those keep their link even if the plate is edited in Rovora.
+      const importedCars = new Map<string, string | null>();
+      const knownVehicles = new Set<string>();
+      for (const row of (existingVehicleLinks.data ?? []) as unknown as { bolt_uuid: string; vehicle_id: string | null; link_source?: string | null }[]) {
+        knownVehicles.add(row.bolt_uuid);
+        if (row.link_source === 'import') importedCars.set(row.bolt_uuid, row.vehicle_id);
+      }
+      const liveVehicleIds = new Set(rovoraVehicles.map((v) => v.id));
+
+      const vehicleRows = boltVehicles
+        .filter((v) => v.uuid)
+        .map((v) => {
+          const uuid = v.uuid as string;
+          if (importedCars.has(uuid)) {
+            const linked = importedCars.get(uuid) ?? null;
+            return { ...vehicleRow(orgId, v, linked && liveVehicleIds.has(linked) ? linked : null, syncedAt), link_source: 'import' };
+          }
+          const matched = matchVehicle(v, rovoraVehicles);
+          const row = vehicleRow(orgId, v, matched, syncedAt);
+          return importReady ? { ...row, link_source: matched ? 'auto' : null } : row;
+        });
+      result.vehicles = await upsertChunks(admin, 'bolt_vehicles', vehicleRows, 'organization_id,bolt_uuid');
+      fresh.vehicles = vehicleRows.map((r) => r.bolt_uuid).filter((uuid) => !knownVehicles.has(uuid));
+
+      // ---- new on Bolt? -------------------------------------------------------------
+      // Never allowed to fail the sync: the Bolt numbers matter more.
+      try {
+        if (importReady) await handleNewBoltMembers(admin, conn, fresh);
+      } catch (error) {
+        console.error(`Bolt sync: handling new drivers/cars for org ${orgId} failed:`, error);
+      }
+    }
+
+    if (opts.only === 'roster') {
+      await admin
+        .from('bolt_connections')
+        .update({ status: 'connected', last_error: null, last_synced_at: syncedAt })
+        .eq('organization_id', orgId);
+      result.ok = true;
+      return result;
+    }
 
     // ---- rides -----------------------------------------------------------------
     const cursor = conn.rides_synced_through ? new Date(conn.rides_synced_through) : null;

@@ -1,94 +1,81 @@
 import Link from 'next/link';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 import type { PlanDef } from '@/lib/billing/plans';
 import { trialCopy, type TrialOffer } from '@/lib/billing/trial-offer';
+import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
 import PromoBanner from './PromoBanner';
 import RovoraReveal from './RovoraReveal';
 import RovoraSmoothScroll from './RovoraSmoothScroll';
 import RovoraSupportChat from './RovoraSupportChat';
 import MarketingNav from './MarketingNav';
 import MarketingFooter from './MarketingFooter';
-import PricingPlans from './PricingPlans';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import LiteYouTube from './LiteYouTube';
-import HeroVideo from './HeroVideo';
-import TestimonialsCarousel from './TestimonialsCarousel';
-import { liveTestimonials } from './testimonials';
-
-const testimonials = liveTestimonials();
-
-// Checked at render/build time on the server: the hero uses the self-hosted
-// file only when it has actually been committed to public/videos.
-const hasHeroVideo = existsSync(join(process.cwd(), 'public', 'videos', 'hero.mp4'));
+import IntegrationsMarquee from './IntegrationsMarquee';
 import ReplacesSection from './ReplacesSection';
-import FeaturesAccordion from './FeaturesAccordion';
-import { SIGN_IN, START_TRIAL, featureHref } from './links';
-import { SITE_URL, ORGANIZATION_ID, organizationJsonLd, softwareApplicationJsonLd } from '@/lib/seo';
+import { liveTestimonials } from './testimonials';
+import { homeFaq, type FaqItem } from './faq';
+import { SIGN_IN, START_TRIAL } from './links';
 import { Icon, type IconName } from './feature/icons';
-import { markFontSize } from '@/lib/integrations/catalog';
+import WalkthroughButton, { type WalkthroughVideo } from './home/WalkthroughButton';
+import LogoStrip from './home/LogoStrip';
+import Toolkit from './home/Toolkit';
+import HomePricing from './home/HomePricing';
+import StoreButtons from './home/StoreButtons';
+import MobileTrialBar from './home/MobileTrialBar';
 
-/** A representative tile from each marketplace category — full list at /integrations. */
-const INTEGRATIONS: {
-  name: string;
-  mark: string;
-  bg: string;
-  fg: string;
-  desc: string;
-  live?: boolean;
-}[] = [
-  { name: 'Accountant CSV export', mark: 'CSV', bg: '#64748b', fg: '#ffffff', desc: 'QuickBooks & Xero-ready CSV of your books, one click.', live: true },
-  { name: 'Wialon', mark: 'W', bg: '#f26722', fg: '#ffffff', desc: 'See every car from your GPS trackers on the live map.', live: true },
-  { name: 'Uber', mark: 'U', bg: '#000000', fg: '#ffffff', desc: 'Auto-import trips & weekly earnings.' },
-  { name: 'WhatsApp', mark: 'WA', bg: '#25d366', fg: '#06341c', desc: 'Send shift reminders straight to drivers.' },
+// =============================================================================
+// HOMEPAGE
+// =============================================================================
+// Hero → partner logos → "two sides" (dashboard + driver app) → the Everyday
+// Toolkit → a customer story → connections → 3 setup steps → pricing → FAQ →
+// final call to action. Section ids are kept from the previous layout
+// (#features, #who, #how, #integrations, #pricing, #faq) so links from other
+// pages and the nav still land in the right place.
+// =============================================================================
+
+const YOUTUBE_ID = 'LEqoWWGHekU';
+
+// The walkthrough modal plays the self-hosted demo when it has been committed
+// to public/videos (full HD, exactly the encode we ship) and falls back to the
+// YouTube upload otherwise. Checked on the server at render/build time.
+const videosDir = join(process.cwd(), 'public', 'videos');
+const has = (file: string) => existsSync(join(videosDir, file));
+const WALKTHROUGH: WalkthroughVideo = has('hero.mp4')
+  ? {
+      kind: 'file',
+      mp4: '/videos/hero.mp4',
+      webm: has('hero.webm') ? '/videos/hero.webm' : undefined,
+      poster: has('hero.jpg') ? '/videos/hero.jpg' : undefined,
+    }
+  : { kind: 'youtube', id: YOUTUBE_ID };
+
+/** The approved customer quote shown as "Fleet notes" (hidden until one exists). */
+const STORY = liveTestimonials().find((t) => t.story)?.story ?? null;
+
+const MANAGER_POINTS = [
+  'Manage vehicles, drivers and their documents',
+  'Plan rosters and assign shifts',
+  'Work out weekly driver pay',
+  'Get reminders before anything expires',
+  'See income, costs and profit in one place',
 ];
 
-/** Quick "everything Rovora does" overview grid on the homepage. */
-const WAYS: { icon: IconName; label: string; href: string }[] = [
-  { icon: 'car', label: 'Manage your vehicles', href: featureHref('vehicles') },
-  { icon: 'wrench', label: 'Never miss a service', href: featureHref('maintenance') },
-  { icon: 'camera', label: 'Log damage & repairs', href: featureHref('damage') },
-  { icon: 'pulse', label: 'Track live shifts', href: featureHref('live-tracking') },
-  { icon: 'calendar', label: 'Plan weekly rosters', href: featureHref('rosters') },
-  { icon: 'coins', label: 'Reconcile driver pay', href: featureHref('settlements') },
-  { icon: 'shield', label: 'Stay compliant', href: '#features' },
-  { icon: 'bell', label: 'Get smart alerts', href: '#features' },
+const DRIVER_POINTS = [
+  'See your shifts and assigned vehicle',
+  'Track your weekly earnings and tips',
+  'Get your pay statements as PDFs',
+  'Know when your licence or permits need renewing',
 ];
 
-/** Landing-page FAQ — rendered below and reused to build FAQPage JSON-LD in app/page.tsx. */
-export const LANDING_FAQ: { q: string; a: string }[] = [
-  {
-    q: 'How long does it take to get set up?',
-    a: "Most fleets are live in an afternoon. Add your vehicles and drivers, invite the team to the driver app, and you're running shifts the same day. On the Fleet plan we'll import your existing data for you.",
-  },
-  {
-    q: 'Do my drivers need to install anything?',
-    a: 'Drivers use the free Rovora driver app to clock in, log shifts and see their earnings. It takes a couple of minutes to set up and needs no training — if they can use a ride-hail app, they can use Rovora.',
-  },
-  {
-    q: 'Do I need to buy GPS trackers for my cars?',
-    a: "No. Rovora's live map works through the free driver app on the phone your driver already carries — no hardware to buy, install or maintain, and no SIM contracts. Drivers share their location with one tap when a shift starts, you see the whole fleet live, and tracking stops when they stop. For a 10-car fleet that's typically €1,000+ saved up front versus dedicated trackers. Already have trackers? Connect Wialon, Traccar, flespi, Navixy, Samsara, Geotab or Mapon and tick Drivers, Cars or both on the same map.",
-  },
-  {
-    q: 'Can I move over my current vehicles and drivers?',
-    a: "Yes. You can add everything manually in minutes, or send us a spreadsheet and we'll import your vehicles, drivers and documents so nothing gets left behind.",
-  },
-  {
-    q: 'How do driver settlements and payouts work?',
-    a: "Rovora reconciles each driver's week automatically — gross splits, fees, cash drops, tips and any adjustments — then produces a clean, payable amount. You review, approve and run payouts in a single pass, with a PDF statement for your records.",
-  },
-  {
-    q: 'Is my fleet data secure?',
-    a: 'Your data is encrypted in transit and at rest, hosted in the EU, and only ever visible to your team. You can export everything at any time, and we never sell or share your data.',
-  },
-  {
-    q: 'What if I run more than 75 vehicles?',
-    a: "Up to 75 vehicles you're self-serve on the Fleet plan, priced by the car. Above that, our Enterprise plan adds custom volume pricing, white-glove onboarding and a dedicated account manager — get in touch and we'll tailor it to your operation.",
-  },
+const STEPS: { icon: IconName; title: string; body: string }[] = [
+  { icon: 'car', title: 'Add your fleet', body: 'Add your vehicles and their documents on the website.' },
+  { icon: 'users', title: 'Invite your drivers', body: 'Send each driver an invite. They download the Rovora app and sign in.' },
+  { icon: 'calendar', title: 'Plan your first week', body: 'Build the roster. Drivers see their shifts in the app straight away.' },
 ];
 
-/** Structured data for SEO — WebSite, Organization, FAQPage and the priced Product offers. */
-function buildJsonLd(plans: PlanDef[]) {
+/** Structured data for SEO — WebSite, Organization, FAQPage, the priced Product offers and the demo video. */
+function buildJsonLd(plans: PlanDef[], faq: FaqItem[]) {
   const webSite = {
     '@type': 'WebSite',
     name: 'Rovora',
@@ -98,26 +85,23 @@ function buildJsonLd(plans: PlanDef[]) {
 
   const faqPage = {
     '@type': 'FAQPage',
-    mainEntity: LANDING_FAQ.map((item) => ({
+    mainEntity: faq.map((item) => ({
       '@type': 'Question',
       name: item.q,
       acceptedAnswer: { '@type': 'Answer', text: item.a },
     })),
   };
 
-  // The homepage embeds a product demo (see <LiteYouTube id="LEqoWWGHekU" />).
-  // Without VideoObject the video is invisible to Google Video and cannot earn a
-  // video thumbnail in the SERP.
+  // The walkthrough modal offers the product demo. Name and uploadDate mirror
+  // the actual YouTube entry so the markup cannot contradict the source.
   const video = {
     '@type': 'VideoObject',
-    // Name and uploadDate mirror the actual YouTube entry so the markup cannot
-    // contradict the source.
     name: 'Rovora Explainer',
     description:
       'A quick tour of the Rovora dashboard — vehicles, drivers, live GPS tracking, weekly driver pay and the books, all in one place.',
-    thumbnailUrl: 'https://i.ytimg.com/vi/LEqoWWGHekU/maxresdefault.jpg',
-    embedUrl: 'https://www.youtube.com/embed/LEqoWWGHekU',
-    contentUrl: 'https://www.youtube.com/watch?v=LEqoWWGHekU',
+    thumbnailUrl: `https://i.ytimg.com/vi/${YOUTUBE_ID}/maxresdefault.jpg`,
+    embedUrl: `https://www.youtube.com/embed/${YOUTUBE_ID}`,
+    contentUrl: `https://www.youtube.com/watch?v=${YOUTUBE_ID}`,
     uploadDate: '2026-07-10T02:14:15-07:00',
     publisher: { '@id': ORGANIZATION_ID },
   };
@@ -128,9 +112,27 @@ function buildJsonLd(plans: PlanDef[]) {
   };
 }
 
+const Check = () => <Icon.check aria-hidden="true" />;
+
+/** The pull-quote with its highlighted words wrapped in <mark>. */
+function Pull({ text, highlight }: { text: string; highlight?: string }) {
+  const at = highlight ? text.indexOf(highlight) : -1;
+  if (!highlight || at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark>{highlight}</mark>
+      {text.slice(at + highlight.length)}
+    </>
+  );
+}
+
 export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; trialOffer: TrialOffer }) {
-  const jsonLd = buildJsonLd(plans);
   const trial = trialCopy(trialOffer);
+  const faq = homeFaq(trial);
+  const jsonLd = buildJsonLd(plans, faq);
+  const startLabel = `Start my ${trial.lengthAdj} trial`;
+
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme="light">
       <script
@@ -147,258 +149,167 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
         <PromoBanner trial={trial} />
         <MarketingNav onHome />
 
-        {/* HERO */}
-        <section className="hero" id="top">
-          <div className="container reveal-stagger">
-            <h1 className="hero-title">Run your whole fleet <span className="pos">from one screen</span>.</h1>
-            {/* One line on purpose. The feature list that used to live here just
-                pushed the video further down — and the page spends the next
-                three sections listing features anyway. */}
-            <p className="hero-sub">Fleet management software for taxi and rideshare fleets.</p>
-            <div className="hero-cta">
-              <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
-              <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>
-            </div>
-            {/* Two, not three: the third wrapped onto its own line at common
-                widths, which made the row look accidental rather than designed. */}
-            <div className="hero-micro">
-              <span><span className="ck">✓</span> {trial.freeLabel}</span>
-              <span><span className="ck">✓</span> No card required</span>
-            </div>
-            {/* Trust row. Deliberately no score or review count: the Play
-                listing shows no public rating yet, so the caption stays an
-                opinion rather than a statistic. Swap in a real rating (with
-                its source) once one exists. */}
-            <div className="hero-stars" aria-label="Five stars">
-              <span className="stars" aria-hidden="true">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <svg key={i} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6.1 6.7.8-4.9 4.6 1.3 6.6L12 17.4l-6 3.3 1.3-6.6L2.4 9.5l6.7-.8L12 2.6z" /></svg>
-                ))}
-              </span>
-              <span className="stars-text">Loved by fleet operators in Malta</span>
-            </div>
-          </div>
-
-          {/* The demo video IS the hero visual — a real recording of the product
-              beats any mockup, and putting it here means a visitor can watch it
-              without scrolling or hunting for a "watch" section. It deliberately
-              stands alone: nothing overlaps it, so the play button is the most
-              obvious thing on the page after the CTA. */}
-          <div className="container hero-stage reveal">
-            <div className="hero-video">
-              {/* Self-hosted MP4/WebM when the files are in public/videos (full
-                  HD, exactly the encode we ship); otherwise the YouTube embed,
-                  which picks its own — usually sub-HD — quality for muted
-                  autoplay. See public/videos/README.md. */}
-              {hasHeroVideo ? (
-                <HeroVideo title="Rovora — fleet management demo" />
-              ) : (
-                <LiteYouTube id="LEqoWWGHekU" title="Rovora — fleet management demo" priority autoplay />
-              )}
-            </div>
-          </div>
-
-          {/* The EU-hosted / Encrypted / GDPR strip used to sit here. Removed so
-              the video gets the room instead — the claims still live on the
-              /security page, which the footer links to. */}
-        </section>
-
-        {/* PLATFORMS — the ride-hail apps a fleet's money comes from. "Works
-            with earnings from" is the honest framing: today Rovora imports the
-            platforms' statements and does the settlement maths; a live API
-            connection is on the roadmap. Wordmarks are set in type rather than
-            shipped as logo files (no brand assets in the repo). */}
-        <section className="platforms" aria-label="Works with earnings from Uber, Bolt and eCabs">
-          <div className="container">
-            <p className="platforms-cap">Works with earnings from</p>
-            <div className="platforms-row">
-              {/* Official marks, flattened to one grey via CSS so neither brand
-                  colour dominates (Uber ships black, Bolt ships green). */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="pmark pmark-img" src="/platforms/uber.svg" alt="Uber" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="pmark pmark-img" src="/platforms/bolt.svg" alt="Bolt" />
-              <span className="pmark pmark-ecabs">eCabs</span>
-              <span className="pmark pmark-more">+ any platform via CSV</span>
-            </div>
-          </div>
-        </section>
-
-        {/* STATS */}
-        <section className="stats">
-          <div className="container">
-            <div className="stats-grid reveal-stagger">
-              <div className="stat"><div className="num mono">6<span style={{ fontSize: 24 }}> hrs</span></div><div className="lbl">saved every week on admin</div></div>
-              <div className="stat"><div className="num mono">100<span style={{ fontSize: 24 }}>%</span></div><div className="lbl">document &amp; service compliance</div></div>
-              <div className="stat"><div className="num mono">1</div><div className="lbl">dashboard for your whole fleet</div></div>
-              <div className="stat"><div className="num mono">€0</div><div className="lbl">spent on GPS tracking hardware</div></div>
-            </div>
-          </div>
-        </section>
-
-        {/* The old "See Rovora in action" section lived here. It was removed when
-            the demo moved into the hero — running the same video twice on one
-            page just splits attention and buries it below three screenfuls. */}
-
-        {/* REPLACES THE PATCHWORK — the consolidation sell, straight after the
-            stats band while the "6 hrs saved on admin" number is still fresh. */}
-        <ReplacesSection />
-
-        {/* OVERVIEW GRID */}
-        <section className="sec-pad way">
-          <div className="container">
-            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <h2 className="sec-title">The modern way to run your fleet</h2>
-              <p className="sec-desc">Everything you need to manage drivers, vehicles, shifts and pay — with the practical intelligence built into the workflows your team already uses every day.</p>
-            </div>
-            <div className="way-grid reveal-stagger">
-              {WAYS.map((w) => {
-                const I = Icon[w.icon];
-                const inner = (
-                  <>
-                    <span className="way-ico"><I /></span>
-                    <span className="way-label">{w.label}</span>
-                  </>
-                );
-                return w.href.startsWith('#') ? (
-                  <a className="way-item" href={w.href} key={w.label}>{inner}</a>
-                ) : (
-                  <Link className="way-item" href={w.href} key={w.label}>{inner}</Link>
-                );
-              })}
-            </div>
-            <div className="way-cta reveal">
-              <a className="way-more" href="#features">
-                See all features
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* FEATURES */}
-        <section className="sec-pad" id="features">
-          <div className="container">
-            <div className="sec-head center reveal" style={{ marginBottom: 72 }}>
-              <span className="kicker">Everything in one place</span>
-              <h2 className="sec-title">Run operations from a single screen</h2>
-              <p className="sec-desc">No more jumping between WhatsApp, paper logs and three different spreadsheets. Rovora keeps the whole operation — and every euro — in view.</p>
-            </div>
-
-            {/* One accordion instead of three stacked rows + a six-card grid:
-                same features, one screenful, with a live mock for whichever
-                row is open. Copy + mocks live in FeaturesAccordion.tsx. */}
-            <FeaturesAccordion />
-          </div>
-        </section>
-
-        {/* HOW IT WORKS */}
-        {/* Tinted band: light green ground, white cards — see .how-band in rovora-site.css */}
-        <section className="sec-pad how-band" id="how">
-          <div className="container">
-            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <span className="kicker">How it works</span>
-              <h2 className="sec-title">Up and running in three steps</h2>
-              <p className="sec-desc">No migration project, no consultants. Add your fleet, run the day from one place, and stay on top of compliance, costs and pay.</p>
-            </div>
-            <div className="how-grid reveal-stagger">
-              <div className="how-step">
-                <span className="how-num mono">1</span>
-                <h3>Add your fleet, drivers &amp; vehicles</h3>
-                <p>Enter them in minutes or send us a spreadsheet and we&rsquo;ll import everything — drivers, vehicles and documents — for you.</p>
+        {/* HERO — the pitch and both CTAs on the left, the manager dashboard
+            on the right. No entrance animation: this is the first paint. */}
+        <section className="home-hero" id="top">
+          <div className="container home-hero-grid">
+            <div className="home-hero-copy">
+              <h1 className="hero-title">Run your whole fleet from <span className="pos">one screen.</span></h1>
+              <p className="hero-sub">Fleet management software for taxi and rideshare fleets. You manage everything on the web. Your drivers use the Rovora app.</p>
+              <div className="hero-actions">
+                <Link className="btn btn-primary btn-lg" href={START_TRIAL}>{startLabel}</Link>
+                <WalkthroughButton video={WALKTHROUGH} />
               </div>
-              <div className="how-step">
-                <span className="how-num mono">2</span>
-                <h3>Run the day from one screen</h3>
-                <p>Drivers clock in from the free app while shifts, mileage, services and damage all flow into Rovora — no calls, no chasing, nothing logged on paper.</p>
+              <p className="trial-note">{trial.span} free <span aria-hidden="true">·</span> No card required</p>
+            </div>
+            <figure className="home-hero-shot">
+              <div className="app-shot">
+                <div className="app-shot-bar" aria-hidden="true"><span /><span /><span /><em>Rovora dashboard · demo account</em></div>
+                {/* eslint-disable-next-line @next/next/no-img-element -- pre-sized 37 KB webp; it is the LCP, so it loads eagerly */}
+                <img
+                  src="/home/dashboard.webp"
+                  width={1280}
+                  height={630}
+                  fetchPriority="high"
+                  alt="Rovora web dashboard from the demo account: 5 active drivers, 4 active vehicles, €9,240 weekly income, €2,148 net profit, an earnings chart and documents expiring soon"
+                />
               </div>
-              <div className="how-step">
-                <span className="how-num mono">3</span>
-                <h3>Stay on top of everything</h3>
-                <p>Document expiries, vehicle health, weekly driver pay and the books — all reconciled and in view, so problems surface before they cost you.</p>
-              </div>
+              <figcaption>The manager dashboard, from the Rovora demo account.</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        {/* PARTNER LOGOS */}
+        <LogoStrip>
+          <IntegrationsMarquee />
+        </LogoStrip>
+
+        {/* ONE PLATFORM, TWO SIDES — who uses what: managers on the web,
+            drivers in the app. */}
+        <section className="sec-pad home-sides" id="who" aria-labelledby="sides-title">
+          <div className="container">
+            <div className="sec-head center reveal">
+              <span className="kicker">One platform, two sides</span>
+              <h2 className="sec-title" id="sides-title">A dashboard for you.<br className="br-desk" /> An app for your drivers.</h2>
+              <p className="sec-desc">Owners and managers run the fleet from the Rovora website. Drivers download the Rovora app to keep track of their own work.</p>
+            </div>
+            <div className="sides-grid reveal-stagger">
+              <article className="side-card">
+                <div className="side-top">
+                  <span className="side-ico" aria-hidden="true"><Icon.monitor /></span>
+                  <div><span className="side-for">For owners &amp; managers</span><h3>The Rovora dashboard</h3></div>
+                </div>
+                <p className="side-how">On the website. Nothing to install.</p>
+                <ul className="side-list">
+                  {MANAGER_POINTS.map((p) => <li key={p}><Check />{p}</li>)}
+                </ul>
+                <div className="side-actions">
+                  <Link className="btn btn-primary btn-lg" href={START_TRIAL}>{startLabel}</Link>
+                  <Link className="text-link" href={SIGN_IN}>Sign in</Link>
+                </div>
+              </article>
+              <article className="side-card side-driver">
+                <div className="side-top">
+                  <span className="side-ico" aria-hidden="true"><Icon.phone /></span>
+                  <div><span className="side-for">For drivers</span><h3>The Rovora driver app</h3></div>
+                </div>
+                <p className="side-how"><strong>Download required.</strong> Your manager invites you, then you sign in on your phone.</p>
+                <ul className="side-list">
+                  {DRIVER_POINTS.map((p) => <li key={p}><Check />{p}</li>)}
+                </ul>
+                <StoreButtons />
+                <p className="side-note">iPhone app coming soon. Until then, iPhone drivers use Rovora in Safari.</p>
+              </article>
             </div>
           </div>
         </section>
 
-        {/* INTEGRATIONS */}
-        {/* TESTIMONIALS — real customer quotes only; the section stays hidden
-            until components/marketing/testimonials.ts has live entries. */}
-        {testimonials.length > 0 && (
-          <section className="sec-pad" id="testimonials">
+        {/* THE EVERYDAY TOOLKIT — pick a tool, see its screen. */}
+        <section className="sec-pad home-toolkit" id="features">
+          <div className="container">
+            <div className="tk-heading reveal">
+              <h2 className="sec-title">The Everyday Toolkit.</h2>
+              <p>Screens from the Rovora demo account, with sample data. Pick a tool to see it.</p>
+            </div>
+            <div className="reveal"><Toolkit /></div>
+          </div>
+        </section>
+
+        {/* FLEET NOTES — one approved customer quote (see testimonials.ts). */}
+        {STORY && (
+          <section className="home-story" aria-labelledby="story-title">
             <div className="container">
-              <div className="sec-head center reveal" style={{ marginBottom: 40 }}>
-                <span className="kicker">What operators say</span>
-                <h2 className="sec-title">Fleets that switched to Rovora</h2>
-              </div>
-              <div className="reveal">
-                <TestimonialsCarousel items={testimonials} />
-              </div>
+              <h2 className="sr-only" id="story-title">A fleet manager’s experience with Rovora</h2>
+              <figure className="story reveal">
+                <div className="story-main">
+                  <span className="story-eyebrow"><Icon.quote aria-hidden="true" />Fleet notes</span>
+                  <blockquote>“<Pull text={STORY.pull} highlight={STORY.highlight} />”</blockquote>
+                </div>
+                <div className="story-fleet" aria-label="Customer fleet snapshot">
+                  <span className="story-fleet-label">The fleet</span>
+                  <div className="story-fleet-size"><strong>{STORY.fleetSize}</strong><span>vehicles</span></div>
+                  <span className="story-place"><Icon.mapPin aria-hidden="true" />{STORY.place}</span>
+                  <a className="story-next" href="#how">See how it works<Icon.arrowRight aria-hidden="true" /></a>
+                </div>
+                <figcaption className="story-author">
+                  <span className="story-author-mark" aria-hidden="true"><Icon.user /></span>
+                  <span><strong>{STORY.title}</strong><span>{STORY.fleetSize} vehicles · {STORY.place}</span></span>
+                </figcaption>
+              </figure>
             </div>
           </section>
         )}
 
-        <section className="sec-pad" id="integrations" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
+        {/* YOUR FLEET, CONNECTED */}
+        <ReplacesSection />
+
+        {/* UP AND RUNNING IN 3 STEPS */}
+        <section className="sec-pad home-setup" id="how">
           <div className="container">
-            <div className="sec-head center reveal" style={{ marginBottom: 56 }}>
-              <span className="kicker">Integrations · On the roadmap</span>
-              <h2 className="sec-title">Built to work with the tools you already run</h2>
-              <p className="sec-desc">Stop copying trip data, positions and payouts by hand. We&rsquo;re building native connections across GPS &amp; telematics, ride-hail platforms, messaging and accounting — so everything flows straight into Rovora.</p>
-            </div>
-
-            <div className="integ-grid reveal-stagger">
-              {INTEGRATIONS.map((it) => (
-                <div className="integ" key={it.name}>
-                  <span className={it.live ? 'integ-live' : 'integ-soon'}>{it.live ? 'Live' : 'Coming soon'}</span>
-                  <div className="integ-logo" style={{ background: it.bg, color: it.fg, fontSize: markFontSize(it.mark) }} aria-hidden>{it.mark}</div>
-                  <div className="integ-name">{it.name}</div>
-                  <p className="integ-desc">{it.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="reveal" style={{ textAlign: 'center', marginTop: 32 }}>
-              <Link className="btn btn-primary btn-lg" href="/integrations">Explore all integrations</Link>
-            </div>
-
-            <p className="integ-note">
-              Want a platform we haven&rsquo;t listed? <a href="mailto:hello@rovora.eu?subject=Integration%20request">Tell us</a> and we&rsquo;ll prioritise it.
-            </p>
+            <h2 className="sec-title reveal">Up and running in 3 steps.</h2>
+            <ol className="setup-grid reveal-stagger">
+              {STEPS.map((s, i) => {
+                const I = Icon[s.icon];
+                return (
+                  <li className="setup-card" key={s.title}>
+                    <div className="setup-top">
+                      <span className="step-label">Step {i + 1}</span>
+                      <span className="setup-ico" aria-hidden="true"><I /></span>
+                    </div>
+                    <h3>{s.title}</h3>
+                    <p>{s.body}</p>
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="setup-note">Need a hand? Fleet includes guided onboarding and assisted data import.</p>
           </div>
         </section>
 
         {/* PRICING */}
-        <section className="sec-pad" id="pricing" style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
+        <section className="sec-pad home-pricing" id="pricing">
           <div className="container">
-            <div className="sec-head center reveal">
-              <span className="kicker">Pricing</span>
-              <h2 className="sec-title">Simple, per-vehicle pricing</h2>
-              <p className="sec-desc">Pay only for the cars you run. Every plan includes the full dashboard, live GPS tracking, the driver app and unlimited team members — no modules, no add-ons, no surprises.</p>
-              <div className="price-incl">
-                <span><span className="ck">✓</span> {trial.freeLabel}</span>
-                <span><span className="ck">✓</span> No card required</span>
-                <span><span className="ck">✓</span> Live GPS tracking included</span>
-                <span><span className="ck">✓</span> Free driver app</span>
-                <span><span className="ck">✓</span> Cancel anytime</span>
-              </div>
+            <div className="sec-head reveal">
+              <span className="kicker">Room to grow</span>
+              <h2 className="sec-title">Clear pricing for<br className="br-desk" /> the fleet you run.</h2>
+              <p className="sec-desc">Start with the plan that fits your working day.</p>
             </div>
-            <PricingPlans plans={plans} />
-            <p className="price-note">Prices in EUR, excl. VAT. Add vehicles any time — you&rsquo;re only billed for what you run. Cancel anytime, no lock-in.</p>
+            <HomePricing plans={plans} />
           </div>
         </section>
 
         {/* FAQ */}
-        <section className="sec-pad" id="faq">
+        <section className="sec-pad home-faq" id="faq">
           <div className="container">
-            <div className="sec-head center reveal">
-              <span className="kicker">FAQ</span>
-              <h2 className="sec-title">Questions, answered</h2>
-            </div>
-            <div className="faq-grid reveal-stagger">
-              {LANDING_FAQ.map((item, i) => (
-                <details className="faq" key={item.q} open={i === 0}>
-                  <summary><span className="q">{item.q}</span><span className="pm" /></summary>
-                  <div className="ans">{item.a}</div>
+            <h2 className="sec-title reveal">A few things before you start.</h2>
+            <div className="faq-list reveal-stagger">
+              {faq.map((item) => (
+                <details key={item.q}>
+                  <summary>
+                    {item.q}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </summary>
+                  <p>{item.a}</p>
                 </details>
               ))}
             </div>
@@ -406,21 +317,21 @@ export default function LandingPage({ plans, trialOffer }: { plans: PlanDef[]; t
         </section>
 
         {/* FINAL CTA */}
-        <section style={{ padding: '20px 0 0' }}>
+        <section className="home-final">
           <div className="container">
-            <div className="cta-band reveal">
-              <h2>Ready to get your fleet on Rovora?</h2>
-              <p>Get your {trial.first} free. No card, no lock-in — just your whole operation, finally in one place.</p>
-              <div className="hero-cta">
-                <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
-                <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>
-              </div>
+            <h2>Make next week easier to run.</h2>
+            <p>Your vehicles, your people, your working day. Together.</p>
+            <div className="final-actions">
+              <Link className="btn btn-primary btn-lg" href={START_TRIAL}>{startLabel}</Link>
+              <Link className="btn btn-ghost btn-lg" href="/contact?topic=demo#form">Request a 15-minute demo</Link>
             </div>
+            <span className="final-note">No card required</span>
           </div>
         </section>
 
         <MarketingFooter onHome />
       </div>
+      <MobileTrialBar />
       <RovoraSupportChat trialOffer={trialOffer} />
     </div>
   );

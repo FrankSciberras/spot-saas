@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -115,10 +116,10 @@ export default async function AdjustmentsFeaturePage() {
           <SplitRow
             icon="file"
             title="A clear trail, every time"
-            body="Each adjustment shows on the driver’s PDF statement and in the audit log — so there are no surprises at payout and no awkward questions later."
+            body="Each adjustment is itemised on the driver’s PDF statement for that week — so there are no surprises at payout and no awkward questions later."
             bullets={[
               'Itemised on the driver’s payslip',
-              'Recorded in the audit log with who and when',
+              'Listed against the week it applies to',
               'Drivers see exactly why their pay changed',
             ]}
             visual={
@@ -140,15 +141,17 @@ export default async function AdjustmentsFeaturePage() {
           <IconGrid
             items={[
               { icon: 'plusCircle', title: 'Bonuses', body: 'Reward a big week or a tough shift — added straight to pay.' },
-              { icon: 'coins', title: 'Expenses', body: 'Log costs a driver covered so they’re paid back correctly.' },
+              { icon: 'coins', title: 'Expenses', body: 'Costs you covered on a driver’s behalf, taken off that week’s pay.' },
               { icon: 'repeat', title: 'Reimbursements', body: 'Car washes, tolls, sundries — returned without a spreadsheet.' },
               { icon: 'minusCircle', title: 'Deductions', body: 'Deposits, excesses and fines recovered cleanly over time.' },
               { icon: 'check', title: 'Auto-applied', body: 'Netted into the settlement the second you save it.' },
-              { icon: 'shield', title: 'On the record', body: 'Itemised on the payslip and logged in the audit trail.' },
+              { icon: 'shield', title: 'On the record', body: 'Itemised on the driver’s statement for that week.' },
             ]}
           />
         </div>
       </section>
+
+      <FeatureExtras slug="adjustments" />
 
       <CtaBand
         title="Never chase a missing €40 again."

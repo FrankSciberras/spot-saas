@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -55,7 +56,7 @@ export default async function LiveTrackingFeaturePage() {
         items={[
           { num: '24/7', label: 'live view of the fleet' },
           { num: '0', label: 'phone calls to check in' },
-          { num: '4', label: 'angles photographed each shift' },
+          { num: '4', label: 'photo angles at shift start' },
           { num: '1', label: 'tap for a driver to go online' },
         ]}
       />
@@ -71,9 +72,9 @@ export default async function LiveTrackingFeaturePage() {
           <SplitRow
             icon="pulse"
             title="Live shift status"
-            body="See who’s on shift, who’s off and who’s running late at a glance. Hours tick up in real time, so you always know your available capacity without asking."
+            body="See who’s on shift and who’s off at a glance. Hours tick up in real time, so you always know your available capacity without asking."
             bullets={[
-              'On shift, off duty and running-late states',
+              'On shift or off duty, per driver',
               'Live hours per driver, updated as they work',
               'Available capacity visible at a glance',
             ]}
@@ -82,28 +83,31 @@ export default async function LiveTrackingFeaturePage() {
                 <div className="mock-rows">
                   <div className="mock-row"><span className="av" /><span className="nm">A. Murphy</span><span className="meta">· 12-D-4471 · 6h 12m</span><span className="st">On shift</span></div>
                   <div className="mock-row"><span className="av" /><span className="nm">S. Doyle</span><span className="meta">· 21-C-9920 · 3h 40m</span><span className="st">On shift</span></div>
-                  <div className="mock-row"><span className="av" /><span className="nm">K. Walsh</span><span className="meta">· not started</span><span className="st idle">Late</span></div>
+                  <div className="mock-row"><span className="av" /><span className="nm">K. Walsh</span><span className="meta">· ended 14:05</span><span className="st idle">Off duty</span></div>
                 </div>
               </ShotFrame>
             }
           />
 
           <SplitRow
-            icon="chart"
+            icon="bell"
             flip
-            title="Earnings as the day unfolds"
-            body="Per-driver earnings build up live across the shift, so you can catch a slow day early and see your best performers without waiting for the weekly settlement."
+            title="On shift but not on the map? You’ll know why"
+            body="A driver can be on shift without sharing location: permission refused, sharing switched off, or signed in on the website instead of the app. Rovora lists each one with the specific reason and what to tell them."
             bullets={[
-              'Live euros earned per driver',
-              'Fleet revenue for the day in one number',
-              'Catch a quiet shift while there’s still time to act',
+              'An “On shift, not sharing location” list on the live map',
+              'The exact reason per driver, and the fix',
+              'The app reminds drivers and restarts sharing by itself',
             ]}
             visual={
-              <ShotFrame path="dashboard" tight>
-                <div className="mock-cards">
-                  <div className="mock-card"><div className="k">Top earner</div><div className="v">€412</div></div>
-                  <div className="mock-card"><div className="k">Fleet avg</div><div className="v">€221</div></div>
-                  <div className="mock-card"><div className="k">Revenue / wk</div><div className="v pos">€18.4k</div></div>
+              <ShotFrame path="tracking" tight>
+                <div className="mock-top">
+                  <span className="mock-title">On shift, not sharing location</span>
+                  <span className="mock-pill">2 drivers</span>
+                </div>
+                <div className="mock-rows">
+                  <div className="mock-row"><span className="nm">S. Doyle</span><span className="meta">· location only while the app is open</span><span className="st idle">Fix</span></div>
+                  <div className="mock-row"><span className="nm">K. Walsh</span><span className="meta">· using the website, not the app</span><span className="st idle">Fix</span></div>
                 </div>
               </ShotFrame>
             }
@@ -221,6 +225,8 @@ export default async function LiveTrackingFeaturePage() {
           />
         </div>
       </section>
+
+      <FeatureExtras slug="live-tracking" />
 
       <CtaBand
         title="Stop calling round to find your drivers."

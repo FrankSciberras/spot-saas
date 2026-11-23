@@ -6,6 +6,7 @@ import Link from 'next/link';
 import DatePicker from '@/components/shared/DatePicker';
 import AddDriverModal from '@/components/fleet/AddDriverModal';
 import FleetIcon from '@/components/fleet/FleetIcon';
+import FleetPageHeader from '@/components/fleet/FleetPageHeader';
 import SettlementImportModal, { type StagedImport, type ImportedFigures } from './SettlementImportModal';
 import {
   getDefaultFssTax,
@@ -1339,8 +1340,10 @@ export default function SettlementsWorkspace({
 
   return (
     <div className={styles.workspace}>
-      {isAdmin && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      <FleetPageHeader
+        breadcrumb="Financial / Settlements"
+        title="Settlements"
+        action={isAdmin ? (
           <Link
             href="/fleet/settlements/settings"
             className="btn btn-secondary btn-sm"
@@ -1348,8 +1351,8 @@ export default function SettlementsWorkspace({
           >
             <FleetIcon name="adjust" size={14} /> Settlement rules
           </Link>
-        </div>
-      )}
+        ) : undefined}
+      />
 
       {/* Navigation Header: Year > Month > Week — folds to one line once a week is chosen */}
       {navCollapsed && currentPeriod && !isCreatingPeriod ? (

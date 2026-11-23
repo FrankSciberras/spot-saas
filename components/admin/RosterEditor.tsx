@@ -278,7 +278,11 @@ export default function RosterEditor({ roster, vehicles, drivers, mode, isAdmin 
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <FleetBackLink href="/fleet/rosters" label="Back to rosters" flush />
+          <div className={styles.breadcrumb}>Operations / Rosters / {mode === 'create' ? 'New' : 'Edit'}</div>
+          <div className="fleetTitleRow">
+            <FleetBackLink href="/fleet/rosters" label="Back to rosters" />
+            <h1 className={styles.pageTitle}>{mode === 'create' ? 'New roster' : (title.trim() || 'Edit roster')}</h1>
+          </div>
         </div>
         <div className={styles.headerRight}>
           {isAdmin && (

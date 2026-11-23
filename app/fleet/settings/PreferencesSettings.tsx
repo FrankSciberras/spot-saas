@@ -21,8 +21,7 @@ export default function PreferencesSettings({ isAdmin, notify }: { isAdmin: bool
   return (
     <>
       <SettingsSection title="Appearance" description="These only change Rovora for you — not for the rest of your team.">
-        <div className={styles.settingCard}>
-          <div className={styles.settingIcon} aria-hidden>{THEME.icon}</div>
+        <div className={styles.settingCard} data-control="stack">
           <div className={styles.settingContent}>
             <div className={styles.settingLabel}>{THEME.label}</div>
             <div className={styles.settingDescription}>{THEME.description}</div>

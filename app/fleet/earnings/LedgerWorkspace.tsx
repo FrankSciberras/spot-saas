@@ -52,7 +52,8 @@ function Stat({ label, value, color, icon, delta }: { label: string; value: stri
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
         <FleetIcon name={icon} size={11} /> {label}
       </div>
-      <div className="mono tnum" style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
+      {/* Scales down on a narrow phone so an amount is never cut to "€4,260.…". */}
+      <div className="mono tnum" title={value} style={{ fontSize: 'clamp(15px, 5.1vw, 22px)', fontWeight: 500, letterSpacing: '-0.02em', color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
       {delta && (
         <div style={{ marginTop: 4, fontSize: 11.5, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
           {delta.dir !== 'flat' && <FleetIcon name={delta.dir === 'up' ? 'arrow-up' : 'arrow-down'} size={10} />}
@@ -267,7 +268,7 @@ export default function LedgerWorkspace({
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>Financial / Bookkeeping</div>
           <div style={st.titleRow}>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text-1)' }}>Bookkeeping</h1>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }} className="fleetLedgerActions">
               <button style={st.ghostBtn} className="fleetHover" onClick={() => setShowVehicleCosts(true)}>
                 <FleetIcon name="vehicle" size={14} /> Recurring costs
               </button>
@@ -335,7 +336,7 @@ export default function LedgerWorkspace({
         {/* MAIN: the ledger */}
         <div style={st.card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, padding: 2 }}>
+            <div className="fleetSegTabs" style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, padding: 2 }}>
               {([['all', 'All'], ['income', 'Income'], ['expense', 'Expenses']] as [KindFilter, string][]).map(([v, label]) => {
                 const on = kindFilter === v;
                 return (
@@ -345,7 +346,7 @@ export default function LedgerWorkspace({
                 );
               })}
             </div>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...st.textInput, width: 'auto', padding: '6px 8px', fontSize: 12.5 }}>
+            <select className="fleetFilterSelect" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...st.textInput, width: 'auto', maxWidth: '100%', padding: '6px 8px', fontSize: 12.5 }}>
               <option value="">All categories</option>
               {(kindFilter !== 'expense') && incomeCategories.length > 0 && (
                 <optgroup label="Income">
@@ -358,7 +359,7 @@ export default function LedgerWorkspace({
                 </optgroup>
               )}
             </select>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 160px', minWidth: 140, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, padding: '6px 9px' }}>
+            <div className="fleetFilterSearch" style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 160px', minWidth: 140, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, padding: '6px 9px' }}>
               <FleetIcon name="search" size={13} />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, car, driver…" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5 }} />
               {search && <button onClick={() => setSearch('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 0, display: 'inline-flex' }} aria-label="Clear search"><FleetIcon name="close" size={12} /></button>}
@@ -507,7 +508,7 @@ export default function LedgerWorkspace({
         className="show-mobile-only fleetHover"
         onClick={() => setModal({ kind: 'expense' })}
         aria-label="Add expense"
-        style={{ position: 'fixed', right: 18, bottom: 22, width: 54, height: 54, borderRadius: 27, background: 'var(--accent)', color: '#fff', border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 50 }}
+        style={{ position: 'fixed', right: 16, bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 16px)', width: 54, height: 54, borderRadius: 27, background: 'var(--accent)', color: '#fff', border: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 20 }}
       >
         <FleetIcon name="plus" size={24} stroke={2.2} />
       </button>

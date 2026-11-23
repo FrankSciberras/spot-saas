@@ -369,7 +369,7 @@ export default function RemindersManager({
                 </div>
 
                 {(canEdit || canDelete) && (
-                  <div style={st.actions}>
+                  <div style={st.actions} className="fleetTodoActions">
                     {canEdit && (
                       <button style={st.actionBtn} className="fleetGhostBtn" onClick={() => openEdit(r)}>
                         <FleetIcon name="pencil" size={13} /> Edit

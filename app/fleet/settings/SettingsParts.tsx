@@ -26,9 +26,8 @@ export function SettingsSection({
   );
 }
 
-/** One on/off fleet setting: icon, label, explanation and a switch. */
+/** One on/off fleet setting: label, explanation and a switch. */
 export function ToggleCard({
-  icon,
   label,
   description,
   checked,
@@ -38,7 +37,6 @@ export function ToggleCard({
   offLabel = 'Disabled',
   children,
 }: {
-  icon: string;
   label: string;
   description: ReactNode;
   checked: boolean;
@@ -50,19 +48,18 @@ export function ToggleCard({
   children?: ReactNode;
 }) {
   return (
-    <div className={styles.settingCard}>
-      <div className={styles.settingIcon} aria-hidden>{icon}</div>
+    <div className={styles.settingCard} data-control="toggle">
       <div className={styles.settingContent}>
         <div className={styles.settingLabel}>{label}</div>
         <div className={styles.settingDescription}>{description}</div>
         {children}
       </div>
       <div className={styles.settingAction}>
+        <span className={styles.statusLabel}>{checked ? onLabel : offLabel}</span>
         <label className={`${styles.toggle} ${saving ? styles.toggleDisabled : ''}`}>
           <input type="checkbox" checked={checked} onChange={onToggle} disabled={saving} aria-label={label} />
           <span className={styles.toggleSlider}></span>
         </label>
-        <span className={styles.statusLabel}>{checked ? onLabel : offLabel}</span>
       </div>
     </div>
   );
@@ -70,21 +67,18 @@ export function ToggleCard({
 
 /** A card that sends the admin to where a setting is actually managed. */
 export function LinkCard({
-  icon,
   label,
   description,
   href,
   cta,
 }: {
-  icon: string;
   label: string;
   description: ReactNode;
   href: string;
   cta: string;
 }) {
   return (
-    <div className={styles.settingCard}>
-      <div className={styles.settingIcon} aria-hidden>{icon}</div>
+    <div className={styles.settingCard} data-control="stack">
       <div className={styles.settingContent}>
         <div className={styles.settingLabel}>{label}</div>
         <div className={styles.settingDescription}>{description}</div>

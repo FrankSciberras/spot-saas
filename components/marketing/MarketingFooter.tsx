@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SIGN_IN, START_TRIAL, featureHref } from './links';
+import { SIGN_IN, START_TRIAL, AUDIENCES, featureHref, audienceHref } from './links';
 import RovoraThemeToggle from './RovoraThemeToggle';
 import { CookieSettingsButton } from '@/components/analytics/CookieBanner';
 
@@ -21,11 +21,32 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
             ) : (
               <Link className="logo" href="/"><img src="/logo-full.png" alt="Rovora" /></Link>
             )}
-            <p>Fleet management for small taxi &amp; cab operators. Drivers, vehicles, shifts and settlements — in one clean dashboard.</p>
-            <div className="foot-trust">
-              <span>Built for taxi &amp; cab fleets of 5–50 vehicles</span>
+            <p>Fleet management for small taxi &amp; cab operators. Drivers, vehicles, shifts and settlements, in one clean dashboard.</p>
+            <ul className="foot-badges">
+              <li>Built for taxi &amp; cab fleets of 5–50 vehicles</li>
+              <li><span className="live" aria-hidden="true" /> EU-hosted · data encrypted</li>
+            </ul>
+            <div className="foot-app">
+              <a
+                className="gplay-badge"
+                href="https://play.google.com/store/apps/details?id=eu.rovora.driver&hl=en"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Get Rovora Driver on Google Play"
+              >
+                <svg className="gplay-logo" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#00A0FF" d="M3 1.5 11.5 12 3 22.5Z" />
+                  <path fill="#FF3B30" d="M3 1.5 21 10.3 11.5 12Z" />
+                  <path fill="#00D267" d="M3 22.5 21 13.7 11.5 12Z" />
+                  <path fill="#FFCE00" d="M21 10.3 21 13.7 11.5 12Z" />
+                </svg>
+                <span className="gplay-text">
+                  <small>Free driver app · Get it on</small>
+                  <strong>Google Play</strong>
+                </span>
+              </a>
+              <span className="foot-app-soon">iOS coming soon</span>
             </div>
-            <div className="foot-badge"><span className="live" /> EU-hosted · data encrypted</div>
           </div>
 
           {/* Link columns */}
@@ -38,6 +59,7 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href="/pricing">Pricing</Link>
               <a href={h('faq')}>FAQ</a>
               <Link href="/changelog">What&rsquo;s new</Link>
+              <Link href="/roadmap">Roadmap</Link>
               <Link href={START_TRIAL}>Get started free</Link>
               <Link href={SIGN_IN}>Sign in</Link>
             </div>
@@ -49,6 +71,9 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href={featureHref('damage')}>Damage &amp; repairs</Link>
               <Link href={featureHref('live-tracking')}>Live driver tracking</Link>
               <Link href={featureHref('rosters')}>Rosters &amp; shifts</Link>
+              <Link href={featureHref('messages')}>Driver messaging</Link>
+              <Link href={featureHref('safety')}>Driver safety</Link>
+              <Link href={featureHref('driver-app')}>Driver app</Link>
             </div>
 
             <div className="foot-col">
@@ -56,18 +81,24 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
               <Link href={featureHref('settlements')}>Weekly settlements</Link>
               <Link href={featureHref('flexible-pay')}>Flexible pay</Link>
               <Link href={featureHref('adjustments')}>Adjustments</Link>
-              <a href={h('features')}>Financials &amp; bookkeeping</a>
+              <Link href={featureHref('bookkeeping')}>Financials &amp; bookkeeping</Link>
               <Link href="/pricing">Plans &amp; billing</Link>
             </div>
 
             <div className="foot-col">
               <h5>Integrations</h5>
-              <Link href="/integrations">GPS &amp; telematics</Link>
-              <Link href="/integrations">Ride-hail platforms</Link>
-              <Link href="/integrations">WhatsApp &amp; email</Link>
-              <Link href="/integrations">Xero &amp; QuickBooks</Link>
+              <Link href={featureHref('bolt')}>Bolt integration</Link>
+              <Link href="/integrations">Xero &amp; QuickBooks export</Link>
+              <Link href="/integrations">All integrations</Link>
               <Link href="/docs/api">Developer API</Link>
               <a href="mailto:hello@rovora.eu?subject=Integration%20request">Request an integration</a>
+            </div>
+
+            <div className="foot-col">
+              <h5>Who it&rsquo;s for</h5>
+              {AUDIENCES.map((a) => (
+                <Link key={a.slug} href={audienceHref(a.slug)}>{a.label}</Link>
+              ))}
             </div>
 
             <div className="foot-col">
@@ -82,38 +113,16 @@ export default function MarketingFooter({ onHome = false }: { onHome?: boolean }
           </div>
         </div>
 
-        {/* Newsletter + driver app */}
+        {/* Newsletter */}
         <div className="foot-news">
           <div className="foot-news-copy">
             <h4>Get fleet tips in your inbox</h4>
-            <p>The occasional product update and operator playbook — no spam.</p>
+            <p>The occasional product update and operator playbook. No spam.</p>
           </div>
           <a className="foot-sub" href="mailto:hello@rovora.eu?subject=Subscribe%20to%20updates">
             Subscribe
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </a>
-          <div className="foot-app">
-            <span className="foot-app-label">Free driver app</span>
-            <a
-              className="gplay-badge"
-              href="https://play.google.com/store/apps/details?id=eu.rovora.driver&hl=en"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Get Rovora Driver on Google Play"
-            >
-              <svg className="gplay-logo" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#00A0FF" d="M3 1.5 11.5 12 3 22.5Z" />
-                <path fill="#FF3B30" d="M3 1.5 21 10.3 11.5 12Z" />
-                <path fill="#00D267" d="M3 22.5 21 13.7 11.5 12Z" />
-                <path fill="#FFCE00" d="M21 10.3 21 13.7 11.5 12Z" />
-              </svg>
-              <span className="gplay-text">
-                <small>GET IT ON</small>
-                <strong>Google Play</strong>
-              </span>
-            </a>
-            <span className="foot-app-soon">iOS coming soon</span>
-          </div>
         </div>
 
         {/* Bottom legal bar */}

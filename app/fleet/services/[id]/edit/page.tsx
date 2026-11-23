@@ -38,10 +38,12 @@ export default async function EditServicePage({ params }: PageProps) {
 
   return (
     <FleetShell user={user} title="Edit Service">
-      <FleetBackLink href={`/fleet/services/${id}`} label="Back to service" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
-          <h2>Edit Service</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href={`/fleet/services/${id}`} label="Back to service" />
+            <h2>Edit Service</h2>
+          </div>
           <span className={styles.subtitle}>
             Update service record details
           </span>

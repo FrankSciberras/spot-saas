@@ -163,7 +163,7 @@ export const FLEET_MODULES: FleetModule[] = [
     name: 'Bolt',
     tagline: 'Rides & earnings from Bolt',
     description:
-      'Connect your Bolt fleet account to see rides, fares, tips, acceptance rates and who is online — per driver, updated every hour.',
+      'Connect your Bolt fleet account to bring every Bolt driver and car into Rovora in one click, then see rides, fares, tips, acceptance rates and who is online — per driver, updated every hour.',
     icon: 'bolt',
     category: 'Integrations',
     status: 'available',
@@ -185,6 +185,22 @@ export const FLEET_MODULES: FleetModule[] = [
     status: 'available',
     defaultEnabled: false,
     navIds: ['gps'],
+    routePrefixes: [],
+  },
+  {
+    // The fleet assistant (lib/assistant, components/assistant). No pages of
+    // its own — it lives in the topbar "Ask AI" button and the ⌘K palette.
+    // Each plan's monthly AI allowance + rate limits still apply (plans.ai_*).
+    key: 'assistant',
+    name: 'Rovora AI',
+    tagline: 'Ask your fleet anything',
+    description:
+      'Ask questions in plain English — which car cost the most, who skipped a pre-shift check, what expires this month — and get answers from your own fleet data, linked to the records behind them. Read-only: it never changes anything.',
+    icon: 'sparkle',
+    category: 'Operations',
+    status: 'available',
+    defaultEnabled: true,
+    navIds: [],
     routePrefixes: [],
   },
   {

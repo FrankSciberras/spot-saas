@@ -81,9 +81,10 @@ export default function FleetDashboard({
       </div>
 
       {isAdmin && financialSeries.length > 0 && (
-        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ marginBottom: 24 }}>
+          {/* Quick actions already sits in the row above — it used to be
+              repeated here, next to the breakdown. */}
           <ExpenseBreakdownCard totals={totals} data={expenseBreakdown} />
-          <QuickActionsCard isAdmin={isAdmin} />
         </div>
       )}
     </>
@@ -223,7 +224,7 @@ function HeroTile({
         {suffix && <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{suffix}</span>}
       </div>
       <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {delta != null && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -237,9 +238,10 @@ function HeroTile({
               {delta}
             </span>
           )}
-          {deltaLabel && <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{deltaLabel}</span>}
+          {deltaLabel && <span style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{deltaLabel}</span>}
         </div>
-        {spark}
+        {/* The sparkline gives way first when the tile is narrow (tablet). */}
+        {spark && <div style={{ flex: '0 1 140px', minWidth: 0, overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>{spark}</div>}
       </div>
     </div>
   );
@@ -253,7 +255,7 @@ function EarningsPanel({ data, totals }: { data: EarningsDatum[]; totals: { inco
   return (
     <Card>
       <CardHeader title="Earnings" subtitle="Last 12 weeks, week by week" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
+      <div className="fleetMiniStats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0, borderTop: '1px solid var(--line-1)', borderBottom: '1px solid var(--line-1)' }}>
         <MiniStat label="Income" value={fmtEUR(totals.income, { decimals: 0 })} color="var(--pos)" />
         <MiniStat label="Expenses" value={fmtEUR(totals.expenses, { decimals: 0 })} color="var(--neg)" />
         <MiniStat label="Profit" value={fmtEUR(totals.profit, { decimals: 0 })} color="var(--accent)" />
@@ -273,9 +275,9 @@ function EarningsPanel({ data, totals }: { data: EarningsDatum[]; totals: { inco
 
 function MiniStat({ label, value, color, noPipe }: { label: string; value: string; color: string; noPipe?: boolean }) {
   return (
-    <div style={{ padding: '14px 18px', borderRight: noPipe ? 'none' : '1px solid var(--line-1)' }}>
+    <div style={{ padding: '14px 18px', minWidth: 0, borderRight: noPipe ? 'none' : '1px solid var(--line-1)' }}>
       <div style={{ fontSize: 11.5, color: 'var(--text-3)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-      <span className="mono tnum" style={{ fontSize: 20, fontWeight: 500, color, letterSpacing: '-0.01em' }}>{value}</span>
+      <span className="mono tnum" style={{ fontSize: 20, fontWeight: 500, color, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>{value}</span>
     </div>
   );
 }

@@ -162,16 +162,24 @@ async function resolveRecipients(
         if (ids.size === 0) throw new AudienceError('Select at least one operator.');
         target = orgs.filter((o) => ids.has(o.id));
         summary = target.length === 1 ? `Operators of ${target[0].name}` : `Operators of ${target.length} fleets`;
+      } else if (aud.scope === 'not_set_up') {
+        const ids = await fleetsNotSetUp(admin);
+        target = orgs.filter((o) => ids.has(o.id));
+        summary = 'Admins of fleets with no drivers or vehicles yet';
+        if (target.length === 0) throw new AudienceError('Every fleet has added drivers or vehicles — no one to send to.');
       }
       if (target.length === 0) throw new AudienceError('No operators matched that audience.');
 
       const targetIds = new Set(target.map((o) => o.id));
+      // Only an admin can connect integrations and add the fleet, so a
+      // "finish setting up" email goes to admins, not staff.
+      const roles = aud.scope === 'not_set_up' ? ['admin'] : ['admin', 'staff'];
       const mems = (
         await fetchAll<MemberRow>((a, b) =>
           admin
             .from('memberships')
             .select('user_id, organization_id, role')
-            .in('role', ['admin', 'staff'])
+            .in('role', roles)
             .order('created_at')
             .order('id')
             .range(a, b),
@@ -239,6 +247,48 @@ async function resolveRecipients(
   }
 
   return { recipients: [...byEmail.values()], summary };
+}
+
+/**
+ * Fleets that signed up but never got going: no drivers AND no vehicles.
+ * Leaves out fleets that can't open their dashboard (expired trial, suspended
+ * or cancelled) — the email's button would only land them on a lock screen —
+ * and fleets that told us at sign-up they don't work with Bolt.
+ */
+async function fleetsNotSetUp(admin: AdminClient): Promise<Set<string>> {
+  const [orgs, drivers, vehicles] = await Promise.all([
+    fetchAll<{ id: string; plan: string | null; status: string | null; trial_ends_at: string | null }>((a, b) =>
+      admin.from('organizations').select('id, plan, status, trial_ends_at').order('id').range(a, b),
+    ),
+    fetchAll<{ organization_id: string | null }>((a, b) =>
+      admin.from('drivers').select('organization_id').order('id').range(a, b),
+    ),
+    fetchAll<{ organization_id: string | null }>((a, b) =>
+      admin.from('vehicles').select('organization_id').order('id').range(a, b),
+    ),
+  ]);
+  const hasFleet = new Set([...drivers, ...vehicles].map((r) => r.organization_id).filter(Boolean));
+
+  // Answered at sign-up since the Bolt import shipped. The column comes with
+  // 20261123_bolt_fleet_import.sql; before that, nobody has answered.
+  const noBolt = new Set<string>();
+  const answers = await admin.from('organizations').select('id, ride_platforms').not('ride_platforms', 'is', null).range(0, 9999);
+  if (!answers.error) {
+    for (const o of (answers.data ?? []) as { id: string; ride_platforms: string[] | null }[]) {
+      if (o.ride_platforms && o.ride_platforms.length > 0 && !o.ride_platforms.includes('bolt')) noBolt.add(o.id);
+    }
+  }
+
+  const now = Date.now();
+  const out = new Set<string>();
+  for (const o of orgs) {
+    if (hasFleet.has(o.id) || noBolt.has(o.id)) continue;
+    if (o.status === 'suspended' || o.status === 'cancelled') continue;
+    const onTrial = (o.plan ?? 'trial') === 'trial';
+    if (onTrial && (!o.trial_ends_at || new Date(o.trial_ends_at).getTime() < now)) continue;
+    out.add(o.id);
+  }
+  return out;
 }
 
 async function loadUnsubscribed(admin: AdminClient): Promise<Set<string>> {

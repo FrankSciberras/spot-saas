@@ -259,7 +259,7 @@ export default function DashboardClient(props: {
                     <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
                     <YAxis
                       tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                      tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                      tickFormatter={(v) => { const n = Number(v); return n >= 1000 ? `${+(n / 1000).toFixed(1)}k` : `${Math.round(n)}`; }}
                     />
                     <Tooltip
                       contentStyle={{
@@ -365,7 +365,12 @@ export default function DashboardClient(props: {
               <Link href="/driver/roster" className={styles.cardLink}>Roster →</Link>
             </div>
             <div className={styles.quickActions}>
-              <Link href="/driver/go-online" className={styles.actionTile}>Start Shift</Link>
+              {/* Don't offer "Start Shift" to someone who is already on one. */}
+              {props.hasActiveShift ? (
+                <Link href="/driver/end-shift" className={styles.actionTile}>End Shift</Link>
+              ) : (
+                <Link href="/driver/go-online" className={styles.actionTile}>Start Shift</Link>
+              )}
               <Link href="/driver/shifts" className={styles.actionTile}>My Shifts</Link>
               <Link href="/driver/settlements" className={styles.actionTile}>Settlements</Link>
               <Link href="/driver/profile" className={styles.actionTile}>Profile</Link>

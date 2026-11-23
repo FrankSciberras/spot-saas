@@ -219,6 +219,14 @@
 
 html {
   font-size: 16px;
+  /* Stop iOS Safari "text autosizing". Without this it enlarges text on its own
+     inside anything wider than the screen (a scrolling table, the roster grid),
+     so plain-text cells came out at twice the size of the badges beside them.
+     NOTE: the build strips the -webkit- line below (iOS isn't in its browser
+     targets), and iOS reads ONLY that one — the working copy is the inline
+     style on <html> in app/layout.tsx. Kept here for other browsers. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

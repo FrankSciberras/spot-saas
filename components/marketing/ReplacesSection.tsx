@@ -1,22 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { START_TRIAL } from './links';
 
 // =============================================================================
-// "ONE APP INSTEAD OF ALL OF THESE" — the consolidation pitch
+// "EVERYTHING INTEGRATED INTO ONE APP" — the homepage connections diagram
 // =============================================================================
-// The strongest sales argument Rovora has: most fleets already run on a
-// patchwork of consumer apps — Excel for pay, WhatsApp for shifts, Life360 to
-// see where cars are, Xero for the books. This section names that patchwork,
-// shows it visually converging into Rovora, and lets the visitor recognise
-// their own phone's home screen in it.
+// Most fleets already run on a patchwork of consumer apps — Excel for pay,
+// WhatsApp for shifts, Life360 to see where cars are, Xero for the books. This
+// section names that patchwork and shows it converging into Rovora.
 //
-// LOGOS: drop square, transparent PNGs into /public/replaces/ using the exact
+// LOGOS: square, transparent PNGs in /public/replaces/ using the exact
 // filenames below (see the README there). Until a file exists, the chip shows
-// a neutral monogram instead of a broken image — the section ships fine today
-// and upgrades itself as logos land.
+// a neutral monogram instead of a broken image.
 // =============================================================================
 
 type App = {
@@ -76,18 +71,17 @@ function AppChip({ app }: { app: App }) {
 
 export default function ReplacesSection() {
   return (
-    <section className="sec-pad" id="replaces">
+    <section className="sec-pad home-connect" id="integrations">
       <div className="container">
         <div className="sec-head center reveal">
-          <span className="kicker">All-in-one</span>
-          <h2 className="sec-title">One app instead of all of these.</h2>
+          <span className="kicker">Your fleet, connected</span>
+          <h2 className="sec-title">Everything integrated<br className="br-desk" /> into one app.</h2>
           <p className="sec-desc">
-            Stop working with 3+ apps to manage your fleet. One app does them all. Rosters, live
-            tracking, automated wages and accounting, all of it.
+            Bring rosters, tracking, driver pay and fleet records together. Keep the connections you need.
           </p>
         </div>
 
-        <div className="rep-stage reveal" role="img" aria-label="Excel, Google Sheets, WhatsApp, Life360, Google Calendar, Google Maps, Xero and QuickBooks all converging into Rovora">
+        <div className="rep-stage reveal" role="img" aria-label="Illustration of the workflows you can bring together in Rovora: Excel, Google Sheets, WhatsApp, Life360, Google Calendar, Google Maps, Xero and QuickBooks">
           {/* Connector lines, drawn in the same %-coordinate space the chips are
               positioned in, so they track the chips at any container size. */}
           <svg className="rep-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
@@ -118,14 +112,11 @@ export default function ReplacesSection() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-mark.png" alt="" width={40} height={40} />
             <span className="rep-hub-name">Rovora</span>
-            <span className="rep-hub-sub">One login · one bill</span>
+            <span className="rep-hub-sub">Connected workflows</span>
           </div>
         </div>
 
-        <div className="rep-cta reveal">
-          <Link className="btn btn-primary btn-lg" href={START_TRIAL}>Get started free</Link>
-          <Link className="btn btn-ghost btn-lg" href="/integrations">See all integrations</Link>
-        </div>
+        <p className="rep-caption reveal">An illustration of connected workflows. Live connections and file exports vary by tool.</p>
       </div>
     </section>
   );

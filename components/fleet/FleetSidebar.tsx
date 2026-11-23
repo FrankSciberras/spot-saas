@@ -21,6 +21,7 @@ import {
   canSeeNavItem,
   type NavItem,
 } from './navConfig';
+import { useCollapsedNavGroups } from './useCollapsedNavGroups';
 import FleetIcon from './FleetIcon';
 import { badgeText, useUnreadMessages } from '@/components/messages/useUnreadMessages';
 
@@ -206,6 +207,8 @@ export default function FleetSidebar({
   const isDriver = variant === 'driver';
   const rootHref = isDriver ? '/driver' : '/fleet';
   const navGroups = isDriver ? DRIVER_NAV_GROUPS : NAV_GROUPS;
+  // Sections the person has folded away (remembered per browser).
+  const { collapsed: foldedGroups, toggle: toggleGroup } = useCollapsedNavGroups();
 
   // Identity, billing, profile, help and sign-out now live in the topbar
   // account menu (FleetAccountMenu) — the sidebar is navigation only.
@@ -289,13 +292,37 @@ export default function FleetSidebar({
 
       {railed && collapseToggle && <div style={s.railToggleRow}>{collapseToggle}</div>}
 
-      <nav style={{ ...s.nav, ...(railed ? s.navRail : {}) }}>
+      <nav className="fleetSideNav" style={{ ...s.nav, ...(railed ? s.navRail : {}), ...(isMobile ? s.navMobile : {}) }}>
         {navGroups.map((g, gi) => {
-          const items = g.items.filter(canSee);
-          if (!items.length) return null;
+          const allItems = g.items.filter(canSee);
+          if (!allItems.length) return null;
+          // A folded section still shows the page you're on, so you never lose
+          // your place. The icon rail never folds (no headers to click there).
+          const folded = !railed && !!g.label && foldedGroups.has(g.label);
+          const items = folded ? allItems.filter((item) => isActive(item.href)) : allItems;
+          const listId = `fleet-nav-${gi}`;
           return (
-            <div key={gi} style={{ marginBottom: railed ? 8 : 14 }}>
-              {g.label && (railed ? <div style={s.railDivider} /> : <div style={s.navLabel}>{g.label}</div>)}
+            <div key={gi} style={{ marginBottom: railed ? 8 : folded ? 6 : 14 }}>
+              {g.label &&
+                (railed ? (
+                  <div style={s.railDivider} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(g.label!)}
+                    aria-expanded={!folded}
+                    aria-controls={listId}
+                    className="fleetNavGroupBtn"
+                    style={s.navGroupBtn}
+                    title={folded ? `Show ${g.label}` : `Hide ${g.label}`}
+                  >
+                    <span>{g.label}</span>
+                    <span style={{ display: 'flex', transition: 'transform 0.15s ease', transform: folded ? 'rotate(-90deg)' : 'none' }}>
+                      <FleetIcon name="chevron-down" size={12} stroke={2} />
+                    </span>
+                  </button>
+                ))}
+              <div id={listId}>
               {items.map((item) => {
                 const active = isActive(item.href);
                 return (
@@ -332,6 +359,7 @@ export default function FleetSidebar({
                   </Link>
                 );
               })}
+              </div>
             </div>
           );
         })}
@@ -360,12 +388,18 @@ export default function FleetSidebar({
     return (
       <>
         {open && <div style={s.scrim} onClick={onClose} />}
-        <aside style={{ ...s.sidebar, ...s.sidebarMobile, transform: open ? 'translateX(0)' : 'translateX(-100%)' }}>
+        <aside
+          className="fleetDrawer"
+          style={{ ...s.sidebar, ...s.sidebarMobile, transform: open ? 'translateX(0)' : 'translateX(-100%)' }}
+          aria-hidden={!open}
+        >
           {body}
         </aside>
         <nav style={s.bottomBar}>
           {(isDriver ? bottomTabs.slice(0, 2) : bottomTabs).map(renderBottomTab)}
-          {isDriver && <DriverShiftFab driverId={user.driver_id ?? null} />}
+          {/* `user` is still null while a client page (driver Notifications) loads
+              its session — reading it unguarded crashed the page on phones. */}
+          {isDriver && <DriverShiftFab driverId={user?.driver_id ?? null} />}
           {isDriver && bottomTabs.slice(2).map(renderBottomTab)}
           <button
             onClick={onMenuToggle}
@@ -382,7 +416,7 @@ export default function FleetSidebar({
 
   return (
     <>
-      <aside style={{ ...s.sidebar, ...(railed ? s.sidebarRail : {}) }}>{body}</aside>
+      <aside className="fleetSidebar" style={{ ...s.sidebar, ...(railed ? s.sidebarRail : {}) }}>{body}</aside>
       {railed && tip && mounted && createPortal(
         <div
           className="fleetRailTip fleetTheme"
@@ -399,9 +433,14 @@ export default function FleetSidebar({
 }
 
 const s: Record<string, CSSProperties> = {
+  // Height comes from .fleetSidebar / .fleetDrawer in fleet-theme.css (they
+  // need a dvh-with-vh-fallback pair, which an inline style can't express).
+  // The bar is exactly one screen tall and its <nav> scrolls inside it: left
+  // to stretch with the page it scrolled away on long pages, and on a short
+  // tablet screen the last sections sat below the fold.
   sidebar: {
     width: 'var(--sidebar-w)',
-    minHeight: '100vh',
+    alignSelf: 'flex-start',
     background: 'var(--bg-0)',
     borderRight: '1px solid var(--line-1)',
     display: 'flex',
@@ -418,9 +457,7 @@ const s: Record<string, CSSProperties> = {
     top: 0,
     left: 0,
     bottom: 0,
-    width: 280,
-    minHeight: 'auto',
-    height: '100vh',
+    width: 'min(300px, 86vw)',
     // Full-screen on an iPhone the drawer starts behind the status bar.
     paddingTop: 'env(safe-area-inset-top, 0px)',
     zIndex: 50,
@@ -472,10 +509,31 @@ const s: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nav:{ flex: 1, overflowY: 'auto', padding: '14px 10px' },
+  // minHeight: 0 lets the list shrink below its content so it — not the page
+  // behind it — is what scrolls.
+  nav:{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: '14px 10px' },
+  // The last links must clear the iPhone home indicator.
+  navMobile: { padding: '12px 10px calc(28px + env(safe-area-inset-bottom, 0px))', WebkitOverflowScrolling: 'touch' },
   navRail: { padding: '14px 8px', overflowX: 'hidden' },
-  navLabel: { fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-4)', padding: '8px 10px 4px' },
   railDivider: { height: 1, background: 'var(--line-1)', margin: '6px 8px 8px' },
+  // Section header that folds its list: same look as the old static label.
+  navGroupBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    fontFamily: 'inherit',
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    padding: '8px 10px 4px',
+    background: 'none',
+    border: 'none',
+    borderRadius: 5,
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
   navItem: {
     display: 'flex',
     alignItems: 'center',

@@ -366,7 +366,8 @@ export function ContentInteractions({ data, extras }: { data: Dashboard; extras:
   const seen = (name: 'Section viewed' | 'Screenshot viewed') =>
     (extras?.seen ?? []).filter((s) => s.name === name).map((s) => ({ name: s.label, visitors: s.visits, visits: s.page_visits }));
   const shotClicks = new Map(ev('Screenshot click').map((r) => [r.name, r.visits]));
-  const rows = tab === 'videos' ? ev('Video played') : tab === 'features' ? ev('Feature opened') : seen(tab === 'sections' ? 'Section viewed' : 'Screenshot viewed');
+  // The homepage walkthrough plays in a pop-up, so opening it counts as a play.
+  const rows = tab === 'videos' ? [...ev('Video played'), ...ev('Walkthrough opened')] : tab === 'features' ? ev('Feature opened') : seen(tab === 'sections' ? 'Section viewed' : 'Screenshot viewed');
   const shareCol: Column<Row> = { label: 'Of page visits', width: 84, title: 'Visits that saw it ÷ visits to that page', render: (r) => (r.visits ? fmtPct(Math.min(1, ratio(r.visitors, r.visits))) : '—') };
   const columns: Column<Row>[] =
     tab === 'videos' || tab === 'features'

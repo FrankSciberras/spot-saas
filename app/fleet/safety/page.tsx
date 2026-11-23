@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageHeader from '@/components/fleet/FleetPageHeader';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { countBehaviorKinds, safetyScore, scoreBandsFrom, scoreColor, scoreLabel, type SafetyEventKind } from '@/lib/tracking/safety';
@@ -29,6 +30,7 @@ export default async function SafetyPage() {
   await requireModule(user.organization_id, 'tracking');
   return (
     <FleetShell user={user} title="Driver Safety">
+      <FleetPageHeader breadcrumb="Tracking / Safety" title="Driver safety" />
       <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
         <SafetyContent orgId={user.organization_id} />
       </Suspense>

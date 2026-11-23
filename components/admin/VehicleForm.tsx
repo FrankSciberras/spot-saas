@@ -648,6 +648,7 @@ export default function VehicleForm({ vehicle, drivers, documents = [], mode }: 
               <select
                 id="assigned_driver_id"
                 name="assigned_driver_id"
+                style={{ flex: 1, minWidth: 0 }}
                 value={driverToAddId}
                 onChange={(e) => setDriverToAddId(e.target.value)}
               >

@@ -75,32 +75,32 @@ function DayBar({ startMin, endMin, isLive }: { startMin: number; endMin: number
 function ShiftRow({ s, onClick, isLast }: { s: ShiftItem; onClick: () => void; isLast: boolean }) {
   const isLive = s.status === 'live';
   return (
-    <div onClick={onClick} style={{ ...st.row, borderBottom: isLast ? 'none' : '1px solid var(--line-1)' }} className="fleetNavItem">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+    <div onClick={onClick} style={{ ...st.row, borderBottom: isLast ? 'none' : '1px solid var(--line-1)' }} className="fleetNavItem fleetShiftRow">
+      <div className="fleetShiftWho" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <Avatar initials={s.driverInitials} color={s.driverColor} size={32} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13.5, color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.driver}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, color: 'var(--text-3)' }}>
             <FleetIcon name="vehicle" size={11} />
-            <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{s.vehicle}</span>
+            <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{s.vehicle}</span>
           </div>
         </div>
       </div>
-      <div style={{ textAlign: 'center' }}>
-        <div className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)' }}>
+      <div className="fleetShiftTime" style={{ textAlign: 'center' }}>
+        <div className="mono tnum" style={{ fontSize: 13, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>
           {s.start} <span style={{ color: 'var(--text-4)', margin: '0 4px' }}>→</span> <span style={{ color: isLive ? 'var(--pos)' : 'var(--text-1)' }}>{s.end}</span>
         </div>
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+        <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, whiteSpace: 'nowrap' }}>
           {isLive ? `in for ${s.hours.toFixed(1)}h` : `${Math.floor(s.hours)}h ${String(Math.round((s.hours % 1) * 60)).padStart(2, '0')}m`}
         </div>
       </div>
       <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center' }}>
         <DayBar startMin={s.startMin} endMin={s.endMin} isLive={isLive} />
       </div>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'flex-end' }}>
-        <div style={{ textAlign: 'right' }}>
-          <div className="mono tnum" style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)' }}>{s.mileage ? `${s.mileage.toLocaleString()} km` : '—'}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>start mileage</div>
+      <div className="fleetShiftMeta" style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'flex-end' }}>
+        <div className="fleetShiftKm" style={{ textAlign: 'right' }}>
+          <div className="mono tnum" style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>{s.mileage ? `${s.mileage.toLocaleString()} km` : '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, whiteSpace: 'nowrap' }}>start mileage</div>
         </div>
         {isLive ? <span style={st.livePill}><span style={st.pulse} /> LIVE</span> : <span style={st.donePill}>DONE</span>}
       </div>
@@ -201,20 +201,20 @@ export default function ShiftsWorkspace({ shifts, driverNames }: Props) {
       </div>
 
       <div style={st.filterBar} className="header-mobile-row">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={st.tabs}>
+        <div className="fleetFilterGroup" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={st.tabs} className="fleetSegTabs">
             {[{ k: 'today', label: 'Today' }, { k: '7d', label: 'This week' }, { k: '14d', label: 'Last 14d' }].map((o) => (
               <button key={o.k} onClick={() => setFilterDay(o.k)} style={{ ...st.tab, ...(filterDay === o.k ? st.tabActive : {}) }}>{o.label}</button>
             ))}
           </div>
-          <div style={st.selectWrap}>
+          <div style={st.selectWrap} className="fleetSelectWrap">
             <FleetIcon name="driver" size={13} />
             <select value={filterDriver} onChange={(e) => setFilterDriver(e.target.value)} style={st.select}>
               <option value="all">All drivers</option>
               {driverNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
-          <div style={st.selectWrap}>
+          <div style={st.selectWrap} className="fleetSelectWrap">
             <FleetIcon name="filter" size={13} />
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={st.select}>
               <option value="all">All statuses</option>

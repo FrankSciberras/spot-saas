@@ -36,9 +36,10 @@ export const maxDuration = 120;
 //
 // GET /api/assistant?secret=<CRON_SECRET>   live self-test (or platform admin)
 //
-// Switching it on, during beta: set FLEET_ASSISTANT_BETA_ORGS to a comma-
-// separated list of organization ids ("*" = every fleet). The `assistant`
-// module (lib/modules/catalog.ts) will replace this once the chat panel ships.
+// Who gets it: every fleet, through the `assistant` module (on by default;
+// fleet admins can switch it off in Integrations). FLEET_ASSISTANT_BETA_ORGS
+// and platform-admin access still switch it on for a fleet that turned the
+// module off. Each plan's monthly allowance + rate limits always apply.
 // Needs OPENAI_API_KEY (shared with the website chatbot) and migration
 // supabase/migrations/20261118_fleet_assistant.sql.
 // =============================================================================
@@ -74,7 +75,9 @@ export async function POST(request: Request) {
     typeof body.conversation_id === 'string' && UUID.test(body.conversation_id) ? body.conversation_id.toLowerCase() : null;
 
   const ctx = await buildAssistantContext(session, role, sanitizePage(body.page));
-  if (!assistantSwitchedOn(organizationId, ctx.modules)) {
+  // Platform admins (Rovora staff) can always use it in their own fleets, to
+  // test before a fleet is added to the beta list. Plan limits still apply.
+  if (!assistantSwitchedOn(organizationId, ctx.modules) && !(await isPlatformAdmin())) {
     return refuse(403, 'not_enabled', 'Rovora AI isn’t switched on for your fleet yet.');
   }
 

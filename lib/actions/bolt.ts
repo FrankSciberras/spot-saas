@@ -3,7 +3,8 @@
 // =============================================================================
 // BOLT INTEGRATION ACTIONS (fleet admin only)
 // =============================================================================
-// Connecting, syncing and disconnecting a fleet's Bolt account. Every action
+// Connecting, syncing and disconnecting a fleet's Bolt account, and bringing
+// its Bolt drivers & cars into Rovora (lib/bolt/import.ts). Every action
 // re-checks the ADMIN role for the caller's ACTIVE fleet and then works with the
 // service-role client scoped to that organization_id — the Bolt tables have no
 // client-side access at all (see 20261110_bolt_integration.sql).
@@ -13,12 +14,24 @@
 // =============================================================================
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth/session';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import { sealSecret } from '@/lib/crypto/secret-box';
 import { BoltClient, describeBoltError, type BoltCompany } from '@/lib/bolt/client';
-import { loadBoltConnection, syncBoltFleet, type BoltConnection } from '@/lib/bolt/sync';
+import { boltImportReady, loadBoltConnection, syncBoltFleet, type BoltConnection } from '@/lib/bolt/sync';
+import {
+  BoltUndoError,
+  NEW_MEMBER_MODES,
+  describeCounts,
+  importBoltRecords,
+  setImportState,
+  undoBoltImport,
+  type BoltImportResult,
+  type BoltUndoResult,
+  type NewMemberMode,
+} from '@/lib/bolt/import';
 
 export interface BoltCompanyChoice {
   company_id: number;
@@ -27,7 +40,7 @@ export interface BoltCompanyChoice {
 }
 
 type ConnectResult =
-  | { ok: true; drivers: number; vehicles: number; rides: number; warning?: string }
+  | { ok: true; drivers: number; vehicles: number; warning?: string }
   /** The key reaches several Bolt companies — ask which one to connect. */
   | { ok: false; chooseCompany: BoltCompanyChoice[] }
   | { ok: false; error: string };
@@ -37,8 +50,10 @@ type Result = { ok?: boolean; error?: string; message?: string };
 const companyLabel = (c: BoltCompany) => c.legal_name || c.city_name || `Bolt company ${c.company_id}`;
 
 /**
- * Checks a Bolt API key, stores it (secret encrypted) and imports the fleet's
- * drivers, vehicles and recent ride history.
+ * Checks a Bolt API key, stores it (secret encrypted) and reads the fleet's
+ * drivers and vehicles from Bolt — a few seconds — so the page can go straight
+ * to "bring your fleet into Rovora". The recent ride history (the slow part)
+ * is fetched after the response, in the background.
  */
 export async function connectBoltAction(input: {
   clientId: string;
@@ -139,18 +154,22 @@ export async function connectBoltAction(input: {
     details: { company_id: company.company_id, city: company.city_name, key: maskKey(clientId) },
   });
 
-  // 4. First import. If this stumbles the connection still stands — the hourly
-  //    job (or "Sync now") picks it up.
+  // 4. Drivers & cars now, rides after the response. If either stumbles the
+  //    connection still stands — the hourly job (or "Sync now") picks it up.
   const fresh = (await loadBoltConnection(admin, orgId)) as BoltConnection;
-  const sync = await syncBoltFleet(admin, fresh);
+  const sync = await syncBoltFleet(admin, fresh, { only: 'roster' });
+  after(async () => {
+    const bg = createAdminClient();
+    const conn = await loadBoltConnection(bg, orgId);
+    if (conn) await syncBoltFleet(bg, conn, { only: 'rides' });
+  });
 
   revalidatePath('/fleet', 'layout');
   return {
     ok: true,
     drivers: sync.drivers,
     vehicles: sync.vehicles,
-    rides: sync.rides,
-    warning: sync.ok ? undefined : `Connected, but the first import didn’t finish: ${sync.error}`,
+    warning: sync.ok ? undefined : `Connected, but reading your drivers and cars didn’t finish: ${sync.error}`,
   };
 }
 
@@ -243,6 +262,178 @@ export async function linkBoltDriverAction(boltUuid: string, driverId: string | 
     return { error: 'Could not update the link. Please try again.' };
   }
 
+  revalidatePath('/fleet/bolt');
+  return { ok: true };
+}
+
+// --- bringing the Bolt fleet into Rovora ------------------------------------------
+
+const BOLT_ID = /^[A-Za-z0-9-]{1,80}$/;
+const MAX_IDS = 5000;
+
+/** 'all', or a clean list of Bolt ids — anything else is refused. */
+function idChoice(value: unknown): 'all' | string[] | null {
+  if (value === 'all') return 'all';
+  if (!Array.isArray(value) || value.length > MAX_IDS) return null;
+  return value.every((v) => typeof v === 'string' && BOLT_ID.test(v)) ? (value as string[]) : null;
+}
+
+function idList(value: unknown): string[] | null {
+  const choice = idChoice(value);
+  return Array.isArray(choice) ? choice : null;
+}
+
+/** Loads this fleet's connection, or the reason the import can't run. */
+async function importContext(): Promise<
+  | { ok: true; admin: ReturnType<typeof createAdminClient>; orgId: string; userId: string; conn: BoltConnection }
+  | { ok: false; error: string }
+> {
+  const user = await requireRole(['admin']);
+  const admin = createAdminClient();
+  const conn = await loadBoltConnection(admin, user.organization_id);
+  if (!conn) return { ok: false, error: 'Connect your Bolt account first.' };
+  if (!boltImportReady(conn)) {
+    return { ok: false, error: 'Importing from Bolt isn’t switched on for this workspace yet. Please contact support.' };
+  }
+  return { ok: true, admin, orgId: user.organization_id, userId: user.id, conn };
+}
+
+export type ImportActionResult = { ok: true; result: BoltImportResult } | { ok: false; error: string };
+
+/**
+ * Creates Rovora drivers & vehicles from Bolt: everyone new ('all'), or the
+ * ones the admin ticked. `first` = this is the first-import screen, so the
+ * ones left unticked are remembered as "not added" and not offered again.
+ */
+export async function importFromBoltAction(input: {
+  drivers: 'all' | string[];
+  vehicles: 'all' | string[];
+  first?: boolean;
+}): Promise<ImportActionResult> {
+  const ctx = await importContext();
+  if (!ctx.ok) return ctx;
+
+  const drivers = idChoice(input?.drivers);
+  const vehicles = idChoice(input?.vehicles);
+  if (!drivers || !vehicles) return { ok: false, error: 'That selection didn’t look right. Please reload the page and try again.' };
+
+  let result: BoltImportResult;
+  try {
+    result = await importBoltRecords(ctx.admin, ctx.orgId, { drivers, vehicles, ignoreRest: Boolean(input.first) });
+  } catch (error) {
+    console.error('importFromBoltAction failed:', error);
+    return { ok: false, error: 'Something went wrong adding your Bolt fleet. Anything already added is kept — please try again.' };
+  }
+
+  if (!ctx.conn.first_import_at) {
+    await ctx.admin
+      .from('bolt_connections')
+      .update({ first_import_at: new Date().toISOString() })
+      .eq('organization_id', ctx.orgId);
+  }
+
+  if (result.driversAdded || result.vehiclesAdded) {
+    await createAuditLogEntry({
+      actor: await getAuditActor(ctx.userId),
+      organizationId: ctx.orgId,
+      action: 'create',
+      entityType: 'bolt_import',
+      entityId: result.batchId,
+      summary: `Imported ${describeCounts(result.driversAdded, result.vehiclesAdded)} from Bolt`,
+      details: {
+        drivers: result.driversAdded,
+        vehicles: result.vehiclesAdded,
+        linked_existing: result.driversLinked + result.vehiclesLinked,
+        over_plan: result.driversOverPlan + result.vehiclesOverPlan,
+      },
+    });
+  }
+
+  revalidatePath('/fleet', 'layout');
+  return { ok: true, result };
+}
+
+/** "I'll add them myself" — stop leading the Bolt page with the import screen. */
+export async function skipBoltImportAction(): Promise<Result> {
+  const ctx = await importContext();
+  if (!ctx.ok) return { error: ctx.error };
+  await ctx.admin
+    .from('bolt_connections')
+    .update({ first_import_at: new Date().toISOString() })
+    .eq('organization_id', ctx.orgId)
+    .is('first_import_at', null);
+  revalidatePath('/fleet/bolt');
+  return { ok: true };
+}
+
+/** Takes an import back out (for 24 hours), keeping anything edited or used since. */
+export async function undoBoltImportAction(batchId: string): Promise<Result & { undo?: BoltUndoResult }> {
+  const ctx = await importContext();
+  if (!ctx.ok) return { error: ctx.error };
+  if (typeof batchId !== 'string' || !BOLT_ID.test(batchId)) return { error: 'Unknown import.' };
+
+  let undo: BoltUndoResult;
+  try {
+    undo = await undoBoltImport(ctx.admin, ctx.orgId, batchId);
+  } catch (error) {
+    if (error instanceof BoltUndoError) return { error: error.message };
+    console.error('undoBoltImportAction failed:', error);
+    return { error: 'Could not undo the import. Please try again.' };
+  }
+
+  await createAuditLogEntry({
+    actor: await getAuditActor(ctx.userId),
+    organizationId: ctx.orgId,
+    action: 'delete',
+    entityType: 'bolt_import',
+    entityId: batchId,
+    summary: `Undid a Bolt import — removed ${describeCounts(undo.driversRemoved, undo.vehiclesRemoved)}`,
+    details: { ...undo },
+  });
+
+  const kept = undo.driversKept + undo.vehiclesKept;
+  revalidatePath('/fleet', 'layout');
+  return {
+    ok: true,
+    undo,
+    message:
+      `Removed ${describeCounts(undo.driversRemoved, undo.vehiclesRemoved)}.` +
+      (kept ? ` Kept ${describeCounts(undo.driversKept, undo.vehiclesKept)} that had been edited or used since.` : ''),
+  };
+}
+
+/** "Don't add" (ignore = true) or put back on offer (ignore = false). */
+export async function ignoreBoltItemsAction(
+  items: { drivers: string[]; vehicles: string[] },
+  ignore = true,
+): Promise<Result> {
+  const ctx = await importContext();
+  if (!ctx.ok) return { error: ctx.error };
+  const drivers = idList(items?.drivers ?? []);
+  const vehicles = idList(items?.vehicles ?? []);
+  if (!drivers || !vehicles) return { error: 'That selection didn’t look right. Please reload the page and try again.' };
+
+  try {
+    await setImportState(ctx.admin, ctx.orgId, { drivers, vehicles }, ignore ? 'ignored' : null);
+  } catch (error) {
+    console.error('ignoreBoltItemsAction failed:', error);
+    return { error: 'Could not save that. Please try again.' };
+  }
+  revalidatePath('/fleet/bolt');
+  return { ok: true };
+}
+
+/** What happens when someone new joins the Bolt fleet: ask first, add, or nothing. */
+export async function setBoltNewMemberModeAction(mode: NewMemberMode): Promise<Result> {
+  const ctx = await importContext();
+  if (!ctx.ok) return { error: ctx.error };
+  if (!NEW_MEMBER_MODES.includes(mode)) return { error: 'Unknown setting.' };
+
+  const { error } = await ctx.admin.from('bolt_connections').update({ new_member_mode: mode }).eq('organization_id', ctx.orgId);
+  if (error) {
+    console.error('setBoltNewMemberModeAction failed:', error);
+    return { error: 'Could not save that. Please try again.' };
+  }
   revalidatePath('/fleet/bolt');
   return { ok: true };
 }

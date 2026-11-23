@@ -1,6 +1,7 @@
 import { requireRole } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageHeader from '@/components/fleet/FleetPageHeader';
 import RosterView from '@/components/driver/RosterView';
 import styles from './roster.module.css';
 
@@ -118,6 +119,7 @@ export default async function DriverRosterPage() {
 
   return (
     <FleetShell user={user} variant="driver" title="Roster">
+      <FleetPageHeader breadcrumb="Work / Roster" title="My roster" />
       <RosterView 
         myRosters={rosters} 
         driverId={driver.id} 

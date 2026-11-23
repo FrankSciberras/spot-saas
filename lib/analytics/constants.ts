@@ -70,3 +70,17 @@ export const HEARD_ABOUT_OPTIONS = [
   { id: 'event', label: 'An event or meetup' },
   { id: 'other', label: 'Somewhere else' },
 ] as const;
+
+/**
+ * "Which apps do your drivers work on?" — the one-tap question on the fleet
+ * set-up screen. Stored on organizations.ride_platforms; a fleet that picks
+ * Bolt lands on the Bolt page to bring its drivers & cars in, instead of an
+ * empty dashboard.
+ */
+export const RIDE_PLATFORM_OPTIONS = [
+  { id: 'bolt', label: 'Bolt' },
+  { id: 'uber', label: 'Uber' },
+  { id: 'other', label: 'Other or none' },
+] as const;
+
+export type RidePlatform = (typeof RIDE_PLATFORM_OPTIONS)[number]['id'];

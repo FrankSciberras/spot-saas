@@ -1,12 +1,28 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import DeleteRecordButton from '@/components/fleet/DeleteRecordButton';
+import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './VehicleProfile.module.css';
+import {
+  ComingUp,
+  CostsPanel,
+  DamagesPanel,
+  PartsPanel,
+  ShiftsPanel,
+  TimelinePanel,
+  VehicleTabBar,
+  type ComingUpItem,
+  type TabCost,
+  type TabDamage,
+  type TabPartUse,
+  type TabShift,
+  type VehicleTabKey,
+} from '@/components/fleet/vehicles/VehicleTabPanels';
 
 /* ─── Types ─── */
 interface FileRecord {
@@ -33,14 +49,6 @@ interface ServiceRecord {
   currency: string;
 }
 
-interface ShiftRecord {
-  id: string;
-  start_time: string;
-  end_time: string | null;
-  starting_mileage: number;
-  drivers: { full_name: string } | null;
-}
-
 interface VehicleData {
   id: string;
   registration_number: string;
@@ -64,8 +72,18 @@ interface VehicleProfileProps {
   vehicle: VehicleData;
   documents: FileRecord[];
   assignedDrivers: DriverInfo[];
-  recentShifts: ShiftRecord[];
+  /** Recent shifts with this vehicle (Shifts tab + timeline). */
+  shifts: TabShift[];
   serviceHistory: ServiceRecord[];
+  damages: TabDamage[];
+  /** Parts logged against this vehicle (empty when the Parts module is off). */
+  parts: TabPartUse[];
+  /** Is the Parts module on (shows the Parts used block)? */
+  partsOn: boolean;
+  /** Bookkeeping lines for this vehicle — null hides the Costs tab (staff, or Bookkeeping off). */
+  costs: TabCost[] | null;
+  /** Tab to open first (from ?tab= in the URL). */
+  initialTab?: VehicleTabKey;
   nextServiceDue: { next_service_mileage: number; mileage_at_service: number } | null;
   /** Published car-model diagram presets (id + name) for the "Car diagram" picker. */
   vehicleModels: { id: string; name: string }[];
@@ -280,8 +298,8 @@ function StatCard({ icon, label, value, sub, accent }: {
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function VehicleProfile({
   vehicle: initialVehicle, documents: initialDocuments,
-  assignedDrivers, recentShifts, serviceHistory,
-  nextServiceDue, vehicleModels, isAdmin,
+  assignedDrivers, shifts, serviceHistory, damages, parts, partsOn, costs,
+  nextServiceDue, vehicleModels, isAdmin, initialTab = 'overview',
 }: VehicleProfileProps) {
   const router = useRouter();
   // "Due soon" distance (Settings → Maintenance); red at a quarter of it.
@@ -396,6 +414,66 @@ export default function VehicleProfile({
     ...vehicleModels.map((m) => ({ value: m.id, label: m.name })),
   ];
 
+  /* ── Tabs ── */
+  const warnDays = Number(useFleetSetting('documents.expiry_warning_days')) || 30;
+  const urgentDays = Number(useFleetSetting('documents.urgent_days')) || 7;
+  const [tab, setTab] = useState<VehicleTabKey>(initialTab === 'costs' && !costs ? 'overview' : initialTab);
+  const openTab = useCallback((key: VehicleTabKey) => {
+    setTab(key);
+    // Keep the tab in the URL (shareable, survives reload) without a navigation.
+    const url = new URL(window.location.href);
+    if (key === 'overview') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', key);
+    window.history.replaceState(window.history.state, '', url);
+  }, []);
+
+  const todayIso = new Date().toLocaleDateString('en-CA');
+  const daysLeft = (d: string | null) =>
+    d ? Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${todayIso}T00:00:00Z`)) / 86_400_000) : null;
+  const expiryItem = (label: string, d: string | null): ComingUpItem => {
+    const left = daysLeft(d);
+    if (left === null) return { label, value: 'No date set', tone: 'muted', tab: 'documents' };
+    const when = new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    if (left < 0) return { label, value: `Expired ${when}`, tone: 'bad', tab: 'documents' };
+    return { label, value: left <= warnDays ? `${when} · in ${left} d` : when, tone: left <= urgentDays ? 'bad' : left <= warnDays ? 'warn' : 'ok', tab: 'documents' };
+  };
+  const openDamages = damages.filter((d) => d.status !== 'repaired');
+  const severeOpen = openDamages.filter((d) => d.severity === 'severe').length;
+  const insuranceItem = expiryItem('Insurance', vehicle.insurance_expiry_date);
+  const roadItem = expiryItem('Road licence', vehicle.road_license_expiry_date);
+  const comingUp: ComingUpItem[] = [
+    {
+      label: 'Next service',
+      value: kmUntilService === null ? 'Not scheduled' : kmUntilService <= 0 ? `${Math.abs(kmUntilService).toLocaleString()} km overdue` : `in ${kmUntilService.toLocaleString()} km`,
+      tone: kmUntilService === null ? 'muted' : kmUntilService <= 0 ? 'bad' : kmUntilService <= dueSoonKm ? 'warn' : 'ok',
+      tab: 'service',
+    },
+    insuranceItem,
+    roadItem,
+    {
+      label: 'Open damages',
+      value: openDamages.length ? `${openDamages.length} open${severeOpen ? ` · ${severeOpen} severe` : ''}` : 'None',
+      tone: severeOpen ? 'bad' : openDamages.length ? 'warn' : 'ok',
+      tab: 'damages',
+    },
+  ];
+  const docsAlert = [insuranceItem, roadItem].some((i) => i.tone === 'bad' || i.tone === 'warn');
+  const tabs: { key: VehicleTabKey; label: string; count?: number; alert?: boolean }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'shifts', label: 'Shifts' },
+    { key: 'service', label: partsOn ? 'Service & parts' : 'Service', alert: kmUntilService !== null && kmUntilService <= dueSoonKm, count: kmUntilService !== null && kmUntilService <= dueSoonKm ? 1 : undefined },
+    { key: 'damages', label: 'Damages', count: openDamages.length, alert: openDamages.length > 0 },
+    ...(costs ? [{ key: 'costs' as const, label: 'Costs' }] : []),
+    { key: 'documents', label: 'Documents', count: docCount, alert: docsAlert },
+    { key: 'timeline', label: 'Timeline' },
+  ];
+  const timelineDocs = useMemo(() => Object.values(uploadedFiles).flat(), [uploadedFiles]);
+  const timelineServices = useMemo(
+    () => serviceHistory.map((s) => ({ id: s.id, service_date: s.service_date, service_type: s.service_type, cost: s.cost })),
+    [serviceHistory],
+  );
+  const serviceLabel = useCallback((t: string) => SERVICE_TYPE_LABELS[t] || t, []);
+
   /* ═══════════════════════════════════════════════════════════════════════
      RENDER
      ═══════════════════════════════════════════════════════════════════════ */
@@ -410,11 +488,8 @@ export default function VehicleProfile({
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <Link href="/fleet/vehicles" className={styles.backLink}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          Back to vehicles
-        </Link>
         <div className={styles.heroCard}>
+          <FleetBackLink href="/fleet/vehicles" label="Back to vehicles" />
           <div className={styles.avatar}><FleetIcon name="vehicle" size={26} /></div>
           <div className={styles.heroInfo}>
             <h1 className={styles.heroName}>{vehicle.registration_number}</h1>
@@ -460,6 +535,12 @@ export default function VehicleProfile({
         <StatCard icon="doc" label="Documents" value={docCount} accent="var(--text-1)" />
       </div>
 
+      <VehicleTabBar tabs={tabs} active={tab} onChange={openTab} />
+
+      <div role="tabpanel" id={`vpanel-${tab}`} aria-labelledby={`vtab-${tab}`}>
+        {tab === 'overview' && (
+          <>
+            <ComingUp items={comingUp} onOpenTab={openTab} />
       {/* ── Vehicle Information ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -502,28 +583,85 @@ export default function VehicleProfile({
         </div>
       </div>
 
-      {/* ── Documents & Expiry ── */}
+      {/* ── Assigned Drivers ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGreen}`}><FleetIcon name="book" size={16} /></div>
-          <h3 className={styles.sectionTitle}>Documents &amp; Expiry</h3>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><FleetIcon name="driver" size={16} /></div>
+          <h3 className={styles.sectionTitle}>Assigned Drivers</h3>
         </div>
         <div className={styles.sectionBody}>
-          {/* Expiry dates inline */}
-          <div className={styles.fieldGrid} style={{ marginBottom: 20 }}>
-            <EditableField label="Insurance Expiry" value={vehicle.insurance_expiry_date} fieldName="insurance_expiry_date" type="date" onSave={handleSave} expiryDate={vehicle.insurance_expiry_date} readOnly={!isAdmin} />
-            <EditableField label="Road License Expiry" value={vehicle.road_license_expiry_date} fieldName="road_license_expiry_date" type="date" onSave={handleSave} expiryDate={vehicle.road_license_expiry_date} readOnly={!isAdmin} />
-          </div>
-          {/* Document upload cards */}
-          <div className={styles.docGrid}>
-            <DocCard title="Vehicle Insurance" subtitle="Insurance policy document" docType="VEHICLE_INSURANCE" files={uploadedFiles['VEHICLE_INSURANCE'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
-            <DocCard title="Road License" subtitle="Road license / VRT" docType="ROAD_LICENSE" files={uploadedFiles['ROAD_LICENSE'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
-            <DocCard title="Logbook" subtitle="Vehicle registration logbook" docType="LOGBOOK" files={uploadedFiles['LOGBOOK'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
-            <DocCard title="Other Documents" subtitle="Any other vehicle documents" docType="OTHER" files={uploadedFiles['OTHER'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
-          </div>
+          {assignedDrivers.length > 0 ? (
+            <div className={styles.driverList}>
+              {assignedDrivers.map(d => (
+                <div key={d.id} className={styles.driverRow}>
+                  <div className={styles.driverInfo}>
+                    <Link href={`/fleet/drivers/${d.id}`} className={styles.driverName}>{d.full_name}</Link>
+                    {d.phone && <div className={styles.driverPhone}>{d.phone}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : vehicle.drivers ? (
+            <div className={styles.driverList}>
+              <div className={styles.driverRow}>
+                <div className={styles.driverInfo}>
+                  <Link href={`/fleet/drivers/${vehicle.drivers.id}`} className={styles.driverName}>{vehicle.drivers.full_name}</Link>
+                  {vehicle.drivers.phone && <div className={styles.driverPhone}>{vehicle.drivers.phone}</div>}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className={styles.emptyState}>No driver assigned</p>
+          )}
         </div>
       </div>
 
+      {/* ── Notes ── */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="doc" size={16} /></div>
+          <h3 className={styles.sectionTitle}>Notes</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <EditableField
+            label=""
+            value={vehicle.notes}
+            fieldName="notes"
+            type="textarea"
+            onSave={handleSave}
+            placeholder="Click to add notes..."
+            className={styles.fieldFull}
+            readOnly={!isAdmin}
+          />
+        </div>
+      </div>
+
+      {/* ── Record Information ── */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="audit" size={16} /></div>
+          <h3 className={styles.sectionTitle}>Record Information</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.metaGrid}>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Added to Fleet</span>
+              <span className={styles.metaValue}>{new Date(vehicle.created_at).toLocaleString('en-GB')}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Last Updated</span>
+              <span className={styles.metaValue}>{new Date(vehicle.updated_at).toLocaleString('en-GB')}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+          </>
+        )}
+
+        {tab === 'shifts' && <ShiftsPanel shifts={shifts} />}
+
+        {tab === 'service' && (
+          <>
       {/* ── Service & Maintenance ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -581,110 +719,44 @@ export default function VehicleProfile({
         </div>
       </div>
 
-      {/* ── Assigned Drivers ── */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconPurple}`}><FleetIcon name="driver" size={16} /></div>
-          <h3 className={styles.sectionTitle}>Assigned Drivers</h3>
-        </div>
-        <div className={styles.sectionBody}>
-          {assignedDrivers.length > 0 ? (
-            <div className={styles.driverList}>
-              {assignedDrivers.map(d => (
-                <div key={d.id} className={styles.driverRow}>
-                  <div className={styles.driverInfo}>
-                    <Link href={`/fleet/drivers/${d.id}`} className={styles.driverName}>{d.full_name}</Link>
-                    {d.phone && <div className={styles.driverPhone}>{d.phone}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : vehicle.drivers ? (
-            <div className={styles.driverList}>
-              <div className={styles.driverRow}>
-                <div className={styles.driverInfo}>
-                  <Link href={`/fleet/drivers/${vehicle.drivers.id}`} className={styles.driverName}>{vehicle.drivers.full_name}</Link>
-                  {vehicle.drivers.phone && <div className={styles.driverPhone}>{vehicle.drivers.phone}</div>}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className={styles.emptyState}>No driver assigned</p>
-          )}
-        </div>
-      </div>
+            {partsOn && <PartsPanel parts={parts} showCosts={isAdmin} />}
+          </>
+        )}
 
-      {/* ── Recent Shifts ── */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}><FleetIcon name="shift" size={16} /></div>
-          <h3 className={styles.sectionTitle}>Recent Shifts</h3>
-        </div>
-        <div className={styles.sectionBody}>
-          {recentShifts.length > 0 ? (
-            <div className={styles.listGrid}>
-              <div className={`${styles.listRow} ${styles.shiftRow} ${styles.listRowHeader}`}>
-                <span>Date</span><span>Driver</span><span>Start</span><span>End</span><span>Mileage</span>
-              </div>
-              {recentShifts.map(shift => (
-                <div key={shift.id} className={`${styles.listRow} ${styles.shiftRow}`}>
-                  <span className={`${styles.listDate} mono tnum`}>{new Date(shift.start_time).toLocaleDateString('en-GB')}</span>
-                  <span className={styles.listText}>{(shift.drivers as unknown as { full_name: string } | null)?.full_name || '—'}</span>
-                  <span className={`${styles.listText} mono tnum`}>{new Date(shift.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className={`${styles.listText} mono tnum`}>
-                    {shift.end_time
-                      ? new Date(shift.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-                      : <span className="badge badge-success">Active</span>
-                    }
-                  </span>
-                  <span className={`${styles.listText} mono tnum`}>{shift.starting_mileage.toLocaleString()} km</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.emptyState}>No shifts recorded</p>
-          )}
-        </div>
-      </div>
+        {tab === 'damages' && <DamagesPanel damages={damages} vehicleId={vehicle.id} showCosts={isAdmin} />}
 
-      {/* ── Notes ── */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="doc" size={16} /></div>
-          <h3 className={styles.sectionTitle}>Notes</h3>
-        </div>
-        <div className={styles.sectionBody}>
-          <EditableField
-            label=""
-            value={vehicle.notes}
-            fieldName="notes"
-            type="textarea"
-            onSave={handleSave}
-            placeholder="Click to add notes..."
-            className={styles.fieldFull}
-            readOnly={!isAdmin}
-          />
-        </div>
-      </div>
+        {tab === 'costs' && costs && <CostsPanel costs={costs} services={timelineServices} damages={damages} parts={parts} />}
 
-      {/* ── Record Information ── */}
+        {tab === 'documents' && (
+          <>
+      {/* ── Documents & Expiry ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="audit" size={16} /></div>
-          <h3 className={styles.sectionTitle}>Record Information</h3>
+          <div className={`${styles.sectionIcon} ${styles.sectionIconGreen}`}><FleetIcon name="book" size={16} /></div>
+          <h3 className={styles.sectionTitle}>Documents &amp; Expiry</h3>
         </div>
         <div className={styles.sectionBody}>
-          <div className={styles.metaGrid}>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Added to Fleet</span>
-              <span className={styles.metaValue}>{new Date(vehicle.created_at).toLocaleString('en-GB')}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Last Updated</span>
-              <span className={styles.metaValue}>{new Date(vehicle.updated_at).toLocaleString('en-GB')}</span>
-            </div>
+          {/* Expiry dates inline */}
+          <div className={styles.fieldGrid} style={{ marginBottom: 20 }}>
+            <EditableField label="Insurance Expiry" value={vehicle.insurance_expiry_date} fieldName="insurance_expiry_date" type="date" onSave={handleSave} expiryDate={vehicle.insurance_expiry_date} readOnly={!isAdmin} />
+            <EditableField label="Road License Expiry" value={vehicle.road_license_expiry_date} fieldName="road_license_expiry_date" type="date" onSave={handleSave} expiryDate={vehicle.road_license_expiry_date} readOnly={!isAdmin} />
+          </div>
+          {/* Document upload cards */}
+          <div className={styles.docGrid}>
+            <DocCard title="Vehicle Insurance" subtitle="Insurance policy document" docType="VEHICLE_INSURANCE" files={uploadedFiles['VEHICLE_INSURANCE'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
+            <DocCard title="Road License" subtitle="Road license / VRT" docType="ROAD_LICENSE" files={uploadedFiles['ROAD_LICENSE'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
+            <DocCard title="Logbook" subtitle="Vehicle registration logbook" docType="LOGBOOK" files={uploadedFiles['LOGBOOK'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
+            <DocCard title="Other Documents" subtitle="Any other vehicle documents" docType="OTHER" files={uploadedFiles['OTHER'] || []} onUpload={handleFileUpload} onDelete={handleFileDelete} uploadingType={uploadingType} deletingId={deletingId} />
           </div>
         </div>
+      </div>
+
+          </>
+        )}
+
+        {tab === 'timeline' && (
+          <TimelinePanel shifts={shifts} services={timelineServices} damages={damages} documents={timelineDocs} serviceLabel={serviceLabel} />
+        )}
       </div>
     </div>
   );

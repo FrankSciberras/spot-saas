@@ -1,6 +1,7 @@
 import FeatureShell from '@/components/marketing/feature/FeatureShell';
 import ShotFrame from '@/components/marketing/feature/ShotFrame';
 import { FeatureHero, SecHead, SplitRow, IconGrid, Stats, CtaBand } from '@/components/marketing/feature/Sections';
+import FeatureExtras from '@/components/marketing/deep/FeatureExtras';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
 import { marketingMetadata } from '@/lib/seo';
 
@@ -36,7 +37,7 @@ export default async function SettlementsFeaturePage() {
         eyebrow="Driver settlements"
         title="Driver settlements,"
         accent="reconciled and paid in minutes."
-        sub="Rovora does the maths for every driver — gross splits, platform fees, tips, campaigns, cash drops and tax — then hands you a clean, payable amount. Review, approve and run payouts in one pass."
+        sub="Rovora does the maths for every driver — gross splits, platform fees, tips, campaigns, cash drops and tax — then hands you a clean, payable amount per driver. Review the week, finalise it and mark it paid in one pass."
         visual={
           <ShotFrame path="settlements">
             <div className="mock-top">
@@ -62,9 +63,9 @@ export default async function SettlementsFeaturePage() {
       <Stats
         items={[
           { num: '6', unit: 'hrs', label: 'saved on payroll every week' },
-          { num: '1', label: 'click to run driver payouts' },
+          { num: '1', label: 'page per driver in the PDF' },
           { num: '0', label: 'spreadsheets to maintain' },
-          { num: '100', unit: '%', label: 'reconciled, every week' },
+          { num: '9', label: 'pay lines to switch on or off' },
         ]}
       />
 
@@ -102,11 +103,11 @@ export default async function SettlementsFeaturePage() {
             icon="check"
             flip
             title="Review, approve, pay — in one pass"
-            body="Each settlement moves from draft to finalised to paid. Rovora flags anything that needs a second look, so you approve with confidence and run the whole week’s payouts together."
+            body="Each settlement moves from draft to finalised, and is marked paid once you have paid the driver. Every driver’s payable balance is in the list, so you can check the week before you finalise it."
             bullets={[
               'Draft → finalised → paid, with a clear status on each',
-              'Outliers flagged for review before you approve',
-              'Approve the whole week in a single action',
+              'Each driver’s payable balance shown in the list',
+              'Mark a whole week as paid in a single action',
             ]}
             visual={
               <ShotFrame path="settlements" tight>
@@ -162,6 +163,8 @@ export default async function SettlementsFeaturePage() {
           />
         </div>
       </section>
+
+      <FeatureExtras slug="settlements" />
 
       <CtaBand
         title="Give your weekly payroll back to the week."

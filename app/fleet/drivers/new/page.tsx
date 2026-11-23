@@ -43,11 +43,13 @@ export default async function NewDriverPage() {
 
   return (
     <FleetShell user={user} title="Add New Driver">
-      <FleetBackLink href="/fleet/drivers" label="Back to drivers" />
       <div className={`${styles.pageHeader} header-mobile-row`}>
         <div className={styles.pageTitleMain}>
           <div className={styles.breadcrumb}>Operations / Drivers / New</div>
-          <h2>Add New Driver</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href="/fleet/drivers" label="Back to drivers" />
+            <h2>Add New Driver</h2>
+          </div>
           <span className={styles.subtitle}>Create a new driver profile and link to a user account</span>
         </div>
       </div>

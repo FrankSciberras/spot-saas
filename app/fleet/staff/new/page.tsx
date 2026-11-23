@@ -29,10 +29,12 @@ export default async function NewStaffPage() {
 
   return (
     <FleetShell user={user} title="Add New Staff">
-      <FleetBackLink href="/fleet/staff" label="Back to staff" />
       <div className={styles.pageHeader}>
         <div className={styles.pageTitleMain}>
-          <h2>Add New Staff</h2>
+          <div className="fleetTitleRow">
+            <FleetBackLink href="/fleet/staff" label="Back to staff" />
+            <h2>Add New Staff</h2>
+          </div>
           <span className={styles.subtitle}>Create a new account or grant staff access to an existing driver</span>
         </div>
       </div>

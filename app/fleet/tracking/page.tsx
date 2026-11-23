@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth/session';
 import { requireModule } from '@/lib/modules/guard';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import FleetShell from '@/components/fleet/FleetShell';
+import FleetPageHeader from '@/components/fleet/FleetPageHeader';
 import FleetPageSkeleton from '@/components/fleet/FleetPageSkeleton';
 import { getLiveTrackingSettings } from '@/lib/tracking/live-tracking';
 import { loadSharingInfo } from '@/lib/tracking/sharing-info';
@@ -28,6 +29,8 @@ export default async function TrackingPage() {
   await requireModule(user.organization_id, 'tracking');
   return (
     <FleetShell user={user} title="Live Map">
+      {/* The map fills the screen on a desktop; a phone has no sidebar to say where you are. */}
+      <div className="show-mobile-only"><FleetPageHeader breadcrumb="Tracking / Live map" title="Live map" /></div>
       <Suspense fallback={<FleetPageSkeleton variant="board" stats={0} />}>
         <TrackingContent orgId={user.organization_id} canManage={user.role === 'admin'} />
       </Suspense>

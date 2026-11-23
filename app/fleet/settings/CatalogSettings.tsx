@@ -105,7 +105,6 @@ function CatalogCard({ entry: { key, def }, notify }: { entry: Entry; notify: No
   if (def.type === 'boolean') {
     return (
       <ToggleCard
-        icon={def.icon}
         label={def.label}
         description={def.description}
         checked={value === true}
@@ -120,8 +119,7 @@ function CatalogCard({ entry: { key, def }, notify }: { entry: Entry; notify: No
   }
 
   return (
-    <div className={styles.settingCard}>
-      <div className={styles.settingIcon} aria-hidden>{def.icon}</div>
+    <div className={styles.settingCard} data-control="stack">
       <div className={styles.settingContent}>
         <div className={styles.settingLabel}>{def.label}</div>
         <div className={styles.settingDescription}>{def.description}</div>

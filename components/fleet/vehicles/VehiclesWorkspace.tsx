@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import FleetPageHeader, { fleetPrimaryBtn } from '@/components/fleet/FleetPageHeader';
 import { useMoney } from '@/components/fleet/FleetSettingsProvider';
+import { useStoredChoice } from '@/components/fleet/useStoredChoice';
+import VehiclesTable from './VehiclesTable';
+import tableStyles from './vehiclesTable.module.css';
 
 export type VehStatus = 'active' | 'idle' | 'service';
 
@@ -20,7 +23,16 @@ export interface VehicleItem {
   km: number;
   driver: string;
   damages: { severe: number; open: number; total: number };
+  /** Table view extras (optional — the driver portal doesn't load them). */
+  insuranceExpiry?: string | null;
+  roadLicenseExpiry?: string | null;
+  /** Odometer reading the next service is due at, from the latest service record. */
+  nextServiceKm?: number | null;
+  /** Date the next service is due, from the latest service record. */
+  nextServiceDate?: string | null;
 }
+
+const VIEWS = ['grid', 'table'] as const;
 
 interface Props {
   vehicles: VehicleItem[];
@@ -136,6 +148,8 @@ export default function VehiclesWorkspace({ vehicles, canAdd, hrefBase = '/fleet
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | VehStatus>('all');
   const [search, setSearch] = useState('');
+  // Grid of cards or a sortable table — remembered per browser.
+  const [view, setView] = useStoredChoice('rovora-vehicles-view', VIEWS, 'grid');
 
   const counts = useMemo(() => ({
     all: vehicles.length,
@@ -195,12 +209,35 @@ export default function VehiclesWorkspace({ vehicles, canAdd, hrefBase = '/fleet
             </button>
           ))}
         </div>
-        <div style={st.searchBox} className="full-mobile">
-          <FleetIcon name="search" size={14} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search plate, model, driver…" style={st.searchInput} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} className="full-mobile">
+          <div style={st.searchBox} className="full-mobile">
+            <FleetIcon name="search" size={14} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search plate, model, driver…" style={st.searchInput} />
+          </div>
+          <div className={tableStyles.viewSwitch} role="group" aria-label="View">
+            <button type="button" className={`${tableStyles.viewBtn} ${view === 'grid' ? tableStyles.viewBtnOn : ''}`} onClick={() => setView('grid')} aria-pressed={view === 'grid'} aria-label="Grid view" title="Grid view">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+                <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+                <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+                <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+              </svg>
+              <span className={tableStyles.viewLabel}>Grid</span>
+            </button>
+            <button type="button" className={`${tableStyles.viewBtn} ${view === 'table' ? tableStyles.viewBtnOn : ''}`} onClick={() => setView('table')} aria-pressed={view === 'table'} aria-label="Table view" title="Table view">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+                <path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10" />
+              </svg>
+              <span className={tableStyles.viewLabel}>Table</span>
+            </button>
+          </div>
         </div>
       </div>
 
+      {view === 'table' ? (
+        <VehiclesTable vehicles={list} hrefBase={hrefBase} />
+      ) : (
       <div style={st.cardsGrid} className="grid-3">
         {list.map((v) => <VehicleCard key={v.id} v={v} onClick={() => router.push(`${hrefBase}/${v.id}`)} />)}
         {list.length === 0 && (
@@ -209,6 +246,7 @@ export default function VehiclesWorkspace({ vehicles, canAdd, hrefBase = '/fleet
           </div>
         )}
       </div>
+      )}
     </>
   );
 }

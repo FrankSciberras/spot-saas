@@ -1,0 +1,369 @@
+/* Long-form marketing sections (who it's for, problems, steps, limits, related,
+   price strip). Rendered inside FeatureShell's `.rovora-site`, so the site's
+   theme variables cascade in and dark mode needs no extra rules. */
+
+.band {
+  background: var(--bg-1);
+  border-top: 1px solid var(--line-1);
+  border-bottom: 1px solid var(--line-1);
+}
+
+/* ── Who it's for ── */
+.audience {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.audCard {
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  background: var(--bg-1);
+  padding: 24px 24px 22px;
+  display: flex;
+  flex-direction: column;
+}
+.audWho {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+}
+.audSituation {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.audGets {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-1);
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-1);
+  display: flex;
+  gap: 9px;
+  margin-top: auto;
+}
+.audSituation + .audGets {
+  margin-top: 16px;
+}
+.audCard .audGets {
+  margin-top: auto;
+}
+.audCard .audSituation {
+  margin-bottom: 16px;
+}
+.audArrow {
+  color: var(--accent);
+  font-weight: 600;
+  flex: none;
+}
+
+/* ── Problems ── */
+.pains {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.pain {
+  border: 1px solid var(--line-2);
+  border-left: 3px solid var(--warn, #d97706);
+  border-radius: 12px;
+  background: var(--bg-0);
+  padding: 20px 22px;
+}
+.pain h3,
+.limit h3 {
+  margin: 0;
+  font-size: 16.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+.pain p,
+.limit p {
+  margin: 8px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+/* ── Steps ── */
+.steps {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 820px;
+  position: relative;
+}
+.steps::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  background: var(--line-2);
+}
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 20px;
+  padding: 14px 0;
+}
+.stepNum {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--bg-0);
+  border: 2px solid var(--accent-line);
+  position: relative;
+  z-index: 1;
+}
+.step h3 {
+  margin: 5px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+}
+.step p {
+  margin: 7px 0 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+}
+
+/* ── Limits ── */
+.limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.limit {
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  padding: 20px 22px;
+  background: var(--bg-1);
+}
+.limitsFoot,
+.faqFoot {
+  margin: 26px auto 0;
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--text-3);
+}
+.limitsFoot a,
+.faqFoot a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Related ── */
+.related {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.relCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  background: var(--bg-1);
+  padding: 22px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.relCard:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-2px);
+}
+.relKind {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.relTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+}
+.relIcon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.relIcon svg {
+  width: 16px;
+  height: 16px;
+}
+.relBlurb {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.relGo {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* ── Price strip ── */
+.priceWrap {
+  padding: 8px 0 0;
+}
+.price {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) auto;
+  gap: 28px;
+  align-items: center;
+  border: 1px solid var(--line-2);
+  border-radius: 18px;
+  background: var(--bg-1);
+  padding: 24px 28px;
+}
+.priceKicker {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.priceText p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.pricePlans {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+}
+.pricePlans li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 20px;
+  border-left: 1px solid var(--line-2);
+}
+.planName {
+  font-size: 13px;
+  color: var(--text-3);
+}
+.planPrice {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+.planPrice small {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-left: 2px;
+}
+.planNote {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+.priceCta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.priceLink {
+  font-size: 13.5px;
+  color: var(--text-2);
+  text-decoration: none;
+}
+.priceLink:hover {
+  color: var(--accent);
+}
+
+/* ── Hero proof chips ── */
+.proof {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 10px;
+  margin-top: 22px;
+}
+.proof span {
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--text-2);
+}
+
+@media (max-width: 960px) {
+  .audience,
+  .related {
+    grid-template-columns: 1fr;
+  }
+  .price {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .pricePlans li:first-child {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .priceCta {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 720px) {
+  .pains,
+  .limits {
+    grid-template-columns: 1fr;
+  }
+  .pricePlans {
+    grid-auto-flow: row;
+    gap: 12px;
+  }
+  .pricePlans li {
+    border-left: 0;
+    padding: 0;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 10px;
+  }
+}
