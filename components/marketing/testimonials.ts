@@ -30,6 +30,20 @@ export interface Testimonial {
   stars?: 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
   /** Set to true only for real, approved quotes. */
   live: boolean;
+  /** Optional homepage customer story ("Fleet notes"). Only the first live
+   *  entry with one is shown. */
+  story?: {
+    /** Pull-quote — must be a word-for-word excerpt of `quote`. */
+    pull: string;
+    /** Part of `pull` to emphasise; must appear in it exactly. */
+    highlight?: string;
+    /** Who they are, e.g. 'Fleet manager'. */
+    title: string;
+    /** Number of vehicles they run. */
+    fleetSize: number;
+    /** Where, e.g. 'Malta'. */
+    place: string;
+  };
 }
 
 export const TESTIMONIALS: Testimonial[] = [
@@ -41,6 +55,13 @@ export const TESTIMONIALS: Testimonial[] = [
     quote:
       'Before Rovora, I used to send the rosters as a screenshot from Excel into the chat. Now it’s fully automated every week, straight from the dashboard.',
     live: true,
+    story: {
+      pull: 'Now it’s fully automated every week, straight from the dashboard.',
+      highlight: 'fully automated',
+      title: 'Fleet manager',
+      fleetSize: 9,
+      place: 'Malta',
+    },
   },
   {
     name: 'PLACEHOLDER — customer name',

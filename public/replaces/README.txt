@@ -1,4 +1,4 @@
-Logos for the homepage "One app instead of all of these" section.
+Logos for the homepage "Everything integrated into one app" section.
 Drop the files in THIS folder with EXACTLY these names:
 
   excel.png

@@ -31,6 +31,42 @@ export const FEATURES: FeatureLink[] = [
 
 export const featureHref = (slug: string) => `/features/${slug}`;
 
+export interface FeatureMenuGroup {
+  heading: string;
+  items: { slug: string; label: string; blurb: string }[];
+}
+
+/** The Features menu (desktop sheet and phone menu): feature pages grouped by job. */
+export const FEATURE_MENU: FeatureMenuGroup[] = [
+  {
+    heading: 'Fleet',
+    items: [
+      { slug: 'vehicles', label: 'Vehicle management', blurb: 'Every vehicle, document and driver in one record.' },
+      { slug: 'maintenance', label: 'Maintenance & services', blurb: 'Service reminders by date or mileage.' },
+      { slug: 'damage', label: 'Damage & repairs', blurb: 'Log damage with photos and track repairs.' },
+      { slug: 'live-tracking', label: 'Live driver tracking', blurb: 'See drivers and vehicles on one live map.' },
+    ],
+  },
+  {
+    heading: 'Drivers',
+    items: [
+      { slug: 'rosters', label: 'Rosters & shifts', blurb: 'Plan the week and publish it to drivers.' },
+      { slug: 'messages', label: 'Driver messaging', blurb: 'Message drivers without the group chats.' },
+      { slug: 'safety', label: 'Driver safety', blurb: 'Harsh braking and speeding, scored per driver.' },
+      { slug: 'driver-app', label: 'Driver app', blurb: 'Shifts, earnings and statements on their phone.' },
+    ],
+  },
+  {
+    heading: 'Money & admin',
+    items: [
+      { slug: 'settlements', label: 'Weekly settlements', blurb: 'Driver pay worked out every week.' },
+      { slug: 'flexible-pay', label: 'Flexible pay', blurb: 'Splits, rents and commission your way.' },
+      { slug: 'adjustments', label: 'Adjustments', blurb: 'Fines, fuel and advances, kept fair.' },
+      { slug: 'bookkeeping', label: 'Financials & bookkeeping', blurb: 'Income, costs and profit by week.' },
+    ],
+  },
+];
+
 export interface AudienceLink {
   slug: string;
   label: string;

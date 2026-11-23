@@ -84,6 +84,24 @@ export const Icon = {
   repeat: (p: SVGProps<SVGSVGElement>) => (
     <svg {...base} {...p}><path d="M4 7h12a4 4 0 0 1 4 4M20 17H8a4 4 0 0 1-4-4" /><path d="M16 3l4 4-4 4M8 21l-4-4 4-4" /></svg>
   ),
+  monitor: (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
+  ),
+  mapPin: (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+  ),
+  arrowRight: (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p} strokeWidth={2}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+  ),
+  quote: (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><path d="M4 11h5v7H4zM4 11c0-3.5 1.5-5.5 5-6.5M15 11h5v7h-5zM15 11c0-3.5 1.5-5.5 5-6.5" /></svg>
+  ),
+  play: (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p} fill="currentColor" stroke="none"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" /></svg>
+  ),
+  download: (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+  ),
 };
 
 export type IconName = keyof typeof Icon;

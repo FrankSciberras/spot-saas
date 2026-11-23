@@ -58,6 +58,8 @@ export interface TrialCopy {
   first: string;
   /** 'First 30 days free' — a ready-made checkmark line. */
   freeLabel: string;
+  /** '30-day', '3-month', '1-year' — reads as "Start my 30-day trial". */
+  lengthAdj: string;
   /** The campaign that's running, or null when it's the standard trial. */
   promo: null | {
     label: string | null;
@@ -139,6 +141,12 @@ export function trialSpan(days: number): string {
   return `${n} ${unit}${n === 1 ? '' : 's'}`;
 }
 
+/** '30-day', '3-month', '1-year'. */
+export function trialLengthAdj(days: number): string {
+  const { n, unit } = lengthParts(days);
+  return `${n}-${unit}`;
+}
+
 /** '31 October' for '2026-10-31'. */
 export function formatOfferDay(day: string): string {
   return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -153,6 +161,7 @@ export function trialCopy(offer: TrialOffer, now: Date = new Date()): TrialCopy 
     span: trialSpan(days),
     first,
     freeLabel: `F${first.slice(1)} free`,
+    lengthAdj: trialLengthAdj(days),
     promo: live
       ? {
           label: live.label,
