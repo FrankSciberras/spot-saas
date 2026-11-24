@@ -43,10 +43,17 @@ const isAnalyticsBeacon = (pathname: string) => pathname === COLLECT_PATH;
  */
 const isPopupRoute = (pathname: string) => pathname === '/api/site-popups' || pathname === '/api/site-popups/hit';
 
+/**
+ * The app's boot splash pings this to check the server is up before it lifts.
+ * It returns a constant and reads no cookies, so refreshing a Supabase session
+ * first only made the splash wait on an extra auth round-trip.
+ */
+const isHealthCheck = (pathname: string) => pathname === '/api/health';
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPublicApiRoute(pathname) || isAnalyticsBeacon(pathname) || isPopupRoute(pathname)) {
+  if (isPublicApiRoute(pathname) || isAnalyticsBeacon(pathname) || isPopupRoute(pathname) || isHealthCheck(pathname)) {
     return NextResponse.next();
   }
 

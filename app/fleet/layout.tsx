@@ -26,7 +26,21 @@ export default async function FleetLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole(['admin', 'staff']);
-  const [billing, plans] = await Promise.all([getFleetBilling(user.organization_id), getPlans()]);
+
+  // Everything the shell needs, read side by side: one wait instead of two.
+  //  - billing + plans: the lock check and the plan banner.
+  //  - which product modules this fleet has switched on (drives the sidebar,
+  //    the "+ New" menu and dashboard quick actions),
+  //  - the fleet's settings and this person's preferences (lib/settings).
+  // The last three are cached per request, so the per-page module guards and
+  // pages asking again reuse these same reads.
+  const [billing, plans, enabledModules, fleetSettings, preferences] = await Promise.all([
+    getFleetBilling(user.organization_id),
+    getPlans(),
+    getEnabledModuleKeys(user.organization_id),
+    getFleetSettingsResolved(user.organization_id),
+    getUserPreferencesResolved(user.id),
+  ]);
 
   // Locked = expired trial or platform suspension. Outgrowing a paid plan no
   // longer locks the dashboard (see fleet-billing.ts); it shows a banner and the
@@ -34,17 +48,6 @@ export default async function FleetLayout({
   if (billing.locked) {
     redirect('/billing');
   }
-
-  // Which product modules this fleet has switched on (drives the sidebar, the
-  // "+ New" menu and dashboard quick actions). Cached per request, so the
-  // per-page module guards reuse this same read.
-  // …plus the fleet's settings and this person's preferences (lib/settings),
-  // all three cached per request so pages asking again reuse the same reads.
-  const [enabledModules, fleetSettings, preferences] = await Promise.all([
-    getEnabledModuleKeys(user.organization_id),
-    getFleetSettingsResolved(user.organization_id),
-    getUserPreferencesResolved(user.id),
-  ]);
 
   return (
     <BrandingShell>
