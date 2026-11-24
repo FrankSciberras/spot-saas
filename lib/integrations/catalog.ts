@@ -244,7 +244,7 @@ export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
         bg: '#0f172a',
         fg: '#ffffff',
         desc: 'A REST API for drivers, vehicles and bookkeeping transactions, with scoped keys and an OpenAPI spec. On plans that include API access.',
-        logoSrc: '/logo-mark.png',
+        logoSrc: '/logo-mark-small.png',
         status: 'live',
         href: '/fleet/api',
         more: '/docs/api',

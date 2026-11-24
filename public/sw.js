@@ -1,11 +1,37 @@
 // Rovora Fleet Management Service Worker
-const CACHE_NAME = 'rovora-dashboard-v17';
+//
+// What this worker does, and on purpose does NOT do:
+//
+//  - Page loads (navigations): always asks the server for the current page,
+//    then keeps a copy so the page still opens offline. If the server is down
+//    or unreachable, the last copy is shown; failing that, /offline.
+//  - A short list of app-shell files (manifest, icons) is kept for offline use.
+//  - EVERYTHING ELSE goes straight to the browser, untouched: Next.js JS/CSS
+//    chunks, RSC payloads (client-side navigation), images, fonts, /api, and
+//    any request to another origin or scheme (chrome-extension://, analytics,
+//    Supabase, map tiles, YouTube...).
+//
+// The previous version funnelled every request through the worker and copied
+// every response into one never-pruned cache. That (a) threw on
+// chrome-extension:// requests, (b) threw "Cache.put() encountered a network
+// error" whenever Next.js cancelled a prefetch, (c) grew the cache with every
+// deploy, and worst of all (d) let the HTTP cache's stale-while-revalidate hand
+// the worker the PREVIOUS deploy's HTML. That HTML points at JS/CSS chunks the
+// new deploy no longer has: the page loaded unstyled and half-broken
+// (404 chunks, "MIME type text/plain") until a second reload. Hashed chunks
+// are immutable and the browser's HTTP cache already keeps them for a year,
+// so the worker has nothing to add there.
+//
+// Bump CACHE_NAME whenever this file changes how things are cached: the
+// activate step deletes every other cache, which clears old copies.
+const CACHE_NAME = 'rovora-dashboard-v18';
 const OFFLINE_URL = '/offline';
 
-// Assets to cache for offline use
-const STATIC_ASSETS = [
-  '/',
-  '/offline',
+// Pages cached at install so there is always something to show offline.
+const PRECACHE_PAGES = ['/', OFFLINE_URL];
+
+// Non-page files the worker answers for (network first, cached copy offline).
+const SHELL_FILES = [
   '/manifest.webmanifest',
   '/favicon.ico',
   '/icons/android-chrome-192x192.png',
@@ -13,127 +39,167 @@ const STATIC_ASSETS = [
   '/icons/apple-touch-icon.png',
 ];
 
-// Retry configuration for cold start handling
+// A page load that hasn't answered after this long falls back to the cached
+// copy (or /offline) instead of leaving the driver staring at a blank screen.
+const NAVIGATION_TIMEOUT = 10000;
+
+// Retry configuration for cold starts (a 502/503/504 or a dropped connection
+// while the container restarts after a deploy).
 const RETRY_CONFIG = {
   maxRetries: 2,
   retryDelay: 1500,
   retryStatusCodes: [502, 503, 504],
 };
 
-// Helper: Fetch with retry for cold starts
-async function fetchWithRetry(request, retries = RETRY_CONFIG.maxRetries) {
-  try {
-    const response = await fetch(request.clone());
-    
-    // If gateway error and retries remaining, wait and retry
-    if (RETRY_CONFIG.retryStatusCodes.includes(response.status) && retries > 0) {
-      console.log(`[SW] Got ${response.status}, retrying... (${retries} left)`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.retryDelay));
-      return fetchWithRetry(request, retries - 1);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Fetch a page, always checking with the server first.
+ *
+ * `cache: 'no-cache'` makes the browser revalidate its HTTP-cached copy (a
+ * cheap 304 when nothing changed) instead of serving it under the response's
+ * `stale-while-revalidate` window, which for pages is a year. A navigate-mode
+ * Request can't be cloned with a different cache mode, so it is rebuilt from
+ * its URL. `redirect: 'manual'` hands redirects (e.g. signed-out -> /login)
+ * back to the browser to follow, so the address bar ends up on the right URL.
+ */
+function fetchPage(request) {
+  return fetch(request.url, {
+    method: 'GET',
+    headers: request.headers,
+    credentials: 'include',
+    redirect: 'manual',
+    cache: 'no-cache',
+    referrer: request.referrer,
+  });
+}
+
+/**
+ * Get the live page: the navigation-preload response when the browser already
+ * started one (it runs in parallel with this worker waking up), otherwise a
+ * fresh fetch. Gateway errors and dropped connections are retried, because
+ * they usually mean the container is mid-restart.
+ */
+async function fetchLivePage(event) {
+  for (let attempt = 0; ; attempt++) {
+    const lastAttempt = attempt >= RETRY_CONFIG.maxRetries;
+    try {
+      const preloaded = attempt === 0 ? await event.preloadResponse : undefined;
+      const response = preloaded || (await fetchPage(event.request));
+      if (lastAttempt || !RETRY_CONFIG.retryStatusCodes.includes(response.status)) {
+        return response;
+      }
+      console.log(`[SW] Got ${response.status}, retrying...`);
+    } catch (error) {
+      if (lastAttempt) throw error;
+      console.log('[SW] Page fetch failed, retrying...');
     }
-    
-    return response;
-  } catch (error) {
-    if (retries > 0) {
-      console.log(`[SW] Fetch failed, retrying... (${retries} left)`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.retryDelay));
-      return fetchWithRetry(request, retries - 1);
-    }
-    throw error;
+    await sleep(RETRY_CONFIG.retryDelay);
   }
 }
 
-// Install event - cache static assets
+async function offlineFallback(request) {
+  return (
+    (await caches.match(request)) ||
+    (await caches.match(OFFLINE_URL)) ||
+    new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
+  );
+}
+
+async function handleNavigation(event) {
+  try {
+    const response = await Promise.race([
+      fetchLivePage(event),
+      sleep(NAVIGATION_TIMEOUT).then(() => {
+        throw new Error('Network timeout');
+      }),
+    ]);
+    // Keep a copy for offline use. Only complete, same-origin 200s: never
+    // redirects, errors or partial responses.
+    if (response.status === 200 && response.type === 'basic') {
+      const copy = response.clone();
+      event.waitUntil(
+        caches
+          .open(CACHE_NAME)
+          .then((cache) => cache.put(event.request, copy))
+          .catch(() => {}),
+      );
+    }
+    return response;
+  } catch {
+    return offlineFallback(event.request);
+  }
+}
+
+// Install event - cache the offline pages and app-shell files
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
-    })
+      // 'reload' skips the HTTP cache so the copies are from this deploy.
+      return cache.addAll(
+        [...PRECACHE_PAGES, ...SHELL_FILES].map((url) => new Request(url, { cache: 'reload' })),
+      );
+    }),
   );
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - turn on navigation preload, clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+    (async () => {
+      // Lets the browser start the page request while this worker boots,
+      // instead of waiting for it. Not supported everywhere; harmless if not.
+      if (self.registration.navigationPreload) {
+        try {
+          await self.registration.navigationPreload.enable();
+        } catch {
+          /* unsupported */
+        }
+      }
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)),
       );
-    })
+      await self.clients.claim();
+    })(),
   );
-  self.clients.claim();
 });
 
-// Fetch event - network first with timeout, fallback to cache
+// Fetch event - pages and app-shell files only; everything else is left alone
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+  const { request } = event;
+  if (request.method !== 'GET') return;
 
-  // Skip API requests and Supabase
-  const url = new URL(event.request.url);
-  if (url.pathname.startsWith('/api') || url.hostname.includes('supabase')) {
+  // Only our own origin. This also skips chrome-extension://, data: and every
+  // third party (Supabase, analytics, map tiles...).
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === 'navigate') {
+    // API routes and file downloads opened directly aren't pages.
+    if (url.pathname.startsWith('/api/')) return;
+    event.respondWith(handleNavigation(event));
     return;
   }
 
-  // For navigation requests, use retry logic to handle cold starts
-  if (event.request.mode === 'navigate') {
+  if (!url.search && SHELL_FILES.includes(url.pathname)) {
     event.respondWith(
-      Promise.race([
-        fetchWithRetry(event.request).then((response) => {
-          // Cache successful navigation responses
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          return response;
-        }),
-        // 10 second timeout (accounts for retries) - if server is cold, serve cached version
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Network timeout')), 10000)
-        )
-      ]).catch(async () => {
-        // Try cache first, then offline page
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-        return caches.match(OFFLINE_URL) || new Response('Offline', { status: 503 });
-      })
+      fetch(request).catch(() =>
+        caches
+          .match(request)
+          .then((cached) => cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })),
+      ),
     );
-    return;
   }
-
-  // For other requests, standard network-first approach
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Clone and cache successful responses
-        if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Fallback to cache
-        return caches.match(event.request).then((response) => {
-          if (response) return response;
-          return new Response('Offline', { status: 503 });
-        });
-      })
-  );
+  // Anything else: no respondWith, so the browser fetches it normally.
 });
 
 // Push notification event
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received');
-  
+
   let data = {
     title: 'Rovora',
     body: 'You have a new notification',

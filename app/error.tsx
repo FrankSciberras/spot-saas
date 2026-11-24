@@ -1,16 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { rovoraFontVars } from '@/lib/rovoraFonts';
 
 const REFRESH_KEY = 'error_page_refresh';
 
 /**
+ * A JS/CSS chunk failed to load. In practice: a tab opened before a deploy
+ * navigates to a page whose files belong to the previous build, which the new
+ * container no longer has. The bundler caches the failed load, so "Try again"
+ * (reset) can never succeed. Only a full reload, which picks up the new build,
+ * fixes it.
+ */
+function isChunkLoadError(error: Error): boolean {
+  return (
+    error.name === 'ChunkLoadError' ||
+    /Failed to load chunk|Loading (CSS )?chunk|dynamically imported module|Importing a module script failed/i.test(
+      error.message ?? '',
+    )
+  );
+}
+
+/**
  * Root error boundary. Restyled to the Rovora design system (.rovora-site tokens
  * + button classes from app/rovora-site.css, which is imported globally).
  *
- * Behaviour is unchanged: gateway-style errors (502/503/504/fetch) auto-refresh
- * once after a short countdown; everything else shows a manual recovery card.
+ * Gateway-style errors (502/503/504/fetch) auto-refresh once after a short
+ * countdown. A failed chunk load (the app was updated under an open tab)
+ * reloads straight away. Everything else shows a manual recovery card. The
+ * same sessionStorage guard stops either from looping.
  */
 export default function GlobalError({
   error,
@@ -22,6 +41,12 @@ export default function GlobalError({
   const [countdown, setCountdown] = useState(3);
   const [hasRefreshed, setHasRefreshed] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  // This boundary catches most errors before global-error.tsx would, so it
+  // reports them itself. Otherwise Sentry never sees what users hit here.
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
 
   // Match the visitor's OS colour scheme so the card never feels out of place.
   useEffect(() => {
@@ -38,6 +63,12 @@ export default function GlobalError({
 
     const lastAttempt = sessionStorage.getItem(REFRESH_KEY);
     const recentlyRefreshed = lastAttempt && Date.now() - parseInt(lastAttempt, 10) < 15000;
+
+    if (isChunkLoadError(error) && !recentlyRefreshed) {
+      sessionStorage.setItem(REFRESH_KEY, Date.now().toString());
+      window.location.reload();
+      return;
+    }
 
     if (isGatewayError && !recentlyRefreshed) {
       setHasRefreshed(false);
@@ -61,6 +92,8 @@ export default function GlobalError({
   }, [error]);
 
   const reconnecting = !hasRefreshed;
+  // While a chunk-load reload is under way, the spinner card says why.
+  const updating = reconnecting && isChunkLoadError(error);
 
   return (
     <div className={`rovora-site ${rovoraFontVars}`} data-theme={theme}>
@@ -95,11 +128,15 @@ export default function GlobalError({
             )}
           </div>
 
-          <h1 style={st.title}>{reconnecting ? 'Reconnecting…' : 'Something went wrong'}</h1>
+          <h1 style={st.title}>
+            {updating ? 'Updating Rovora…' : reconnecting ? 'Reconnecting…' : 'Something went wrong'}
+          </h1>
           <p style={st.sub}>
-            {reconnecting
-              ? `The server didn't respond. Trying again in ${countdown}s.`
-              : 'We hit an unexpected error loading this page. You can try again or refresh.'}
+            {updating
+              ? 'A new version of Rovora was just released. Loading it now.'
+              : reconnecting
+                ? `The server didn't respond. Trying again in ${countdown}s.`
+                : 'We hit an unexpected error loading this page. You can try again or refresh.'}
           </p>
 
           {error.digest && !reconnecting && (

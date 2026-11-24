@@ -110,7 +110,7 @@ export default function ReplacesSection() {
 
           <div className="rep-hub">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-mark.png" alt="" width={40} height={40} />
+            <img src="/logo-mark-small.png" alt="" width={40} height={40} loading="lazy" decoding="async" />
             <span className="rep-hub-name">Rovora</span>
             <span className="rep-hub-sub">Connected workflows</span>
           </div>

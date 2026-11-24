@@ -21,6 +21,20 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
 ];
 
+// Page data for client-side navigation and prefetching (RSC payloads) must never
+// be reused by the browser. Static (ISR) pages send theirs with
+// `s-maxage=…, stale-while-revalidate=<1 year>`. That is meant for a CDN, and we
+// have none, but browsers honour stale-while-revalidate too. So after a deploy
+// they kept handing back the PREVIOUS build's payload for one more visit, which
+// points at JS/CSS chunks the new build no longer has: 404s, "MIME type
+// text/plain" errors, and navigations that crash or fall back to a slow full
+// reload. This is the exact header Next.js already sends for dynamic pages
+// (the signed-in app), so those are unchanged; Next.js only fills in its own
+// Cache-Control when none is set. Next's in-memory router cache still reuses
+// payloads within a visit. Full page loads (HTML) are left alone: browsers
+// revalidate those with the server, and public/sw.js asks for fresh copies.
+const neverReuse = [{ key: 'Cache-Control', value: 'private, no-cache, no-store, max-age=0, must-revalidate' }];
+
 const nextConfig = {
   // Don't advertise the framework in every response.
   poweredByHeader: false,
@@ -29,6 +43,12 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      // Client-side navigation / prefetch payloads (see neverReuse above).
+      {
+        source: '/:path((?!_next/|api/).*)',
+        has: [{ type: 'header', key: 'rsc', value: '1' }],
+        headers: neverReuse,
       },
     ];
   },
