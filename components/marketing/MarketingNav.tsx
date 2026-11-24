@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { preload } from 'react-dom';
 import FeaturesMenu from './FeaturesMenu';
 import IntegrationsMenu from './IntegrationsMenu';
 import NavActions from './NavActions';
@@ -15,14 +16,20 @@ import MobileNav from './MobileNav';
  * avatar is resolved client-side in <NavActions />.
  */
 export default function MarketingNav({ onHome = false }: { onHome?: boolean }) {
+  // Neue Haas Roman is the base face of every marketing page (app/rovora-site.css).
+  // Without a hint the browser only finds it after downloading and applying the
+  // stylesheet, so all the text re-flows from the fallback face a beat after
+  // first paint. Preloading starts it alongside the CSS. Same URL as the
+  // @font-face rule, or the browser downloads it twice.
+  preload('/fonts/NeueHaasDisplay-Roman.ttf', { as: 'font', type: 'font/ttf', crossOrigin: 'anonymous' });
   const h = (hash: string) => (onHome ? `#${hash}` : `/#${hash}`);
   return (
     <header className="nav">
       <div className="container nav-inner">
         {onHome ? (
-          <a className="logo" href="#top"><img src="/logo-full.png" alt="Rovora" /></a>
+          <a className="logo" href="#top"><img src="/logo-full.png" alt="Rovora" width={720} height={179} /></a>
         ) : (
-          <Link className="logo" href="/"><img src="/logo-full.png" alt="Rovora" /></Link>
+          <Link className="logo" href="/"><img src="/logo-full.png" alt="Rovora" width={720} height={179} /></Link>
         )}
         <nav className="nav-links" aria-label="Main navigation">
           <FeaturesMenu sectionHref={h('features')} />

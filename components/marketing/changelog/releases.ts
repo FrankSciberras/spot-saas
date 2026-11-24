@@ -35,13 +35,38 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-faster-loading',
+    date: '2026-11-24',
+    dateHuman: 'November 2026',
+    title: 'Faster pages, and no more error screens after an update',
+    summary:
+      'Rovora opens faster, and releasing an update no longer breaks the page you are on or the next one you open.',
+    highlight: true,
+    items: [
+      {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'If we released an update while you had Rovora open, moving to another page could end on the "Something went wrong" screen. Rovora now reloads itself into the new version instead.',
+      },
+      {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'The first page you opened after an update could load without its styling or stop responding. Pages now always load the latest version.',
+      },
+      {
+        tag: 'improved',
+        area: 'Platform',
+        text: 'rovora.eu loads faster. Logos and images are a fraction of their old size, and the site font starts loading straight away, so text no longer jumps as the page appears.',
+      },
+    ],
+  },
+  {
     id: '2026-11-bolt-fleet-import',
     date: '2026-11-23',
     dateHuman: 'November 2026',
     title: 'Bring your whole Bolt fleet across in one click',
     summary:
       'Connect your Bolt account and every driver and car on it can be added to Rovora in one go, instead of typing them in one by one. New fleets that work with Bolt now start right there.',
-    highlight: true,
     items: [
       {
         tag: 'new',

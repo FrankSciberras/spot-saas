@@ -11,10 +11,12 @@
    only Roman (400) and Thin (200) are declared, per the brand choice. */
 @font-face {
   font-family: 'Neue Haas Grotesk Display Pro';
-  /* Roman is what the headings use. Supplied as TTF; a WOFF2 next to it is
-     picked first if one is ever added. */
-  src: url('/fonts/NeueHaasDisplay-Roman.woff2') format('woff2'),
-       url('/fonts/NeueHaasDisplay-Roman.ttf') format('truetype');
+  /* Roman is the site's base face (headings, nav, body copy). Supplied as TTF
+     only. Don't list a WOFF2 here unless the file really exists in
+     public/fonts: a missing one 404s on every page load and holds the text
+     back until the browser falls through to the TTF. MarketingNav preloads
+     this exact URL, so keep the two in step. */
+  src: url('/fonts/NeueHaasDisplay-Roman.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
