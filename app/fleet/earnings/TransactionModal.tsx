@@ -13,7 +13,7 @@
 // =============================================================================
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, unstable_rethrow } from 'next/navigation';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import type { FinanceTransaction, PaymentMethod } from '@/lib/types/database';
 import { categoriesOfKind, type CategoryKind, type FinanceCategory } from '@/lib/config/financeCategories';
@@ -28,6 +28,8 @@ import {
   getReceiptUrlAction,
 } from '@/lib/actions/finance-transactions';
 import { useMoney } from '@/components/fleet/FleetSettingsProvider';
+import { RECEIPT_MAX_BYTES, RECEIPT_MAX_LABEL } from '@/lib/config/receipts';
+import { actionFailureMessage } from '@/lib/action-errors';
 
 export interface VehicleOption {
   id: string;
@@ -140,6 +142,13 @@ export default function TransactionModal({
   // Object URLs for the receipt thumbnail are created in the change handler;
   // the effect cleanup revokes the previous one when it is replaced or on unmount.
   const pickReceipt = (file: File | null) => {
+    // Refuse an oversized file here, with a reason. Sent anyway, the request is
+    // rejected before the upload action even runs (see lib/config/receipts.ts).
+    if (file && file.size > RECEIPT_MAX_BYTES) {
+      setError(`That file is over ${RECEIPT_MAX_LABEL}. Pick a smaller photo or PDF.`);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
     setReceiptFile(file);
     setReceiptPreview(file && file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
   };
@@ -174,37 +183,52 @@ export default function TransactionModal({
     setError(null);
     setFlash(null);
     startTransition(async () => {
-      const input = buildInput();
-      let id = transaction?.id ?? null;
+      try {
+        const input = buildInput();
+        let id = transaction?.id ?? null;
 
-      const res = isEdit && id
-        ? await updateTransactionAction(id, input)
-        : await createTransactionAction(input);
-      if (res.error) { setError(res.error); return; }
-      if (!id) id = res.id ?? null;
+        const res = isEdit && id
+          ? await updateTransactionAction(id, input)
+          : await createTransactionAction(input);
+        if (res.error) { setError(res.error); return; }
+        if (!id) id = res.id ?? null;
 
-      if (receiptFile && id) {
-        const fd = new FormData();
-        fd.append('file', receiptFile);
-        const up = await uploadReceiptAction(id, fd);
-        if (up.error) {
-          // The line itself is saved — say so, and let them retry the photo.
-          setError(`Saved, but the receipt did not upload: ${up.error}`);
-          setHasReceipt(false);
-          router.refresh();
-          onSaved?.();
-          return;
+        if (receiptFile && id) {
+          const fd = new FormData();
+          fd.append('file', receiptFile);
+          // The upload can fail outright (dropped connection, request refused)
+          // rather than return an error. Either way the line is already saved.
+          let up: { error?: string };
+          try {
+            up = await uploadReceiptAction(id, fd);
+          } catch (err) {
+            unstable_rethrow(err);
+            up = { error: actionFailureMessage(err) };
+          }
+          if (up.error) {
+            // The line itself is saved — say so, and let them retry the photo.
+            setError(`Saved, but the receipt did not upload: ${up.error}`);
+            setHasReceipt(false);
+            router.refresh();
+            onSaved?.();
+            return;
+          }
         }
-      }
 
-      router.refresh();
-      onSaved?.();
-      if (andAnother) {
-        const c = categoryById.get(categoryId);
-        setFlash(`Saved ${kind === 'income' ? '+' : '−'}${money(input.amount)}${c ? ` · ${c.name}` : ''}`);
-        resetForAnother();
-      } else {
-        onClose();
+        router.refresh();
+        onSaved?.();
+        if (andAnother) {
+          const c = categoryById.get(categoryId);
+          setFlash(`Saved ${kind === 'income' ? '+' : '−'}${money(input.amount)}${c ? ` · ${c.name}` : ''}`);
+          resetForAnother();
+        } else {
+          onClose();
+        }
+      } catch (err) {
+        // Without this a failed request escapes the transition and replaces
+        // the whole page with the error screen, form and all.
+        unstable_rethrow(err);
+        setError(actionFailureMessage(err));
       }
     });
   };
@@ -212,30 +236,45 @@ export default function TransactionModal({
   const remove = () => {
     if (!transaction) return;
     startTransition(async () => {
-      const res = await deleteTransactionAction(transaction.id);
-      if (res.error) { setError(res.error); return; }
-      router.refresh();
-      onSaved?.();
-      onClose();
+      try {
+        const res = await deleteTransactionAction(transaction.id);
+        if (res.error) { setError(res.error); return; }
+        router.refresh();
+        onSaved?.();
+        onClose();
+      } catch (err) {
+        unstable_rethrow(err);
+        setError(actionFailureMessage(err));
+      }
     });
   };
 
   const viewReceipt = () => {
     if (!transaction) return;
     startTransition(async () => {
-      const res = await getReceiptUrlAction(transaction.id);
-      if (res.url) window.open(res.url, '_blank', 'noopener');
-      else setError(res.error ?? 'Could not open the receipt.');
+      try {
+        const res = await getReceiptUrlAction(transaction.id);
+        if (res.url) window.open(res.url, '_blank', 'noopener');
+        else setError(res.error ?? 'Could not open the receipt.');
+      } catch (err) {
+        unstable_rethrow(err);
+        setError(actionFailureMessage(err));
+      }
     });
   };
 
   const detachReceipt = () => {
     if (!transaction) return;
     startTransition(async () => {
-      const res = await removeReceiptAction(transaction.id);
-      if (res.error) { setError(res.error); return; }
-      setHasReceipt(false);
-      router.refresh();
+      try {
+        const res = await removeReceiptAction(transaction.id);
+        if (res.error) { setError(res.error); return; }
+        setHasReceipt(false);
+        router.refresh();
+      } catch (err) {
+        unstable_rethrow(err);
+        setError(actionFailureMessage(err));
+      }
     });
   };
 

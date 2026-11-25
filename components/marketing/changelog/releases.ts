@@ -59,6 +59,11 @@ export const RELEASES: Release[] = [
         text: 'If your connection dropped while a page was loading, most often on the financial pages, you got the "Something went wrong" screen. Rovora now loads the page again by itself.',
       },
       {
+        tag: 'fixed',
+        area: 'Bookkeeping',
+        text: 'Attaching a large receipt photo to an income or expense line could end on the "Something went wrong" screen. Rovora now says straight away when a file is over 7 MB, and if a save fails your form stays open so you can try again.',
+      },
+      {
         tag: 'improved',
         area: 'Platform',
         text: 'Opening your dashboard from the website is quicker, and the profile icon shows it is loading as soon as you press it.',

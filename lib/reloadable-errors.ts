@@ -36,10 +36,11 @@ export function isChunkLoadError(error: Error): boolean {
  * retries over a regular one. The wording differs per browser: Chrome says
  * "network error", Safari "Load failed", Firefox "NetworkError when…" or
  * "Error in input stream". "Connection closed." is React's own message when
- * the page data ends early without a network error being reported.
+ * the page data ends early without a network error being reported; production
+ * builds of React shorten it to "Minified React error #412".
  */
 export function isConnectionError(error: Error): boolean {
-  return /^network error$|^Connection closed\.?$|Load failed|NetworkError|Error in input stream|ERR_QUIC|ERR_CONNECTION|ERR_NETWORK/i.test(
+  return /^network error$|^Connection closed\.?$|Minified React error #412\b|Load failed|NetworkError|Error in input stream|ERR_QUIC|ERR_CONNECTION|ERR_NETWORK/i.test(
     (error.message ?? '').trim(),
   );
 }
