@@ -18,13 +18,13 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth/session';
 import type { FinanceTransactionInput, PaymentMethod } from '@/lib/types/database';
+import { RECEIPT_MAX_BYTES, RECEIPT_MAX_LABEL } from '@/lib/config/receipts';
 
 type Result = { error?: string; ok?: boolean; id?: string };
 
 const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'bank', 'other'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RECEIPT_BUCKET = 'documents';
-const RECEIPT_MAX_BYTES = 10 * 1024 * 1024;
 const RECEIPT_EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
@@ -230,7 +230,7 @@ export async function uploadReceiptAction(id: string, formData: FormData): Promi
   // Extension from the MIME type, never the client-supplied filename.
   const ext = RECEIPT_EXT_BY_TYPE[file.type];
   if (!ext) return { error: 'Receipts can be a JPG, PNG, WEBP, HEIC photo or a PDF.' };
-  if (file.size > RECEIPT_MAX_BYTES) return { error: 'That file is over 10MB.' };
+  if (file.size > RECEIPT_MAX_BYTES) return { error: `That file is over ${RECEIPT_MAX_LABEL}.` };
 
   const admin = createAdminClient();
 

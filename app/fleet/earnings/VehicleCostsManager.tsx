@@ -1,7 +1,8 @@
 'use client';
 
 import { type CSSProperties, useState, useMemo, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, unstable_rethrow } from 'next/navigation';
+import { actionFailureMessage } from '@/lib/action-errors';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import type { VehicleRecurringCost } from '@/lib/types/database';
 import { categoriesOfKind, type FinanceCategory } from '@/lib/config/financeCategories';
@@ -88,13 +89,20 @@ export default function VehicleCostsManager({
   const run = (fn: () => Promise<{ error?: string; ok?: boolean }>, onDone?: () => void) => {
     setError(null);
     startTransition(async () => {
-      const res = await fn();
-      if (res.error) {
-        setError(res.error);
-        return;
+      try {
+        const res = await fn();
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        onDone?.();
+        router.refresh();
+      } catch (err) {
+        // A request that fails outright would otherwise replace the whole
+        // page with the error screen.
+        unstable_rethrow(err);
+        setError(actionFailureMessage(err));
       }
-      onDone?.();
-      router.refresh();
     });
   };
 
