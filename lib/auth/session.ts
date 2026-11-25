@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { countPendingInvites } from '@/lib/invites';
 import { redirect } from 'next/navigation';
@@ -12,8 +13,16 @@ import type { SessionUser, UserRole } from '@/lib/types/database';
  * users.role column (deprecated). Returns null if not authenticated OR if the
  * user has no memberships yet (in which case they need onboarding — handled by
  * requireAuth redirecting to /onboarding).
+ *
+ * Wrapped in React's cache(): one lookup per page render. A dashboard page
+ * asks for the session at least twice (the /fleet layout, then the page), and
+ * each lookup is three round-trips to Supabase made one after another, so the
+ * repeats were pure waiting before anything could be sent to the browser.
+ * cache() only remembers within a single server render. Server actions and
+ * route handlers still read fresh every call, so nothing can go stale after a
+ * fleet switch or a role change.
  */
-export async function getSession(): Promise<SessionUser | null> {
+export const getSession = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,21 +31,25 @@ export async function getSession(): Promise<SessionUser | null> {
     return null;
   }
 
+  // Two independent reads, so they run side by side rather than one after the
+  // other: which fleets the user belongs to, and their identity/profile fields
+  // (org-independent).
+  const [memberships, { data: profile }] = await Promise.all([
+    loadMemberships(supabase, user.id),
+    supabase
+      .from('users')
+      .select('id, email, full_name, fleet_tour_completed_at')
+      .eq('id', user.id)
+      .single(),
+  ]);
+
   // Resolve which fleet the user is currently acting within + their role there.
-  const memberships = await loadMemberships(supabase, user.id);
   const active = await pickActiveMembership(memberships);
 
   if (!active) {
     // Authenticated but belongs to no organization — needs onboarding.
     return null;
   }
-
-  // Identity/profile fields (org-independent).
-  const { data: profile } = await supabase
-    .from('users')
-    .select('id, email, full_name, fleet_tour_completed_at')
-    .eq('id', user.id)
-    .single();
 
   // If the user is a driver in the active org, resolve their driver_id there.
   let driver_id: string | undefined;
@@ -62,7 +75,7 @@ export async function getSession(): Promise<SessionUser | null> {
     memberships,
     fleet_tour_completed: !!(profile as { fleet_tour_completed_at?: string | null } | null)?.fleet_tour_completed_at,
   };
-}
+});
 
 /**
  * Requires authentication. Redirects to login if not authenticated.

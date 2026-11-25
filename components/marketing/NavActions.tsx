@@ -1,8 +1,19 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { SIGN_IN, START_TRIAL } from './links';
 import { useNavViewer } from './useNavViewer';
+
+/**
+ * A spinning ring around the avatar from the moment it is pressed until the
+ * dashboard arrives. The dashboard is rendered per person on the server, so
+ * there is a beat where the browser is waiting and the home page just sits
+ * there; without this the press looked like it had been ignored.
+ */
+function AvatarPending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span className="nav-avatar-ring" aria-hidden /> : null;
+}
 
 /**
  * The signed-in/signed-out half of the marketing nav.
@@ -25,6 +36,7 @@ export default function NavActions() {
         aria-label={`Go to your dashboard${viewer.name ? ` — ${viewer.name}` : ''}`}
       >
         <span aria-hidden>{viewer.initials}</span>
+        <AvatarPending />
       </Link>
     );
   }

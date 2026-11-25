@@ -374,6 +374,16 @@ body.mnav-open .rovora-site .rovora-chat { display: none; }
   box-shadow: 0 8px 22px -10px var(--accent);
   transform: translateY(-1px);
 }
+/* Shown while the dashboard is loading after the avatar is pressed (NavActions). */
+.rovora-site .nav-avatar { position: relative; }
+.rovora-site .nav-avatar-ring {
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid var(--accent-line); border-top-color: var(--accent);
+  animation: navAvatarSpin .7s linear infinite;
+  pointer-events: none;
+}
+@keyframes navAvatarSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rovora-site .nav-avatar-ring { animation-duration: 2s; } }
 
 .rovora-site .theme-toggle {
   display: inline-grid;

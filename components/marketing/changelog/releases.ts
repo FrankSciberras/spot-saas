@@ -54,6 +54,16 @@ export const RELEASES: Release[] = [
         text: 'The first page you opened after an update could load without its styling or stop responding. Pages now always load the latest version.',
       },
       {
+        tag: 'fixed',
+        area: 'Platform',
+        text: 'If your connection dropped while a page was loading, most often on the financial pages, you got the "Something went wrong" screen. Rovora now loads the page again by itself.',
+      },
+      {
+        tag: 'improved',
+        area: 'Platform',
+        text: 'Opening your dashboard from the website is quicker, and the profile icon shows it is loading as soon as you press it.',
+      },
+      {
         tag: 'improved',
         area: 'Platform',
         text: 'rovora.eu loads faster. Logos and images are a fraction of their old size, and the site font starts loading straight away, so text no longer jumps as the page appears.',
