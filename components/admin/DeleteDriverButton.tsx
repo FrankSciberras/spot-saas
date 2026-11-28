@@ -56,7 +56,7 @@ export default function DeleteDriverButton({ driverId, driverName }: DeleteDrive
       <p>
         Are you sure you want to delete <strong>{driverName}</strong>? This cannot be undone: their
         shifts, earnings, settlements and location history are permanently removed. To keep their
-        history, set their status to Inactive instead.
+        history, archive them instead.
       </p>
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-md)' }}>

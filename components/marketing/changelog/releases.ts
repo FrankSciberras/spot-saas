@@ -35,13 +35,43 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-archive-drivers',
+    date: '2026-11-28',
+    dateHuman: 'November 2026',
+    title: 'Archive drivers who have left, keep their history',
+    summary:
+      'When a driver leaves, archive them instead of deleting them. They can no longer sign in, but their earnings, shifts and stats stay on your dashboard and in your reports.',
+    highlight: true,
+    items: [
+      {
+        tag: 'new',
+        area: 'Drivers',
+        text: 'Archive a driver from their profile: their login stops working on the driver app and portal, and any open shift is ended.',
+      },
+      {
+        tag: 'new',
+        area: 'Drivers',
+        text: 'Archived drivers keep all their earnings, shifts, settlements, trips and safety scores, so your reports and payouts stay complete.',
+      },
+      {
+        tag: 'new',
+        area: 'Drivers',
+        text: 'Archived drivers move to their own Archived tab on the Drivers page and can be restored with one click.',
+      },
+      {
+        tag: 'improved',
+        area: 'Billing',
+        text: 'Archived drivers don’t count toward your plan’s driver limit.',
+      },
+    ],
+  },
+  {
     id: '2026-11-faster-loading',
     date: '2026-11-24',
     dateHuman: 'November 2026',
     title: 'Faster pages, and no more error screens after an update',
     summary:
       'Rovora opens faster, and releasing an update no longer breaks the page you are on or the next one you open.',
-    highlight: true,
     items: [
       {
         tag: 'fixed',

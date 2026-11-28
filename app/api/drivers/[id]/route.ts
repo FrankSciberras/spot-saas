@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getSession, isAdminOrStaff } from '@/lib/auth/session';
-import { removeMemberFromOrg } from '@/lib/members/removeMember';
+import { removeMemberFromOrg, type RemoveMemberResult } from '@/lib/members/removeMember';
+import { hasArchivedDriverRecord } from '@/lib/members/archiveDriver';
 import { createAuditLogEntry, getAuditActor } from '@/lib/audit/log';
 import type { UpdateDriverInput } from '@/lib/types/database';
 
@@ -243,8 +244,19 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'You cannot remove your own account' }, { status: 400 });
     }
 
-    // Full removal (deletes driver row + membership, and the account if last).
-    const result = await removeMemberFromOrg({ targetUserId: driver.user_id, organizationId: orgId });
+    // An archived driver no longer has a membership here, so the usual member
+    // removal can't find them — delete their record directly, then clean up an
+    // account that belongs nowhere any more.
+    const { data: archivedRow } = await admin
+      .from('drivers')
+      .select('archived_at')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .maybeSingle();
+    const result = (archivedRow as { archived_at?: string | null } | null)?.archived_at
+      ? await deleteArchivedDriver(admin, id, orgId, driver.user_id)
+      : // Full removal (deletes driver row + membership, and the account if last).
+        await removeMemberFromOrg({ targetUserId: driver.user_id, organizationId: orgId });
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
@@ -268,4 +280,33 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     console.error('Error removing driver:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+/**
+ * Permanently delete an ARCHIVED driver: their record (cascading their
+ * history) goes, and so does their account if they now belong to no fleet and
+ * have no archived record anywhere else.
+ */
+async function deleteArchivedDriver(
+  admin: ReturnType<typeof createAdminClient>,
+  driverId: string,
+  orgId: string,
+  userId: string
+): Promise<RemoveMemberResult> {
+  const { error } = await admin.from('drivers').delete().eq('id', driverId).eq('organization_id', orgId);
+  if (error) return { success: false, status: 500, error: error.message };
+
+  const { count } = await admin
+    .from('memberships')
+    .select('organization_id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  if ((count ?? 0) > 0 || (await hasArchivedDriverRecord(userId))) {
+    return { success: true, fullyDeleted: false };
+  }
+
+  const { error: profileError } = await admin.from('users').delete().eq('id', userId);
+  if (profileError) return { success: true, fullyDeleted: false };
+  const { error: authError } = await admin.auth.admin.deleteUser(userId);
+  if (authError) console.error('Error deleting auth user of archived driver:', authError);
+  return { success: true, fullyDeleted: true };
 }

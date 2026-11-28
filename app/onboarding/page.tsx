@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { loadMemberships } from '@/lib/auth/org-context';
 import { getTrialCopy } from '@/lib/billing/trial-offer-data';
+import { hasArchivedDriverRecord } from '@/lib/members/archiveDriver';
 import OnboardingForm from './OnboardingForm';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,8 @@ export default async function OnboardingPage() {
   if (memberships.length > 0) {
     redirect('/');
   }
+  // A driver their fleet archived has no fleet to set up here.
+  if (await hasArchivedDriverRecord(user.id)) redirect('/account-archived');
 
   return <OnboardingForm trial={await getTrialCopy()} />;
 }

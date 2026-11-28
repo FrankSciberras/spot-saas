@@ -5,6 +5,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { countPendingInvites } from '@/lib/invites';
 import { getEnabledModuleKeys } from '@/lib/modules/server';
 import { getUserPreferences } from '@/lib/settings/server';
+import { hasArchivedDriverRecord } from '@/lib/members/archiveDriver';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,8 @@ export default async function DashboardResolver() {
     if (user && (await countPendingInvites(createAdminClient(), user.id)) > 0) {
       redirect('/invites');
     }
+    // Archived by their fleet: explain, don't offer to set up a new fleet.
+    if (user && (await hasArchivedDriverRecord(user.id))) redirect('/account-archived');
     redirect('/onboarding');
   }
 

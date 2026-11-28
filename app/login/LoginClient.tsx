@@ -206,6 +206,11 @@ function LoginPageContent({ trial, testimonial }: SignupExtras) {
           setMode('confirm');
           return;
         }
+        // A driver whose fleet archived them (their login is blocked).
+        if (/banned/i.test(signInError.message)) {
+          window.location.assign('/account-archived');
+          return;
+        }
         setError(signInError.message);
         return;
       }

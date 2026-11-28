@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { hasArchivedDriverRecord } from '@/lib/members/archiveDriver';
 
 export interface RemoveMemberResult {
   success: boolean;
@@ -107,6 +108,15 @@ export async function removeMemberFromOrg(params: {
 
   if ((remaining ?? 0) > 0) {
     // Still belongs to another fleet — leave the global account intact.
+    return { success: true, fullyDeleted: false };
+  }
+
+  // Archived as a driver in another fleet: that fleet keeps their history, and
+  // deleting the account would cascade it away. Keep the account but block the
+  // login instead (they have no active fleet left to sign in to).
+  if (await hasArchivedDriverRecord(targetUserId)) {
+    const { error: banError } = await admin.auth.admin.updateUserById(targetUserId, { ban_duration: '876000h' });
+    if (banError) console.error('Error blocking login of archived user:', banError);
     return { success: true, fullyDeleted: false };
   }
 

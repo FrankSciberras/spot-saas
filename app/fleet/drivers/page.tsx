@@ -62,12 +62,19 @@ async function DriversContent({ user }: { user: FleetUser }) {
   weekStart.setDate(now.getDate() - 7);
 
   const orgId = user.organization_id;
-  const [driversResult, assignmentsResult, shiftsResult, earningsResult] = await Promise.all([
-    supabase
+  const DRIVER_COLS = 'id, full_name, phone, status, assigned_vehicle_id, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date, vehicles:assigned_vehicle_id (registration_number)';
+  const loadDrivers = async () => {
+    const withArchive = await supabase
       .from('drivers')
-      .select('id, full_name, phone, status, assigned_vehicle_id, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date, vehicles:assigned_vehicle_id (registration_number)')
+      .select(`${DRIVER_COLS}, archived_at`)
       .eq('organization_id', orgId)
-      .order('full_name'),
+      .order('full_name');
+    if (!withArchive.error) return withArchive;
+    // Before the archive migration the column doesn't exist yet.
+    return supabase.from('drivers').select(DRIVER_COLS).eq('organization_id', orgId).order('full_name');
+  };
+  const [driversResult, assignmentsResult, shiftsResult, earningsResult] = await Promise.all([
+    loadDrivers(),
     supabase
       .from('driver_vehicle_assignments')
       .select('driver_id, vehicles:vehicle_id (registration_number)')
@@ -147,6 +154,10 @@ async function DriversContent({ user }: { user: FleetUser }) {
         police: docState(d.police_conduct_expiry_date, now, soon),
         license: docState(d.driving_license_expiry_date, now, soon),
       },
+      archived: !!d.archived_at,
+      archivedOn: d.archived_at
+        ? new Date(d.archived_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        : undefined,
     };
   });
 

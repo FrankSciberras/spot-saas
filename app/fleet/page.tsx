@@ -113,6 +113,9 @@ async function DashboardContent({ user, isAdmin }: { user: FleetUser; isAdmin: b
       .from('drivers')
       .select('id, full_name, id_card_expiry_date, police_conduct_expiry_date, driving_license_expiry_date')
       .eq('organization_id', user.organization_id)
+      // Same as the reminder emails: only drivers still on the road (this also
+      // leaves out archived drivers, who are always inactive).
+      .eq('status', 'active')
       .or(`id_card_expiry_date.lte.${expiryDate},police_conduct_expiry_date.lte.${expiryDate},driving_license_expiry_date.lte.${expiryDate}`)
       .limit(20),
     supabase

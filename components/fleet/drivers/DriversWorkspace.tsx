@@ -21,6 +21,10 @@ export interface DriverItem {
   weekEarnings: number;
   weekHours: number;
   docs: { id: DocState; police: DocState; license: DocState };
+  /** Archived: left the fleet, no access, history kept. Shown on its own tab. */
+  archived?: boolean;
+  /** When they were archived, e.g. "12 Nov 2026". */
+  archivedOn?: string;
 }
 
 interface Props {
@@ -51,20 +55,26 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
   // Amounts in the fleet's currency (Settings → General → Money).
   const fmtEUR = useMoney();
   const router = useRouter();
-  const [filter, setFilter] = useState<'all' | 'on' | 'off' | 'issues'>('all');
+  const [filter, setFilter] = useState<'all' | 'on' | 'off' | 'issues' | 'archived'>('all');
   const [search, setSearch] = useState('');
   // Starting order: your preference (Settings → Preferences → Lists).
   const [sortBy, setSortBy] = useState<'name' | 'earnings' | 'status'>(usePreference('lists.drivers_sort'));
 
+  // Archived drivers only appear on their own tab; every other count and tab
+  // is about the current fleet.
+  const current = useMemo(() => drivers.filter((d) => !d.archived), [drivers]);
+  const archived = useMemo(() => drivers.filter((d) => d.archived), [drivers]);
+
   const counts = useMemo(() => ({
-    all: drivers.length,
-    on: drivers.filter((d) => d.status === 'on').length,
-    off: drivers.filter((d) => d.status === 'off').length,
-    issues: drivers.filter(hasIssue).length,
-  }), [drivers]);
+    all: current.length,
+    on: current.filter((d) => d.status === 'on').length,
+    off: current.filter((d) => d.status === 'off').length,
+    issues: current.filter(hasIssue).length,
+    archived: archived.length,
+  }), [current, archived]);
 
   const list = useMemo(() => {
-    let l = drivers;
+    let l = filter === 'archived' ? archived : current;
     if (filter === 'on') l = l.filter((d) => d.status === 'on');
     if (filter === 'off') l = l.filter((d) => d.status === 'off');
     if (filter === 'issues') l = l.filter(hasIssue);
@@ -77,7 +87,7 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
       if (sortBy === 'status') return (a.status === 'on' ? 0 : 1) - (b.status === 'on' ? 0 : 1);
       return a.name.localeCompare(b.name);
     });
-  }, [drivers, filter, search, sortBy]);
+  }, [current, archived, filter, search, sortBy]);
 
   const go = (id: string) => router.push(`/fleet/drivers/${id}`);
 
@@ -118,7 +128,8 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
             { k: 'on', label: 'On shift', n: counts.on, dot: 'var(--pos)' },
             { k: 'off', label: 'Off duty', n: counts.off, dot: undefined },
             { k: 'issues', label: 'Issues', n: counts.issues, dot: 'var(--warn)' },
-          ] as const).map((t) => (
+            { k: 'archived', label: 'Archived', n: counts.archived, dot: undefined },
+          ] as const).filter((t) => t.k !== 'archived' || t.n > 0).map((t) => (
             <button key={t.k} onClick={() => setFilter(t.k)} style={{ ...st.tab, ...(filter === t.k ? st.tabActive : {}) }}>
               {t.dot && <span style={{ width: 6, height: 6, borderRadius: 99, background: t.dot }} />}
               {t.label}
@@ -154,7 +165,9 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
               </div>
             </div>
             <div style={st.col}>
-              {d.status === 'on' ? (
+              {d.archived ? (
+                <span style={st.archivedPill}>Archived{d.archivedOn ? ` · ${d.archivedOn}` : ''}</span>
+              ) : d.status === 'on' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ ...st.pulse, color: 'var(--pos)' }} />
                   <span style={{ fontSize: 12.5, color: 'var(--text-1)' }}>In</span>
@@ -210,6 +223,9 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
             </div>
           </div>
         ))}
+        {filter === 'archived' && list.length > 0 && (
+          <div style={st.archivedNote}>Archived drivers can&apos;t sign in. Their shifts, earnings and stats stay in your reports. Open a driver to restore them.</div>
+        )}
         {list.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)' }}>No drivers match your filters.</div>}
       </div>
 
@@ -225,7 +241,7 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
                   {d.status === 'on' && <span style={{ ...st.pulse, color: 'var(--pos)' }} />}
                 </div>
                 <div style={{ marginTop: 2, fontSize: 12, color: 'var(--text-3)' }}>
-                  {d.status === 'on' ? <>In <span className="mono">@ {d.clockIn}</span></> : <>Last in <span style={{ color: 'var(--text-2)' }}>{d.lastShift}</span></>}
+                  {d.archived ? <span style={st.archivedPill}>Archived{d.archivedOn ? ` · ${d.archivedOn}` : ''}</span> : d.status === 'on' ? <>In <span className="mono">@ {d.clockIn}</span></> : <>Last in <span style={{ color: 'var(--text-2)' }}>{d.lastShift}</span></>}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -251,7 +267,7 @@ export default function DriversWorkspace({ drivers, canAdd, notice }: Props) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 4px', fontSize: 12, color: 'var(--text-3)' }}>
-        <span>Showing <span style={{ color: 'var(--text-1)' }}>{list.length}</span> of {counts.all} drivers</span>
+        <span>Showing <span style={{ color: 'var(--text-1)' }}>{list.length}</span> of {filter === 'archived' ? counts.archived : counts.all} {filter === 'archived' ? 'archived ' : ''}drivers</span>
       </div>
     </>
   );
@@ -298,5 +314,7 @@ const st: Record<string, CSSProperties> = {
   col: { fontSize: 13, color: 'var(--text-2)', minWidth: 0 },
   plateChip: { fontSize: 11, padding: '2px 6px', background: 'var(--bg-2)', border: '1px solid var(--line-1)', borderRadius: 4, color: 'var(--text-2)' },
   kebab: { width: 28, height: 28, borderRadius: 6, color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  archivedPill: { display: 'inline-flex', alignItems: 'center', fontSize: 11.5, padding: '2px 8px', borderRadius: 99, background: 'var(--bg-3)', color: 'var(--text-3)', whiteSpace: 'nowrap' },
+  archivedNote: { padding: '12px 18px', borderTop: '1px solid var(--line-1)', fontSize: 12, color: 'var(--text-3)' },
   mobileCard: { padding: '14px 14px', background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12, cursor: 'pointer' },
 };

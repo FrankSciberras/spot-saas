@@ -39,7 +39,7 @@ export interface RoadmapItem {
 }
 
 /** ISO date this file was last reviewed. */
-export const ROADMAP_UPDATED = '2026-11-23';
+export const ROADMAP_UPDATED = '2026-11-28';
 
 export const ROADMAP: RoadmapItem[] = [
   // ── In progress ──────────────────────────────────────────────────────────

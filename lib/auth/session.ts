@@ -3,6 +3,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { countPendingInvites } from '@/lib/invites';
 import { redirect } from 'next/navigation';
 import { loadMemberships, pickActiveMembership } from '@/lib/auth/org-context';
+import { hasArchivedDriverRecord } from '@/lib/members/archiveDriver';
 import type { SessionUser, UserRole } from '@/lib/types/database';
 
 /**
@@ -92,6 +93,9 @@ export async function requireAuth(): Promise<SessionUser> {
       // them (e.g. via the driver app, which never passes /dashboard) — answer
       // that first, otherwise they'd set up a fleet of their own by mistake.
       if ((await countPendingInvites(createAdminClient(), user.id)) > 0) redirect('/invites');
+      // A driver their fleet archived: tell them, rather than offering to set
+      // up a fleet of their own.
+      if (await hasArchivedDriverRecord(user.id)) redirect('/account-archived');
       redirect('/onboarding');
     }
     redirect('/login');

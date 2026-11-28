@@ -6,6 +6,7 @@ import Link from 'next/link';
 import FleetIcon from '@/components/fleet/FleetIcon';
 import { useFleetSetting } from '@/components/fleet/FleetSettingsProvider';
 import DeleteDriverButton from '@/components/admin/DeleteDriverButton';
+import ArchiveDriverButton from '@/components/admin/ArchiveDriverButton';
 import FleetBackLink from '@/components/fleet/FleetBackLink';
 import styles from './DriverProfile.module.css';
 
@@ -45,6 +46,8 @@ interface DriverData {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /** Set when the fleet archived this driver (no access, history kept). */
+  archived_at?: string | null;
   users?: { id: string; email: string } | null;
   vehicles?: { id: string; registration_number: string; make: string; model: string } | null;
 }
@@ -511,14 +514,26 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
           <div className={styles.heroInfo}>
             <h1 className={styles.heroName}>{driver.full_name}</h1>
             <div className={styles.heroBadges}>
-              <span className={`badge ${driver.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
-                {driver.status}
-              </span>
+              {initialDriver.archived_at ? (
+                <span className="badge badge-secondary">archived</span>
+              ) : (
+                <span className={`badge ${driver.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                  {driver.status}
+                </span>
+              )}
               <span className="badge badge-info">{employmentLabel(driver.employment_type)}</span>
             </div>
           </div>
         </div>
       </div>
+
+      {initialDriver.archived_at && (
+        <div className="alert alert-info" style={{ marginBottom: 16 }}>
+          Archived on {new Date(initialDriver.archived_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+          {' '}This driver can&apos;t sign in any more. Their shifts, earnings and stats stay in your reports.
+          {isAdmin ? ' Restore them at the bottom of this page.' : ''}
+        </div>
+      )}
 
       {/* ── Stats Row ── */}
       <div className={styles.statsRow}>
@@ -831,6 +846,29 @@ export default function DriverProfile({ driver: initialDriver, vehicles, documen
                 {resettingPassword ? 'Resetting...' : 'Reset Password'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Archive / restore ── */}
+      {isAdmin && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}><FleetIcon name="archive" size={16} /></div>
+            <h3 className={styles.sectionTitle}>{initialDriver.archived_at ? 'Restore Driver' : 'Archive Driver'}</h3>
+          </div>
+          <div className={styles.sectionBody}>
+            <p className={styles.passwordHint}>
+              {initialDriver.archived_at
+                ? 'Put this driver back on your active list and give them their access back.'
+                : `Driver left? Archive them: ${driver.user_id ? 'they can no longer sign in, but ' : ''}their earnings, shifts and stats stay on your dashboard.`}
+            </p>
+            <ArchiveDriverButton
+              driverId={driver.id}
+              driverName={driver.full_name}
+              archived={!!initialDriver.archived_at}
+              hasLogin={!!driver.user_id}
+            />
           </div>
         </div>
       )}

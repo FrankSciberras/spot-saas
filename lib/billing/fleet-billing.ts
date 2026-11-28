@@ -84,7 +84,9 @@ export const getFleetBilling = cache(async (organizationId: string): Promise<Fle
     supabase
       .from('drivers')
       .select('id', { count: 'exact', head: true })
-      .eq('organization_id', organizationId),
+      .eq('organization_id', organizationId)
+      // Archived drivers keep their history but don't use up a plan seat.
+      .is('archived_at', null),
     supabase
       .from('vehicles')
       .select('id', { count: 'exact', head: true })

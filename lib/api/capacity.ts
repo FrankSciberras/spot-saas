@@ -27,7 +27,7 @@ export async function checkApiCapacity(
   const [plans, orgRes, driverCount, vehicleCount] = await Promise.all([
     getPlans(),
     admin.from('organizations').select('plan').eq('id', organizationId).maybeSingle(),
-    admin.from('drivers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
+    admin.from('drivers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).is('archived_at', null),
     admin.from('vehicles').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
   ]);
 
@@ -85,7 +85,7 @@ export async function planRoom(organizationId: string): Promise<PlanRoom> {
   const [plans, orgRes, driverCount, vehicleCount] = await Promise.all([
     getPlans(),
     admin.from('organizations').select('plan').eq('id', organizationId).maybeSingle(),
-    admin.from('drivers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
+    admin.from('drivers').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).is('archived_at', null),
     admin.from('vehicles').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
   ]);
 

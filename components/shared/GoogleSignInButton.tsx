@@ -99,6 +99,9 @@ function friendlyError(message: string): string {
   }
   if (/nonce/i.test(message)) return 'That Google sign-in timed out. Please try again.';
   if (/signups? not allowed/i.test(message)) return 'New sign-ups are closed at the moment.';
+  if (/banned/i.test(message)) {
+    return 'Your fleet has archived your account, so you can’t sign in any more. Please contact your fleet manager.';
+  }
   return 'Google sign-in didn’t work. Please try again, or use your email and password.';
 }
 
